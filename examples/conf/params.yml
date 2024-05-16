@@ -1,0 +1,36 @@
+filesystem:
+  local: &filesystem_local
+    protocol: local
+    profile: local
+    bucket: /Users/z0043ddz/data/PU1
+  idl: &filesystem_idl
+    protocol: s3
+    profile: mdsp
+    bucket: datalake-prod-a-sagewn-1595245204497/data/ten=sagewn/PU1/
+
+pipelines:
+  iot_to_idl:
+    df_raw1:
+      asset_id: 7c2d63f252dd40f0a1bd3275ea20c120
+      aspect: Zelle2_Prozessdaten_vereinzelt
+    df_raw2:
+      asset_id: 18c88c4fd71e4af1ab0090a44b8762d7
+      aspect: Zelle3_Prozessdaten_Teil1_vereinzelt
+
+run:
+  dev:
+    iot_to_idl:
+      inputs:
+        filesystem_params: *filesystem_local
+        on_: Serialnummer_Motor
+        how: inner
+        path: MSA_FPY
+      final_vars: [to_idl]
+  prod:
+    iot_to_idl:
+      inputs:
+        filesystem_params: *filesystem_idl
+        on_: Serialnummer_Motor
+        how: inner
+        path: MSA_FPY
+      final_vars: [to_idl]

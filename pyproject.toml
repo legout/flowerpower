@@ -1,0 +1,37 @@
+[project]
+authors = [
+  {name = "Volker Lorrmann", email = "z0043ddz@macvgfd7qj3n6.speedport.ip"},
+]
+dependencies = [
+    "pydala2 @ git+https://github.com/legout/pydala2",
+    "sf-hamilton[visualization,sdk]>=1.62.0",
+    "python-dotenv>=1.0.1",
+]
+description = "Add your description here"
+name = "flowerpower"
+readme = "README.md"
+requires-python = ">= 3.8"
+version = "0.1.0"
+
+[project.optional-dependencies]
+mindsphere-tools = [
+  "mindsphere-tools[idl,timeseries]>=0.2.11.1",
+]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.rye]
+dev-dependencies = []
+managed = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flowerpower"]
+
+[[tool.rye.sources]]
+name = "mindsphere-tools"
+url = "https://volker:${MINDSPHERE_TOOLS_TOKEN}@code.siemens.com/api/v4/projects/239371/packages/pypi/simple"

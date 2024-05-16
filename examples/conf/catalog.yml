@@ -1,0 +1,116 @@
+filesystem:
+  mdsp: &filesystem_mdsp
+    bucket: datalake-prod-a-sagewn-1595245204497/data/ten=sagewn
+    profile: mdsp
+    protocol: s3
+  local:
+    bucket: /Users/z0043ddz/data
+    profile:
+    protocol: local
+  swfs: &filesystem_swfs
+    bucket: datalake-prod-a-sagewn-1595245204497/data/ten=sagewn
+    profile: swfs
+    protocol: s3
+tables:
+  raw:
+    orders:
+      path: sdi/trace_daten/asis/orders
+      type: dataset
+      format: json
+      filesystem: local
+    products:
+      path: sdi/trace_daten/asis/products
+      type: dataset
+      format: json
+      filesystem: local
+    sap:
+      path: sdi/trace_daten/sap
+      type: dataset
+      format: parquet
+      filesystem: local
+  stage1:
+    orders:
+      path: EWN/TraceData/stage1/orders
+      type: dataset
+      format: parquet
+      filesystem: local
+    products:
+      path: EWN/TraceData/stage1/products
+      type: dataset
+      format: parquet
+      filesystem: local
+    sap:
+      path: EWN/TraceData/stage1/sap
+      type: dataset
+      format: parquet
+      filesystem: local
+  stage2:
+    orders:
+      path: EWN/TraceData/stage2/orders
+      type: dataset
+      format: parquet
+      timestamp_column: genealogydata_assembleddatetime
+      partitioning_columns: [year, month]
+      filesystem: local
+      write_args:
+        mode: delta
+        delta_subset:
+          [
+            genealogydata_assembleddatetime,
+            productionordernumber,
+            genealogydata_materialnumber,
+            genealogydata_tracedata,
+          ]
+        sort_by: [genealogydata_assembleddatetime, productionordernumber]
+        unique: true
+    products:
+      path: EWN/TraceData/stage2/products
+      type: pyarrow_parquet.dataset
+      timestamp_column: genealogydata_assembleddatetime
+      partitioning_columns: [year, month]
+      filesystem: local
+      write_args:
+        mode: delta
+        delta_subset:
+          [
+            genealogydata_assembleddatetime,
+            productionordernumber,
+            genealogydata_materialnumber,
+            genealogydata_tracedata,
+          ]
+        sort_by: [genealogydata_assembleddatetime, productionordernumber]
+        unique: true
+    sap:
+      path: EWN/TraceData/stage2/sap
+      type: pyarrow_parquet.dataset
+      timestamp_column: afko_getri_timestamp
+      partitioning_columns: [year, month]
+      filesystem: local
+      delta_subset:
+        [
+          afko_getri_timestamp,
+          afko_aufnr,
+          afko_lead_aufnr,
+          resb_matnr,
+          resb_posnr,
+          resb_bdmng,
+        ]
+      sort_by: [afko_lead_aufnr, afko_getri_timestamp]
+      unique: true
+  final:
+    path: EWN/TraceData/final
+    type: pyarrow_parquet.dataset
+    timestamp_column: genealogydata_assembleddatetime
+    partitioning_columns: [query_name, year, month]
+    filesystem: local
+    write_args:
+      mode: delta
+      delta_subset:
+        [
+          genealogydata_assembleddatetime,
+          productionordernumber,
+          genealogydata_materialnumber,
+          genealogydata_tracedata,
+        ]
+      sort_by: [genealogydata_assembleddatetime, productionordernumber]
+      unique: true
