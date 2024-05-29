@@ -20,7 +20,7 @@ def load_pipeline_params(path: str | None = None, ht_values: bool = False) -> Mu
     """
 
     if path is None:
-        path = list(Path.cwd().parents[2].rglob("pipeline*.y*ml"))
+        path = list(Path.cwd().rglob("pipeline*.y*ml"))
         if not len(path):
             return
         path = path[0]
@@ -64,7 +64,7 @@ def load_catalog(namespace: str | None = None, path: str | None = None) -> Catal
         Catalog: The loaded catalog object.
     """
     if path is None:
-        path = list(Path.cwd().parents[2].rglob("catalog*.y*ml"))
+        path = list(Path.cwd().rglob("catalog*.y*ml"))
         if not len(path):
             return
         path = path[0]
@@ -87,7 +87,7 @@ def load_scheduler_params(
         Catalog: The loaded catalog object.
     """
     if path is None:
-        path = list(Path.cwd().parents[2].rglob("scheduler*.y*ml"))
+        path = list(Path.cwd().rglob("scheduler*.y*ml"))
         if not len(path):
             return
         path = path[0]

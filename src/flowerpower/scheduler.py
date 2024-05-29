@@ -3,7 +3,9 @@ from apscheduler import Scheduler
 import sys
 
 
-def get_scheduler(conf_path: str | None = None, pipelines_path: str = ".") -> Scheduler:
+def get_scheduler(
+    conf_path: str | None = None, pipelines_path: str = "pipelines"
+) -> Scheduler:
 
     PARAMS = load_scheduler_params(path=conf_path)
     sys.path.append(pipelines_path)
@@ -86,11 +88,11 @@ def get_scheduler(conf_path: str | None = None, pipelines_path: str = ".") -> Sc
 
 def start_scheduler(
     conf_path: str | None = None,
-    # pipelines_path: str = "pipelines",
+    pipelines_path: str = "pipelines",
     background: bool = True,
 ):
     # sys.path.append(pipelines_path)
-    scheduler = get_scheduler(conf_path=conf_path)
+    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     if background:
         scheduler.start_in_background()
     else:
@@ -98,7 +100,9 @@ def start_scheduler(
     return scheduler
 
 
-def remove_all_schedules(conf_path: str | None = None):
+def remove_all_schedules(
+    conf_path: str | None = None, pipelines_path: str = "pipelines"
+):
     scheduler = get_scheduler(conf_path=conf_path)
     for sched in scheduler.get_schedules():
         scheduler.remove_schedule(sched.id)
@@ -106,13 +110,15 @@ def remove_all_schedules(conf_path: str | None = None):
     return scheduler
 
 
-def add_schedule(conf_path: str | None = None, **kwargs):
-    scheduler = get_scheduler(conf_path=conf_path)
+def add_schedule(
+    conf_path: str | None = None, pipelines_path: str = "pipelines", **kwargs
+):
+    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     scheduler.add_schedule(**kwargs)
     return scheduler
 
 
-def add_job(conf_path: str | None = None, **kwargs):
-    scheduler = get_scheduler(conf_path=conf_path)
+def add_job(conf_path: str | None = None, pipelines_path: str = "pipelines", **kwargs):
+    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     scheduler.add_job(**kwargs)
     return scheduler
