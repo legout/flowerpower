@@ -142,7 +142,7 @@ def schedule_pipeline(
     scheduler.add_schedule(
         run_pipeline,
         trigger=trigger,
-        args=(environment, pipeline, with_tracker, project_id),
+        args=(pipeline, environment, with_tracker, project_id),
         kwargs=kwargs,
     )
 
