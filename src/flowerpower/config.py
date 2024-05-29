@@ -21,6 +21,7 @@ def load_pipeline_params(path: str | None = None, ht_values: bool = False) -> Mu
 
     if path is None:
         path = list(Path(__file__).parents[2].rglob("pipeline*.y*ml"))
+        print(path)
         if not len(path):
             return
         path = path[0]
