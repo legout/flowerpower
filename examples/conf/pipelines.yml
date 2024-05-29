@@ -1,3 +1,4 @@
+path: pipelines
 pipelines:
   my_flow:
     read:
@@ -12,4 +13,3 @@ run:
     my_flow:
       inputs:
       final_vars: [write]
-       

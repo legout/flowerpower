@@ -5,7 +5,7 @@ from loguru import logger
 
 # from hamilton.execution import executors
 from .config import load_pipeline_params
-from .scheduler import configure_scheduler
+from .scheduler import get_scheduler
 from typing import Any
 
 # from .pipelines import *
@@ -85,7 +85,7 @@ def schedule_pipeline(
     project_id: int | None = None,
     **kwargs,
 ):
-    scheduler = configure_scheduler()
+    scheduler = get_scheduler()
     if type == "cron":
         if crontab is not None:
             from apscheduler.triggers.cron import CronTrigger

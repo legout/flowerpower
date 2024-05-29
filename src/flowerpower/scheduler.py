@@ -1,11 +1,12 @@
 from .config import load_scheduler_params
 from apscheduler import Scheduler
+import sys
 
 
-def configure_scheduler(path: str | None = None) -> Scheduler:
+def get_scheduler(conf_path: str | None = None, pipelines_path: str = ".") -> Scheduler:
 
-    PARAMS = load_scheduler_params(path=path)
-
+    PARAMS = load_scheduler_params(path=conf_path)
+    sys.path.append(pipelines_path)
     data_store = None
     event_broker = None
     engine = None
@@ -82,3 +83,36 @@ def configure_scheduler(path: str | None = None) -> Scheduler:
 
     return scheduler
 
+
+def start_scheduler(
+    conf_path: str | None = None,
+    # pipelines_path: str = "pipelines",
+    background: bool = True,
+):
+    # sys.path.append(pipelines_path)
+    scheduler = get_scheduler(conf_path=conf_path)
+    if background:
+        scheduler.start_in_background()
+    else:
+        scheduler.run_until_stopped()
+    return scheduler
+
+
+def remove_all_schedules(conf_path: str | None = None):
+    scheduler = get_scheduler(conf_path=conf_path)
+    for sched in scheduler.get_schedules():
+        scheduler.remove_schedule(sched.id)
+
+    return scheduler
+
+
+def add_schedule(conf_path: str | None = None, **kwargs):
+    scheduler = get_scheduler(conf_path=conf_path)
+    scheduler.add_schedule(**kwargs)
+    return scheduler
+
+
+def add_job(conf_path: str | None = None, **kwargs):
+    scheduler = get_scheduler(conf_path=conf_path)
+    scheduler.add_job(**kwargs)
+    return scheduler
