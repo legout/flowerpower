@@ -12,7 +12,6 @@ aiobotocore==2.12.3
     # via s3fs
 aiohttp==3.9.5
     # via aiobotocore
-    # via mindsphere-tools
     # via s3fs
     # via sf-hamilton-sdk
 aioitertools==0.11.0
@@ -27,8 +26,6 @@ apscheduler==4.0.0a5
     # via flowerpower
 asttokens==2.4.1
     # via stack-data
-asyncio==3.4.3
-    # via mindsphere-tools
 asyncpg==0.29.0
     # via flowerpower
 attrs==23.2.0
@@ -46,12 +43,9 @@ click==8.1.7
     # via sf-hamilton-sdk
 decorator==5.1.1
     # via ipython
-deprecated==1.2.14
-    # via mindsphere-tools
 dnspython==2.6.1
     # via pymongo
 duckdb==0.10.2
-    # via mindsphere-tools
     # via pydala2
 executing==2.0.1
     # via stack-data
@@ -60,7 +54,6 @@ frozenlist==1.4.1
     # via aiosignal
 fsspec==2024.5.0
     # via flowerpower
-    # via mindsphere-tools
     # via s3fs
 gitdb==4.0.11
     # via gitpython
@@ -69,8 +62,6 @@ gitpython==3.1.43
 graphviz==0.20.3
     # via sf-hamilton
 greenlet==3.0.3
-    # via flowerpower
-huey==2.5.0
     # via flowerpower
 idna==3.7
     # via anyio
@@ -84,7 +75,6 @@ jinja2==3.1.4
 jmespath==1.0.1
     # via botocore
 joblib==1.4.2
-    # via mindsphere-tools
     # via pydala2
 loguru==0.7.2
     # via sf-hamilton-sdk
@@ -92,12 +82,9 @@ markupsafe==2.1.5
     # via jinja2
 matplotlib-inline==0.1.7
     # via ipython
-mindsphere-tools==0.2.11.1
-    # via flowerpower
 monotonic==1.6
     # via posthog
 msgspec==0.18.6
-    # via mindsphere-tools
     # via pydala2
 multidict==6.0.5
     # via aiohttp
@@ -115,7 +102,6 @@ numpy==1.26.4
 paho-mqtt==2.1.0
     # via flowerpower
 pandas==2.2.2
-    # via mindsphere-tools
     # via pydala2
     # via sf-hamilton
 parso==0.8.4
@@ -125,7 +111,6 @@ pendulum==3.0.0
 pexpect==4.9.0
     # via ipython
 polars==0.20.26
-    # via mindsphere-tools
     # via pydala2
 polars-lts-cpu==0.20.30
     # via flowerpower
@@ -138,11 +123,9 @@ ptyprocess==0.7.0
 pure-eval==0.2.2
     # via stack-data
 pyarrow==16.1.0
-    # via mindsphere-tools
     # via pydala2
 pydala2 @ git+https://github.com/legout/pydala2@eb2a060345d2b89d19422e6c4f340e04a71017ac
     # via flowerpower
-    # via mindsphere-tools
 pygments==2.18.0
     # via ipython
 pymongo==4.7.2
@@ -158,18 +141,14 @@ python-dotenv==1.0.1
 pytz==2024.1
     # via pandas
 pyyaml==6.0.1
-    # via mindsphere-tools
+    # via flowerpower
 redis==5.0.4
     # via flowerpower
 requests==2.31.0
-    # via mindsphere-tools
     # via posthog
     # via sf-hamilton-sdk
 s3fs==2024.5.0
-    # via mindsphere-tools
     # via pydala2
-schedule==1.2.1
-    # via flowerpower
 sf-hamilton==1.62.0
     # via flowerpower
     # via sf-hamilton-sdk
@@ -194,11 +173,9 @@ stack-data==0.6.3
     # via ipython
 tenacity==8.3.0
     # via apscheduler
-    # via mindsphere-tools
 time-machine==2.14.1
     # via pendulum
 tqdm==4.66.4
-    # via mindsphere-tools
     # via pydala2
 traitlets==5.14.3
     # via ipython
@@ -222,6 +199,5 @@ wcwidth==0.2.13
     # via prompt-toolkit
 wrapt==1.16.0
     # via aiobotocore
-    # via deprecated
 yarl==1.9.4
     # via aiohttp

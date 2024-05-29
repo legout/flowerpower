@@ -23,8 +23,9 @@ def load_pipeline_params(path: str | None = None, ht_values: bool = False) -> Mu
         path = list(Path(__file__).parents[2].rglob("pipeline*.y*ml"))
         if not len(path):
             return
+        path = path[0]
 
-    with open(path[0]) as f:
+    with open(path) as f:
         params = yaml.full_load(f)
 
     if ht_values:
@@ -66,8 +67,9 @@ def load_catalog(namespace: str | None = None, path: str | None = None) -> Catal
         path = list(Path(__file__).parents[2].rglob("catalog*.y*ml"))
         if not len(path):
             return
+        path = path[0]
 
-    return Catalog(path=path[0], namespace=namespace)
+    return Catalog(path=path, namespace=namespace)
 
 
 def load_scheduler_params(
@@ -88,8 +90,9 @@ def load_scheduler_params(
         path = list(Path(__file__).parents[2].rglob("scheduler*.y*ml"))
         if not len(path):
             return
+        path = path[0]
 
-    with open(path[0]) as f:
+    with open(path) as f:
         params = yaml.full_load(f)
 
     return munchify(params)

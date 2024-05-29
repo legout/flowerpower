@@ -3,10 +3,11 @@ authors = [
   {name = "Volker Lorrmann", email = "ligno.blades@gmail.com"},
 ]
 dependencies = [
-  "pydala2 @ git+https://github.com/legout/pydala2",
-  "sf-hamilton[visualization,sdk]>=1.62.0",
-  "python-dotenv>=1.0.1",
-  "fsspec>=2024.5.0",
+    "pydala2 @ git+https://github.com/legout/pydala2",
+    "sf-hamilton[visualization,sdk]>=1.62.0",
+    "python-dotenv>=1.0.1",
+    "fsspec>=2024.5.0",
+    "pyyaml>=6.0.1",
 ]
 description = "Add your description here"
 name = "flowerpower"
@@ -18,16 +19,6 @@ version = "0.1.0"
 legacy = [
   "polars-lts-cpu>=0.20.30",
 ]
-scheduler = [
-  "apscheduler>=4.0.0a5",
-  "aiosqlite>=0.20.0",
-  "greenlet>=3.0.3",
-  "asyncpg>=0.29.0",
-  "sqlalchemy>=2.0.30",
-]
-# mindsphere-tools = [
-#   "mindsphere-tools[idl,timeseries]>=0.2.11.1",
-# ]
 mongodb = [
   "pymongo>=4.7.2",
 ]
@@ -36,6 +27,13 @@ mqtt = [
 ]
 redis = [
   "redis>=5.0.4",
+]
+scheduler = [
+  "apscheduler>=4.0.0a5",
+  "aiosqlite>=0.20.0",
+  "greenlet>=3.0.3",
+  "asyncpg>=0.29.0",
+  "sqlalchemy>=2.0.30",
 ]
 
 [build-system]

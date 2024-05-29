@@ -81,3 +81,4 @@ def configure_scheduler(path: str | None = None) -> Scheduler:
     scheduler = Scheduler(data_store=data_store, event_broker=event_broker)
 
     return scheduler
+

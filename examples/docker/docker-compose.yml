@@ -35,7 +35,7 @@ services:
     volumes:
       - jupyterlab:/home/jovyan
       - ../conf:/home/jovyan/conf
-      - ../../src:/home/jovyan/src
+      #- ../../src:/home/jovyan/src
       - ./requirements.txt:/home/jovyan/requirements_.txt
       #- ./mdsp_credentials.yml:/home/ubuntu/.config/mdsp/credentials.yml 
       #- ./requirements.txt:/tmp/requirements.txt
