@@ -1,0 +1,28 @@
+{
+  "identities": [
+    {
+      "name": "anonymous",
+      "actions": [
+        "Read"
+      ]
+    },
+    {
+      "name": "edge_admin",
+      "credentials": [
+        {
+          "accessKey": "edge",
+          "secretKey": "edge"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "ReadAcp",
+        "List",
+        "Tagging",
+        "Write",
+        "WriteAcp"
+      ]
+    }
+  ]
+}

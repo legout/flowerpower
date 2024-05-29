@@ -1,11 +1,12 @@
 [project]
 authors = [
-  {name = "Volker Lorrmann", email = "z0043ddz@macvgfd7qj3n6.speedport.ip"},
+  {name = "Volker Lorrmann", email = "ligno.blades@gmail.com"},
 ]
 dependencies = [
-    "pydala2 @ git+https://github.com/legout/pydala2",
-    "sf-hamilton[visualization,sdk]>=1.62.0",
-    "python-dotenv>=1.0.1",
+  "pydala2 @ git+https://github.com/legout/pydala2",
+  "sf-hamilton[visualization,sdk]>=1.62.0",
+  "python-dotenv>=1.0.1",
+  "fsspec>=2024.5.0",
 ]
 description = "Add your description here"
 name = "flowerpower"
@@ -14,8 +15,27 @@ requires-python = ">= 3.8"
 version = "0.1.0"
 
 [project.optional-dependencies]
-mindsphere-tools = [
-  "mindsphere-tools[idl,timeseries]>=0.2.11.1",
+legacy = [
+  "polars-lts-cpu>=0.20.30",
+]
+scheduler = [
+  "apscheduler>=4.0.0a5",
+  "aiosqlite>=0.20.0",
+  "greenlet>=3.0.3",
+  "asyncpg>=0.29.0",
+  "sqlalchemy>=2.0.30",
+]
+# mindsphere-tools = [
+#   "mindsphere-tools[idl,timeseries]>=0.2.11.1",
+# ]
+mongodb = [
+  "pymongo>=4.7.2",
+]
+mqtt = [
+  "paho-mqtt>=2.1.0",
+]
+redis = [
+  "redis>=5.0.4",
 ]
 
 [build-system]
@@ -23,7 +43,9 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [tool.rye]
-dev-dependencies = []
+dev-dependencies = [
+  "ipython>=8.24.0",
+]
 managed = true
 
 [tool.hatch.metadata]
@@ -32,6 +54,6 @@ allow-direct-references = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/flowerpower"]
 
-[[tool.rye.sources]]
-name = "mindsphere-tools"
-url = "https://volker:${MINDSPHERE_TOOLS_TOKEN}@code.siemens.com/api/v4/projects/239371/packages/pypi/simple"
+# [[tool.rye.sources]]
+# name = "mindsphere-tools"
+# url = "https://volker:${MINDSPHERE_TOOLS_TOKEN}@code.siemens.com/api/v4/projects/239371/packages/pypi/simple"

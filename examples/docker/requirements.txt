@@ -7,7 +7,7 @@
 #   all-features: true
 #   with-sources: false
 
--e file:.
+
 aiobotocore==2.12.3
     # via s3fs
 aiohttp==3.9.5
@@ -81,8 +81,6 @@ loguru==0.7.2
     # via sf-hamilton-sdk
 markupsafe==2.1.5
     # via jinja2
-mindsphere-tools==0.2.11.1
-    # via flowerpower
 monotonic==1.6
     # via posthog
 msgspec==0.18.6

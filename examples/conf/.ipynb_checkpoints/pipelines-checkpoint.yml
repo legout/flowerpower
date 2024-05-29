@@ -1,0 +1,15 @@
+pipelines:
+  my_flow:
+    read:
+      table_name: raw.orders
+    append_col:
+      col_name: genealogydata_genealogytracetype
+    write:
+      table_name: stage2.orders
+
+run:
+  prod:
+    my_flow:
+      inputs:
+      final_vars: [write]
+       

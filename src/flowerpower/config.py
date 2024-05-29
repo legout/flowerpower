@@ -5,7 +5,7 @@ from pathlib import Path
 from hamilton.function_modifiers import value
 
 
-def load_params(path: str | None = None, ht_values: bool = False) -> Munch:
+def load_pipeline_params(path: str | None = None, ht_values: bool = False) -> Munch:
     """
     Load parameters from a YAML file.
 
@@ -20,18 +20,20 @@ def load_params(path: str | None = None, ht_values: bool = False) -> Munch:
     """
 
     if path is None:
-        path = list(Path(__file__).parents[2].rglob("param*.y*ml"))[0]
+        path = list(Path(__file__).parents[2].rglob("pipeline*.y*ml"))
+        if not len(path):
+            return
 
-    with open(path) as f:
+    with open(path[0]) as f:
         params = yaml.full_load(f)
 
     if ht_values:
-        params = to_ht_value(params)
+        params = _to_ht_value(params)
 
     return munchify(params)
 
 
-def to_ht_value(value_dict: dict) -> dict:
+def _to_ht_value(value_dict: dict) -> dict:
     """
     Recursively converts the values in a dictionary to a specific format.
 
@@ -43,7 +45,7 @@ def to_ht_value(value_dict: dict) -> dict:
 
     """
     if isinstance(value_dict, dict):
-        return {k: to_ht_value(v) for k, v in value_dict.items()}
+        return {k: _to_ht_value(v) for k, v in value_dict.items()}
     else:
         return value(value_dict)
 
@@ -61,6 +63,33 @@ def load_catalog(namespace: str | None = None, path: str | None = None) -> Catal
         Catalog: The loaded catalog object.
     """
     if path is None:
-        path = list(Path(__file__).parents[2].rglob("catalog*.y*ml"))[0]
+        path = list(Path(__file__).parents[2].rglob("catalog*.y*ml"))
+        if not len(path):
+            return
 
-    return Catalog(path=path, namespace=namespace)
+    return Catalog(path=path[0], namespace=namespace)
+
+
+def load_scheduler_params(
+    path: str | None = None,
+) -> Munch:
+    """
+    Load a catalog from a YAML file.
+
+    Args:
+        namespace (str | None, optional): The namespace of the catalog. Defaults to None.
+        path (str | None, optional): The path to the YAML file. If not provided, the function will search
+            for a file named "catalog*.y*ml" in the parent directories. Defaults to None.
+
+    Returns:
+        Catalog: The loaded catalog object.
+    """
+    if path is None:
+        path = list(Path(__file__).parents[2].rglob("scheduler*.y*ml"))
+        if not len(path):
+            return
+
+    with open(path[0]) as f:
+        params = yaml.full_load(f)
+
+    return munchify(params)

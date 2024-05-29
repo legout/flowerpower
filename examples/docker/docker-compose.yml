@@ -1,0 +1,141 @@
+version: '3'
+services:
+  ie-databus:
+    image: eclipse-mosquitto
+    volumes:
+      - mosquitto:/mosquitto
+    ports:
+      - 1883:1883
+    environment:
+      - MOSQUITTO_USERNAME=edge
+      - MOSQUITTO_PASSWORD=edge
+    #command: mosquitto -c /mosquitto-no-auth.conf
+
+  nodered:
+    image: nodered/node-red
+    volumes:
+      - nodered:/data
+    ports: 
+      - 1880:1880
+    
+  jupyterlab:
+    image: jupyter/datascience-notebook
+    #build:
+    #  context: .
+    #  dockerfile: ../Dockerfile
+    #  args:
+    #    MINDSPHERE_TOOLS_ACCESS_TOKEN: $MINDSPHERE_TOOLS_ACCESS_TOKEN
+    container_name: jupyterlab
+      
+    ports:
+      - 8889:8889
+    #environment:
+    #  - MINDSPHERE_TOOLS_ACCESS_TOKEN=$MINDSPHERE_TOOLS_ACCESS_TOKEN
+    #  - PYTHONPATH=$PYTHONPATH:/home/jovyan/lib
+    volumes:
+      - jupyterlab:/home/jovyan
+      - ../conf:/home/jovyan/conf
+      - ../../src:/home/jovyan/src
+      - ./requirements.txt:/home/jovyan/requirements_.txt
+      #- ./mdsp_credentials.yml:/home/ubuntu/.config/mdsp/credentials.yml 
+      #- ./requirements.txt:/tmp/requirements.txt
+    command: jupyter lab --ip=0.0.0.0 --port=8889 --no-browser --allow-root --IdentityProvider.token=''
+  
+  s3:
+    image: chrislusf/seaweedfs
+    ports:
+      - 8888:8888
+      - 8081:8080
+      - 9333:9333
+      - 8333:8333
+    command: server -ip=s3 -filer -master.volumeSizeLimitMB=1024 -volume.max=0 -volume -volume.preStopSeconds=1 -s3 -s3.config=/etc/seaweedfs/s3.json -s3.allowEmptyFolder=true -s3.allowDeleteBucketNotEmpty=false
+    volumes:
+      - ./s3.json:/etc/seaweedfs/s3.json
+      - s3:/data
+    environment:
+      WEED_MASTER_VOLUME_GROWTH_COPY_1: 1
+      WEED_MASTER_VOLUME_GROWTH_COPY_OTHER: 1
+   
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config 
+
+  db:
+    image: postgres:12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=flowerpower
+      - POSTGRES_USER=edge
+      - POSTGRES_PASSWORD=edge
+    ports:
+      - 5432:5432
+    # healthcheck:
+    #   test: [ "CMD-SHELL", "pg_isready -U postgres -P password" ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    restart: always
+
+  backend:
+    image: dagworks/ui-backend:latest
+    #build:
+    #    context: ./
+    #    dockerfile: deployment/Dockerfile.backend-prod
+    entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
+    ports:
+      - 8241:8241
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=flowerpower
+      - DB_USER=edge
+      - DB_PASSWORD=edge # TODO: Change this to a secret
+      - HAMILTON_BLOB_STORE=local
+      - HAMILTON_ENV=local # local env
+      - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
+      - DJANGO_SECRET_KEY=do_not_use_in_production
+      - HAMILTON_TELEMETRY_ENABLED=false #${HAMILTON_TELEMETRY_ENABLED-true}
+      - HAMILTON_AUTH_MODE=permissive
+    depends_on:
+      - db
+    volumes:
+      - backend_data:/data/
+
+  frontend:
+    image: dagworks/ui-frontend:latest
+    #build:
+    #  context: ./
+    #  dockerfile: deployment/Dockerfile.frontend-prod
+    #  args:
+    #    - REACT_APP_AUTH_MODE=local
+    #    - REACT_APP_USE_POSTHOG=false
+    ports:
+      - 8242:8242
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_AUTH_MODE=local
+      - REACT_APP_USE_POSTHOG=false
+# TODO -- use envsubst to replace the backend url in the nginx config
+# this is currently hardcoded in the nginx config
+#      - REACT_APP_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  mosquitto:
+  nodered:
+  s3:
+  jupyterlab:
+  postgres_data:
+  backend_data:
+  caddy_data:
+  caddy_config:
