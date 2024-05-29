@@ -61,6 +61,7 @@ def run_pipeline(
 
 def schedule_pipeline(
     pipeline: str,
+    environment: str = "prod",
     type: str = "cron",
     year: int | str | None = None,
     month: int | str | None = None,
@@ -141,7 +142,7 @@ def schedule_pipeline(
     scheduler.add_schedule(
         run_pipeline,
         trigger=trigger,
-        args=(pipeline, with_tracker, project_id),
+        args=(environment, pipeline, with_tracker, project_id),
         kwargs=kwargs,
     )
 
