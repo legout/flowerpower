@@ -1,5 +1,6 @@
 # import typer
 import datetime as dt
+
 # from .pipelines import *
 import importlib
 import os
@@ -13,6 +14,7 @@ from loguru import logger
 from munch import munchify
 
 from .cfg import PIPELINE, SCHEDULER, TRACKER, write
+
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
 
@@ -162,8 +164,7 @@ def schedule(
             # timezone=timezone,
         )
     elif type == "calendar":
-        from apscheduler.triggers.calendarinterval import \
-            CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
         weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
         days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
@@ -236,6 +237,10 @@ def new(
     pipeline_cfg = PIPELINE or munchify(
         {"path": pipelines_path, "run": {}, "params": {}}
     )
+    if pipeline_cfg.params is None:
+        pipeline_cfg.params = {}
+    if pipeline_cfg.run is None:
+        pipeline_cfg.run = {}
 
     pipeline_run = kwargs.get("run", None)
     pipeline_params = kwargs.get("params", None)
@@ -258,7 +263,8 @@ def new(
             "pipeline": {},
         }
     )
-
+    if scheduler_cfg.pipeline is None:
+        scheduler_cfg.pipeline = {}
     schedule_params = kwargs.get("schedule", None)
     scheduler_cfg.pipeline[name] = schedule_params or {"type": None}
 
@@ -281,7 +287,9 @@ def new(
         "dag_name": None,
         "tags": None,
     }
-
+    if tracker_cfg.pipeline is None:
+        tracker_cfg.pipeline = {}
+        
     write(tracker_cfg, "tracker", conf_path)
 
     logger.success(f"Created pipeline {name}")

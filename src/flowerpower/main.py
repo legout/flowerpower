@@ -7,7 +7,15 @@ def init(conf_path: str = "conf", pipelines_path: str = "pipelines"):
     os.makedirs(conf_path, exist_ok=True)
     os.makedirs(pipelines_path, exist_ok=True)
 
-    write({"path": pipelines_path, "run": None, "params": None}, "pipelines", conf_path)
+    write(
+        {
+            "path": pipelines_path,
+            "run": None,
+            "params": None,
+        },
+        "pipelines",
+        conf_path,
+    )
     write(
         {
             "username": None,
