@@ -280,16 +280,16 @@ def new(
             "pipeline": {},
         }
     )
-
+    if tracker_cfg.pipeline is None:
+        tracker_cfg.pipeline = {}
+        
     tracker_params = kwargs.get("tracker", None)
     tracker_cfg.pipeline[name] = tracker_params or {
         "project_id": None,
         "dag_name": None,
         "tags": None,
     }
-    if tracker_cfg.pipeline is None:
-        tracker_cfg.pipeline = {}
-        
+    
     write(tracker_cfg, "tracker", conf_path)
 
     logger.success(f"Created pipeline {name}")
