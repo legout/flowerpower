@@ -25,7 +25,8 @@ def _load(name:str, path:str|None=None) -> dict:
         
         if not len(path):
             logger.error(f"No YAML file found with name '{name}'")
-        #    raise FileNotFoundError(f"No YAML file found with name '{name}'")
+            return
+
         path = path[0]
 
     with open(path) as f:
