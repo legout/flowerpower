@@ -39,6 +39,7 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via sf-hamilton-sdk
+    # via typer
 dnspython==2.6.1
     # via pymongo
 duckdb==0.10.2
@@ -69,8 +70,12 @@ joblib==1.4.2
     # via pydala2
 loguru==0.7.2
     # via sf-hamilton-sdk
+markdown-it-py==3.0.0
+    # via rich
 markupsafe==2.1.5
     # via jinja2
+mdurl==0.1.2
+    # via markdown-it-py
 monotonic==1.6
     # via posthog
 msgspec==0.18.6
@@ -105,6 +110,8 @@ pyarrow==16.1.0
     # via pydala2
 pydala2 @ git+https://github.com/legout/pydala2@eb2a060345d2b89d19422e6c4f340e04a71017ac
     # via flowerpower
+pygments==2.18.0
+    # via rich
 pymongo==4.7.2
     # via flowerpower
 python-dateutil==2.9.0.post0
@@ -124,6 +131,9 @@ redis==5.0.4
 requests==2.31.0
     # via posthog
     # via sf-hamilton-sdk
+rich==13.7.1
+    # via flowerpower
+    # via typer
 s3fs==2024.5.0
     # via pydala2
 sf-hamilton==1.62.0
@@ -131,6 +141,8 @@ sf-hamilton==1.62.0
     # via sf-hamilton-sdk
 sf-hamilton-sdk==0.4.0
     # via sf-hamilton
+shellingham==1.5.4
+    # via typer
 six==1.16.0
     # via posthog
     # via python-dateutil
@@ -151,10 +163,13 @@ time-machine==2.14.1
     # via pendulum
 tqdm==4.66.4
     # via pydala2
+typer==0.12.3
+    # via flowerpower
 typing-extensions==4.11.0
     # via aiosqlite
     # via sf-hamilton
     # via sqlalchemy
+    # via typer
     # via typing-inspect
 typing-inspect==0.9.0
     # via sf-hamilton

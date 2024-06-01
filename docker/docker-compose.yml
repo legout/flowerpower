@@ -1,0 +1,24 @@
+version: "2"
+services:
+  code-server:
+    image: linuxserver/code-server:4.89.1
+    container_name: code-server
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin # Specify a timezone to use EG Europe/London
+      - SUDO_PASSWORD=password # If this optional variable is set, user will have sudo access in the code-server terminal with the specified password.
+      - PUID=1000 # for UserID
+      - PROXY_DOMAIN=code-server.my.domain # If this optional variable is set, this domain will be proxied for subdomain proxying.
+      - PGID=1000 # for GroupID
+      - PASSWORD=password # Optional web gui password, if not provided, there will be no auth.
+    #volumes:
+      #- /host/path/to/config:/config # Contains all relevant configuration files.
+    ports:
+      - 8443:8443/tcp # Web UI
+
+  openvscode-server:
+    image: linuxserver/openvscode-server:1.89.1
+    container_name: openvscode-server
+    restart: no
+    ports:
+      - 3000:3000/tcp

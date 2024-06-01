@@ -1,0 +1,11 @@
+username: ligno.blades@gmail.com
+api_url: http://localhost:8241
+ui_url: http://localhost:8242
+api_key: 
+
+pipeline:
+  my_flow:
+    project_id: 1
+    tags:
+    dag_name:
+  

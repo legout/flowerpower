@@ -1,4 +1,4 @@
-from flowerpower.config import load_params
+from flowerpower.cfg import load_params
 from flowerpower.io.catalog import load_table, write_table
 from hamilton.function_modifiers import parameterize
 import polars as pl
