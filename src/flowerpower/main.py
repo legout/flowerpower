@@ -1,10 +1,30 @@
 import os
-from .cfg import write, TRACKER_TEMPLATE, PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE
+
+from .cfg import write
+
 
 def init(conf_path: str = "conf", pipelines_path: str = "pipelines"):
     os.makedirs(conf_path, exist_ok=True)
     os.makedirs(pipelines_path, exist_ok=True)
 
-    write(PIPELINE_TEMPLATE, "pipelines", conf_path)
-    write(TRACKER_TEMPLATE, "tracker", conf_path)
-    write(SCHEDULER_TEMPLATE, "scheduler", conf_path)
+    write({"path": pipelines_path, "run": {}, "params": {}}, "pipelines", conf_path)
+    write(
+        {
+            "username": None,
+            "api_url": "http://localhost:8241",
+            "ui_url": "http://localhost:8242",
+            "api_key": None,
+            "pipeline": {},
+        },
+        "tracker",
+        conf_path,
+    )
+    write(
+        {
+            "data_path": {"type": "memory"},
+            "event_broker": {"type": "local"},
+            "pipeline": {},
+        },
+        "scheduler",
+        conf_path,
+    )

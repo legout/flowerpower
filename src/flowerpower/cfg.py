@@ -1,16 +1,18 @@
-import yaml
-from munch import Munch, munchify, unmunchify
 from pathlib import Path
+
+import yaml
 from hamilton.function_modifiers import value
 from loguru import logger
+from munch import Munch, munchify, unmunchify
 
-def _load(name:str, path:str|None=None) -> dict:
+
+def _load(name: str, path: str | None = None) -> dict:
     """
     Load configuration parameters from a YAML file.
 
     Args:
         name (str): The name of the YAML file to load.
-        path (str|None, optional): The path to the YAML file. If not provided, the function will 
+        path (str|None, optional): The path to the YAML file. If not provided, the function will
             search for the file in the current working directory and its subdirectories.
 
     Returns:
@@ -22,7 +24,7 @@ def _load(name:str, path:str|None=None) -> dict:
     """
     if path is None:
         path = list(Path.cwd().rglob(f"{name}*.y*ml"))
-        
+
         if not len(path):
             logger.error(f"No YAML file found with name '{name}'")
             return
@@ -34,12 +36,40 @@ def _load(name:str, path:str|None=None) -> dict:
 
     return params
 
-def write(cfg:dict|Munch, name:str, path:str|None=None) -> None:
-     
-     with open(f"{path}/{name}.yml", "w") as f:
+
+def write(cfg: dict | Munch, name: str, path: str | None = None) -> None:
+    """
+    Writes the given configuration to a YAML file.
+
+    Args:
+        cfg (dict|Munch): The configuration to be written. It can be a dictionary or a Munch object.
+        name (str): The name of the YAML file to be created.
+        path (str|None, optional): The path to the directory where the YAML file will be created. If None,
+        the current working directory will be used.
+
+    Returns:
+        None
+
+    Raises:
+        None
+
+    This function opens a file with the specified name and path in write mode. It then writes the
+    configuration to the file in YAML format. The configuration is first converted to a
+    dictionary using the `unmunchify` function, and then converted to a string using the `yaml.dump`
+    function. The resulting string is then concatenated with the value of the variable `name.upper() + "_TEMPLATE"`.
+    The resulting string is then written to the file.
+
+    Example:
+        >>> cfg = {"key": "value"}
+        >>> write(cfg, "config", "/path/to/directory")
+        This will create a YAML file named "config.yml" in the specified directory with the following content:
+        CONFIG_TEMPLATE
+        key: value
+    """
+    with open(f"{path}/{name}.yml", "w") as f:
         f.write(
             eval(f"{name.upper()}_TEMPLATE")
-             + yaml.dump(unmunchify(cfg), sort_keys=False).replace("null", "")
+            + yaml.dump(unmunchify(cfg), sort_keys=False).replace("null", "")
         )
 
 
@@ -59,12 +89,13 @@ def _to_ht_value(value_dict: dict) -> dict:
     else:
         return value(value_dict)
 
+
 def load_pipeline_cfg(path: str | None = None, ht_values: bool = False) -> Munch:
     """
     Load pipeline parameters from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "pipeline*.y*ml" 
+        path (str | None): The path to the YAML file. If None, it will search for a file named "pipeline*.y*ml"
             in the current working directory.
         ht_values (bool): Whether to convert the loaded parameters to "ht_value" format.
 
@@ -72,48 +103,49 @@ def load_pipeline_cfg(path: str | None = None, ht_values: bool = False) -> Munch
         Munch: A Munch object containing the loaded pipeline parameters.
     """
 
-    params = _load("pipeline",path)
+    params = _load("pipeline", path)
 
     if ht_values:
         params = _to_ht_value(params)
 
     return munchify(params)
 
+
 def load_scheduler_cfg(path: str | None = None) -> Munch:
     """
     Load scheduler parameters from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "scheduler*.y*ml" 
+        path (str | None): The path to the YAML file. If None, it will search for a file named "scheduler*.y*ml"
             in the current working directory.
-      
+
     Returns:
         Munch: A Munch object containing the loaded scheduler parameters.
     """
 
-    params = _load("scheduler",path)
+    params = _load("scheduler", path)
 
     return munchify(params)
+
 
 def load_tracker_cfg(path: str | None = None) -> Munch:
     """
     Load tracker config from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "tracker*.y*ml" 
+        path (str | None): The path to the YAML file. If None, it will search for a file named "tracker*.y*ml"
             in the current working directory.
-      
+
     Returns:
         Munch: A Munch object containing the loaded tracker parameters.
     """
 
-    params = _load("tracker",path)
+    params = _load("tracker", path)
 
     return munchify(params)
 
 
-
-PIPELINE_TEMPLATE = """
+PIPELINES_TEMPLATE = """
 # ---------------- Pipelines Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #

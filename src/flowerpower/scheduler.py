@@ -1,15 +1,16 @@
-from .cfg import SCHEDULER
-from apscheduler import Scheduler
+import datetime as dt
 import sys
 from typing import Any
+
+from apscheduler import Scheduler
 from dateutil import tz
-import datetime as dt
+
+from .cfg import SCHEDULER
+
 
 def get_scheduler(
     conf_path: str | None = None, pipelines_path: str = "pipelines"
 ) -> Scheduler:
-
-    
     sys.path.append(pipelines_path)
     data_store = None
     event_broker = None
@@ -17,7 +18,8 @@ def get_scheduler(
     if "data_store" in SCHEDULER:
         if "type" in SCHEDULER.data_store:
             if SCHEDULER.data_store.type == "sqlalchemy":
-                from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
+                from apscheduler.datastores.sqlalchemy import \
+                    SQLAlchemyDataStore
                 from sqlalchemy.ext.asyncio import create_async_engine
 
                 if "url" not in SCHEDULER.data_store:
@@ -124,4 +126,3 @@ def add_job(conf_path: str | None = None, pipelines_path: str = "pipelines", **k
     scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     scheduler.add_job(**kwargs)
     return scheduler
-

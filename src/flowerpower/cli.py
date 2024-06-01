@@ -1,8 +1,13 @@
-from typer import Typer
-from .pipeline import run as run_pipeline, schedule as schedule_pipeline
-from .scheduler import start_scheduler as start_scheduler_, get_scheduler
 import os
-from .cfg import write, TRACKER_TEMPLATE, PIPELINES_TEMPLATE, SCHEDULER_TEMPLATE
+
+from typer import Typer
+
+from .cfg import (PIPELINES_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE,
+                  write)
+from .pipeline import run as run_pipeline
+from .pipeline import schedule as schedule_pipeline
+from .scheduler import get_scheduler
+from .scheduler import start_scheduler as start_scheduler_
 
 app = Typer()
 
@@ -51,30 +56,40 @@ def schedule(
 
 
 @app.command()
-def start_scheduler(conf_path: str | None = None, pipelines_path: str = "pipelines", background: bool = True):
-    start_scheduler_(conf_path=conf_path, pipelines_path=pipelines_path, background=background)
+def start_scheduler(
+    conf_path: str | None = None,
+    pipelines_path: str = "pipelines",
+    background: bool = True,
+):
+    start_scheduler_(
+        conf_path=conf_path, pipelines_path=pipelines_path, background=background
+    )
 
 
 @app.command()
-def show(schedules:bool=False, jobs:bool=False, pipelines:bool=False, conf_path: str ="", pipelines_path: str = "pipelines"):
+def show(
+    schedules: bool = False,
+    jobs: bool = False,
+    pipelines: bool = False,
+    conf_path: str = "",
+    pipelines_path: str = "pipelines",
+):
     from rich.console import Console
-    
+
     console = Console()
 
-    if conf_path=="":
+    if conf_path == "":
         conf_path = None
     if schedules:
         console.rule("Schedules")
         scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
         console.print(scheduler.get_schedules())
-    
+
     if jobs:
         console.rule("Jobs")
         scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
         console.print(scheduler.get_jobs())
 
-    
-    
     # list schedules
     # list jobs
     # list pipelines
@@ -82,8 +97,7 @@ def show(schedules:bool=False, jobs:bool=False, pipelines:bool=False, conf_path:
 
 
 @app.command()
-def add():
-
+def add(): ...
 
 
 @app.command()
@@ -93,15 +107,13 @@ def remove():
     # remove pipeline
     ...
 
+
 @app.command()
 def init(pipelines_path: str = "pipelines", conf_path: str = "conf"):
     os.makedirs(pipelines_path, exist_ok=True)
     os.makedirs(conf_path, exist_ok=True)
 
     write(PIPELINES_TEMPLATE, "pipelines", conf_path)
-
-    
-
 
 
 if __name__ == "__main__":

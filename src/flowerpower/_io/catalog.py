@@ -1,5 +1,7 @@
+from pydala.dataset import (CsvDataset, JsonDataset, ParquetDataset,
+                            PyarrowDataset)
+
 from ..cfg import load_catalog
-from pydala.dataset import ParquetDataset, CsvDataset, JsonDataset, PyarrowDataset
 
 CATALOG = load_catalog()
 

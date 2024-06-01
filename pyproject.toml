@@ -44,7 +44,8 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-  "ipython>=8.24.0",
+    "ipython>=8.24.0",
+    "isort>=5.13.2",
 ]
 managed = true
 

@@ -1,5 +1,7 @@
-from pydala.catalog import Catalog
 from pathlib import Path
+
+from pydala.catalog import Catalog
+
 
 def load_catalog(namespace: str | None = None, path: str | None = None) -> Catalog:
     """
@@ -20,5 +22,6 @@ def load_catalog(namespace: str | None = None, path: str | None = None) -> Catal
         path = path[0]
 
     return Catalog(path=path, namespace=namespace)
+
 
 CATALOG = load_catalog()

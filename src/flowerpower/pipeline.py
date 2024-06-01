@@ -1,23 +1,22 @@
 # import typer
+import datetime as dt
+# from .pipelines import *
+import importlib
+import os
+import sys
 from math import pi
 from xml.etree.ElementTree import PI
+
+import yaml
 from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify
 from sqlalchemy import over
 
+from .cfg import PIPELINE, SCHEDULER, TRACKER, write
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
-import sys
-
-# from .pipelines import *
-import importlib
-
-from .cfg import PIPELINE, TRACKER, SCHEDULER, write
-import os
-import datetime as dt
-import yaml
 
 
 def run(
@@ -165,7 +164,8 @@ def schedule(
             # timezone=timezone,
         )
     elif type == "calendar":
-        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import \
+            CalendarIntervalTrigger
 
         weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
         days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
@@ -254,7 +254,7 @@ def new(
 
     # scheduler configuration
     scheduler_cfg = SCHEDULER or munchify(
-        {   
+        {
             "data_path": {"type": "memory"},
             "event_broker": {"type": "local"},
             "pipeline": {},
@@ -288,4 +288,4 @@ def new(
 
     logger.success(f"Created pipeline {name}")
 
-    #return pipeline_cfg, scheduler_cfg, tracker_cfg
+    # return pipeline_cfg, scheduler_cfg, tracker_cfg
