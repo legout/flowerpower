@@ -2,7 +2,7 @@ import yaml
 from munch import Munch, munchify, unmunchify
 from pathlib import Path
 from hamilton.function_modifiers import value
-
+from loguru import logger
 
 def _load(name:str, path:str|None=None) -> dict:
     """
@@ -22,8 +22,10 @@ def _load(name:str, path:str|None=None) -> dict:
     """
     if path is None:
         path = list(Path.cwd().rglob(f"{name}*.y*ml"))
+        
         if not len(path):
-            raise FileNotFoundError(f"No YAML file found with name '{name}'")
+            logger.error(f"No YAML file found with name '{name}'")
+        #    raise FileNotFoundError(f"No YAML file found with name '{name}'")
         path = path[0]
 
     with open(path) as f:
