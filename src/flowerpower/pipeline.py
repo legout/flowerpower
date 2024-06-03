@@ -53,12 +53,8 @@ def run(
         username = kwargs.pop("username", None) or TRACKER_PARAMS.get("username", None)
         dag_name = kwargs.pop("dag_name", None) or TRACKER_PARAMS.get("dag_name", None)
         tags = kwargs.pop("tags", None) or TRACKER_PARAMS.get("tags", None)
-        hamilton_api_url = kwargs.pop("api_url", None) or TRACKER_PARAMS.get(
-            "api_url", None
-        )
-        hamilton_ui_url = kwargs.pop("ui_url", None) or TRACKER_PARAMS.get(
-            "ui_url", None
-        )
+        api_url = kwargs.pop("api_url", None) or TRACKER_PARAMS.get("api_url", None)
+        ui_url = kwargs.pop("ui_url", None) or TRACKER_PARAMS.get("ui_url", None)
 
         if project_id is None:
             raise ValueError(
@@ -71,8 +67,8 @@ def run(
             username=username,
             dag_name=dag_name,
             tags=tags,
-            api_url=hamilton_api_url,
-            ui_url=hamilton_ui_url,
+            hamilton_api_url=api_url,
+            hamilton_ui_url=ui_url,
         )
 
         dr = (
