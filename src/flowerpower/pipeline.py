@@ -17,9 +17,9 @@ from .cfg import write, load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
 
-PIPELINE = load_pipeline_cfg("conf/pipelines.yml")
-TRACKER = load_tracker_cfg("conf/tracker.yml")
-SCHEDULER = load_scheduler_cfg("conf/scheduler.yml")
+PIPELINE = load_pipeline_cfg()
+TRACKER = load_tracker_cfg()
+SCHEDULER = load_scheduler_cfg()
 
 
 def run(
@@ -35,7 +35,7 @@ def run(
     sys.path.append(pipeline_path)
     module = importlib.import_module(pipeline_name)
 
-    RUN_PARAMS = getattr(PIPELINE.run, environment)[pipeline_name]
+    RUN_PARAMS = getattr(PIPELINE.run, pipeline_name)[environment]
     TRACKER_PARAMS = TRACKER.pipeline[pipeline_name]
 
     with_tracker = kwargs.pop("with_tracker", False) or RUN_PARAMS.get(
