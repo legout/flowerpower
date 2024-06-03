@@ -1,6 +1,6 @@
 # import typer
 import datetime as dt
-from tzdata import tz
+from dateutil import tz
 
 # from .pipelines import *
 import importlib
