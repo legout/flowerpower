@@ -1,5 +1,6 @@
 # import typer
 import datetime as dt
+
 # from .pipelines import *
 import importlib
 import os
@@ -12,6 +13,7 @@ from loguru import logger
 from munch import munchify
 
 from .cfg import load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg, write
+
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
 
@@ -47,11 +49,11 @@ def run(
         project_id = kwargs.pop("project_id", None) or TRACKER_PARAMS.get(
             "project_id", None
         )
-        username = kwargs.pop("username", None) or TRACKER_PARAMS.get("username", None)
+        username = kwargs.pop("username", None) or TRACKER.get("username", None)
         dag_name = kwargs.pop("dag_name", None) or TRACKER_PARAMS.get("dag_name", None)
         tags = kwargs.pop("tags", None) or TRACKER_PARAMS.get("tags", None)
-        api_url = kwargs.pop("api_url", None) or TRACKER_PARAMS.get("api_url", None)
-        ui_url = kwargs.pop("ui_url", None) or TRACKER_PARAMS.get("ui_url", None)
+        api_url = kwargs.pop("api_url", None) or TRACKER.get("api_url", None)
+        ui_url = kwargs.pop("ui_url", None) or TRACKER.get("ui_url", None)
 
         if project_id is None:
             raise ValueError(
@@ -172,8 +174,7 @@ def schedule(
             # timezone=timezone,
         )
     elif type == "calendar":
-        from apscheduler.triggers.calendarinterval import \
-            CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
         weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
         days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
