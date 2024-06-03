@@ -27,8 +27,12 @@ def run(
     environment: str = "prod",
     **kwargs,
 ) -> None:
-    pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
-    pipeline_path = pipeline_path.replace(".", "/")
+    if "." in pipeline:
+        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
+        pipeline_path = pipeline_path.replace(".", "/")
+    else:
+        pipeline_path = PIPELINE.path
+        pipeline_name = pipeline
 
     logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
 
@@ -99,14 +103,21 @@ def schedule(
     type: str = "cron",
     **kwargs,
 ):
-    SCHEDULER_PARAMS = SCHEDULER.pipeline[pipeline]
+    if "." in pipeline:
+        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
+        pipeline_path = pipeline_path.replace(".", "/")
+    else:
+        pipeline_path = PIPELINE.path
+        pipeline_name = pipeline
+
+    SCHEDULER_PARAMS = SCHEDULER.pipeline[pipeline_name]
 
     start_time = kwargs.pop("start_time", None) or SCHEDULER_PARAMS.get(
         "start_time", None
     )
     end_time = kwargs.pop("end_time", None) or SCHEDULER_PARAMS.get("end_time", None)
 
-    scheduler = get_scheduler(PIPELINE.path)
+    scheduler = get_scheduler(pipeline_path=pipeline_path)
     if type == "cron":
         crontab = kwargs.pop("crontab", None) or SCHEDULER_PARAMS.get("crontab", None)
         if crontab is not None:
