@@ -1,5 +1,6 @@
 # import typer
 import datetime as dt
+from tzdata import tz
 
 # from .pipelines import *
 import importlib
@@ -112,8 +113,8 @@ def schedule(
 
     SCHEDULER_PARAMS = SCHEDULER.pipeline[pipeline_name]
 
-    start_time = kwargs.pop("start_time", None) or SCHEDULER_PARAMS.get(
-        "start_time", None
+    start_time = kwargs.pop("start_time", dt.datetime.now()) or SCHEDULER_PARAMS.get(
+        "start_time", dt.datetime.now()
     )
     end_time = kwargs.pop("end_time", None) or SCHEDULER_PARAMS.get("end_time", None)
 
@@ -137,9 +138,9 @@ def schedule(
             hour = kwargs.pop("hour", None) or SCHEDULER_PARAMS.get("hour", None)
             minute = kwargs.pop("minute", None) or SCHEDULER_PARAMS.get("minute", None)
             second = kwargs.pop("second", None) or SCHEDULER_PARAMS.get("second", None)
-            timezone = kwargs.pop("timezone", None) or SCHEDULER_PARAMS.get(
-                "timezone", None
-            )
+            timezone = kwargs.pop(
+                "timezone", tz.gettz("Europe/Berlin")
+            ) or SCHEDULER_PARAMS.get("timezone", tz.gettz("Europe/Berlin"))
 
             trigger = CronTrigger(
                 year=year,
