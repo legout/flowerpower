@@ -223,7 +223,10 @@ def new(
     pipelines_path: str = "pipelines",
     conf_path: str = "conf",
     overwrite: bool = False,
-    **kwargs,
+    params: dict | None = None,
+    run: dict | None = None,
+    schedule: dict | None = None,
+    tracker: dict | None = None,
 ):
     logger.info(f"Creating new pipeline {name}")
     if not os.path.exists(conf_path):
@@ -259,11 +262,11 @@ def new(
     if pipeline_cfg.run is None:
         pipeline_cfg.run = {}
 
-    pipeline_run = kwargs.get("run", None)
-    pipeline_params = kwargs.get("params", None)
+    # pipeline_run = kwargs.get("run", None)
+    # pipeline_params = kwargs.get("params", None)
 
-    pipeline_cfg.params[name] = pipeline_params or None
-    pipeline_cfg.run[name] = pipeline_run or munchify(
+    pipeline_cfg.params[name] = params or None
+    pipeline_cfg.run[name] = run or munchify(
         {
             "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
             "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
@@ -282,8 +285,8 @@ def new(
     )
     if scheduler_cfg.pipeline is None:
         scheduler_cfg.pipeline = {}
-    schedule_params = kwargs.get("schedule", None)
-    scheduler_cfg.pipeline[name] = schedule_params or {"type": None}
+    # schedule_params = kwargs.get("schedule", None)
+    scheduler_cfg.pipeline[name] = schedule or {"type": None}
 
     write(scheduler_cfg, "scheduler", conf_path)
 
@@ -300,8 +303,8 @@ def new(
     if tracker_cfg.pipeline is None:
         tracker_cfg.pipeline = {}
 
-    tracker_params = kwargs.get("tracker", None)
-    tracker_cfg.pipeline[name] = tracker_params or {
+    # tracker_params = kwargs.get("tracker", None)
+    tracker_cfg.pipeline[name] = tracker or {
         "project_id": None,
         "dag_name": None,
         "tags": None,

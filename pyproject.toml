@@ -3,19 +3,19 @@ authors = [
   {name = "Volker Lorrmann", email = "ligno.blades@gmail.com"},
 ]
 dependencies = [
-    "pydala2 @ git+https://github.com/legout/pydala2",
-    "sf-hamilton[visualization,sdk]>=1.62.0",
-    "python-dotenv>=1.0.1",
-    "fsspec>=2024.5.0",
-    "pyyaml>=6.0.1",
-    "typer>=0.12.3",
-    "rich>=13.7.1",
+  "pydala2 @ git+https://github.com/legout/pydala2",
+  "sf-hamilton[visualization,sdk]>=1.62.0",
+  "python-dotenv>=1.0.1",
+  "fsspec>=2024.5.0",
+  "pyyaml>=6.0.1",
+  "typer>=0.12.3",
+  "rich>=13.7.1",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.8"
-version = "0.1.5"
+version = "0.2.0"
 
 [project.optional-dependencies]
 legacy = [
@@ -44,8 +44,8 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-    "ipython>=8.24.0",
-    "isort>=5.13.2",
+  "ipython>=8.24.0",
+  "isort>=5.13.2",
 ]
 managed = true
 

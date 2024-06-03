@@ -1,19 +1,15 @@
-import os
-
 from typer import Typer
 
-from .cfg import (PIPELINES_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE,
-                  write)
-from .pipeline import run as run_pipeline
-from .pipeline import schedule as schedule_pipeline
+from .pipeline import run, schedule, add, delete
 from .scheduler import get_scheduler
 from .scheduler import start_scheduler as start_scheduler_
+from .main import init as init_
 
 app = Typer()
 
 
 @app.command()
-def run(
+def run_pipeline(
     pipeline: str,
     environment: str = "prod",
     run_params: str = "",
@@ -22,11 +18,11 @@ def run(
     run_params = dict([kw.split("=") for kw in run_params.split(",")])
     tracker_params = dict([kw.split("=") for kw in tracker_params.split(",")])
     kwargs = {**run_params, **tracker_params}
-    run_pipeline(pipeline=pipeline, environment=environment, **kwargs)
+    run(pipeline=pipeline, environment=environment, **kwargs)
 
 
 @app.command()
-def schedule(
+def schedule_pipeline(
     pipeline: str,
     type: str,
     environment: str = "prod",
@@ -52,7 +48,7 @@ def schedule(
     if crontab is not None:
         kwargs["crontab"] = crontab
 
-    schedule_pipeline(pipeline=pipeline, environment=environment, type=type, **kwargs)
+    schedule(pipeline=pipeline, environment=environment, type=type, **kwargs)
 
 
 @app.command()
@@ -97,23 +93,41 @@ def show(
 
 
 @app.command()
-def add(): ...
+def add_pipeline(
+    name: str,
+    pipelines_path: str,
+    conf_path: str = "conf",
+    overwrite: bool = False,
+    params: str = "",
+    run: str = "",
+    schedule: str = "",
+    tracker: str = "",
+):
+    params = dict([kw.split("=") for kw in params.split(",")])
+    run = dict([kw.split("=") for kw in run.split(",")])
+    schedule = dict([kw.split("=") for kw in schedule.split(",")])
+    tracker = dict([kw.split("=") for kw in tracker.split(",")])
+
+    add(
+        name=name,
+        pipelines_path=pipelines_path,
+        conf_path=conf_path,
+        overwrite=overwrite,
+        params=params,
+        run=run,
+        schedule=schedule,
+        tracker=tracker,
+    )
 
 
 @app.command()
-def remove():
-    # remove schedule
-    # remove job
-    # remove pipeline
-    ...
+def delete_pipeline():
+    delete()
 
 
 @app.command()
 def init(pipelines_path: str = "pipelines", conf_path: str = "conf"):
-    os.makedirs(pipelines_path, exist_ok=True)
-    os.makedirs(conf_path, exist_ok=True)
-
-    write(PIPELINES_TEMPLATE, "pipelines", conf_path)
+    init_(pipelines_path=pipelines_path, conf_path=conf_path)
 
 
 if __name__ == "__main__":
