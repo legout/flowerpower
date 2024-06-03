@@ -117,7 +117,7 @@ def schedule(
     )
     end_time = kwargs.pop("end_time", None) or SCHEDULER_PARAMS.get("end_time", None)
 
-    scheduler = get_scheduler(pipeline_path=pipeline_path)
+    scheduler = get_scheduler(pipelines_path=pipeline_path)
     if type == "cron":
         crontab = kwargs.pop("crontab", None) or SCHEDULER_PARAMS.get("crontab", None)
         if crontab is not None:
