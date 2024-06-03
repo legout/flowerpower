@@ -1,4 +1,3 @@
-
 # ----------------- Tracker Configuration ------------------ #
 
 # ------------------------ Example ------------------------- #
@@ -6,12 +5,12 @@
 # username: your.email@example.com
 # api_url: http://localhost:8241
 # ui_url: http://localhost:8242
-# api_key: 
+# api_key:
 
 # pipeline:
 #   my_flow:
 #     project_id: 1
-#     tags: 
+#     tags:
 #       environment: dev
 #       version: 1.0
 #       TODO: add_more_tags_to_find_your_run_later
@@ -19,12 +18,13 @@
 #
 # ---------------------------------------------------------- #
 
+username: volker.lorrmann@siemens.com
+api_url: http://localhost:8241
+ui_url: http://localhost:8242
+api_key:
+
 pipeline:
   my_flow:
-    project_id: 
-    dag_name: 
-    tags: 
-  my_flow2:
-    project_id: 
-    dag_name: 
-    tags: 
+    project_id: 3
+    dag_name: first_dag
+    tags:

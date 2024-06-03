@@ -1,4 +1,3 @@
-
 # ---------------- Pipelines Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #
@@ -24,34 +23,36 @@
 #       final_vars: [step2]     ## final output vars
 #       with_tracker: true      ## whether to track the run
 #
-#   dev: 
+#   dev:
 #     flow1:
-#       inputs: 
-#       final_vars: [step2] 
-#       with_tracker: false 
+#       inputs:
+#       final_vars: [step2]
+#       with_tracker: false
 #
 # ---------------------------------------------------------- #
 
 path: pipelines
+
+params:
+  my_flow:
+    avg_x_wk_spend:
+      rolling: 3
+
 run:
   my_flow:
     dev:
-      inputs: 
-      final_vars: 
+      inputs:
+      final_vars:
+        [
+          spend,
+          signups,
+          avg_x_wk_spend,
+          spend_per_signup,
+          spend_zero_mean_unit_variance,
+        ]
       with_tracker: false
     prod:
-      inputs: 
-      final_vars: 
+      inputs:
+      final_vars:
+        [avg_x_wk_spend, spend_per_signup, spend_zero_mean_unit_variance]
       with_tracker: true
-  my_flow2:
-    dev:
-      inputs: 
-      final_vars: 
-      with_tracker: false
-    prod:
-      inputs: 
-      final_vars: 
-      with_tracker: true
-params:
-  my_flow: 
-  my_flow2: 

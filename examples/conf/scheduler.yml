@@ -1,4 +1,3 @@
-
 # ---------------- Scheduler Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #
@@ -9,8 +8,8 @@
 # data_store:
 #   type: sqlalchemy
 #   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
-# 
-# ### sqlite 
+#
+# ### sqlite
 # data_store:
 #   type: sqlalchemy
 #   url: "sqlite+aiosqlite:///flowerpower.db"
@@ -79,6 +78,5 @@
 
 pipeline:
   my_flow:
-    type: 
-  my_flow2:
-    type: 
+    type: interval
+    seconds: 30
