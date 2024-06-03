@@ -1,24 +1,102 @@
 version: "2"
 services:
-  code-server:
-    image: linuxserver/code-server:4.89.1
-    container_name: code-server
-    restart: unless-stopped
+  jupytercode:
+    build: 
+      context: .
+      args:
+        - CODE_VERSION=4.89.1
+        - PLATFORM=arm64
+    image: jupytercode:latest
+    user: root
     environment:
-      - TZ=Europe/Berlin # Specify a timezone to use EG Europe/London
-      - SUDO_PASSWORD=password # If this optional variable is set, user will have sudo access in the code-server terminal with the specified password.
-      - PUID=1000 # for UserID
-      - PROXY_DOMAIN=code-server.my.domain # If this optional variable is set, this domain will be proxied for subdomain proxying.
-      - PGID=1000 # for GroupID
-      - PASSWORD=password # Optional web gui password, if not provided, there will be no auth.
-    #volumes:
-      #- /host/path/to/config:/config # Contains all relevant configuration files.
-    ports:
-      - 8443:8443/tcp # Web UI
+      - GRANT_SUDO=yes
+      - IDL_CLIENT_ID=sagewn_idl_access2
+      - IDL_CLIENT_SECRET=d6fb958c-52e6-49dd-aade-e51149791be6
+      - MDSP_TOOLS_TOKEN=CSC-RpxxwxFLUfxSa3KyxNZz
+    #   - ENV_VAR1=value1
+    #   - ENV_VAR2=value2
 
-  openvscode-server:
-    image: linuxserver/openvscode-server:1.89.1
-    container_name: openvscode-server
-    restart: no
     ports:
-      - 3000:3000/tcp
+      - 8888:8888
+    volumes:
+      - jupytercode:/home/jovyan
+
+  minio:
+    image: minio/minio
+    ports:
+      - 9000:9000
+    environment:
+      MINIO_ACCESS_KEY: edge
+      MINIO_SECRET_KEY: edge1234
+    volumes:
+      - minio_data:/data
+      #- minio_config:/root/.minio
+    command: server /data --console-address ":9001"
+  
+  mqtt:
+    image: eclipse-mosquitto
+    ports:
+      - 1883:1883
+    environment:
+      - MOSQUITTO_USERNAME=edge
+      - MOSQUITTO_PASSWORD=edge
+
+  nodered:
+    image: nodered/node-red
+    volumes:
+      - nodered:/data
+    ports: 
+      - 1880:1880
+
+  db:
+    image: postgres:12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=flowerpower
+      - POSTGRES_USER=edge
+      - POSTGRES_PASSWORD=edge
+    ports:
+      - 5432:5432
+    restart: always
+
+  backend:
+    image: dagworks/ui-backend:latest
+    entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
+    ports:
+      - 8241:8241
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=flowerpower
+      - DB_USER=edge
+      - DB_PASSWORD=edge # TODO: Change this to a secret
+      - HAMILTON_BLOB_STORE=local
+      - HAMILTON_ENV=local # local env
+      - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
+      - DJANGO_SECRET_KEY=do_not_use_in_production
+      - HAMILTON_TELEMETRY_ENABLED=false #${HAMILTON_TELEMETRY_ENABLED-true}
+      - HAMILTON_AUTH_MODE=permissive
+    depends_on:
+      - db
+    volumes:
+      - backend_data:/data/
+
+  frontend:
+    image: dagworks/ui-frontend:latest
+    ports:
+      - 8242:8242
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_AUTH_MODE=local
+      - REACT_APP_USE_POSTHOG=false
+    depends_on:
+      - backend
+
+volumes:
+  jupytercode:
+  minio_data:
+  minio_config:
+  nodered:
+  postgres_data:
+  backend_data:

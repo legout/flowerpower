@@ -284,6 +284,6 @@ TRACKER_TEMPLATE = """
 # ---------------------------------------------------------- #
 
 """
-PIPELINE = load_pipeline_cfg()
-SCHEDULER = load_scheduler_cfg()
-TRACKER = load_tracker_cfg()
+# PIPELINE = load_pipeline_cfg()
+# SCHEDULER = load_scheduler_cfg()
+# TRACKER = load_tracker_cfg()

@@ -7,16 +7,19 @@ import os
 import sys
 
 
-import yaml
 from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify
 
-from .cfg import PIPELINE, SCHEDULER, TRACKER, write
+from .cfg import write, load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg
 
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
+
+PIPELINE = load_pipeline_cfg("conf/pipelines.yml")
+TRACKER = load_tracker_cfg("conf/tracker.yml")
+SCHEDULER = load_scheduler_cfg("conf/scheduler.yml")
 
 
 def run(
@@ -282,14 +285,14 @@ def new(
     )
     if tracker_cfg.pipeline is None:
         tracker_cfg.pipeline = {}
-        
+
     tracker_params = kwargs.get("tracker", None)
     tracker_cfg.pipeline[name] = tracker_params or {
         "project_id": None,
         "dag_name": None,
         "tags": None,
     }
-    
+
     write(tracker_cfg, "tracker", conf_path)
 
     logger.success(f"Created pipeline {name}")

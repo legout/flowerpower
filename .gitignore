@@ -10,3 +10,4 @@ wheels/
 .venv
 .env
 .vscode
+docker/config/.bash_history
