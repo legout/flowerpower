@@ -12,7 +12,13 @@ from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify
 
-from .cfg import load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg, write
+from .cfg import (
+    PIPELINE_TEMPLATE,
+    load_pipeline_cfg,
+    load_scheduler_cfg,
+    load_tracker_cfg,
+    write,
+)
 
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
@@ -209,6 +215,7 @@ def schedule(
     logger.success(
         f"Added scheduler for {pipeline} in environment {environment} with id {id_}"
     )
+    return scheduler, id_
 
 
 def new(
@@ -237,9 +244,9 @@ def new(
     os.makedirs(pipelines_path, exist_ok=True)
     with open(f"{pipelines_path}/{name}.py", "w") as f:
         f.write(
-            f"""# FlowerPower pipeline {name}.py
-            # Created at {dt.datetime.now()}"
-            """
+            PIPELINE_TEMPLATE.format(
+                name=name, dt=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
         )
 
     # pipeline configuration

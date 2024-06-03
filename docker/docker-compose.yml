@@ -33,13 +33,15 @@ services:
       #- minio_config:/root/.minio
     command: server /data --console-address ":9001"
   
-  mqtt:
+  ie-databus:
     image: eclipse-mosquitto
     ports:
       - 1883:1883
-    environment:
-      - MOSQUITTO_USERNAME=edge
-      - MOSQUITTO_PASSWORD=edge
+    volumes:
+      - mosquitto_conf:/mosquitto/config
+    #environment:
+    #  - MOSQUITTO_USERNAME=edge
+    #  - MOSQUITTO_PASSWORD=edge
 
   nodered:
     image: nodered/node-red

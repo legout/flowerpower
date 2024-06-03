@@ -145,8 +145,7 @@ def load_tracker_cfg(path: str | None = None) -> Munch:
     return munchify(params)
 
 
-PIPELINES_TEMPLATE = """
-# ---------------- Pipelines Configuration ----------------- #
+PIPELINES_TEMPLATE = """# ---------------- Pipelines Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #
 #
@@ -181,8 +180,7 @@ PIPELINES_TEMPLATE = """
 
 """
 
-SCHEDULER_TEMPLATE = """
-# ---------------- Scheduler Configuration ----------------- #
+SCHEDULER_TEMPLATE = """# ---------------- Scheduler Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #
 #
@@ -262,8 +260,7 @@ SCHEDULER_TEMPLATE = """
 
 """
 
-TRACKER_TEMPLATE = """
-# ----------------- Tracker Configuration ------------------ #
+TRACKER_TEMPLATE = """# ----------------- Tracker Configuration ------------------ #
 
 # ------------------------ Example ------------------------- #
 #
@@ -283,6 +280,16 @@ TRACKER_TEMPLATE = """
 #
 # ---------------------------------------------------------- #
 
+"""
+
+PIPELINE_TEMPLATE = """# FlowerPower pipeline {name}.py
+# Created at {date}
+
+
+from hamilton.function_modifiers import parameterize
+from flowerpower.cfg import load_pipeline_cfg
+
+PARAMS = load_pipeline_cfg(ht_values=True).params.{name}
 """
 # PIPELINE = load_pipeline_cfg()
 # SCHEDULER = load_scheduler_cfg()
