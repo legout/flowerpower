@@ -26,16 +26,16 @@ def get_scheduler(
                 data_store = SQLAlchemyDataStore(engine_or_url=engine)
 
             elif SCHEDULER.data_store.type == "mongodb":
-                from apscheduler.datastores.mongodb import MongoDBdata_store
+                from apscheduler.datastores.mongodb import MongoDBDataStore
 
                 if "url" not in SCHEDULER.data_store:
                     raise ValueError("No URL specified for MongoDB data_store")
-                data_store = MongoDBdata_store(SCHEDULER.data_store.url)
+                data_store = MongoDBDataStore(SCHEDULER.data_store.url)
 
             else:
-                from apscheduler.datastores.memory import Memorydata_store
+                from apscheduler.datastores.memory import MemoryDataStore
 
-                data_store = Memorydata_store()
+                data_store = MemoryDataStore()
 
     if "event_broker" in SCHEDULER:
         if "type" in SCHEDULER.event_broker:
