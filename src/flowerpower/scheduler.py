@@ -1,11 +1,10 @@
-import datetime as dt
 import sys
-from typing import Any
+
 
 from apscheduler import Scheduler
-from dateutil import tz
+from .cfg import load_scheduler_cfg
 
-from .cfg import SCHEDULER
+SCHEDULER = load_scheduler_cfg()
 
 
 def get_scheduler(
