@@ -28,19 +28,13 @@ TRACKER = load_tracker_cfg()
 SCHEDULER = load_scheduler_cfg()
 
 
-def run(
-    pipeline: str,
-    environment: str = "prod",
-    **kwargs,
-) -> None:
+def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Driver:
     if "." in pipeline:
         pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
         pipeline_path = pipeline_path.replace(".", "/")
     else:
         pipeline_path = PIPELINE.path
         pipeline_name = pipeline
-
-    logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
 
     sys.path.append(pipeline_path)
     module = importlib.import_module(pipeline_name)
@@ -91,6 +85,27 @@ def run(
             .build()
         )
 
+    return dr
+
+
+def run(
+    pipeline: str,
+    environment: str = "prod",
+    **kwargs,
+) -> None:
+    if "." in pipeline:
+        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
+        pipeline_path = pipeline_path.replace(".", "/")
+    else:
+        pipeline_path = PIPELINE.path
+        pipeline_name = pipeline
+
+    RUN_PARAMS = getattr(PIPELINE.run, pipeline_name)[environment]
+
+    logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
+
+    dr = get_driver(pipeline, environment, **kwargs)
+
     final_vars = kwargs.pop("final_vars", []) or RUN_PARAMS.get("final_vars", [])
     inputs = kwargs.pop("inputs", {}) or RUN_PARAMS.get("inputs", {})
 
@@ -103,6 +118,8 @@ def schedule(
     pipeline: str,
     environment: str = "prod",
     type: str = "cron",
+    auto_start: bool = True,
+    background: bool = False,
     **kwargs,
 ):
     if "." in pipeline:
@@ -215,10 +232,16 @@ def schedule(
     logger.success(
         f"Added scheduler for {pipeline} in environment {environment} with id {id_}"
     )
-    return scheduler, id_
+    if auto_start:
+        if background:
+            scheduler.start_in_background()
+            return scheduler, id_
+
+        else:
+            scheduler.run_until_stopped()
 
 
-def new(
+def add(
     name: str,
     pipelines_path: str = "pipelines",
     conf_path: str = "conf",
@@ -251,7 +274,7 @@ def new(
                 name=name, dt=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
         )
-
+    logger.info(f"Created pipeline module {name}.py")
     # pipeline configuration
 
     pipeline_cfg = PIPELINE or munchify(
@@ -274,6 +297,7 @@ def new(
     )
 
     write(pipeline_cfg, "pipelines", conf_path)
+    logger.info(f"Updated pipeline configuration {conf_path}/pipelines.yml")
 
     # scheduler configuration
     scheduler_cfg = SCHEDULER or munchify(
@@ -289,6 +313,7 @@ def new(
     scheduler_cfg.pipeline[name] = schedule or {"type": None}
 
     write(scheduler_cfg, "scheduler", conf_path)
+    logger.info(f"Updated scheduler configuration {conf_path}/scheduler.yml")
 
     # tracker configuration
     tracker_cfg = TRACKER or munchify(
@@ -311,7 +336,18 @@ def new(
     }
 
     write(tracker_cfg, "tracker", conf_path)
+    logger.info(f"Updated tracker configuration {conf_path}/tracker.yml")
 
     logger.success(f"Created pipeline {name}")
 
     # return pipeline_cfg, scheduler_cfg, tracker_cfg
+
+
+def delete():
+    pass
+
+
+def show(pipeline: str, format: str = "png"):
+    os.mkdir("graphs", exist_ok=True)
+    dr = get_driver(pipeline=pipeline, environment="dev", with_tracker=False)
+    dr.display_all_functions(f"graphs/{pipeline}.{format}").view()

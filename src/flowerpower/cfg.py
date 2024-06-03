@@ -170,11 +170,11 @@ PIPELINES_TEMPLATE = """# ---------------- Pipelines Configuration -------------
 #       final_vars: [step2]     ## final output vars
 #       with_tracker: true      ## whether to track the run
 #
-#   dev: 
+#   dev:
 #     flow1:
-#       inputs: 
-#       final_vars: [step2] 
-#       with_tracker: false 
+#       inputs:
+#       final_vars: [step2]
+#       with_tracker: false
 #
 # ---------------------------------------------------------- #
 
@@ -190,8 +190,8 @@ SCHEDULER_TEMPLATE = """# ---------------- Scheduler Configuration -------------
 # data_store:
 #   type: sqlalchemy
 #   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
-# 
-# ### sqlite 
+#
+# ### sqlite
 # data_store:
 #   type: sqlalchemy
 #   url: "sqlite+aiosqlite:///flowerpower.db"
@@ -267,12 +267,12 @@ TRACKER_TEMPLATE = """# ----------------- Tracker Configuration ----------------
 # username: your.email@example.com
 # api_url: http://localhost:8241
 # ui_url: http://localhost:8242
-# api_key: 
+# api_key:
 
 # pipeline:
 #   my_flow:
 #     project_id: 1
-#     tags: 
+#     tags:
 #       environment: dev
 #       version: 1.0
 #       TODO: add_more_tags_to_find_your_run_later

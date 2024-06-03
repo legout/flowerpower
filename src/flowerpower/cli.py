@@ -15,8 +15,14 @@ def run_pipeline(
     run_params: str = "",
     tracker_params: str = "",
 ):
-    run_params = dict([kw.split("=") for kw in run_params.split(",")])
-    tracker_params = dict([kw.split("=") for kw in tracker_params.split(",")])
+    run_params = (
+        dict([kw.split("=") for kw in run_params.split(",")]) if run_params else {}
+    )
+    tracker_params = (
+        dict([kw.split("=") for kw in tracker_params.split(",")])
+        if tracker_params
+        else {}
+    )
     kwargs = {**run_params, **tracker_params}
     run(pipeline=pipeline, environment=environment, **kwargs)
 
@@ -26,6 +32,8 @@ def schedule_pipeline(
     pipeline: str,
     type: str,
     environment: str = "prod",
+    auto_start: bool = False,
+    background: bool = False,
     crontab: str = "",
     cron_params: str = "",
     interval_params: str = "",
@@ -33,12 +41,31 @@ def schedule_pipeline(
     date_params: str = "",
 ):
     crontab = crontab or None
-    cron_params = dict([kw.split("=") for kw in cron_params.split(",")])
-    interval_params = dict([kw.split("=") for kw in interval_params.split(",")])
-    calendarinterval_params = dict(
-        [kw.split("=") for kw in calendarinterval_params.split(",")]
+    cron_params = (
+        dict([kw.split("=") for kw in cron_params.split(",")]) if cron_params else {}
     )
-    date_params = dict([kw.split("=") for kw in date_params.split(",")])
+    interval_params = (
+        dict([kw.split("=") for kw in interval_params.split(",")])
+        if interval_params
+        else {}
+    )
+
+    calendarinterval_params = (
+        dict([kw.split("=") for kw in calendarinterval_params.split(",")])
+        if calendarinterval_params
+        else {}
+    )
+    date_params = (
+        dict([kw.split("=") for kw in date_params.split(",")]) if date_params else {}
+    )
+    try:
+        for key in ["weeks", "days", "hours", "minutes", "seconds"]:
+            if key in interval_params:
+                interval_params[key] = float(interval_params[key])
+            if key in calendarinterval_params:
+                calendarinterval_params[key] = float(calendarinterval_params[key])
+    except ValueError:
+        pass
     kwargs = {
         **cron_params,
         **interval_params,
@@ -48,12 +75,19 @@ def schedule_pipeline(
     if crontab is not None:
         kwargs["crontab"] = crontab
 
-    schedule(pipeline=pipeline, environment=environment, type=type, **kwargs)
+    schedule(
+        pipeline=pipeline,
+        environment=environment,
+        type=type,
+        auto_start=auto_start,
+        background=background,
+        **kwargs,
+    )
 
 
 @app.command()
 def start_scheduler(
-    conf_path: str | None = None,
+    conf_path: str = "conf",
     pipelines_path: str = "pipelines",
     background: bool = True,
 ):
@@ -98,25 +132,39 @@ def add_pipeline(
     pipelines_path: str,
     conf_path: str = "conf",
     overwrite: bool = False,
-    params: str = "",
-    run: str = "",
-    schedule: str = "",
-    tracker: str = "",
+    pipeline_params: str = "",
+    run_params: str = "",
+    schedule_params: str = "",
+    tracker_params: str = "",
 ):
-    params = dict([kw.split("=") for kw in params.split(",")])
-    run = dict([kw.split("=") for kw in run.split(",")])
-    schedule = dict([kw.split("=") for kw in schedule.split(",")])
-    tracker = dict([kw.split("=") for kw in tracker.split(",")])
+    pipeline_params = (
+        dict([kw.split("=") for kw in pipeline_params.split(",")])
+        if pipeline_params
+        else {}
+    )
+    run_params = (
+        dict([kw.split("=") for kw in run_params.split(",")]) if run_params else {}
+    )
+    schedule_params = (
+        dict([kw.split("=") for kw in schedule_params.split(",")])
+        if schedule_params
+        else {}
+    )
+    tracker_params = (
+        dict([kw.split("=") for kw in tracker_params.split(",")])
+        if tracker_params
+        else {}
+    )
 
     add(
         name=name,
         pipelines_path=pipelines_path,
         conf_path=conf_path,
         overwrite=overwrite,
-        params=params,
-        run=run,
-        schedule=schedule,
-        tracker=tracker,
+        params=pipeline_params,
+        run=run_params,
+        schedule=schedule_params,
+        tracker=tracker_params,
     )
 
 

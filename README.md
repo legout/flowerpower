@@ -4,3 +4,51 @@
 
 FlowerPower is a simple workflow framework based on the fantastic [Hamilton](https://github.com/DAGWorks-Inc/hamilton) and [Advanced Python Scheduler - APScheduler](https://github.com/agronholm/apscheduler)
 
+## Installation
+
+```shell
+pip install "flowerpower" git+https://github.com/legout/flowerpower
+# with scheduler
+pip install "flowerpower[scheduler]" git+https://github.com/legout/flowerpower
+# with mqtt event broker
+pip install "flowerpower[scheduler,mqtt]" git+https://github.com/legout/flowerpower
+# with redis event broker
+pip install "flowerpower[scheduler,redis]" git+https://github.com/legout/flowerpower
+```
+
+## Usage
+
+### a) Initialze a new flowerpower project
+```shell
+mkdir new-project
+cd new-project
+python -m flowerpower.cli init 
+```
+This adds basic config files `conf/pipelines.yml`, `conf/scheduler.yml` and `conf/tracker.yml`
+
+### b) Add a new pipeline
+```shell
+python -m flowerpower.cli add-pipeline my_flow
+```
+A new file `pipelines/my_flow.py` is created and the relevant entries are added to the config files.
+
+### c) Setup the new pipeline
+Edit `pipelines/my_flow.py` and add the pipeline functions.
+
+FlowerPower uses [Hamilton](https://github.com/DAGWorks-Inc/hamilton) that converts your pipeline functions into nodes and then creates a [Directed Acyclic Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph).
+
+It is therefore mandatory to write your pipeline files according to the Hamilton paradigm. You can read more about this in the Hamilton documentaion chapter [Function, Nodes and DataFlow](https://hamilton.dagworks.io/en/latest/concepts/node/)
+
+Optinally edit the config files `conf/pipelines.yml`, `conf/scheduler.yml` and `conf/tracker.yml`
+
+### d) Run or Scheduler the new pipeline
+```shell
+python -m flowerpower.cli run-pipeline my_flow
+# or schedule with a 30 seconds interval
+python -m flowerpower.cli schedule-pipeline my_flow interval --interval-params seconds=30 --auto-start
+```
+
+
+
+
+

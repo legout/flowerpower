@@ -116,6 +116,7 @@ pendulum==3.0.0
     # via pydala2
 pexpect==4.9.0
     # via ipython
+pillow==10.3.0
 polars==0.20.26
     # via pydala2
 polars-lts-cpu==0.20.30

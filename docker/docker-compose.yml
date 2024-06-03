@@ -10,12 +10,6 @@ services:
     user: root
     environment:
       - GRANT_SUDO=yes
-      - IDL_CLIENT_ID=sagewn_idl_access2
-      - IDL_CLIENT_SECRET=d6fb958c-52e6-49dd-aade-e51149791be6
-      - MDSP_TOOLS_TOKEN=CSC-RpxxwxFLUfxSa3KyxNZz
-    #   - ENV_VAR1=value1
-    #   - ENV_VAR2=value2
-
     ports:
       - 8888:8888
     volumes:
@@ -30,18 +24,23 @@ services:
       MINIO_SECRET_KEY: edge1234
     volumes:
       - minio_data:/data
-      #- minio_config:/root/.minio
     command: server /data --console-address ":9001"
   
-  ie-databus:
+  mqtt:
     image: eclipse-mosquitto
     ports:
       - 1883:1883
-    volumes:
-      - mosquitto_conf:/mosquitto/config
-    #environment:
-    #  - MOSQUITTO_USERNAME=edge
-    #  - MOSQUITTO_PASSWORD=edge
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+
+  redis:
+    image: valkey/valkey
+    ports:
+      - 6379:6379
+  
+  mongodb:
+    image: mongo
+    ports:
+      - 27017:27017
 
   nodered:
     image: nodered/node-red
