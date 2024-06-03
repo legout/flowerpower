@@ -1,7 +1,7 @@
 import sys
 
-
 from apscheduler import Scheduler
+
 from .cfg import load_scheduler_cfg
 
 SCHEDULER = load_scheduler_cfg()
@@ -17,7 +17,8 @@ def get_scheduler(
     if "data_store" in SCHEDULER:
         if "type" in SCHEDULER.data_store:
             if SCHEDULER.data_store.type == "sqlalchemy":
-                from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
+                from apscheduler.datastores.sqlalchemy import \
+                    SQLAlchemyDataStore
                 from sqlalchemy.ext.asyncio import create_async_engine
 
                 if "url" not in SCHEDULER.data_store:

@@ -2,7 +2,8 @@ import os
 
 from typer import Typer
 
-from .cfg import PIPELINES_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE, write
+from .cfg import (PIPELINES_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE,
+                  write)
 from .pipeline import run as run_pipeline
 from .pipeline import schedule as schedule_pipeline
 from .scheduler import get_scheduler

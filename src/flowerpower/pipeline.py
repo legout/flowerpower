@@ -1,20 +1,17 @@
 # import typer
 import datetime as dt
-from dateutil import tz
-
 # from .pipelines import *
 import importlib
 import os
 import sys
 
-
+from dateutil import tz
 from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify
 
-from .cfg import write, load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg
-
+from .cfg import load_pipeline_cfg, load_scheduler_cfg, load_tracker_cfg, write
 # from hamilton.execution import executors
 from .scheduler import get_scheduler
 
@@ -175,7 +172,8 @@ def schedule(
             # timezone=timezone,
         )
     elif type == "calendar":
-        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import \
+            CalendarIntervalTrigger
 
         weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
         days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
