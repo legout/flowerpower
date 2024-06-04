@@ -271,7 +271,7 @@ def add(
     with open(f"{pipelines_path}/{name}.py", "w") as f:
         f.write(
             PIPELINE_TEMPLATE.format(
-                name=name, dt=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                name=name, date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
         )
     logger.info(f"Created pipeline module {name}.py")
