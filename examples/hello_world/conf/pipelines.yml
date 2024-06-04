@@ -37,6 +37,8 @@ params:
   my_flow:
     avg_x_wk_spend:
       rolling: 3
+    spend_zero_mean:
+      offset: 0
 
 run:
   my_flow:

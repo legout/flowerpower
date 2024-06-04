@@ -7,12 +7,12 @@
 # ### postgres
 # data_store:
 #   type: sqlalchemy
-#   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
+#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
 #
 # ### sqlite
 # data_store:
 #   type: sqlalchemy
-#   url: "sqlite+aiosqlite:///flowerpower.db"
+#   url: sqlite+aiosqlite:///flowerpower.db
 #
 # ### memory
 # data_store:
@@ -21,22 +21,22 @@
 # ### mongodb
 # data_store:
 #   type: mongodb
-#   url: "mongodb://localhost:27017/scheduler"
+#   url: mongodb://localhost:27017/scheduler
 #
 # ## event broker configuration
 #
 # ### postgres
 # event_broker:
 #   type: asyncpg
-#   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
+#   url: postgresql+asyncpg://edge:edge@db/flowerpower
 #
 # ### mqtt
 # event_broker:
 #   type: mqtt
 #   host: localhost
 #   port: 1883
-#   username: "edge"
-#   password: "edge"
+#   username: edge
+#   password: edge
 
 # ### redis
 # event_broker:

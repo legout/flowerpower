@@ -2,7 +2,7 @@ import pandas as pd
 from hamilton.function_modifiers import parameterize
 from flowerpower.cfg import load_pipeline_cfg
 
-PARAMS = load_pipeline_cfg(ht_values=True).params.my_flow
+PARAMS = load_pipeline_cfg(to_ht=True).params.my_flow
 
 
 def spend() -> pd.Series:
@@ -15,7 +15,7 @@ def signups() -> pd.Series:
     return pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
 
-@parameterize(avg_x_wk_spend=dict(rolling=PARAMS.avg_x_wk_spend.rolling))
+@parameterize(**PARAMS.avg_x_wk_spend)
 def avg_x_wk_spend(spend: pd.Series, rolling: int) -> pd.Series:
     """Rolling x week average spend."""
     return spend.rolling(rolling).mean()
@@ -31,9 +31,10 @@ def spend_mean(spend: pd.Series) -> float:
     return spend.mean()
 
 
-def spend_zero_mean(spend: pd.Series, spend_mean: float) -> pd.Series:
+@parameterize(**PARAMS.spend_zero_mean)
+def spend_zero_mean(spend: pd.Series, spend_mean: float, offset: int) -> pd.Series:
     """Shows function that takes a scalar. In this case to zero mean spend."""
-    return spend - spend_mean
+    return spend - spend_mean + offset
 
 
 def spend_std_dev(spend: pd.Series) -> float:

@@ -90,7 +90,21 @@ def _to_ht_value(value_dict: dict) -> dict:
         return value(value_dict)
 
 
-def load_pipeline_cfg(path: str | None = None, ht_values: bool = False) -> Munch:
+def _to_ht_parameterization(value_dict: dict) -> dict:
+    """
+    Convert a dictionary into a parameterization dictionary.
+
+    Args:
+        value_dict (dict): The input dictionary.
+
+    Returns:
+        dict: The parameterization dictionary.
+
+    """
+    return {k: {k: value_dict[k]} for k in value_dict}
+
+
+def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
     """
     Load pipeline parameters from a YAML file.
 
@@ -103,12 +117,15 @@ def load_pipeline_cfg(path: str | None = None, ht_values: bool = False) -> Munch
         Munch: A Munch object containing the loaded pipeline parameters.
     """
 
-    params = _load("pipeline", path)
+    cfg = _load("pipeline", path)
 
-    if ht_values:
-        params = _to_ht_value(params)
+    if to_ht:
+        cfg = _to_ht_value(cfg)
+        cfg["params"].update(
+            {k: _to_ht_parameterization(v) for k, v in cfg["params"].items()}
+        )
 
-    return munchify(params)
+    return munchify(cfg)
 
 
 def load_scheduler_cfg(path: str | None = None) -> Munch:
@@ -123,9 +140,9 @@ def load_scheduler_cfg(path: str | None = None) -> Munch:
         Munch: A Munch object containing the loaded scheduler parameters.
     """
 
-    params = _load("scheduler", path)
+    cfg = _load("scheduler", path)
 
-    return munchify(params)
+    return munchify(cfg)
 
 
 def load_tracker_cfg(path: str | None = None) -> Munch:
@@ -140,9 +157,9 @@ def load_tracker_cfg(path: str | None = None) -> Munch:
         Munch: A Munch object containing the loaded tracker parameters.
     """
 
-    params = _load("tracker", path)
+    cfg = _load("tracker", path)
 
-    return munchify(params)
+    return munchify(cfg)
 
 
 PIPELINES_TEMPLATE = """# ---------------- Pipelines Configuration ----------------- #
@@ -189,12 +206,12 @@ SCHEDULER_TEMPLATE = """# ---------------- Scheduler Configuration -------------
 # ### postgres
 # data_store:
 #   type: sqlalchemy
-#   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
+#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
 #
 # ### sqlite
 # data_store:
 #   type: sqlalchemy
-#   url: "sqlite+aiosqlite:///flowerpower.db"
+#   url: sqlite+aiosqlite:///flowerpower.db
 #
 # ### memory
 # data_store:
@@ -203,22 +220,22 @@ SCHEDULER_TEMPLATE = """# ---------------- Scheduler Configuration -------------
 # ### mongodb
 # data_store:
 #   type: mongodb
-#   url: "mongodb://localhost:27017/scheduler"
+#   url: mongodb://localhost:27017/scheduler
 #
 # ## event broker configuration
 #
 # ### postgres
 # event_broker:
 #   type: asyncpg
-#   url: "postgresql+asyncpg://edge:edge@db/flowerpower"
+#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
 #
 # ### mqtt
 # event_broker:
 #   type: mqtt
 #   host: localhost
 #   port: 1883
-#   username: "edge"
-#   password: "edge"
+#   username: edge
+#   password: edge
 
 # ### redis
 # event_broker:
@@ -289,7 +306,7 @@ PIPELINE_TEMPLATE = """# FlowerPower pipeline {name}.py
 from hamilton.function_modifiers import parameterize
 from flowerpower.cfg import load_pipeline_cfg
 
-PARAMS = load_pipeline_cfg(ht_values=True).params.{name}
+PARAMS = load_pipeline_cfg(to_ht=True).params.{name}
 """
 # PIPELINE = load_pipeline_cfg()
 # SCHEDULER = load_scheduler_cfg()
