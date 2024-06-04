@@ -53,7 +53,9 @@ RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension ms-python.isort && \
     code-server --install-extension redhat.vscode-yaml && \
     code-server --install-extension charliermarsh.ruff && \
-    # code-server --install-extension eamodio.gitlens && \
+    code-server --install-extension esbenp.prettier-vscode && \
+    code-server --install-extension mtrx.sqltools-driver-sqlite && \
+    code-server --install-extension mtxr.sqltools-driver-pg && \
     rm -r /home/jovyan/.local/share/code-server/CachedExtensionVSIXs/
 
 
