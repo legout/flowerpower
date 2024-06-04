@@ -129,7 +129,7 @@ def show(
 @app.command()
 def add_pipeline(
     name: str,
-    pipelines_path: str,
+    pipelines_path: str = "pipelines",
     conf_path: str = "conf",
     overwrite: bool = False,
     pipeline_params: str = "",
