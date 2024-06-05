@@ -1,0 +1,21 @@
+
+
+jupyter.localhost {
+    reverse_proxy jupytercode:8888
+}
+
+minio.localhost {
+    reverse_proxy minio:9001
+}
+
+minio_api.localhost {
+    reverse_proxy minio:9000
+}
+
+nodered.localhost {
+    reverse_proxy mqtt:1880
+}
+
+hamilton.localhost {
+    reverse_proxy hamilton_ui:8242
+}

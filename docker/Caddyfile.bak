@@ -1,0 +1,45 @@
+{
+  http_port 80
+}
+
+:80 {
+  route /jupytercode/* {
+    uri strip_prefix /jupytercode
+    reverse_proxy jupytercode:8888
+  }
+
+  route /minio/* {
+    uri strip_prefix /minio
+    reverse_proxy minio:9001
+  }
+
+  route /mqtt/* {
+    uri strip_prefix /mqtt
+    reverse_proxy mqtt:1883
+  }
+
+  route /redis/* {
+    uri strip_prefix /redis
+    reverse_proxy redis:6379
+  }
+
+  route /mongodb/* {
+    uri strip_prefix /mongodb
+    reverse_proxy mongodb:27017
+  }
+
+  route /nodered/* {
+    uri strip_prefix /nodered
+    reverse_proxy nodered:1880
+  }
+
+  route /postgres/* {
+    uri strip_prefix /postgres
+    reverse_proxy postgres:5432
+  }
+
+  route /hamilton_ui/* {
+    uri strip_prefix /hamilton_ui
+    reverse_proxy hamilton_ui:8242
+  }
+}

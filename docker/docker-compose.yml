@@ -19,6 +19,7 @@ services:
     image: minio/minio
     ports:
       - 9000:9000
+      - 9001:9001
     environment:
       MINIO_ACCESS_KEY: edge
       MINIO_SECRET_KEY: edge1234
@@ -61,7 +62,7 @@ services:
       - 5432:5432
     restart: always
 
-  hamilton_api:
+  backend:
     image: dagworks/ui-backend:latest
     entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
     ports:
@@ -92,7 +93,27 @@ services:
       - REACT_APP_AUTH_MODE=local
       - REACT_APP_USE_POSTHOG=false
     depends_on:
-      - hamilton_api
+      - backend
+
+  # nginx:
+  #   image: nginx:latest
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   depends_on:
+  #     - hamilton_ui
+
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - hamilton_ui
 
 volumes:
   jupytercode:

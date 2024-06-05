@@ -44,6 +44,8 @@ RUN conda install jupyter-server-proxy jupyter-vscode-proxy  -y && \
 #sudo echo ". ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base" >> /etc/skel/.bashrc && \
 #echo ". ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base" >> ~/.bashrc
 
+COPY GitHub.copilot-1.199.0.vsix GitHub.copilot-1.199.0.vsix
+COPY GitHub.copilot-chat-0.15.2024043005.vsix GitHub.copilot-chat-0.15.2024043005.vsix
 
 RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension ms-python.python && \
@@ -54,8 +56,11 @@ RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension redhat.vscode-yaml && \
     code-server --install-extension charliermarsh.ruff && \
     code-server --install-extension esbenp.prettier-vscode && \
-    code-server --install-extension mtrx.sqltools-driver-sqlite && \
+    code-server --install-extension mtxr.sqltools-driver-sqlite && \
     code-server --install-extension mtxr.sqltools-driver-pg && \
+    code-server --install-extension GitHub.copilot-1.199.0.vsix && \
+    code-server --install-extension GitHub.copilot-chat-0.15.2024043005.vsix && \
+    rm -r GitHub.copilot-*.vsix && \
     rm -r /home/jovyan/.local/share/code-server/CachedExtensionVSIXs/
 
 
