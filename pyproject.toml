@@ -44,10 +44,14 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-    "ipython>=8.24.0",
-    "isort>=5.13.2",
-    "pillow>=10.3.0",
+  "ipython>=8.24.0",
+  "isort>=5.13.2",
+  "pillow>=10.3.0",
 ]
+
+[tool.rye.scripts]
+flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}
+
 managed = true
 
 [tool.hatch.metadata]
