@@ -2,7 +2,8 @@ from pathlib import Path
 
 import yaml
 from hamilton.function_modifiers import value
-from loguru import logger
+
+# from loguru import logger
 from munch import Munch, munchify, unmunchify
 
 
@@ -23,10 +24,10 @@ def _load(name: str, path: str | None = None) -> dict:
 
     """
     if path is None:
-        path = list(Path.cwd().rglob(f"{name}*.y*ml"))
+        path = list(Path.cwd() / "conf").rglob(f"{name}*.y*ml")
 
         if not len(path):
-            logger.error(f"No YAML file found with name '{name}'")
+            # logger.error(f"No YAML file found with name '{name}'")
             return
 
         path = path[0]
@@ -69,7 +70,9 @@ def write(cfg: dict | Munch, name: str, path: str | None = None) -> None:
     with open(f"{path}/{name}.yml", "w") as f:
         f.write(
             eval(f"{name.upper()}_TEMPLATE")
-            + yaml.dump(unmunchify(cfg), sort_keys=False).replace("null", "")
+            + yaml.dump(unmunchify(cfg), sort_keys=False)
+            .replace("null", "")
+            .replace("{}", "")
         )
 
 
