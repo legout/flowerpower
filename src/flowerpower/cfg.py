@@ -24,7 +24,7 @@ def _load(name: str, path: str | None = None) -> dict:
 
     """
     if path is None:
-        path = list(Path.cwd() / "conf").rglob(f"{name}*.y*ml")
+        path = list((Path.cwd() / "conf").rglob(f"{name}*.y*ml"))
 
         if not len(path):
             # logger.error(f"No YAML file found with name '{name}'")
