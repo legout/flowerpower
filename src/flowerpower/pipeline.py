@@ -115,9 +115,11 @@ def run(
     final_vars = kwargs.pop("final_vars", []) or RUN_PARAMS.get("final_vars", [])
     inputs = kwargs.pop("inputs", {}) or RUN_PARAMS.get("inputs", {})
 
-    _ = dr.execute(final_vars=final_vars, inputs=inputs)
+    res = dr.execute(final_vars=final_vars, inputs=inputs)
 
     logger.success(f"Finished pipeline {pipeline}")
+
+    return res
 
 
 def schedule(
