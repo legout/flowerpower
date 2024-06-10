@@ -21,16 +21,17 @@ from .cfg import (
     write,
 )
 
-PIPELINE = load_pipeline_cfg()
-TRACKER = load_tracker_cfg()
 
 if importlib.util.find_spec("apscheduler"):
     # from hamilton.execution import executors
     from .scheduler import get_scheduler
 
-    SCHEDULER = load_scheduler_cfg()
 else:
     get_scheduler = None
+
+PIPELINE = load_pipeline_cfg()
+TRACKER = load_tracker_cfg()
+SCHEDULER = load_scheduler_cfg()
 
 
 def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Driver:
