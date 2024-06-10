@@ -19,3 +19,22 @@ nodered.localhost {
 hamilton.localhost {
     reverse_proxy hamilton_ui:8242
 }
+mqtt.localhost {
+    reverse_proxy jupytercode:1883
+}
+
+redis.localhost {
+    reverse_proxy minio:6379
+}
+
+minio_api.localhost {
+    reverse_proxy minio:9000
+}
+
+mongo.localhost {
+    reverse_proxy mqtt:27017
+}
+
+postgres.localhost {
+    reverse_proxy hamilton_ui:5432
+}
