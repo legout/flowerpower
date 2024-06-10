@@ -152,7 +152,7 @@ def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
         # cfg = _to_ht_value(cfg)
         cfg["params"].update(
             {
-                k: _to_ht_parameterization(_to_ht_param(v))
+                k: _to_ht_parameterization(_to_ht_params(v))
                 for k, v in cfg["params"].items()
                 if v is not None
             }
