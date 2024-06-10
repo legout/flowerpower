@@ -76,31 +76,26 @@ def write(cfg: dict | Munch, name: str, path: str | None = None) -> None:
         )
 
 
-def _to_ht_param(d: dict):
+def _to_ht_params(d: dict, parent_dict: dict | None = None):
     """
-    Verarbeitet ein verschachteltes Wörterbuch. Wenn ein Wert gleich einem Schlüssel im Wörterbuch ist,
-    wird der Wert durch to_source(value) ersetzt. Wenn der Wert kein Wörterbuch ist, wird er durch
-    to_value(value) ersetzt.
+    Recursively converts the values in a dictionary to `source` or `value` objects.
 
-    Parameter:
-    ----------
-    d : dict
-        Das zu verarbeitende verschachtelte Wörterbuch.
-    to_source : function
-        Die Funktion, die auf Werte angewendet wird, die gleich einem Schlüssel im Wörterbuch sind.
-    to_value : function
-        Die Funktion, die auf Werte angewendet wird, die kein Wörterbuch sind.
+    Args:
+        d (dict): The dictionary to convert.
+        parent_dict (dict | None): The parent dictionary. Defaults to None.
 
-    Gibt zurück:
-    ------------
-    dict
-        Das verarbeitete Wörterbuch.
+    Returns:
+        dict: The converted dictionary.
     """
+
+    if parent_dict is None:
+        parent_dict = d
+
     for k, v in d.items():
         if isinstance(v, dict):
-            _to_ht_param(v)
+            _to_ht_params(v, parent_dict)
         else:
-            if v in d:
+            if v in parent_dict:
                 d[k] = source(v)
             else:
                 d[k] = value(v)
