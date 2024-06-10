@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import yaml
-from hamilton.function_modifiers import value
+from hamilton.function_modifiers import value, source
 
 # from loguru import logger
 from munch import Munch, munchify, unmunchify
@@ -76,35 +76,66 @@ def write(cfg: dict | Munch, name: str, path: str | None = None) -> None:
         )
 
 
-def _to_ht_value(value_dict: dict) -> dict:
+def _to_ht_param(d: dict):
     """
-    Recursively converts a dictionary to a dictionary of value objects.
+    Verarbeitet ein verschachteltes Wörterbuch. Wenn ein Wert gleich einem Schlüssel im Wörterbuch ist,
+    wird der Wert durch to_source(value) ersetzt. Wenn der Wert kein Wörterbuch ist, wird er durch
+    to_value(value) ersetzt.
 
-    Args:
-        value_dict (dict): The dictionary to be converted.
+    Parameter:
+    ----------
+    d : dict
+        Das zu verarbeitende verschachtelte Wörterbuch.
+    to_source : function
+        Die Funktion, die auf Werte angewendet wird, die gleich einem Schlüssel im Wörterbuch sind.
+    to_value : function
+        Die Funktion, die auf Werte angewendet wird, die kein Wörterbuch sind.
 
-    Returns:
-        dict: The converted dictionary with value objects.
-
+    Gibt zurück:
+    ------------
+    dict
+        Das verarbeitete Wörterbuch.
     """
-    if isinstance(value_dict, dict):
-        return {k: _to_ht_value(v) for k, v in value_dict.items()}
-    else:
-        return value(value_dict)
+    for k, v in d.items():
+        if isinstance(v, dict):
+            _to_ht_param(v)
+        else:
+            if v in d:
+                d[k] = source(v)
+            else:
+                d[k] = value(v)
+    return d
 
 
-def _to_ht_parameterization(value_dict: dict) -> dict:
+# def _to_ht_value(value_dict: dict) -> dict:
+#     """
+#     Recursively converts a dictionary to a dictionary of value objects.
+
+#     Args:
+#         value_dict (dict): The dictionary to be converted.
+
+#     Returns:
+#         dict: The converted dictionary with value objects.
+
+#     """
+#     if isinstance(value_dict, dict):
+#         return {k: _to_ht_value(v) for k, v in value_dict.items()}
+#     else:
+#         return value(value_dict)
+
+
+def _to_ht_parameterization(d: dict) -> dict:
     """
     Convert a dictionary into a parameterization dictionary.
 
     Args:
-        value_dict (dict): The input dictionary.
+        d (dict): The input dictionary.
 
     Returns:
         dict: The parameterization dictionary.
 
     """
-    return {k: {k: value_dict[k]} for k in value_dict}
+    return {k: {k: d[k]} for k in d}
 
 
 def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
@@ -126,7 +157,7 @@ def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
         # cfg = _to_ht_value(cfg)
         cfg["params"].update(
             {
-                k: _to_ht_parameterization(_to_ht_value(v))
+                k: _to_ht_parameterization(_to_ht_param(v))
                 for k, v in cfg["params"].items()
                 if v is not None
             }

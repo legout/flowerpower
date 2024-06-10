@@ -31,7 +31,7 @@ def run_pipeline(
         else {}
     )
     kwargs = {**run_params, **tracker_params}
-    run(pipeline=pipeline, environment=environment, **kwargs)
+    _ = run(pipeline=pipeline, environment=environment, **kwargs)
 
 
 @app.command()
