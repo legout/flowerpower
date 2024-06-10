@@ -1,5 +1,6 @@
 # import typer
 import datetime as dt
+import importlib.util
 
 # from .pipelines import *
 import importlib
@@ -20,12 +21,16 @@ from .cfg import (
     write,
 )
 
-# from hamilton.execution import executors
-from .scheduler import get_scheduler
-
 PIPELINE = load_pipeline_cfg()
 TRACKER = load_tracker_cfg()
-SCHEDULER = load_scheduler_cfg()
+
+if importlib.util.find_spec("apscheduler"):
+    # from hamilton.execution import executors
+    from .scheduler import get_scheduler
+
+    SCHEDULER = load_scheduler_cfg()
+else:
+    get_scheduler = None
 
 
 def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Driver:
@@ -122,6 +127,8 @@ def schedule(
     background: bool = False,
     **kwargs,
 ):
+    if get_scheduler is None:
+        raise ValueError("APScheduler not installed. Please install it first.")
     if "." in pipeline:
         pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
         pipeline_path = pipeline_path.replace(".", "/")

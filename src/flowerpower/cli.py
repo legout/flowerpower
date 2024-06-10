@@ -1,8 +1,15 @@
 from typer import Typer
+import importlib.util
 
 from .pipeline import run, schedule, add, delete
-from .scheduler import get_scheduler
-from .scheduler import start_scheduler as start_scheduler_
+
+if importlib.util.find_spec("apscheduler"):
+    from .scheduler import get_scheduler
+    from .scheduler import start_scheduler as start_scheduler_
+else:
+    get_scheduler = None
+    start_scheduler_ = None
+
 from .main import init as init_
 
 app = Typer()
@@ -40,6 +47,9 @@ def schedule_pipeline(
     calendarinterval_params: str = "",
     date_params: str = "",
 ):
+    if get_scheduler is None:
+        raise ValueError("APScheduler not installed. Please install it first.")
+
     crontab = crontab or None
     cron_params = (
         dict([kw.split("=") for kw in cron_params.split(",")]) if cron_params else {}
@@ -104,6 +114,8 @@ def show(
     conf_path: str = "",
     pipelines_path: str = "pipelines",
 ):
+    if get_scheduler is None:
+        raise ValueError("APScheduler not installed. Please install it first.")
     from rich.console import Console
 
     console = Console()

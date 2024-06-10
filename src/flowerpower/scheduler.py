@@ -1,6 +1,14 @@
 import sys
+import importlib.util
 
-from apscheduler import Scheduler
+if importlib.util.find_spec("apscheduler"):
+    # from hamilton.execution import executors
+    from apscheduler import Scheduler, current_scheduler
+else:
+    raise ImportError(
+        "APScheduler is not installed. Please install it using `pip install"
+        "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
+    )
 
 from .cfg import load_scheduler_cfg
 
@@ -17,8 +25,7 @@ def get_scheduler(
     if "data_store" in SCHEDULER:
         if "type" in SCHEDULER.data_store:
             if SCHEDULER.data_store.type == "sqlalchemy":
-                from apscheduler.datastores.sqlalchemy import \
-                    SQLAlchemyDataStore
+                from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
                 from sqlalchemy.ext.asyncio import create_async_engine
 
                 if "url" not in SCHEDULER.data_store:
@@ -92,7 +99,7 @@ def get_scheduler(
 def start_scheduler(
     conf_path: str | None = None,
     pipelines_path: str = "pipelines",
-    background: bool = True,
+    background: bool = False,
 ):
     # sys.path.append(pipelines_path)
     scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
@@ -101,6 +108,15 @@ def start_scheduler(
     else:
         scheduler.run_until_stopped()
     return scheduler
+
+
+def get_current_scheduler():
+    return current_scheduler.get()
+
+
+def stop_scheduler():
+    scheduler = get_current_scheduler()
+    scheduler.stop()
 
 
 def remove_all_schedules(
