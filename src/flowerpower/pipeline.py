@@ -99,6 +99,7 @@ def get_driver(
             driver.Builder()
             .with_modules(module)
             .enable_dynamic_execution(allow_experimental_mode=True)
+            .with_remote_executor(executor_)
             .build()
         )
 
