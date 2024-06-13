@@ -9,6 +9,7 @@ import sys
 
 from dateutil import tz
 from hamilton import driver
+from hamilton.execution import executors
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify
@@ -34,7 +35,9 @@ TRACKER = load_tracker_cfg()
 SCHEDULER = load_scheduler_cfg()
 
 
-def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Driver:
+def get_driver(
+    pipeline: str, environment: str = "prod", executor: str | None = None, **kwargs
+) -> driver.Driver:
     if "." in pipeline:
         pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
         pipeline_path = pipeline_path.replace(".", "/")
@@ -47,6 +50,13 @@ def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Dri
 
     run_params = getattr(PIPELINE.run, pipeline_name)[environment]
     tracker_params = TRACKER.pipeline[pipeline_name]
+
+    if executor is not None or executor == "local":
+        executor_ = executors.SynchronousLocalTaskExecutor()
+    elif executor == "MultiProcessingExecutor" or executor == "multiprocessing":
+        executor_ = executors.MultiProcessingExecutor(max_tasks=20)
+    elif executor == "MultiThreadingExecutor" or executor == "multithreading":
+        executor_ = executors.MultiThreadingExecutor(max_tasks=20)
 
     with_tracker = kwargs.pop("with_tracker", False) or run_params.get(
         "with_tracker", False
@@ -81,6 +91,7 @@ def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Dri
             .with_modules(module)
             .enable_dynamic_execution(allow_experimental_mode=True)
             .with_adapters(tracker)
+            .with_remote_executor(executor_)
             .build()
         )
     else:
@@ -97,6 +108,7 @@ def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Dri
 def run(
     pipeline: str,
     environment: str = "prod",
+    executor: str | None = None,
     **kwargs,
 ) -> None:
     if "." in pipeline:
@@ -110,7 +122,7 @@ def run(
 
     logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
 
-    dr = get_driver(pipeline, environment, **kwargs)
+    dr = get_driver(pipeline, environment, executor, **kwargs)
 
     final_vars = list(
         set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))

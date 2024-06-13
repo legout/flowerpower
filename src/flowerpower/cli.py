@@ -19,6 +19,7 @@ app = Typer()
 def run_pipeline(
     pipeline: str,
     environment: str = "prod",
+    executor: str = "local",
     run_params: str = "",
     tracker_params: str = "",
 ):
@@ -31,7 +32,7 @@ def run_pipeline(
         else {}
     )
     kwargs = {**run_params, **tracker_params}
-    _ = run(pipeline=pipeline, environment=environment, **kwargs)
+    _ = run(pipeline=pipeline, environment=environment, executor=executor, **kwargs)
 
 
 @app.command()
@@ -39,6 +40,7 @@ def schedule_pipeline(
     pipeline: str,
     type: str,
     environment: str = "prod",
+    executor: str = "local",
     auto_start: bool = False,
     background: bool = False,
     crontab: str = "",
@@ -88,6 +90,7 @@ def schedule_pipeline(
     schedule(
         pipeline=pipeline,
         environment=environment,
+        executor=executor,
         type=type,
         auto_start=auto_start,
         background=background,
