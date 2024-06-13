@@ -45,19 +45,19 @@ def get_driver(pipeline: str, environment: str = "prod", **kwargs) -> driver.Dri
     sys.path.append(pipeline_path)
     module = importlib.import_module(pipeline_name)
 
-    RUN_PARAMS = getattr(PIPELINE.run, pipeline_name)[environment]
-    TRACKER_PARAMS = TRACKER.pipeline[pipeline_name]
+    run_params = getattr(PIPELINE.run, pipeline_name)[environment]
+    tracker_params = TRACKER.pipeline[pipeline_name]
 
-    with_tracker = kwargs.pop("with_tracker", False) or RUN_PARAMS.get(
+    with_tracker = kwargs.pop("with_tracker", False) or run_params.get(
         "with_tracker", False
     )
     if with_tracker:
-        project_id = kwargs.pop("project_id", None) or TRACKER_PARAMS.get(
+        project_id = kwargs.pop("project_id", None) or tracker_params.get(
             "project_id", None
         )
         username = kwargs.pop("username", None) or TRACKER.get("username", None)
-        dag_name = kwargs.pop("dag_name", None) or TRACKER_PARAMS.get("dag_name", None)
-        tags = kwargs.pop("tags", None) or TRACKER_PARAMS.get("tags", None)
+        dag_name = kwargs.pop("dag_name", None) or tracker_params.get("dag_name", None)
+        tags = kwargs.pop("tags", None) or tracker_params.get("tags", None)
         api_url = kwargs.pop("api_url", None) or TRACKER.get("api_url", None)
         ui_url = kwargs.pop("ui_url", None) or TRACKER.get("ui_url", None)
 
@@ -106,14 +106,16 @@ def run(
         pipeline_path = PIPELINE.path
         pipeline_name = pipeline
 
-    RUN_PARAMS = getattr(PIPELINE.run, pipeline_name)[environment]
+    run_params = getattr(PIPELINE.run, pipeline_name)[environment]
 
     logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
 
     dr = get_driver(pipeline, environment, **kwargs)
 
-    final_vars = {**kwargs.pop("final_vars", []), **RUN_PARAMS.get("final_vars", [])}
-    inputs = {**kwargs.pop("inputs", {}), **RUN_PARAMS.get("inputs", {})}
+    final_vars = list(
+        set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))
+    )
+    inputs = {**kwargs.pop("inputs", {}), **run_params.get("inputs", {})}
 
     res = dr.execute(final_vars=final_vars, inputs=inputs)
 
@@ -139,16 +141,16 @@ def schedule(
         pipeline_path = PIPELINE.path
         pipeline_name = pipeline
 
-    SCHEDULER_PARAMS = SCHEDULER.pipeline[pipeline_name]
+    scheduler_params = SCHEDULER.pipeline[pipeline_name]
 
-    start_time = kwargs.pop("start_time", dt.datetime.now()) or SCHEDULER_PARAMS.get(
+    start_time = kwargs.pop("start_time", dt.datetime.now()) or scheduler_params.get(
         "start_time", dt.datetime.now()
     )
-    end_time = kwargs.pop("end_time", None) or SCHEDULER_PARAMS.get("end_time", None)
+    end_time = kwargs.pop("end_time", None) or scheduler_params.get("end_time", None)
 
     scheduler = get_scheduler(pipelines_path=pipeline_path)
     if type == "cron":
-        crontab = kwargs.pop("crontab", None) or SCHEDULER_PARAMS.get("crontab", None)
+        crontab = kwargs.pop("crontab", None) or scheduler_params.get("crontab", None)
         if crontab is not None:
             from apscheduler.triggers.cron import CronTrigger
 
@@ -156,19 +158,19 @@ def schedule(
         else:
             from apscheduler.triggers.cron import CronTrigger
 
-            year = kwargs.pop("year", None) or SCHEDULER_PARAMS.get("year", None)
-            month = kwargs.pop("month", None) or SCHEDULER_PARAMS.get("month", None)
-            week = kwargs.pop("week", None) or SCHEDULER_PARAMS.get("week", None)
-            day = kwargs.pop("day", None) or SCHEDULER_PARAMS.get("day", None)
-            days_of_week = kwargs.pop("days_of_week", None) or SCHEDULER_PARAMS.get(
+            year = kwargs.pop("year", None) or scheduler_params.get("year", None)
+            month = kwargs.pop("month", None) or scheduler_params.get("month", None)
+            week = kwargs.pop("week", None) or scheduler_params.get("week", None)
+            day = kwargs.pop("day", None) or scheduler_params.get("day", None)
+            days_of_week = kwargs.pop("days_of_week", None) or scheduler_params.get(
                 "days_of_week", None
             )
-            hour = kwargs.pop("hour", None) or SCHEDULER_PARAMS.get("hour", None)
-            minute = kwargs.pop("minute", None) or SCHEDULER_PARAMS.get("minute", None)
-            second = kwargs.pop("second", None) or SCHEDULER_PARAMS.get("second", None)
+            hour = kwargs.pop("hour", None) or scheduler_params.get("hour", None)
+            minute = kwargs.pop("minute", None) or scheduler_params.get("minute", None)
+            second = kwargs.pop("second", None) or scheduler_params.get("second", None)
             timezone = kwargs.pop(
                 "timezone", tz.gettz("Europe/Berlin")
-            ) or SCHEDULER_PARAMS.get("timezone", tz.gettz("Europe/Berlin"))
+            ) or scheduler_params.get("timezone", tz.gettz("Europe/Berlin"))
 
             trigger = CronTrigger(
                 year=year,
@@ -186,12 +188,12 @@ def schedule(
     elif type == "interval":
         from apscheduler.triggers.interval import IntervalTrigger
 
-        weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
-        days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
-        hours = kwargs.pop("hours", 0) or SCHEDULER_PARAMS.get("hours", 0)
-        minutes = kwargs.pop("minutes", 0) or SCHEDULER_PARAMS.get("minutes", 0)
-        seconds = kwargs.pop("seconds", 0) or SCHEDULER_PARAMS.get("seconds", 0)
-        microseconds = kwargs.pop("microseconds", 0) or SCHEDULER_PARAMS.get(
+        weeks = kwargs.pop("weeks", 0) or scheduler_params.get("weeks", 0)
+        days = kwargs.pop("days", 0) or scheduler_params.get("days", 0)
+        hours = kwargs.pop("hours", 0) or scheduler_params.get("hours", 0)
+        minutes = kwargs.pop("minutes", 0) or scheduler_params.get("minutes", 0)
+        seconds = kwargs.pop("seconds", 0) or scheduler_params.get("seconds", 0)
+        microseconds = kwargs.pop("microseconds", 0) or scheduler_params.get(
             "microseconds", 0
         )
 
@@ -209,12 +211,12 @@ def schedule(
     elif type == "calendar":
         from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
-        weeks = kwargs.pop("weeks", 0) or SCHEDULER_PARAMS.get("weeks", 0)
-        days = kwargs.pop("days", 0) or SCHEDULER_PARAMS.get("days", 0)
-        hours = kwargs.pop("hours", 0) or SCHEDULER_PARAMS.get("hours", 0)
-        minutes = kwargs.pop("minutes", 0) or SCHEDULER_PARAMS.get("minutes", 0)
-        seconds = kwargs.pop("seconds", 0) or SCHEDULER_PARAMS.get("seconds", 0)
-        microseconds = kwargs.pop("microseconds", 0) or SCHEDULER_PARAMS.get(
+        weeks = kwargs.pop("weeks", 0) or scheduler_params.get("weeks", 0)
+        days = kwargs.pop("days", 0) or scheduler_params.get("days", 0)
+        hours = kwargs.pop("hours", 0) or scheduler_params.get("hours", 0)
+        minutes = kwargs.pop("minutes", 0) or scheduler_params.get("minutes", 0)
+        seconds = kwargs.pop("seconds", 0) or scheduler_params.get("seconds", 0)
+        microseconds = kwargs.pop("microseconds", 0) or scheduler_params.get(
             "microseconds", 0
         )
 
