@@ -44,8 +44,8 @@ RUN conda install jupyter-server-proxy jupyter-vscode-proxy  -y && \
 #sudo echo ". ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base" >> /etc/skel/.bashrc && \
 #echo ". ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base" >> ~/.bashrc
 
-COPY GitHub.copilot-1.199.0.vsix GitHub.copilot-1.199.0.vsix
-COPY GitHub.copilot-chat-0.15.2024043005.vsix GitHub.copilot-chat-0.15.2024043005.vsix
+COPY assets/GitHub.copilot-1.199.0.vsix GitHub.copilot-1.199.0.vsix
+COPY assets/GitHub.copilot-chat-0.15.2024043005.vsix GitHub.copilot-chat-0.15.2024043005.vsix
 
 RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension ms-python.python && \

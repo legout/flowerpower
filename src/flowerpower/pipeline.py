@@ -112,8 +112,8 @@ def run(
 
     dr = get_driver(pipeline, environment, **kwargs)
 
-    final_vars = kwargs.pop("final_vars", []) or RUN_PARAMS.get("final_vars", [])
-    inputs = kwargs.pop("inputs", {}) or RUN_PARAMS.get("inputs", {})
+    final_vars = {**kwargs.pop("final_vars", []), **RUN_PARAMS.get("final_vars", [])}
+    inputs = {**kwargs.pop("inputs", {}), **RUN_PARAMS.get("inputs", {})}
 
     res = dr.execute(final_vars=final_vars, inputs=inputs)
 
@@ -358,6 +358,6 @@ def delete():
 
 
 def show(pipeline: str, format: str = "png"):
-    os.mkdir("graphs", exist_ok=True)
+    os.makedirs("graphs", exist_ok=True)
     dr = get_driver(pipeline=pipeline, environment="dev", with_tracker=False)
     dr.display_all_functions(f"graphs/{pipeline}.{format}").view()

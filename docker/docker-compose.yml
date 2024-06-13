@@ -29,6 +29,8 @@ services:
   
   mqtt:
     image: eclipse-mosquitto
+    volumes:
+      - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
       - 1883:1883
     command: mosquitto -c /mosquitto/config/mosquitto.conf
@@ -105,15 +107,15 @@ services:
   #   depends_on:
   #     - hamilton_ui
 
-  caddy:
-    image: caddy:latest
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-    ports:
-      - 80:80
-      - 443:443
-    depends_on:
-      - hamilton_ui
+  # caddy:
+  #   image: caddy:latest
+  #   volumes:
+  #     - .conf/Caddyfile:/etc/caddy/Caddyfile
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   depends_on:
+  #     - hamilton_ui
 
 volumes:
   jupytercode:
