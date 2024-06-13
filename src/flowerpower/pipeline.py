@@ -51,7 +51,7 @@ def get_driver(
     run_params = getattr(PIPELINE.run, pipeline_name)[environment]
     tracker_params = TRACKER.pipeline[pipeline_name]
 
-    if executor is not None or executor == "local":
+    if executor is None or executor == "local":
         executor_ = executors.SynchronousLocalTaskExecutor()
     elif executor == "MultiProcessingExecutor" or executor == "multiprocessing":
         executor_ = executors.MultiProcessingExecutor(max_tasks=20)
