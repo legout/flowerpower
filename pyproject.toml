@@ -15,7 +15,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.8"
-version = "0.2.0"
+version = "0.2.1"
 
 [project.optional-dependencies]
 legacy = [
