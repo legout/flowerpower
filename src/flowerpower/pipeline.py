@@ -312,7 +312,7 @@ def add(
     # scheduler configuration
     scheduler_cfg = SCHEDULER or munchify(
         {
-            "data_path": {"type": "memory"},
+            "data_store": {"type": "memory"},
             "event_broker": {"type": "local"},
             "pipeline": {},
         }
