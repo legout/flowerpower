@@ -108,7 +108,7 @@ posthog==3.5.0
     # via sf-hamilton-sdk
 pyarrow==16.1.0
     # via pydala2
-pydala2 @ git+https://github.com/legout/pydala2@d50f55d17ebf19f1bd36cab00d9bc647b3e560a2
+pydala2 @ git+https://github.com/legout/pydala2@e260f4da406b092b5a0abc9aa5de65decda1ae55
     # via flowerpower
 pygments==2.18.0
     # via rich

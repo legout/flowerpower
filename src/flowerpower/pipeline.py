@@ -374,5 +374,7 @@ def delete():
 
 def show(pipeline: str, format: str = "png"):
     os.makedirs("graphs", exist_ok=True)
-    dr = get_driver(pipeline=pipeline, environment="dev", with_tracker=False)
+    dr = get_driver(
+        pipeline=pipeline, environment="dev", executor=None, with_tracker=False
+    )
     dr.display_all_functions(f"graphs/{pipeline}.{format}").view()
