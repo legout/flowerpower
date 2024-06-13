@@ -12,79 +12,81 @@ else:
 
 from .cfg import load_scheduler_cfg
 
-SCHEDULER = load_scheduler_cfg()
-
 
 def get_scheduler(
     conf_path: str | None = None, pipelines_path: str = "pipelines"
 ) -> Scheduler:
+    scheduler_params = load_scheduler_cfg(conf_path)
     sys.path.append(pipelines_path)
     data_store = None
     event_broker = None
     engine = None
-    if "data_store" in SCHEDULER:
-        if "type" in SCHEDULER.data_store:
-            if SCHEDULER.data_store.type == "sqlalchemy":
+    if "data_store" in scheduler_params:
+        if "type" in scheduler_params.data_store:
+            if scheduler_params.data_store.type == "sqlalchemy":
                 from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
                 from sqlalchemy.ext.asyncio import create_async_engine
 
-                if "url" not in SCHEDULER.data_store:
+                if "url" not in scheduler_params.data_store:
                     raise ValueError("No URL specified for SQLAlchemy data_store")
-                engine = create_async_engine(SCHEDULER.data_store.url)
+                engine = create_async_engine(scheduler_params.data_store.url)
                 data_store = SQLAlchemyDataStore(engine_or_url=engine)
 
-            elif SCHEDULER.data_store.type == "mongodb":
+            elif scheduler_params.data_store.type == "mongodb":
                 from apscheduler.datastores.mongodb import MongoDBDataStore
 
-                if "url" not in SCHEDULER.data_store:
+                if "url" not in scheduler_params.data_store:
                     raise ValueError("No URL specified for MongoDB data_store")
-                data_store = MongoDBDataStore(SCHEDULER.data_store.url)
+                data_store = MongoDBDataStore(scheduler_params.data_store.url)
 
             else:
                 from apscheduler.datastores.memory import MemoryDataStore
 
                 data_store = MemoryDataStore()
 
-    if "event_broker" in SCHEDULER:
-        if "type" in SCHEDULER.event_broker:
-            if SCHEDULER.event_broker.type == "asyncpg":
+    if "event_broker" in scheduler_params:
+        if "type" in scheduler_params.event_broker:
+            if scheduler_params.event_broker.type == "asyncpg":
                 from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 
                 if engine is None:
                     from sqlalchemy.ext.asyncio import create_async_engine
 
-                    if "url" not in SCHEDULER.event_broker:
+                    if "url" not in scheduler_params.event_broker:
                         raise ValueError("No URL specified for AsyncPG event broker")
 
-                    engine = create_async_engine(SCHEDULER.event_broker.url)
+                    engine = create_async_engine(scheduler_params.event_broker.url)
                 event_broker = AsyncpgEventBroker.from_async_sqla_engine(engine=engine)
 
-            elif SCHEDULER.event_broker.type == "mqtt":
+            elif scheduler_params.event_broker.type == "mqtt":
                 from apscheduler.eventbrokers.mqtt import MQTTEventBroker
 
-                if "host" not in SCHEDULER.event_broker:
+                if "host" not in scheduler_params.event_broker:
                     raise ValueError("No host specified for MQTT event broker")
-                if "port" not in SCHEDULER.event_broker:
+                if "port" not in scheduler_params.event_broker:
                     raise ValueError("No port specified for MQTT event broker")
                 event_broker = MQTTEventBroker(
-                    SCHEDULER.event_broker.host, SCHEDULER.event_broker.port
+                    scheduler_params.event_broker.host,
+                    scheduler_params.event_broker.port,
                 )
                 if (
-                    "username" in SCHEDULER.event_broker
-                    and "password" in SCHEDULER.event_broker
+                    "username" in scheduler_params.event_broker
+                    and "password" in scheduler_params.event_broker
                 ):
                     event_broker._client.username_pw_set(
-                        SCHEDULER.event_broker.username, SCHEDULER.event_broker.password
+                        scheduler_params.event_broker.username,
+                        scheduler_params.event_broker.password,
                     )
-            elif SCHEDULER.event_broker.type == "redis":
+            elif scheduler_params.event_broker.type == "redis":
                 from apscheduler.eventbrokers.redis import RedisEventBroker
 
-                if "host" not in SCHEDULER.event_broker:
+                if "host" not in scheduler_params.event_broker:
                     raise ValueError("No host specified for Redis event broker")
-                if "port" not in SCHEDULER.event_broker:
+                if "port" not in scheduler_params.event_broker:
                     raise ValueError("No port specified for Redis event broker")
                 event_broker = RedisEventBroker(
-                    SCHEDULER.event_broker.host, SCHEDULER.event_broker.port
+                    scheduler_params.event_broker.host,
+                    scheduler_params.event_broker.port,
                 )
             else:
                 from apscheduler.eventbrokers.local import LocalEventBroker
