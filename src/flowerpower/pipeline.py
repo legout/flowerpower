@@ -128,7 +128,7 @@ def run(
     final_vars = list(
         set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))
     )
-    inputs = {**kwargs.pop("inputs", {}), **run_params.get("inputs", {})}
+    inputs = {**run_params.pop("inputs", {}), **kwargs.get("inputs", {})}
 
     res = dr.execute(final_vars=final_vars, inputs=inputs)
 
