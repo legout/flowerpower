@@ -78,7 +78,7 @@ def get_driver(
 
         tracker = adapters.HamiltonTracker(
             project_id=project_id,
-            **kwargs,
+            # **kwargs,
             username=username,
             dag_name=dag_name,
             tags=tags,
