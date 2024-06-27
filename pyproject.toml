@@ -3,8 +3,8 @@ authors = [
   {name = "Volker Lorrmann", email = "ligno.blades@gmail.com"},
 ]
 dependencies = [
-  "pydala2 @ git+https://github.com/legout/pydala2",
-  "sf-hamilton[visualization,sdk]>=1.62.0",
+  #"pydala2 @ git+https://github.com/legout/pydala2",
+  "sf-hamilton[visualization,sdk]>=1.66.0",
   "python-dotenv>=1.0.1",
   "fsspec>=2024.5.0",
   "pyyaml>=6.0.1",
@@ -21,9 +21,9 @@ version = "0.2.2"
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-legacy = [
-  "polars-lts-cpu>=0.20.30",
-]
+# legacy = [
+#   "pydala2[legacy] @ git+https://github.com/legout/pydala2",
+# ]
 mongodb = [
   "pymongo>=4.7.2",
 ]
@@ -39,6 +39,9 @@ scheduler = [
   "greenlet>=3.0.3",
   "asyncpg>=0.29.0",
   "sqlalchemy>=2.0.30",
+]
+ui = [
+  "sf-hamilton[ui]>=0.0.6",
 ]
 
 [build-system]
