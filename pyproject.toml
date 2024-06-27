@@ -14,8 +14,11 @@ dependencies = [
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 name = "FlowerPower"
 readme = "README.md"
-requires-python = ">= 3.8"
-version = "0.2.1"
+requires-python = ">= 3.11"
+version = "0.2.2"
+
+[project.scripts]
+flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
 legacy = [
@@ -49,8 +52,8 @@ dev-dependencies = [
   "pillow>=10.3.0",
 ]
 
-[tool.rye.scripts]
-flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}
+#[tool.rye.scripts]
+#flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}
 
 managed = true
 

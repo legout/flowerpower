@@ -131,7 +131,7 @@ pure-eval==0.2.2
     # via stack-data
 pyarrow==16.1.0
     # via pydala2
-pydala2 @ git+https://github.com/legout/pydala2@77d5f0bcfd36b69e595a2b86cad5f18ff2941233
+pydala2 @ git+https://github.com/legout/pydala2@45f5383086f66b6b2ec99c00345bb335019062ae
     # via flowerpower
 pygments==2.18.0
     # via ipython

@@ -125,10 +125,12 @@ def run(
 
     dr = get_driver(pipeline, environment, executor, **kwargs)
 
-    final_vars = list(
-        set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))
-    )
-    inputs = {**run_params.pop("inputs", {}), **kwargs.get("inputs", {})}
+    # final_vars = list(
+    #     set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))
+    # )
+    final_vars = kwargs.pop("final_vars", []) or run_params.get("final_vars", [])
+
+    inputs = {**run_params.get("inputs", {}), **kwargs.pop("inputs", {})}
 
     res = dr.execute(final_vars=final_vars, inputs=inputs)
 
