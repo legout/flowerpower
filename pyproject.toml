@@ -10,12 +10,13 @@ dependencies = [
   "pyyaml>=6.0.1",
   "typer>=0.12.3",
   "rich>=13.7.1",
+  "munch>=4.0.0",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.2.2"
+version = "0.2.5"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"

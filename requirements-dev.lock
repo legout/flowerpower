@@ -97,6 +97,8 @@ monotonic==1.6
 multidict==6.0.5
     # via aiohttp
     # via yarl
+munch==4.0.0
+    # via flowerpower
 mypy-extensions==1.0.0
     # via typing-inspect
 networkx==3.3

@@ -15,7 +15,7 @@ from loguru import logger
 from munch import munchify
 
 from .cfg import (
-    PIPELINE_TEMPLATE,
+    PIPELINE_PY_TEMPLATE,
     load_pipeline_cfg,
     load_scheduler_cfg,
     load_tracker_cfg,
@@ -30,26 +30,26 @@ if importlib.util.find_spec("apscheduler"):
 else:
     get_scheduler = None
 
-PIPELINE = load_pipeline_cfg()
-TRACKER = load_tracker_cfg()
-SCHEDULER = load_scheduler_cfg()
+# PIPELINE = load_pipeline_cfg()
+# TRACKER = load_tracker_cfg()
+# SCHEDULER = load_scheduler_cfg()
 
 
 def get_driver(
-    pipeline: str, environment: str = "prod", executor: str | None = None, **kwargs
+    pipeline: str,
+    executor: str | None = None,
+    base_path: str = "",
+    with_tracker: bool = False,
+    **kwargs,
 ) -> driver.Driver:
-    if "." in pipeline:
-        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
-        pipeline_path = pipeline_path.replace(".", "/")
-    else:
-        pipeline_path = PIPELINE.path
-        pipeline_name = pipeline
+    conf_path = os.path.join(base_path, "conf")
+    pipeline_path = os.path.join(base_path, "pipelines")
+
+    tracker_cfg = load_tracker_cfg(path=conf_path)
+    tracker_params = tracker_cfg.pipeline[pipeline]
 
     sys.path.append(pipeline_path)
-    module = importlib.import_module(pipeline_name)
-
-    run_params = getattr(PIPELINE.run, pipeline_name)[environment]
-    tracker_params = TRACKER.pipeline[pipeline_name]
+    module = importlib.import_module(pipeline)
 
     if executor is None or executor == "local":
         executor_ = executors.SynchronousLocalTaskExecutor()
@@ -58,18 +58,15 @@ def get_driver(
     elif executor == "MultiThreadingExecutor" or executor == "multithreading":
         executor_ = executors.MultiThreadingExecutor(max_tasks=20)
 
-    with_tracker = kwargs.pop("with_tracker", False) or run_params.get(
-        "with_tracker", False
-    )
     if with_tracker:
         project_id = kwargs.pop("project_id", None) or tracker_params.get(
             "project_id", None
         )
-        username = kwargs.pop("username", None) or TRACKER.get("username", None)
+        username = kwargs.pop("username", None) or tracker_cfg.get("username", None)
         dag_name = kwargs.pop("dag_name", None) or tracker_params.get("dag_name", None)
         tags = kwargs.pop("tags", None) or tracker_params.get("tags", None)
-        api_url = kwargs.pop("api_url", None) or TRACKER.get("api_url", None)
-        ui_url = kwargs.pop("ui_url", None) or TRACKER.get("ui_url", None)
+        api_url = kwargs.pop("api_url", None) or tracker_cfg.get("api_url", None)
+        ui_url = kwargs.pop("ui_url", None) or tracker_cfg.get("ui_url", None)
 
         if project_id is None:
             raise ValueError(
@@ -78,7 +75,6 @@ def get_driver(
 
         tracker = adapters.HamiltonTracker(
             project_id=project_id,
-            # **kwargs,
             username=username,
             dag_name=dag_name,
             tags=tags,
@@ -110,27 +106,32 @@ def run(
     pipeline: str,
     environment: str = "prod",
     executor: str | None = None,
+    base_path: str = "",
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    with_tracker: bool | None = None,
     **kwargs,
 ) -> None:
-    if "." in pipeline:
-        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
-        pipeline_path = pipeline_path.replace(".", "/")
-    else:
-        pipeline_path = PIPELINE.path
-        pipeline_name = pipeline
+    conf_path = os.path.join(base_path, "conf")
+    # pipeline_path = os.path.join(base_path, "pipelines")
 
-    run_params = getattr(PIPELINE.run, pipeline_name)[environment]
+    pipeline_cfg = load_pipeline_cfg(path=conf_path)
 
-    logger.info(f"Starting pipeline {pipeline_name} in environment {environment}")
+    logger.info(f"Starting pipeline {pipeline} in environment {environment}")
 
-    dr = get_driver(pipeline, environment, executor, **kwargs)
+    run_params = getattr(pipeline_cfg.run, pipeline)[environment]
 
-    # final_vars = list(
-    #     set(kwargs.pop("final_vars", []) + run_params.get("final_vars", []))
-    # )
-    final_vars = kwargs.pop("final_vars", []) or run_params.get("final_vars", [])
+    final_vars = final_vars or run_params.get("final_vars", [])
+    inputs = {**(run_params.get("inputs", {}) or {}), **(inputs or {})}
+    with_tracker = with_tracker or run_params.get("with_tracker", False)
 
-    inputs = {**run_params.get("inputs", {}), **kwargs.pop("inputs", {})}
+    dr = get_driver(
+        pipeline=pipeline,
+        executor=executor,
+        base_path=base_path,
+        with_tracker=with_tracker,
+        **kwargs,
+    )
 
     res = dr.execute(final_vars=final_vars, inputs=inputs)
 
@@ -142,28 +143,32 @@ def run(
 def schedule(
     pipeline: str,
     environment: str = "prod",
+    executor: str | None = None,
+    base_path: str = "",
     type: str = "cron",
     auto_start: bool = True,
     background: bool = False,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    with_tracker: bool | None = None,
     **kwargs,
 ):
     if get_scheduler is None:
         raise ValueError("APScheduler not installed. Please install it first.")
-    if "." in pipeline:
-        pipeline_path, pipeline_name = pipeline.rsplit(".", maxsplit=1)
-        pipeline_path = pipeline_path.replace(".", "/")
-    else:
-        pipeline_path = PIPELINE.path
-        pipeline_name = pipeline
 
-    scheduler_params = SCHEDULER.pipeline[pipeline_name]
+    conf_path = os.path.join(base_path, "conf")
+    pipeline_path = os.path.join(base_path, "pipelines")
+
+    scheduler_cfg = load_scheduler_cfg(path=conf_path)
+
+    scheduler_params = scheduler_cfg.pipeline[pipeline]
 
     start_time = kwargs.pop("start_time", dt.datetime.now()) or scheduler_params.get(
         "start_time", dt.datetime.now()
     )
     end_time = kwargs.pop("end_time", None) or scheduler_params.get("end_time", None)
 
-    scheduler = get_scheduler(pipelines_path=pipeline_path)
+    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipeline_path)
     if type == "cron":
         crontab = kwargs.pop("crontab", None) or scheduler_params.get("crontab", None)
         if crontab is not None:
@@ -253,7 +258,15 @@ def schedule(
     id_ = scheduler.add_schedule(
         run,
         trigger=trigger,
-        args=(pipeline, environment),
+        args=(
+            pipeline,
+            environment,
+            executor,
+            base_path,
+            inputs,
+            final_vars,
+            with_tracker,
+        ),
         kwargs=kwargs,
     )
     logger.success(
@@ -270,8 +283,7 @@ def schedule(
 
 def add(
     name: str,
-    pipelines_path: str = "pipelines",
-    conf_path: str = "conf",
+    base_path: str = "",
     overwrite: bool = False,
     params: dict | None = None,
     run: dict | None = None,
@@ -279,6 +291,10 @@ def add(
     tracker: dict | None = None,
 ):
     logger.info(f"Creating new pipeline {name}")
+
+    conf_path = os.path.join(base_path, "conf")
+    pipelines_path = os.path.join(base_path, "pipelines")
+
     if not os.path.exists(conf_path):
         raise ValueError(
             f"Configuration path {conf_path} does not exist. Please run flowerpower init first."
@@ -297,15 +313,15 @@ def add(
     os.makedirs(pipelines_path, exist_ok=True)
     with open(f"{pipelines_path}/{name}.py", "w") as f:
         f.write(
-            PIPELINE_TEMPLATE.format(
+            PIPELINE_PY_TEMPLATE.format(
                 name=name, date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
         )
     logger.info(f"Created pipeline module {name}.py")
     # pipeline configuration
 
-    pipeline_cfg = PIPELINE or munchify(
-        {"path": pipelines_path, "run": {}, "params": {}}
+    pipeline_cfg = load_pipeline_cfg(path=conf_path) or munchify(
+        {"run": {}, "params": {}}
     )
     if pipeline_cfg.params is None:
         pipeline_cfg.params = {}
@@ -323,11 +339,12 @@ def add(
         }
     )
 
-    write(pipeline_cfg, "pipelines", conf_path)
-    logger.info(f"Updated pipeline configuration {conf_path}/pipelines.yml")
+    write(pipeline_cfg, "pipeline", conf_path)
+    logger.info(f"Updated pipeline configuration {conf_path}/pipeline.yml")
 
     # scheduler configuration
-    scheduler_cfg = SCHEDULER or munchify(
+
+    scheduler_cfg = load_scheduler_cfg(path=conf_path) or munchify(
         {
             "data_store": {"type": "memory"},
             "event_broker": {"type": "local"},
@@ -343,7 +360,7 @@ def add(
     logger.info(f"Updated scheduler configuration {conf_path}/scheduler.yml")
 
     # tracker configuration
-    tracker_cfg = TRACKER or munchify(
+    tracker_cfg = load_tracker_cfg(path=conf_path) or munchify(
         {
             "username": None,
             "api_url": "http://localhost:8241",
@@ -374,9 +391,12 @@ def delete():
     pass
 
 
-def show(pipeline: str, format: str = "png"):
+def show(pipeline: str, format: str = "png", view: bool = False):
     os.makedirs("graphs", exist_ok=True)
     dr = get_driver(
         pipeline=pipeline, environment="dev", executor=None, with_tracker=False
     )
-    dr.display_all_functions(f"graphs/{pipeline}.{format}").view()
+    if view:
+        dr.display_all_functions(f"graphs/{pipeline}.{format}").view()
+    else:
+        dr.display_all_functions(f"graphs/{pipeline}.{format}")

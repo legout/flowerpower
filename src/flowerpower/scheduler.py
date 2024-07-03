@@ -14,13 +14,17 @@ from .cfg import load_scheduler_cfg
 
 
 def get_scheduler(
-    conf_path: str | None = None, pipelines_path: str = "pipelines"
+    conf_path: str | None = "conf", pipelines_path: str | None = "pipelines"
 ) -> Scheduler:
-    scheduler_params = load_scheduler_cfg(conf_path)
+    scheduler_params = load_scheduler_cfg(path=conf_path)
+    pipelines_path = scheduler_params.get("path", None) or pipelines_path
+
     sys.path.append(pipelines_path)
+
     data_store = None
     event_broker = None
     engine = None
+
     if "data_store" in scheduler_params:
         if "type" in scheduler_params.data_store:
             if scheduler_params.data_store.type == "sqlalchemy":
@@ -99,7 +103,7 @@ def get_scheduler(
 
 
 def start_scheduler(
-    conf_path: str | None = None,
+    conf_path: str | None = "conf",
     pipelines_path: str = "pipelines",
     background: bool = False,
 ):
@@ -122,7 +126,7 @@ def stop_scheduler():
 
 
 def remove_all_schedules(
-    conf_path: str | None = None, pipelines_path: str = "pipelines"
+    conf_path: str | None = "conf", pipelines_path: str = "pipelines"
 ):
     scheduler = get_scheduler(conf_path=conf_path)
     for sched in scheduler.get_schedules():
@@ -132,14 +136,16 @@ def remove_all_schedules(
 
 
 def add_schedule(
-    conf_path: str | None = None, pipelines_path: str = "pipelines", **kwargs
+    conf_path: str | None = "conf", pipelines_path: str = "pipelines", **kwargs
 ):
     scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     scheduler.add_schedule(**kwargs)
     return scheduler
 
 
-def add_job(conf_path: str | None = None, pipelines_path: str = "pipelines", **kwargs):
+def add_job(
+    conf_path: str | None = "conf", pipelines_path: str = "pipelines", **kwargs
+):
     scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
     scheduler.add_job(**kwargs)
     return scheduler

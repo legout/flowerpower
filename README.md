@@ -75,4 +75,3 @@ python -m flowerpower.cli schedule-pipeline my_flow interval --interval-params s
 
 
 
-

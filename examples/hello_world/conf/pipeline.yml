@@ -30,16 +30,6 @@
 #       with_tracker: false
 #
 # ---------------------------------------------------------- #
-
-path: pipelines
-
-params:
-  my_flow:
-    avg_x_wk_spend:
-      rolling: 3
-    spend_zero_mean:
-      offset: 0
-
 run:
   my_flow:
     dev:
@@ -58,3 +48,10 @@ run:
       final_vars:
         [avg_x_wk_spend, spend_per_signup, spend_zero_mean_unit_variance]
       with_tracker: true
+
+params:
+  my_flow:
+    avg_x_wk_spend:
+      rolling: 3
+    spend_zero_mean:
+      offset: 0

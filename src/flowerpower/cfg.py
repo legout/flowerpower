@@ -3,17 +3,16 @@ from pathlib import Path
 import yaml
 from hamilton.function_modifiers import value, source
 
-# from loguru import logger
+from loguru import logger
 from munch import Munch, munchify, unmunchify
 
 
-def _load(name: str, path: str | None = None) -> dict:
+def _load(path: str) -> dict:
     """
     Load configuration parameters from a YAML file.
 
     Args:
-        name (str): The name of the YAML file to load.
-        path (str|None, optional): The path to the YAML file. If not provided, the function will
+        path (str): The path to the YAML file. If not provided, the function will
             search for the file in the current working directory and its subdirectories.
 
     Returns:
@@ -23,14 +22,14 @@ def _load(name: str, path: str | None = None) -> dict:
         FileNotFoundError: If the specified YAML file is not found.
 
     """
-    if path is None:
-        path = list((Path.cwd() / "conf").rglob(f"{name}*.y*ml"))
+    # if path is None:
+    #     path = list((Path.cwd() / "conf").rglob(f"{name}*.y*ml"))
 
-        if not len(path):
-            # logger.error(f"No YAML file found with name '{name}'")
-            return
+    #     if not len(path):
+    #         # logger.error(f"No YAML file found with name '{name}'")
+    #         return
 
-        path = path[0]
+    #     path = path[0]
 
     with open(path) as f:
         params = yaml.full_load(f)
@@ -136,20 +135,31 @@ def _to_ht_parameterization(d: dict) -> dict:
     return {k: {k: d[k]} for k in d}
 
 
-def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
+def load_pipeline_cfg(path: str = "conf", to_ht: bool = False) -> Munch:
     """
     Load pipeline parameters from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "pipeline*.y*ml"
+        path (str): The path to the YAML file. If None, it will search for a file named "pipeline*.y*ml"
             in the current working directory.
         ht_values (bool): Whether to convert the loaded parameters to "ht_value" format.
 
     Returns:
         Munch: A Munch object containing the loaded pipeline parameters.
     """
+    if (
+        "pipeline.yml" not in path
+        or "pipeline.yaml" not in path
+        or "pipelines.yml" not in path
+        or "pipelines.yaml" not in path
+    ):
+        path = list((Path(path)).rglob("pipeline*.y*ml"))
+        if not len(path):
+            logger.error("No YAML file found with name 'pipeline'")
+            return
+        path = path[0]
 
-    cfg = _load("pipeline", path)
+    cfg = _load(path)
 
     if to_ht:
         # cfg = _to_ht_value(cfg)
@@ -164,41 +174,63 @@ def load_pipeline_cfg(path: str | None = None, to_ht: bool = False) -> Munch:
     return munchify(cfg)
 
 
-def load_scheduler_cfg(path: str | None = None) -> Munch:
+def load_scheduler_cfg(path: str = "conf") -> Munch:
     """
     Load scheduler parameters from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "scheduler*.y*ml"
+        path (str): The path to the YAML file. If None, it will search for a file named "scheduler*.y*ml"
             in the current working directory.
 
     Returns:
         Munch: A Munch object containing the loaded scheduler parameters.
     """
+    if (
+        "scheduler.yml" not in path
+        or "scheduler.yaml" not in path
+        or "schedulers.yml" not in path
+        or "schedulers.yaml" not in path
+    ):
+        path = list((Path(path)).rglob("scheduler*.y*ml"))
+        if not len(path):
+            logger.error("No YAML file found with name 'scheduler'")
+            return
+        path = path[0]
 
-    cfg = _load("scheduler", path)
+    cfg = _load(path)
 
     return munchify(cfg)
 
 
-def load_tracker_cfg(path: str | None = None) -> Munch:
+def load_tracker_cfg(path: str = "conf") -> Munch:
     """
     Load tracker config from a YAML file.
 
     Args:
-        path (str | None): The path to the YAML file. If None, it will search for a file named "tracker*.y*ml"
+        path (str): The path to the YAML file. If None, it will search for a file named "tracker*.y*ml"
             in the current working directory.
 
     Returns:
         Munch: A Munch object containing the loaded tracker parameters.
     """
+    if (
+        "tracker.yml" not in path
+        or "tracker.yaml" not in path
+        or "trackers.yml" not in path
+        or "trackers.yaml" not in path
+    ):
+        path = list((Path(path)).rglob("tracker*.y*ml"))
+        if not len(path):
+            logger.error("No YAML file found with name 'tracker'")
+            return
+        path = path[0]
 
-    cfg = _load("tracker", path)
+    cfg = _load(path)
 
     return munchify(cfg)
 
 
-PIPELINES_TEMPLATE = """# ---------------- Pipelines Configuration ----------------- #
+PIPELINE_TEMPLATE = """# ---------------- Pipelines Configuration ----------------- #
 
 # ------------------------ Example ------------------------- #
 #
@@ -335,14 +367,17 @@ TRACKER_TEMPLATE = """# ----------------- Tracker Configuration ----------------
 
 """
 
-PIPELINE_TEMPLATE = """# FlowerPower pipeline {name}.py
-# Created at {date}
+PIPELINE_PY_TEMPLATE = """# FlowerPower pipeline {name}.py
+# Created on {date}
 
 
 from hamilton.function_modifiers import parameterize
 from flowerpower.cfg import load_pipeline_cfg
+from pathlib import Path
 
-PARAMS = load_pipeline_cfg(to_ht=True).params.{name}
+PARAMS = load_pipeline_cfg(
+    path=str(Path(__file__).parent / "conf"), to_ht=True
+).params.{name}
 """
 # PIPELINE = load_pipeline_cfg()
 # SCHEDULER = load_scheduler_cfg()
