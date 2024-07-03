@@ -1,0 +1,85 @@
+# ---------------- Scheduler Configuration ----------------- #
+
+# ------------------------ Example ------------------------- #
+#
+# ##  data store configuration
+#
+# ### postgres
+# data_store:
+#   type: sqlalchemy
+#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
+#
+# ### sqlite
+# data_store:
+#   type: sqlalchemy
+#   url: sqlite+aiosqlite:///flowerpower.db
+#
+# ### memory
+# data_store:
+#   type: memory
+#
+# ### mongodb
+# data_store:
+#   type: mongodb
+#   url: mongodb://localhost:27017/scheduler
+#
+# ## event broker configuration
+#
+# ### postgres
+# event_broker:
+#   type: asyncpg
+#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
+#
+# ### mqtt
+# event_broker:
+#   type: mqtt
+#   host: localhost
+#   port: 1883
+#   username: edge
+#   password: edge
+
+# ### redis
+# event_broker:
+#   type: redis
+#   host: localhost
+#   port: 6379
+
+# ### local
+# event_broker:
+#   type: local # or memory
+#
+# ## pipeline schedule configuration
+#
+# pipeline:
+#   my_flow:
+#     type: cron                ## options: interval, calendarinterval, date
+#     start_time:
+#     end_time:
+#     ## optional cron arguments
+#     crontab: * * * * *
+#     year:
+#     month:
+#     week:
+#     day:
+#     days_of_week:
+#     hour:
+#     minute:
+#     second:
+#     timezone:
+#     ## optional interval arguments
+#     weeks:
+#     days:
+#     hours:
+#     minutes:
+#     seconds:
+#     microseconds:
+#
+# ---------------------------------------------------------- #
+
+data_path:
+  type: memory
+event_broker:
+  type: local
+pipeline:
+  my_flow:
+    type: 
