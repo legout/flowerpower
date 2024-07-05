@@ -376,9 +376,6 @@ from flowerpower.cfg import load_pipeline_cfg
 from pathlib import Path
 
 PARAMS = load_pipeline_cfg(
-    path=str(Path(__file__).parent / "conf"), to_ht=True
+    path=str(Path(__file__).parents[1] / "conf"), to_ht=True
 ).params.{name}
 """
-# PIPELINE = load_pipeline_cfg()
-# SCHEDULER = load_scheduler_cfg()
-# TRACKER = load_tracker_cfg()
