@@ -12,7 +12,7 @@ from hamilton import driver
 from hamilton.execution import executors
 from hamilton_sdk import adapters
 from loguru import logger
-from munch import munchify
+from munch import munchify, unmunchify
 
 from .cfg import (
     PIPELINE_PY_TEMPLATE,
@@ -133,7 +133,7 @@ def run(
         **kwargs,
     )
 
-    res = dr.execute(final_vars=final_vars, inputs=inputs)
+    res = dr.execute(final_vars=final_vars, inputs=unmunchify(inputs))
 
     logger.success(f"Finished pipeline {pipeline}")
 
