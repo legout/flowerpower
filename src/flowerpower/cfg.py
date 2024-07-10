@@ -91,16 +91,16 @@ def _to_ht_params(d: dict, parent_dict: dict | None = None):
         parent_dict = d
 
     for k, v in d.items():
-        if isinstance(v, dict):
-            _to_ht_params(v, parent_dict)
-        else:
-            if isinstance(v, str):
-                if v in parent_dict:
-                    d[k] = source(v)
-                else:
-                    d[k] = value(v)
+        # if isinstance(v, dict):
+        #    _to_ht_params(v, parent_dict)
+        # else:
+        if isinstance(v, str):
+            if v in parent_dict:
+                d[k] = source(v)
             else:
                 d[k] = value(v)
+        else:
+            d[k] = value(v)
     return d
 
 
