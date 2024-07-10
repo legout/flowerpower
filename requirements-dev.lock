@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: true
 #   with-sources: false
+#   generate-hashes: false
+#   universal: false
 
 -e file:.
 aiofiles==24.1.0
@@ -154,13 +156,13 @@ requests==2.31.0
 rich==13.7.1
     # via flowerpower
     # via typer
-sf-hamilton==1.67.0
+sf-hamilton==1.70.0
     # via flowerpower
     # via sf-hamilton-sdk
-sf-hamilton-sdk==0.4.0
-    # via sf-hamilton
-sf-hamilton-ui==0.0.6
-    # via sf-hamilton
+sf-hamilton-sdk==0.5.2
+    # via flowerpower
+sf-hamilton-ui==0.0.11
+    # via flowerpower
 shellingham==1.5.4
     # via typer
 six==1.16.0
