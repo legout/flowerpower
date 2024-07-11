@@ -1,20 +1,20 @@
 version: "2"
 services:
-  jupytercode:
-    build: 
-      context: .
-      args:
-        - CODE_VERSION=4.89.1
-        - PLATFORM=arm64
-    image: jupytercode:latest
-    user: root
-    environment:
-      - GRANT_SUDO=yes
-    ports:
-      - 8888:8888
-    volumes:
-      - jupytercode:/home/jovyan
-
+  # jupytercode:
+  #   build: 
+  #     context: .
+  #     args:
+  #       - CODE_VERSION=4.89.1
+  #       - PLATFORM=arm64
+  #   image: jupytercode:latest
+  #   user: root
+  #   environment:
+  #     - GRANT_SUDO=yes
+  #   ports:
+  #     - 8888:8888
+  #   volumes:
+  #     - jupytercode:/home/jovyan
+  #
   minio:
     image: minio/minio
     ports:
@@ -45,13 +45,13 @@ services:
     ports:
       - 27017:27017
 
-  nodered:
-    image: nodered/node-red
-    volumes:
-      - nodered:/data
-    ports: 
-      - 1880:1880
-
+  # nodered:
+  #   image: nodered/node-red
+  #   volumes:
+  #     - nodered:/data
+  #   ports: 
+  #     - 1880:1880
+  #
   postgres:
     image: postgres:12
     volumes:

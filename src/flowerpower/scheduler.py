@@ -14,7 +14,7 @@ from .cfg import load_scheduler_cfg
 
 
 def get_scheduler(
-    conf_path: str | None = "conf", pipelines_path: str | None = "pipelines"
+    conf_path: str | None = "conf", pipelines_path: str | None = "pipelines", **kwargs
 ) -> Scheduler:
     scheduler_params = load_scheduler_cfg(path=conf_path)
     pipelines_path = scheduler_params.get("path", None) or pipelines_path
@@ -72,6 +72,7 @@ def get_scheduler(
                 event_broker = MQTTEventBroker(
                     scheduler_params.event_broker.host,
                     scheduler_params.event_broker.port,
+                    topic="flowerpower/scheduler",
                 )
                 if (
                     "username" in scheduler_params.event_broker
@@ -97,7 +98,7 @@ def get_scheduler(
 
                 event_broker = LocalEventBroker()
 
-    scheduler = Scheduler(data_store=data_store, event_broker=event_broker)
+    scheduler = Scheduler(data_store=data_store, event_broker=event_broker, **kwargs)
 
     return scheduler
 
