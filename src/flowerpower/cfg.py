@@ -91,16 +91,16 @@ def _to_ht_params(d: dict, parent_dict: dict | None = None):
         parent_dict = d
 
     for k, v in d.items():
-        if isinstance(v, dict):
-            _to_ht_params(v, parent_dict)
-        else:
-            if isinstance(v, str):
-                if v in parent_dict:
-                    d[k] = source(v)
-                else:
-                    d[k] = value(v)
+        # if isinstance(v, dict):
+        #    _to_ht_params(v, parent_dict)
+        # else:
+        if isinstance(v, str):
+            if v in parent_dict:
+                d[k] = source(v)
             else:
                 d[k] = value(v)
+        else:
+            d[k] = value(v)
     return d
 
 
@@ -163,9 +163,17 @@ def load_pipeline_cfg(path: str = "conf", to_ht: bool = False) -> Munch:
 
     if to_ht:
         # cfg = _to_ht_value(cfg)
+        for node in cfg["params"]:
+            cfg["params"][node].update(
+                {
+                    k: _to_ht_params(v)
+                    for k, v in cfg["params"][node].items()
+                    if v is not None
+                }
+            )
         cfg["params"].update(
             {
-                k: _to_ht_parameterization(_to_ht_params(v))
+                k: _to_ht_parameterization(v)
                 for k, v in cfg["params"].items()
                 if v is not None
             }
