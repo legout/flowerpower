@@ -54,21 +54,24 @@ def get_scheduler(
                 from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 
                 if engine is None:
-                    from sqlalchemy.ext.asyncio import create_async_engine
-
                     if "url" not in scheduler_params.event_broker:
                         raise ValueError("No URL specified for AsyncPG event broker")
 
-                    engine = create_async_engine(scheduler_params.event_broker.url)
-                event_broker = AsyncpgEventBroker.from_async_sqla_engine(engine=engine)
+                    event_broker = AsyncpgEventBroker.from_dsn(
+                        dsn=scheduler_params.event_broker.url
+                    )
+                else:
+                    event_broker = AsyncpgEventBroker.from_async_sqla_engine(
+                        engine=engine
+                    )
 
             elif scheduler_params.event_broker.type == "mqtt":
                 from apscheduler.eventbrokers.mqtt import MQTTEventBroker
 
                 if "host" not in scheduler_params.event_broker:
-                    raise ValueError("No host specified for MQTT event broker")
+                    scheduler_params.event_broker.host = "localhost"  # raise ValueError("No host specified for MQTT event broker")
                 if "port" not in scheduler_params.event_broker:
-                    raise ValueError("No port specified for MQTT event broker")
+                    scheduler_params.event_broker.port = 1883  # raise ValueError("No port specified for MQTT event broker")
                 event_broker = MQTTEventBroker(
                     scheduler_params.event_broker.host,
                     scheduler_params.event_broker.port,
@@ -84,13 +87,14 @@ def get_scheduler(
             elif scheduler_params.event_broker.type == "redis":
                 from apscheduler.eventbrokers.redis import RedisEventBroker
 
-                if "host" not in scheduler_params.event_broker:
-                    raise ValueError("No host specified for Redis event broker")
-                if "port" not in scheduler_params.event_broker:
-                    raise ValueError("No port specified for Redis event broker")
+                if "host" in scheduler_params.event_broker:
+                    if "port" not in scheduler_params.event_broker:
+                        scheduler_params.event_broker.port = 6379
+                    scheduler_params.event_broker.url = f"redis://{scheduler_params.event_broker.host}:{scheduler_params.event_broker.port}"
+                if scheduler_params.event_broker.url is None:
+                    scheduler_params.event_broker.url = "redis://localhost:6379"
                 event_broker = RedisEventBroker(
-                    scheduler_params.event_broker.host,
-                    scheduler_params.event_broker.port,
+                    scheduler_params.event_broker.url
                 )
             else:
                 from apscheduler.eventbrokers.local import LocalEventBroker
