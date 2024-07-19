@@ -35,7 +35,34 @@ else:
 # SCHEDULER = load_scheduler_cfg()
 
 
-def get_driver(
+def _get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
+    shutdown = None
+    if mode == "local":
+        remote_executor = executors.SynchronousLocalTaskExecutor()
+    elif mode == "multiprocessing":
+        remote_executor = executors.MultiProcessingExecutor(max_tasks=max_tasks)
+    elif mode == "multithreading":
+        remote_executor = executors.MultiThreadingExecutor(max_tasks=max_tasks)
+    elif mode == "dask":
+        from dask import distributed
+
+        from hamilton.plugins import h_dask
+
+        cluster = distributed.LocalCluster()
+        client = distributed.Client(cluster)
+        remote_executor = h_dask.DaskExecutor(client=client)
+        shutdown = cluster.close
+    else:
+        import ray
+
+        from hamilton.plugins import h_ray
+
+        remote_executor = h_ray.RayTaskExecutor(num_cpus=4)
+        shutdown = ray.shutdown
+    return remote_executor, shutdown
+
+
+def _get_driver(
     pipeline: str,
     executor: str | None = None,
     base_path: str = "",
@@ -51,12 +78,11 @@ def get_driver(
     sys.path.append(pipeline_path)
     module = importlib.import_module(pipeline)
 
-    if executor is None or executor == "local":
-        executor_ = executors.SynchronousLocalTaskExecutor()
-    elif executor == "MultiProcessingExecutor" or executor == "multiprocessing":
-        executor_ = executors.MultiProcessingExecutor(max_tasks=20)
-    elif executor == "MultiThreadingExecutor" or executor == "multithreading":
-        executor_ = executors.MultiThreadingExecutor(max_tasks=20)
+    max_tasks = kwargs.pop("max_tasks", 20)
+    num_cpus = kwargs.pop("num_cpus", 4)
+    executor_, shutdown = _get_executor(
+        executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
+    )
 
     if with_tracker:
         project_id = kwargs.pop("project_id", None) or tracker_params.get(
@@ -99,7 +125,7 @@ def get_driver(
             .build()
         )
 
-    return dr
+    return dr, shutdown
 
 
 def run(
@@ -125,7 +151,7 @@ def run(
     inputs = {**(run_params.get("inputs", {}) or {}), **(inputs or {})}
     with_tracker = with_tracker or run_params.get("with_tracker", False)
 
-    dr = get_driver(
+    dr, shutdown = _get_driver(
         pipeline=pipeline,
         executor=executor,
         base_path=base_path,
@@ -136,6 +162,9 @@ def run(
     res = dr.execute(final_vars=final_vars, inputs=unmunchify(inputs))
 
     logger.success(f"Finished pipeline {pipeline}")
+
+    if shutdown is not None:
+        shutdown()
 
     return res
 
@@ -393,7 +422,7 @@ def delete():
 
 def show(pipeline: str, format: str = "png", view: bool = False):
     os.makedirs("graphs", exist_ok=True)
-    dr = get_driver(
+    dr = _get_driver(
         pipeline=pipeline, environment="dev", executor=None, with_tracker=False
     )
     if view:

@@ -69,9 +69,11 @@ def get_scheduler(
                 from apscheduler.eventbrokers.mqtt import MQTTEventBroker
 
                 if "host" not in scheduler_params.event_broker:
-                    scheduler_params.event_broker.host = "localhost"  # raise ValueError("No host specified for MQTT event broker")
+                    scheduler_params.event_broker.host = "localhost"
+                    # raise ValueError("No host specified for MQTT event broker")
                 if "port" not in scheduler_params.event_broker:
-                    scheduler_params.event_broker.port = 1883  # raise ValueError("No port specified for MQTT event broker")
+                    scheduler_params.event_broker.port = 1883
+                    # raise ValueError("No port specified for MQTT event broker")
                 event_broker = MQTTEventBroker(
                     scheduler_params.event_broker.host,
                     scheduler_params.event_broker.port,
@@ -94,9 +96,7 @@ def get_scheduler(
                     scheduler_params.event_broker.url = f"redis://{scheduler_params.event_broker.host}:{scheduler_params.event_broker.port}"
                 if scheduler_params.event_broker.url is None:
                     scheduler_params.event_broker.url = "redis://localhost:6379"
-                event_broker = RedisEventBroker(
-                    scheduler_params.event_broker.url
-                )
+                event_broker = RedisEventBroker(scheduler_params.event_broker.url)
             else:
                 from apscheduler.eventbrokers.local import LocalEventBroker
 

@@ -45,6 +45,12 @@ scheduler = [
 ui = [
   "sf-hamilton-ui>=0.0.11",
 ]
+ray = [
+    "ray>=2.32.0",
+]
+dask = [
+    "dask>=2024.7.0",
+]
 
 [build-system]
 build-backend = "hatchling.build"
