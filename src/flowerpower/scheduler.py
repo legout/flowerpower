@@ -2,7 +2,6 @@ import sys
 import importlib.util
 
 if importlib.util.find_spec("apscheduler"):
-    # from hamilton.execution import executors
     from apscheduler import Scheduler, current_scheduler
 else:
     raise ImportError(
@@ -10,147 +9,260 @@ else:
         "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
     )
 
-from .cfg import load_scheduler_cfg
+from .cfg import Config
+import os
+from loguru import logger
+import uuid
+from typing import Any
 
 
-def get_scheduler(
-    conf_path: str | None = "conf", pipelines_path: str | None = "pipelines", **kwargs
-) -> Scheduler:
-    scheduler_params = load_scheduler_cfg(path=conf_path)
-    pipelines_path = scheduler_params.get("path", None) or pipelines_path
+class SchedulerManager:
+    def __init__(
+        self,
+        name: str | None = None,
+        base_path: str | None = None,
+        conf_path: str | None = None,
+        pipelines_path: str = None,
+    ):
+        self.name = name
 
-    sys.path.append(pipelines_path)
+        if base_path is None:
+            base_path = os.getcwd()
 
-    data_store = None
-    event_broker = None
-    engine = None
+        self._base_path = base_path
+        self._conf_path = os.path.join(base_path, "conf") or conf_path
+        self._pipelines_path = os.path.join(base_path, "pipelines") or pipelines_path
 
-    if "data_store" in scheduler_params:
-        if "type" in scheduler_params.data_store:
-            if scheduler_params.data_store.type == "sqlalchemy":
-                from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
-                from sqlalchemy.ext.asyncio import create_async_engine
+        cfg = Config(path=self._conf_path)
 
-                if "url" not in scheduler_params.data_store:
-                    raise ValueError("No URL specified for SQLAlchemy data_store")
-                engine = create_async_engine(scheduler_params.data_store.url)
-                data_store = SQLAlchemyDataStore(engine_or_url=engine)
+        self._scheduler_params = cfg.scheduler
+        self.data_store = None
+        self.event_broker = None
+        self._sqla_engine = None
+        self.scheduler = None
 
-            elif scheduler_params.data_store.type == "mongodb":
-                from apscheduler.datastores.mongodb import MongoDBDataStore
+        sys.path.append(self._pipelines_path)
 
-                if "url" not in scheduler_params.data_store:
-                    raise ValueError("No URL specified for MongoDB data_store")
-                data_store = MongoDBDataStore(scheduler_params.data_store.url)
-
-            else:
-                from apscheduler.datastores.memory import MemoryDataStore
-
-                data_store = MemoryDataStore()
-
-    if "event_broker" in scheduler_params:
-        if "type" in scheduler_params.event_broker:
-            if scheduler_params.event_broker.type == "asyncpg":
-                from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
-
-                if engine is None:
-                    if "url" not in scheduler_params.event_broker:
-                        raise ValueError("No URL specified for AsyncPG event broker")
-
-                    event_broker = AsyncpgEventBroker.from_dsn(
-                        dsn=scheduler_params.event_broker.url
-                    )
+    def setup_data_store(self):
+        if "data_store" in self._scheduler_params:
+            if "type" in self._scheduler_params.data_store:
+                if self._scheduler_params.data_store.type == "sqlalchemy":
+                    self._setup_sqlalchemy_data_store()
+                elif self._scheduler_params.data_store.type == "mongodb":
+                    self._setup_mongodb_data_store()
                 else:
-                    event_broker = AsyncpgEventBroker.from_async_sqla_engine(
-                        engine=engine
-                    )
+                    self._setup_memory_data_store()
 
-            elif scheduler_params.event_broker.type == "mqtt":
-                from apscheduler.eventbrokers.mqtt import MQTTEventBroker
+    def _setup_sqlalchemy_data_store(self):
+        from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
+        from sqlalchemy.ext.asyncio import create_async_engine
 
-                if "host" not in scheduler_params.event_broker:
-                    scheduler_params.event_broker.host = "localhost"
-                    # raise ValueError("No host specified for MQTT event broker")
-                if "port" not in scheduler_params.event_broker:
-                    scheduler_params.event_broker.port = 1883
-                    # raise ValueError("No port specified for MQTT event broker")
-                event_broker = MQTTEventBroker(
-                    scheduler_params.event_broker.host,
-                    scheduler_params.event_broker.port,
-                    topic="flowerpower/scheduler",
-                )
-                if (
-                    "username" in scheduler_params.event_broker
-                    and "password" in scheduler_params.event_broker
-                ):
-                    event_broker._client.username_pw_set(
-                        scheduler_params.event_broker.username,
-                        scheduler_params.event_broker.password,
-                    )
-            elif scheduler_params.event_broker.type == "redis":
-                from apscheduler.eventbrokers.redis import RedisEventBroker
+        if "url" not in self._scheduler_params.data_store:
+            raise ValueError("No URL specified for SQLAlchemy data_store")
+        self._sqla_engine = create_async_engine(self._scheduler_params.data_store.url)
+        self.data_store = SQLAlchemyDataStore(engine_or_url=self._sqla_engine)
 
-                if "host" in scheduler_params.event_broker:
-                    if "port" not in scheduler_params.event_broker:
-                        scheduler_params.event_broker.port = 6379
-                    scheduler_params.event_broker.url = f"redis://{scheduler_params.event_broker.host}:{scheduler_params.event_broker.port}"
-                if scheduler_params.event_broker.url is None:
-                    scheduler_params.event_broker.url = "redis://localhost:6379"
-                event_broker = RedisEventBroker(scheduler_params.event_broker.url)
-            else:
-                from apscheduler.eventbrokers.local import LocalEventBroker
+    def _setup_mongodb_data_store(self):
+        from apscheduler.datastores.mongodb import MongoDBDataStore
 
-                event_broker = LocalEventBroker()
+        if "url" not in self._scheduler_params.data_store:
+            raise ValueError("No URL specified for MongoDB data_store")
+        self.data_store = MongoDBDataStore(self._scheduler_params.data_store.url)
 
-    scheduler = Scheduler(data_store=data_store, event_broker=event_broker, **kwargs)
+    def _setup_memory_data_store(self):
+        from apscheduler.datastores.memory import MemoryDataStore
 
-    return scheduler
+        self.data_store = MemoryDataStore()
+
+    def setup_event_broker(self):
+        if "event_broker" in self._scheduler_params:
+            if "type" in self._scheduler_params.event_broker:
+                if self._scheduler_params.event_broker.type == "asyncpg":
+                    self._setup_asyncpg_event_broker()
+                elif self._scheduler_params.event_broker.type == "mqtt":
+                    self._setup_mqtt_event_broker()
+                elif self._scheduler_params.event_broker.type == "redis":
+                    self._setup_redis_event_broker()
+                else:
+                    self._setup_local_event_broker()
+
+    def _setup_asyncpg_event_broker(self):
+        from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
+
+        if self._sqla_engine is None:
+            if "url" not in self._scheduler_params.event_broker:
+                raise ValueError("No URL specified for AsyncPG event broker")
+            self.event_broker = AsyncpgEventBroker.from_dsn(
+                dsn=self._scheduler_params.event_broker.url
+            )
+        else:
+            self.event_broker = AsyncpgEventBroker.from_async_sqla_engine(
+                engine=self._sqla_engine
+            )
+
+    def _setup_mqtt_event_broker(self):
+        from apscheduler.eventbrokers.mqtt import MQTTEventBroker
+
+        host = self._scheduler_params.event_broker.get("host", "localhost")
+        port = self._scheduler_params.event_broker.get("port", 1883)
+        self.event_broker = MQTTEventBroker(host, port, topic="flowerpower/scheduler")
+        if (
+            "username" in self._scheduler_params.event_broker
+            and "password" in self._scheduler_params.event_broker
+        ):
+            self.event_broker._client.username_pw_set(
+                self._scheduler_params.event_broker.username,
+                self._scheduler_params.event_broker.password,
+            )
+
+    def _setup_redis_event_broker(self):
+        from apscheduler.eventbrokers.redis import RedisEventBroker
+
+        if "host" in self._scheduler_params.event_broker:
+            port = self._scheduler_params.event_broker.get("port", 6379)
+            self._scheduler_params.event_broker.url = (
+                f"redis://{self._scheduler_params.event_broker.host}:{port}"
+            )
+        url = self._scheduler_params.event_broker.get("url", "redis://localhost:6379")
+        self.event_broker = RedisEventBroker(url)
+
+    def _setup_local_event_broker(self):
+        from apscheduler.eventbrokers.local import LocalEventBroker
+
+        self.event_broker = LocalEventBroker()
+
+    def init_scheduler(self, **kwargs) -> Scheduler:
+        self.setup_data_store()
+        self.setup_event_broker()
+        self.scheduler = Scheduler(
+            data_store=self.data_store,
+            event_broker=self.event_broker,
+            identity=self.name,
+            logger=logger,
+            **kwargs,
+        )
+        # return self.scheduler
+
+    def start_scheduler(self, background: bool = False, *args, **kwargs):
+        if not self.scheduler:
+            self.init_scheduler(*args, **kwargs)
+        if background:
+            self.scheduler.start_in_background()
+        else:
+            self.scheduler.run_until_stopped()
+        # return self.scheduler
+
+    def get_current_scheduler(self):
+        if not self.scheduler:
+            self.scheduler = current_scheduler.get()
+
+    def stop_scheduler(self):
+        if not self.scheduler:
+            self.get_current_scheduler()
+        self.scheduler.stop()
+
+    def remove_all_schedules(self):
+        if not self.scheduler:
+            self.init_scheduler()
+        for sched in self.scheduler.get_schedules():
+            self.scheduler.remove_schedule(sched.id)
+        # return self.scheduler
+
+    def add_schedule(self, *args, **kwargs) -> uuid.UUID:
+        if not self.scheduler:
+            self.init_scheduler()
+        return self.scheduler.add_schedule(*args, **kwargs)
+        # return self.scheduler
+
+    def add_job(self, *args, **kwargs) -> uuid.UUID:
+        if not self.scheduler:
+            self.init_scheduler()
+        return self.scheduler.add_job(*args, **kwargs)
+
+    def run_job(self, *args, **kwargs) -> Any:
+        if not self.scheduler:
+            self.init_scheduler()
+        return self.scheduler.run_job(*args, **kwargs)
+        # return self.scheduler
+
+
+# Wrapper functions for backward compatibility
+def get_scheduler(
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
+    *args,
+    **kwargs,
+) -> Scheduler:
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    manager.init_scheduler(*args, **kwargs)
+    return manager.scheduler
 
 
 def start_scheduler(
-    conf_path: str | None = "conf",
-    pipelines_path: str = "pipelines",
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
     background: bool = False,
-):
-    # sys.path.append(pipelines_path)
-    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
-    if background:
-        scheduler.start_in_background()
-    else:
-        scheduler.run_until_stopped()
-    return scheduler
+    *args,
+    **kwargs,
+) -> Scheduler:
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    manager.start_scheduler(background, *args, **kwargs)
+    return manager.scheduler
 
 
-def get_current_scheduler():
-    return current_scheduler.get()
+def get_current_scheduler() -> Scheduler | None:
+    return SchedulerManager.get_current_scheduler()
 
 
-def stop_scheduler():
-    scheduler = get_current_scheduler()
-    scheduler.stop()
+# def stop_scheduler():
+#    SchedulerManager.stop_scheduler()
 
 
 def remove_all_schedules(
-    conf_path: str | None = "conf", pipelines_path: str = "pipelines"
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
 ):
-    scheduler = get_scheduler(conf_path=conf_path)
-    for sched in scheduler.get_schedules():
-        scheduler.remove_schedule(sched.id)
-
-    return scheduler
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    return manager.remove_all_schedules()
 
 
 def add_schedule(
-    conf_path: str | None = "conf", pipelines_path: str = "pipelines", **kwargs
-):
-    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
-    scheduler.add_schedule(**kwargs)
-    return scheduler
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
+    *args,
+    **kwargs,
+) -> uuid.UUID:
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    return manager.add_schedule(*args, **kwargs)
 
 
 def add_job(
-    conf_path: str | None = "conf", pipelines_path: str = "pipelines", **kwargs
-):
-    scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
-    scheduler.add_job(**kwargs)
-    return scheduler
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
+    *args,
+    **kwargs,
+) -> uuid.UUID:
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    return manager.add_job(*args, **kwargs)
+
+
+def run_job(
+    name: str | None = None,
+    path: str | None = None,
+    conf_path: str | None = None,
+    pipelines_path: str = None,
+    *args,
+    **kwargs,
+) -> Any:
+    manager = SchedulerManager(name, path, conf_path, pipelines_path)
+    return manager.run_job(*args, **kwargs)

@@ -220,3 +220,21 @@ class Config:
             return
 
         self._tracker = munchify(self._load(self._tracker_path))
+
+    @property
+    def pipeline(self):
+        if self._pipeline is None:
+            self.load_pipeline()
+        return self._pipeline
+
+    @property
+    def scheduler(self):
+        if self._scheduler is None:
+            self.load_scheduler()
+        return self._scheduler
+
+    @property
+    def tracker(self):
+        if self._tracker is None:
+            self.load_tracker()
+        return self._tracker
