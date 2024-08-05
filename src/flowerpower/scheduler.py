@@ -6,7 +6,7 @@ if importlib.util.find_spec("apscheduler"):
 else:
     raise ImportError(
         "APScheduler is not installed. Please install it using `pip install"
-        "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
+        "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[scheduler]`"
     )
 
 from .cfg import Config

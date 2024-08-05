@@ -1,7 +1,5 @@
 [project]
-authors = [
-  {name = "Volker Lorrmann", email = "ligno.blades@gmail.com"},
-]
+authors = [{ name = "Volker Lorrmann", email = "ligno.blades@gmail.com" }]
 dependencies = [
   #"pydala2 @ git+https://github.com/legout/pydala2",
   "sf-hamilton[visualization]>=1.69.0",
@@ -26,15 +24,11 @@ flowerpower = "flowerpower.cli:app"
 # legacy = [
 #   "pydala2[legacy] @ git+https://github.com/legout/pydala2",
 # ]
-mongodb = [
-  "pymongo>=4.7.2",
-]
-mqtt = [
-  "paho-mqtt>=2.1.0",
-]
-redis = [
-  "redis>=5.0.4",
-]
+dask = ["dask[complete]>=2024.7.1"]
+mongodb = ["pymongo>=4.7.2"]
+mqtt = ["paho-mqtt>=2.1.0"]
+ray = ["ray>=2.34.0"]
+redis = ["redis>=5.0.4"]
 scheduler = [
   "apscheduler>=4.0.0a5",
   "aiosqlite>=0.20.0",
@@ -42,15 +36,8 @@ scheduler = [
   "asyncpg>=0.29.0",
   "sqlalchemy>=2.0.30",
 ]
-ui = [
-  "sf-hamilton-ui>=0.0.11",
-]
-ray = [
-    "ray>=2.32.0",
-]
-dask = [
-    "dask>=2024.7.0",
-]
+ui = ["sf-hamilton-ui>=0.0.11"]
+
 
 [build-system]
 build-backend = "hatchling.build"
@@ -58,16 +45,14 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-    "ipython>=8.24.0",
-    "isort>=5.13.2",
-    "pillow>=10.3.0",
-    "cloudpickle>=3.0.0",
-    "dill>=0.3.8",
+  "ipython>=8.24.0",
+  "isort>=5.13.2",
+  "pillow>=10.3.0",
+  "cloudpickle>=3.0.0",
+  "dill>=0.3.8",
 ]
-
 #[tool.rye.scripts]
 #flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}
-
 managed = true
 
 [tool.hatch.metadata]

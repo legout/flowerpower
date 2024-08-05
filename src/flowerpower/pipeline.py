@@ -3,11 +3,10 @@ import importlib.util
 import importlib
 import os
 import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional, Any, Callable
 
 from dateutil import tz
 from hamilton import driver
-from hamilton.execution import executors
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import munchify, unmunchify
@@ -19,13 +18,14 @@ if importlib.util.find_spec("apscheduler"):
     from .scheduler import get_scheduler
 else:
     get_scheduler = None
+   
 
-from .helpers import _get_executor
+from .helpers import get_executor
 
 
 
 class PipelineManager:
-    def __init__(self,pipeline:str, base_path: str|None = None):
+    def __init__(self, pipeline:str, base_path: str|None = None):
         self.name = pipeline
         self._base_path = base_path
         self._conf_path = os.path.join(base_path, "conf")
@@ -52,14 +52,12 @@ class PipelineManager:
         self.cfg = Config(path=self._conf_path)
         
 
-   
-
-    def _get_driver(self, executor: str|None = None, with_tracker: bool = False, **kwargs) -> tuple[driver.Driver, callable|None]:
+    def _get_driver(self, executor: str|None = None, with_tracker: bool = False, **kwargs) -> tuple[driver.Driver, Callable|None]:
 
         
         max_tasks = kwargs.pop("max_tasks", 20)
         num_cpus = kwargs.pop("num_cpus", 4)
-        executor_, shutdown = _get_executor(executor or "local", max_tasks=max_tasks, num_cpus=num_cpus)
+        executor_, shutdown = get_executor(executor or "local", max_tasks=max_tasks, num_cpus=num_cpus)
 
         if with_tracker:
             project_id = kwargs.pop("project_id", None) or self.cfg.tracker.pipeline[self.name].get("project_id", None)
@@ -129,14 +127,14 @@ class PipelineManager:
                  inputs: dict|None = None, final_vars: list|None = None,
                  with_tracker: bool|None = None, **kwargs):
         if get_scheduler is None:
-            raise ValueError("APScheduler not installed. Please install it first.")
+            raise ValueError("APScheduler4 not installed. Please install it first.")
 
     
-        start_time = kwargs.pop("start_time", dt.datetime.now()) or self.cfg.scheduler.pipeline[pipeline].get("start_time", dt.datetime.now())
-        end_time = kwargs.pop("end_time", None) or self.cfg.scheduler.pipeline[pipeline].get("end_time", None)
+        start_time = kwargs.pop("start_time", dt.datetime.now()) or self.cfg.scheduler.pipeline[self.name].get("start_time", dt.datetime.now())
+        end_time = kwargs.pop("end_time", None) or self.cfg.scheduler.pipeline[self.name].get("end_time", None)
 
         scheduler = get_scheduler(conf_path=self._conf_path, pipelines_path=self._pipeline_path)
-        trigger = self._get_trigger(type, self.cfg.scheduler.pipeline[pipeline], start_time, end_time, **kwargs)
+        trigger = self._get_trigger(type, self.cfg.scheduler.pipeline[self.name], start_time, end_time, **kwargs)
 
         id_ = scheduler.add_schedule(
             self.run,
@@ -144,7 +142,7 @@ class PipelineManager:
             args=(pipeline, environment, executor, inputs, final_vars, with_tracker),
             kwargs=kwargs,
         )
-        logger.success(f"Added scheduler for {pipeline} in environment {environment} with id {id_}")
+        logger.success(f"Added scheduler for {self.name} in environment {environment} with id {id_}")
         
         if auto_start:
             if background:
@@ -155,60 +153,60 @@ class PipelineManager:
 
     def _get_trigger(self, type: str, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
         if type == "cron":
-            return self._get_cron_trigger(self.cfg.scheduler.pipeline[pipeline], start_time, end_time, **kwargs)
+            return self._get_cron_trigger(self.cfg.scheduler.pipeline[self.name], start_time, end_time, **kwargs)
         elif type == "interval":
-            return self._get_interval_trigger(self.cfg.scheduler.pipeline[pipeline], start_time, end_time, **kwargs)
+            return self._get_interval_trigger(self.cfg.scheduler.pipeline[self.name], start_time, end_time, **kwargs)
         elif type == "calendar":
-            return self._get_calendar_trigger(self.cfg.scheduler.pipeline[pipeline], start_time, end_time, **kwargs)
+            return self._get_calendar_trigger(self.cfg.scheduler.pipeline[self.name], start_time, end_time, **kwargs)
         elif type == "date":
             return self._get_date_trigger(start_time)
         else:
             raise ValueError(f"Unknown trigger type: {type}")
 
-    def _get_cron_trigger(self, self.cfg.scheduler.pipeline[pipeline]: Dict, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
+    def _get_cron_trigger(self, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
         from apscheduler.triggers.cron import CronTrigger
-        crontab = kwargs.pop("crontab", None) or self.cfg.scheduler.pipeline[pipeline].get("crontab", None)
+        crontab = kwargs.pop("crontab", None) or self.cfg.scheduler.pipeline[self.name].get("crontab", None)
         if crontab is not None:
             return CronTrigger.from_crontab(crontab)
         else:
             return CronTrigger(
-                year=kwargs.pop("year", None) or self.cfg.scheduler.pipeline[pipeline].get("year", None),
-                month=kwargs.pop("month", None) or self.cfg.scheduler.pipeline[pipeline].get("month", None),
-                week=kwargs.pop("week", None) or self.cfg.scheduler.pipeline[pipeline].get("week", None),
-                day=kwargs.pop("day", None) or self.cfg.scheduler.pipeline[pipeline].get("day", None),
-                day_of_week=kwargs.pop("days_of_week", None) or self.cfg.scheduler.pipeline[pipeline].get("days_of_week", None),
-                hour=kwargs.pop("hour", None) or self.cfg.scheduler.pipeline[pipeline].get("hour", None),
-                minute=kwargs.pop("minute", None) or self.cfg.scheduler.pipeline[pipeline].get("minute", None),
-                second=kwargs.pop("second", None) or self.cfg.scheduler.pipeline[pipeline].get("second", None),
+                year=kwargs.pop("year", None) or self.cfg.scheduler.pipeline[self.name].get("year", None),
+                month=kwargs.pop("month", None) or self.cfg.scheduler.pipeline[self.name].get("month", None),
+                week=kwargs.pop("week", None) or self.cfg.scheduler.pipeline[self.name].get("week", None),
+                day=kwargs.pop("day", None) or self.cfg.scheduler.pipeline[self.name].get("day", None),
+                day_of_week=kwargs.pop("days_of_week", None) or self.cfg.scheduler.pipeline[self.name].get("days_of_week", None),
+                hour=kwargs.pop("hour", None) or self.cfg.scheduler.pipeline[self.name].get("hour", None),
+                minute=kwargs.pop("minute", None) or self.cfg.scheduler.pipeline[self.name].get("minute", None),
+                second=kwargs.pop("second", None) or self.cfg.scheduler.pipeline[self.name].get("second", None),
                 start_time=start_time,
                 end_time=end_time,
-                timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin")) or self.cfg.scheduler.pipeline[pipeline].get("timezone", tz.gettz("Europe/Berlin")),
+                timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin")) or self.cfg.scheduler.pipeline[self.name].get("timezone", tz.gettz("Europe/Berlin")),
             )
 
-    def _get_interval_trigger(self, self.cfg.scheduler.pipeline[pipeline]: Dict, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
+    def _get_interval_trigger(self, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
         from apscheduler.triggers.interval import IntervalTrigger
         return IntervalTrigger(
-            weeks=kwargs.pop("weeks", 0) or self.cfg.scheduler.pipeline[pipeline].get("weeks", 0),
-            days=kwargs.pop("days", 0) or self.cfg.scheduler.pipeline[pipeline].get("days", 0),
-            hours=kwargs.pop("hours", 0) or self.cfg.scheduler.pipeline[pipeline].get("hours", 0),
-            minutes=kwargs.pop("minutes", 0) or self.cfg.scheduler.pipeline[pipeline].get("minutes", 0),
-            seconds=kwargs.pop("seconds", 0) or self.cfg.scheduler.pipeline[pipeline].get("seconds", 0),
-            microseconds=kwargs.pop("microseconds", 0) or self.cfg.scheduler.pipeline[pipeline].get("microseconds", 0),
+            weeks=kwargs.pop("weeks", 0) or self.cfg.scheduler.pipeline[self.name].get("weeks", 0),
+            days=kwargs.pop("days", 0) or self.cfg.scheduler.pipeline[self.name].get("days", 0),
+            hours=kwargs.pop("hours", 0) or self.cfg.scheduler.pipeline[self.name].get("hours", 0),
+            minutes=kwargs.pop("minutes", 0) or self.cfg.scheduler.pipeline[self.name].get("minutes", 0),
+            seconds=kwargs.pop("seconds", 0) or self.cfg.scheduler.pipeline[self.name].get("seconds", 0),
+            microseconds=kwargs.pop("microseconds", 0) or self.cfg.scheduler.pipeline[self.name].get("microseconds", 0),
             start_time=start_time,
             end_time=end_time,
         )
 
-    def _get_calendar_trigger(self, self.cfg.scheduler.pipeline[pipeline]: Dict, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
+    def _get_calendar_trigger(self, start_time: dt.datetime, end_time: Optional[dt.datetime], **kwargs):
         from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
         return CalendarIntervalTrigger(
-            weeks=kwargs.pop("weeks", 0) or self.cfg.scheduler.pipeline[pipeline].get("weeks", 0),
-            days=kwargs.pop("days", 0) or self.cfg.scheduler.pipeline[pipeline].get("days", 0),
-            hours=kwargs.pop("hours", 0) or self.cfg.scheduler.pipeline[pipeline].get("hours", 0),
-            minutes=kwargs.pop("minutes", 0) or self.cfg.scheduler.pipeline[pipeline].get("minutes", 0),
-            seconds=kwargs.pop("seconds", 0) or self.cfg.scheduler.pipeline[pipeline].get("seconds", 0),
+            weeks=kwargs.pop("weeks", 0) or self.cfg.scheduler.pipeline[self.name].get("weeks", 0),
+            days=kwargs.pop("days", 0) or self.cfg.scheduler.pipeline[self.name].get("days", 0),
+            hours=kwargs.pop("hours", 0) or self.cfg.scheduler.pipeline[self.name].get("hours", 0),
+            minutes=kwargs.pop("minutes", 0) or self.cfg.scheduler.pipeline[self.name].get("minutes", 0),
+            seconds=kwargs.pop("seconds", 0) or self.cfg.scheduler.pipeline[self.name].get("seconds", 0),
             start_time=start_time,
             end_time=end_time,
-            timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin")) or self.cfg.scheduler.pipeline[pipeline].get("timezone", tz.gettz("Europe/Berlin")),
+            timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin")) or self.cfg.scheduler.pipeline[self.name].get("timezone", tz.gettz("Europe/Berlin")),
         )
 
     def _get_date_trigger(self, start_time: dt.datetime):
