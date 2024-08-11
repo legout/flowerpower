@@ -19,7 +19,7 @@ app = Typer()
 
 @app.command()
 def run_pipeline(
-    pipeline: str,
+    name: str,
     environment: str = "prod",
     executor: str = "local",
     base_path: str = "",
@@ -41,7 +41,7 @@ def run_pipeline(
     with_tracker = with_tracker if with_tracker is not None else None
 
     _ = run(
-        pipeline=pipeline,
+        name=name,
         environment=environment,
         executor=executor,
         base_path=base_path,
@@ -53,7 +53,7 @@ def run_pipeline(
 
 @app.command()
 def schedule_pipeline(
-    pipeline: str,
+    name: str,
     environment: str = "prod",
     executor: str = "local",
     base_path: str = "",
@@ -112,7 +112,7 @@ def schedule_pipeline(
         kwargs["crontab"] = crontab
 
     schedule(
-        pipeline=pipeline,
+        name=name,
         environment=environment,
         executor=executor,
         base_path=base_path,

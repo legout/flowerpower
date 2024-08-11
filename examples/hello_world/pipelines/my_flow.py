@@ -1,8 +1,9 @@
 import pandas as pd
 from hamilton.function_modifiers import parameterize
-from flowerpower.cfg import load_pipeline_cfg
+from flowerpower.cfg import Config
+from pathlib import Path
 
-PARAMS = load_pipeline_cfg(to_ht=True).params.my_flow
+PARAMS = Config(path=Path(__file__).parents[1] / "conf").pipeline_params.my_flow
 
 
 def spend() -> pd.Series:

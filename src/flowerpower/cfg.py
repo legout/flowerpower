@@ -190,6 +190,7 @@ class Config:
                 if v is not None
             }
         )
+        self._pipeline_params = munchify(self._pipeline_params)
 
     def load_scheduler(self) -> Munch:
         """
@@ -238,3 +239,9 @@ class Config:
         if self._tracker is None:
             self.load_tracker()
         return self._tracker
+
+    @property
+    def pipeline_params(self):
+        if self._pipeline is None:
+            self.load_pipeline()
+        return self._pipeline_params

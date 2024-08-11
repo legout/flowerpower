@@ -140,10 +140,8 @@ PIPELINE_PY_TEMPLATE = """# FlowerPower pipeline {name}.py
 
 
 from hamilton.function_modifiers import parameterize
-from flowerpower.cfg import load_pipeline_cfg
+from flowerpower.cfg import Config
 from pathlib import Path
 
-PARAMS = load_pipeline_cfg(
-    path=str(Path(__file__).parents[1] / "conf"), to_ht=True
-).params.{name}
+PARAMS = Config(Path(__file__).parents[1] / "conf").pipeline_params.{name}
 """

@@ -1,11 +1,14 @@
 import os
 import datetime as dt
-from .cfg import write
+from .cfg import Config
+from flowerpower import cfg
 
 
 def init(name: str, conf_path: str = "conf", pipelines_path: str = "pipelines"):
     os.makedirs(os.path.join(name, conf_path), exist_ok=True)
     os.makedirs(os.path.join(name, pipelines_path), exist_ok=True)
+    
+    cfg = Config(path=conf_path)
 
     with open(os.path.join(name, "README.md"), "w") as f:
         f.write(
@@ -13,7 +16,7 @@ def init(name: str, conf_path: str = "conf", pipelines_path: str = "pipelines"):
             f"**created with FlowerPower**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
         )
 
-    write(
+    cfg._write(
         {
             "run": None,
             "params": None,
@@ -21,7 +24,7 @@ def init(name: str, conf_path: str = "conf", pipelines_path: str = "pipelines"):
         "pipeline",
         os.path.join(name, conf_path),
     )
-    write(
+    cfg._write(
         {
             "username": None,
             "api_url": "http://localhost:8241",
@@ -32,7 +35,7 @@ def init(name: str, conf_path: str = "conf", pipelines_path: str = "pipelines"):
         "tracker",
         os.path.join(name, conf_path),
     )
-    write(
+    cfg._write(
         {
             "data_path": {"type": "memory"},
             "event_broker": {"type": "local"},
