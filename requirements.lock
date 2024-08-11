@@ -10,7 +10,9 @@
 -e file:.
 aiofiles==24.1.0
     # via sf-hamilton-ui
-aiohttp==3.9.5
+aiohappyeyeballs==2.3.5
+    # via aiohttp
+aiohttp==3.10.3
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
 aiosignal==1.3.1
@@ -28,7 +30,7 @@ asgiref==3.8.1
     # via django
 asyncpg==0.29.0
     # via flowerpower
-attrs==23.2.0
+attrs==24.2.0
     # via aiohttp
     # via apscheduler
     # via jsonschema
@@ -55,21 +57,21 @@ colorlog==6.8.2
     # via sf-hamilton-ui
 contourpy==1.2.1
     # via bokeh
-dask==2024.7.1
+dask==2024.8.0
     # via dask-expr
     # via distributed
     # via flowerpower
-dask-expr==1.1.9
+dask-expr==1.1.10
     # via dask
-distributed==2024.7.1
+distributed==2024.8.0
     # via dask
-django==5.0.7
+django==5.1
     # via django-extensions
     # via django-ninja
     # via sf-hamilton-ui
 django-extensions==3.2.3
     # via sf-hamilton-ui
-django-ninja==1.2.1
+django-ninja==1.2.2
     # via sf-hamilton-ui
 dnspython==2.6.1
     # via pymongo
@@ -131,7 +133,7 @@ mypy-extensions==1.0.0
     # via typing-inspect
 networkx==3.3
     # via sf-hamilton
-numpy==2.0.0
+numpy==2.0.1
     # via bokeh
     # via contourpy
     # via dask
@@ -158,7 +160,7 @@ pillow==10.4.0
     # via bokeh
 posthog==3.5.0
     # via sf-hamilton-sdk
-protobuf==5.27.2
+protobuf==5.27.3
     # via ray
 psutil==6.0.0
     # via distributed
@@ -184,7 +186,7 @@ python-dotenv==1.0.1
     # via flowerpower
 pytz==2024.1
     # via pandas
-pyyaml==6.0.1
+pyyaml==6.0.2
     # via bokeh
     # via dask
     # via distributed
@@ -192,7 +194,7 @@ pyyaml==6.0.1
     # via ray
 ray==2.34.0
     # via flowerpower
-redis==5.0.7
+redis==5.0.8
     # via flowerpower
 referencing==0.35.1
     # via jsonschema
@@ -205,15 +207,15 @@ requests==2.32.3
 rich==13.7.1
     # via flowerpower
     # via typer
-rpds-py==0.19.0
+rpds-py==0.20.0
     # via jsonschema
     # via referencing
-sf-hamilton==1.70.0
+sf-hamilton==1.73.1
     # via flowerpower
     # via sf-hamilton-sdk
-sf-hamilton-sdk==0.5.2
+sf-hamilton-sdk==0.6.0
     # via flowerpower
-sf-hamilton-ui==0.0.11
+sf-hamilton-ui==0.0.14
     # via flowerpower
 shellingham==1.5.4
     # via typer
@@ -226,11 +228,11 @@ sniffio==1.3.1
     # via anyio
 sortedcontainers==2.4.0
     # via distributed
-sqlalchemy==2.0.31
+sqlalchemy==2.0.32
     # via flowerpower
-sqlglot==25.5.1
+sqlglot==25.10.0
     # via sf-hamilton-sdk
-sqlparse==0.5.0
+sqlparse==0.5.1
     # via django
 tblib==3.0.0
     # via distributed
