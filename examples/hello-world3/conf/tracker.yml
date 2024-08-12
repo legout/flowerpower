@@ -1,0 +1,25 @@
+# ----------------- Tracker Configuration ------------------ #
+
+# ------------------------ Example ------------------------- #
+#
+# username: your.email@example.com
+# api_url: http://localhost:8241
+# ui_url: http://localhost:8242
+# api_key:
+
+# pipeline:
+#   my_flow:
+#     project_id: 1
+#     tags:
+#       environment: dev
+#       version: 1.0
+#       TODO: add_more_tags_to_find_your_run_later
+#     dag_name: my_flow_123
+#
+# ---------------------------------------------------------- #
+
+username: 
+api_url: http://localhost:8241
+ui_url: http://localhost:8242
+api_key: 
+pipeline: 

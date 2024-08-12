@@ -1,0 +1,35 @@
+# ---------------- Pipelines Configuration ----------------- #
+
+# ------------------------ Example ------------------------- #
+#
+# path: pipelines
+#
+# ## pipeline parameter
+#
+# params:
+#   flow1:                      ## pipeline name
+#       step1:                  ## step name
+#         param1_1: 123         ## step parameters
+#         param1_2: abc
+#       step2:
+#         param2_1: true
+#
+# ## run configuration
+#
+# run:
+#   prod: # environment name
+#     flow1:
+#       inputs:                 ## input parameters
+#       final_vars: [step2]     ## final output vars
+#       with_tracker: true      ## whether to track the run
+#
+#   dev:
+#     flow1:
+#       inputs:
+#       final_vars: [step2]
+#       with_tracker: false
+#
+# ---------------------------------------------------------- #
+
+run: 
+params: 
