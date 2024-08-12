@@ -15,9 +15,9 @@ from .cfg import Config
 
 
 if importlib.util.find_spec("apscheduler"):
-    from .scheduler import get_scheduler
+    from .scheduler import SchedulerManager
 else:
-    get_scheduler = None
+    SchedulerManager = None
 
 
 from .helpers import get_executor
@@ -29,6 +29,7 @@ class PipelineManager:
         self._base_path = base_path or ""
         self._conf_path = os.path.join(self._base_path, "conf")
         self._pipeline_path = os.path.join(self._base_path, "pipelines")
+
         sys.path.append(self._pipeline_path)
 
         # self._load_module()
@@ -38,7 +39,7 @@ class PipelineManager:
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
         else:
-            self._module = importlib.reload(self._modul)
+            self._module = importlib.reload(self._module)
 
     def _load_config(self):
         self.cfg = Config(path=self._conf_path)
@@ -128,8 +129,8 @@ class PipelineManager:
         **kwargs,
     ) -> Any:
         logger.info(f"Starting pipeline {name} in environment {environment}")
-
-        run_params = self.cfg.pipeline.run.get(name)[environment]
+        pipeline_cfg = self.cfg.pipeline
+        run_params = pipeline_cfg.run.get(name)[environment]
 
         final_vars = final_vars or run_params.get("final_vars", [])
         inputs = {**(run_params.get("inputs", {}) or {}), **(inputs or {})}
@@ -157,7 +158,7 @@ class PipelineManager:
         name: str,
         environment: str = "prod",
         executor: str | None = None,
-        type: str = "cron",
+        type: str | bool = None,
         auto_start: bool = True,
         background: bool = False,
         inputs: dict | None = None,
@@ -165,22 +166,33 @@ class PipelineManager:
         with_tracker: bool | None = None,
         **kwargs,
     ):
-        if get_scheduler is None:
+        # TODO: Fix Scheduling
+        if SchedulerManager is None:
             raise ValueError("APScheduler4 not installed. Please install it first.")
 
-        start_time = kwargs.pop(
-            "start_time", dt.datetime.now()
-        ) or self.cfg.scheduler.pipeline[name].get("start_time", dt.datetime.now())
-        end_time = kwargs.pop("end_time", None) or self.cfg.scheduler.pipeline[
-            name
-        ].get("end_time", None)
+        scheduler_cfg = self.cfg.scheduler.get("pipeline", None)
 
-        scheduler = get_scheduler(
-            name=name, conf_path=self._conf_path, pipelines_path=self._pipeline_path
-        )
+        if scheduler_cfg is not None:
+            start_time = kwargs.pop("start_time", None) or scheduler_cfg.get(
+                "start_time", dt.datetime.now()
+            )
+            end_time = kwargs.pop("end_time", None) or scheduler_cfg.get(
+                "end_time", None
+            )
+            type = type or scheduler_cfg.pop("type", None)
+            kwargs.update(scheduler_cfg)
+
+        sm = SchedulerManager(name=name, base_path=self._base_path)
+        # sm.configure_task(
+        #     func_or_task_id=name,
+        #     func=self.run,
+        #     job_executor=executor
+        #     if executor in ["async", "processpool", "threadpool"]
+        #     else "threadpool",
+        # )
         trigger = self._get_trigger(name, type, start_time, end_time, **kwargs)
 
-        id_ = scheduler.add_schedule(
+        id_ = sm.add_schedule(
             self.run,
             trigger=trigger,
             args=(name, environment, executor, inputs, final_vars, with_tracker),
@@ -191,11 +203,8 @@ class PipelineManager:
         )
 
         if auto_start:
-            if background:
-                scheduler.start_in_background()
-                return scheduler, id_
-            else:
-                scheduler.run_until_stopped()
+            sm.start_scheduler(background)
+        return sm, id_
 
     def _get_trigger(
         self,
@@ -225,35 +234,27 @@ class PipelineManager:
     ):
         from apscheduler.triggers.cron import CronTrigger
 
-        crontab = kwargs.pop("crontab", None) or self.cfg.scheduler.pipeline[name].get(
-            "crontab", None
-        )
+        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
+
+        crontab = kwargs.pop("crontab", None) or scheduler_cfg.get("crontab", None)
+
         if crontab is not None:
             return CronTrigger.from_crontab(crontab)
         else:
             return CronTrigger(
-                year=kwargs.pop("year", None)
-                or self.cfg.scheduler.pipeline[name].get("year", None),
-                month=kwargs.pop("month", None)
-                or self.cfg.scheduler.pipeline[name].get("month", None),
-                week=kwargs.pop("week", None)
-                or self.cfg.scheduler.pipeline[name].get("week", None),
-                day=kwargs.pop("day", None)
-                or self.cfg.scheduler.pipeline[name].get("day", None),
+                year=kwargs.pop("year", None) or scheduler_cfg.get("year", None),
+                month=kwargs.pop("month", None) or scheduler_cfg.get("month", None),
+                week=kwargs.pop("week", None) or scheduler_cfg.get("week", None),
+                day=kwargs.pop("day", None) or scheduler_cfg.get("day", None),
                 day_of_week=kwargs.pop("days_of_week", None)
-                or self.cfg.scheduler.pipeline[name].get("days_of_week", None),
-                hour=kwargs.pop("hour", None)
-                or self.cfg.scheduler.pipeline[name].get("hour", None),
-                minute=kwargs.pop("minute", None)
-                or self.cfg.scheduler.pipeline[name].get("minute", None),
-                second=kwargs.pop("second", None)
-                or self.cfg.scheduler.pipeline[name].get("second", None),
+                or scheduler_cfg.get("days_of_week", None),
+                hour=kwargs.pop("hour", None) or scheduler_cfg.get("hour", None),
+                minute=kwargs.pop("minute", None) or scheduler_cfg.get("minute", None),
+                second=kwargs.pop("second", None) or scheduler_cfg.get("second", None),
                 start_time=start_time,
                 end_time=end_time,
-                timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin"))
-                or self.cfg.scheduler.pipeline[name].get(
-                    "timezone", tz.gettz("Europe/Berlin")
-                ),
+                timezone=kwargs.pop("timezone", None)
+                or scheduler_cfg.get("timezone", tz.gettz("Europe/Berlin")),
             )
 
     def _get_interval_trigger(
@@ -265,19 +266,16 @@ class PipelineManager:
     ):
         from apscheduler.triggers.interval import IntervalTrigger
 
+        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
+
         return IntervalTrigger(
-            weeks=kwargs.pop("weeks", 0)
-            or self.cfg.scheduler.pipeline[name].get("weeks", 0),
-            days=kwargs.pop("days", 0)
-            or self.cfg.scheduler.pipeline[name].get("days", 0),
-            hours=kwargs.pop("hours", 0)
-            or self.cfg.scheduler.pipeline[name].get("hours", 0),
-            minutes=kwargs.pop("minutes", 0)
-            or self.cfg.scheduler.pipeline[name].get("minutes", 0),
-            seconds=kwargs.pop("seconds", 0)
-            or self.cfg.scheduler.pipeline[name].get("seconds", 0),
+            weeks=kwargs.pop("weeks", 0) or scheduler_cfg.get("weeks", 0),
+            days=kwargs.pop("days", 0) or scheduler_cfg.get("days", 0),
+            hours=kwargs.pop("hours", 0) or scheduler_cfg.get("hours", 0),
+            minutes=kwargs.pop("minutes", 0) or scheduler_cfg.get("minutes", 0),
+            seconds=kwargs.pop("seconds", 0) or scheduler_cfg.get("seconds", 0),
             microseconds=kwargs.pop("microseconds", 0)
-            or self.cfg.scheduler.pipeline[name].get("microseconds", 0),
+            or scheduler_cfg.get("microseconds", 0),
             start_time=start_time,
             end_time=end_time,
         )
@@ -291,23 +289,18 @@ class PipelineManager:
     ):
         from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
+        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
+
         return CalendarIntervalTrigger(
-            weeks=kwargs.pop("weeks", 0)
-            or self.cfg.scheduler.pipeline[name].get("weeks", 0),
-            days=kwargs.pop("days", 0)
-            or self.cfg.scheduler.pipeline[name].get("days", 0),
-            hours=kwargs.pop("hours", 0)
-            or self.cfg.scheduler.pipeline[name].get("hours", 0),
-            minutes=kwargs.pop("minutes", 0)
-            or self.cfg.scheduler.pipeline[name].get("minutes", 0),
-            seconds=kwargs.pop("seconds", 0)
-            or self.cfg.scheduler.pipeline[name].get("seconds", 0),
+            weeks=kwargs.pop("weeks", 0) or scheduler_cfg.get("weeks", 0),
+            days=kwargs.pop("days", 0) or scheduler_cfg.get("days", 0),
+            hours=kwargs.pop("hours", 0) or scheduler_cfg.get("hours", 0),
+            minutes=kwargs.pop("minutes", 0) or scheduler_cfg.get("minutes", 0),
+            seconds=kwargs.pop("seconds", 0) or scheduler_cfg.get("seconds", 0),
             start_time=start_time,
             end_time=end_time,
-            timezone=kwargs.pop("timezone", tz.gettz("Europe/Berlin"))
-            or self.cfg.scheduler.pipeline[name].get(
-                "timezone", tz.gettz("Europe/Berlin")
-            ),
+            timezone=kwargs.pop("timezone", None)
+            or scheduler_cfg.get("timezone", tz.gettz("Europe/Berlin")),
         )
 
     def _get_date_trigger(self, start_time: dt.datetime):
@@ -423,14 +416,22 @@ class PipelineManager:
         self.cfg.write(tracker=True)
         logger.info(f"Updated tracker configuration {self._conf_path}/tracker.yml")
 
-    def delete(self, name:str, module:bool=False):
-        # TODO: Implement delete functionality
-        self.cfg.pipeline.run.pop(name)
-        self.cfg.pipeline.params.pop(name)
-        self.cfg.scheduler.pipeline.pop(name)
-        self.cfg.tracker.pipeline.pop(name)
-        self.cfg.write(pipeline=True, scheduler=True, tracker=True)
-        logger.info(f"Deleted pipeline config for {name}")
+    def delete(self, name: str, cfg: bool = True, module: bool = False):
+        """
+        Deletes a pipeline configuration and/or module.
+
+        Args:
+            name (str): The name of the pipeline to delete.
+            cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
+            module (bool, optional): Whether to delete the pipeline module. Defaults to False.
+        """
+        if cfg:
+            self.cfg.pipeline.run.pop(name)
+            self.cfg.pipeline.params.pop(name)
+            self.cfg.scheduler.pipeline.pop(name)
+            self.cfg.tracker.pipeline.pop(name)
+            self.cfg.write(pipeline=True, scheduler=True, tracker=True)
+            logger.info(f"Deleted pipeline config for {name}")
 
         if module:
             if os.path.exists(f"{self._pipeline_path}/{name}.py"):
@@ -444,8 +445,6 @@ class PipelineManager:
         )
         if view:
             pass
-
-    
 
 
 class Pipeline(PipelineManager):
@@ -502,12 +501,12 @@ class Pipeline(PipelineManager):
 
     def show(self, format: str = "png", view: bool = False, reload: bool = False):
         return super().show(self.name, format=format, view=view, reload=reload)
-    
-    def delete(self, name: str, module: bool = False):
-        return super().delete(name, module)
 
-    def reload_module(self, name: str):
-        return super().reload_module(name)
+    def delete(self, cfg: bool = True, module: bool = False):
+        return super().delete(self.name, cfg, module)
+
+    def reload_module(self):
+        return super().reload_module(self.name)
 
 
 def add(
@@ -522,6 +521,7 @@ def add(
     pm = PipelineManager(base_path=base_path)
     pm.add(name, overwrite, params, run, schedule, tracker)
 
+
 def new(
     name: str,
     overwrite: bool = False,
@@ -533,6 +533,7 @@ def new(
 ):
     pm = PipelineManager(base_path=base_path)
     pm.new(name, overwrite, params, run, schedule, tracker)
+
 
 def run(
     name: str,
@@ -587,6 +588,7 @@ def show(
 ):
     p = Pipeline(name=name, base_path=base_path)
     p.show(format=format, view=view, reload=reload)
+
 
 def delete(name: str, base_path: str | None = None, module: bool = False):
     p = Pipeline(name=name, base_path=base_path)

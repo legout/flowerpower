@@ -3,7 +3,7 @@ from hamilton.execution import executors
 import importlib
 from loguru import logger
 
-if importlib.util.find_spec("dask"):
+if importlib.util.find_spec("distributed"):
     from dask import distributed
 else:
     distributed = None
@@ -18,9 +18,9 @@ else:
 def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
     shutdown = None
 
-    if mode == "multiprocessing":
+    if mode == "processpool":
         remote_executor = executors.MultiProcessingExecutor(max_tasks=max_tasks)
-    elif mode == "multithreading":
+    elif mode == "threadpool":
         remote_executor = executors.MultiThreadingExecutor(max_tasks=max_tasks)
     elif mode == "dask":
         if distributed:

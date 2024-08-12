@@ -69,8 +69,12 @@ class Config:
             params = yaml.full_load(f)
 
         return params
-    
-    def update(self, cfg: dict | Munch, name: str,) -> None:
+
+    def update(
+        self,
+        cfg: dict | Munch,
+        name: str,
+    ) -> None:
         """
         Update the configuration with the given parameters.
 

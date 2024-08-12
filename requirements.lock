@@ -5,7 +5,11 @@
 #   pre: false
 #   features: []
 #   all-features: true
-#   with-sources: false
+#   with-sources: true
+#   generate-hashes: false
+#   universal: false
+
+--index-url https://pypi.org/simple/
 
 -e file:.
 aiofiles==24.1.0
