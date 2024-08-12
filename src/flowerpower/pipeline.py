@@ -382,23 +382,23 @@ class PipelineManager:
                 "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
             }
         )
-
-        self.cfg.write(pipeline_cfg, "pipeline", self._conf_path)
+        self.cfg.update(cfg=pipeline_cfg, name="pipeline")
+        self.cfg.write(pipeline=True)
         logger.info(f"Updated pipeline configuration {self._conf_path}/pipeline.yml")
 
     def _update_scheduler_config(self, name: str, schedule: dict | None):
-        self.cfg.scheduler = self.cfg.get("scheduler", None) or munchify(
+        scheduler_cfg = self.cfg.get("scheduler", None) or munchify(
             {
                 "data_store": {"type": "memory"},
                 "event_broker": {"type": "local"},
                 "pipeline": {},
             }
         )
-        if self.cfg.scheduler.pipeline is None:
-            self.cfg.scheduler.pipeline = {}
-        self.cfg.scheduler.pipeline[name] = schedule or {"type": None}
-
-        self.cfg.write(self.cfg.scheduler, "scheduler", self._conf_path)
+        if scheduler_cfg.get("pipeline", None) is None:
+            scheduler_cfg.pipeline = {}
+        scheduler_cfg.pipeline[name] = schedule or {"type": None}
+        self.cfg.update(cfg=scheduler_cfg, name="scheduler")
+        self.cfg.write(scheduler=True)
         logger.info(f"Updated scheduler configuration {self._conf_path}/scheduler.yml")
 
     def _update_tracker_config(self, name: str, tracker: dict | None):
@@ -419,13 +419,23 @@ class PipelineManager:
             "dag_name": None,
             "tags": None,
         }
-
-        self.cfg.write(tracker_cfg, "tracker", self._conf_path)
+        self.cfg.update(cfg=tracker_cfg, name="tracker")
+        self.cfg.write(tracker=True)
         logger.info(f"Updated tracker configuration {self._conf_path}/tracker.yml")
 
-    def delete(self):
+    def delete(self, name:str, module:bool=False):
         # TODO: Implement delete functionality
-        pass
+        self.cfg.pipeline.run.pop(name)
+        self.cfg.pipeline.params.pop(name)
+        self.cfg.scheduler.pipeline.pop(name)
+        self.cfg.tracker.pipeline.pop(name)
+        self.cfg.write(pipeline=True, scheduler=True, tracker=True)
+        logger.info(f"Deleted pipeline config for {name}")
+
+        if module:
+            if os.path.exists(f"{self._pipeline_path}/{name}.py"):
+                os.remove(f"{self._pipeline_path}/{name}.py")
+                logger.info(f"Deleted pipeline module {name}.py")
 
     def show(self, name, format: str = "png", view: bool = False, reload: bool = False):
         os.makedirs("graphs", exist_ok=True)
@@ -434,6 +444,8 @@ class PipelineManager:
         )
         if view:
             pass
+
+    
 
 
 class Pipeline(PipelineManager):
@@ -490,6 +502,9 @@ class Pipeline(PipelineManager):
 
     def show(self, format: str = "png", view: bool = False, reload: bool = False):
         return super().show(self.name, format=format, view=view, reload=reload)
+    
+    def delete(self, name: str, module: bool = False):
+        return super().delete(name, module)
 
     def reload_module(self, name: str):
         return super().reload_module(name)
@@ -570,5 +585,9 @@ def show(
     base_path: str | None = None,
     reload: bool = False,
 ):
-    pm = PipelineManager(base_path=base_path)
-    pm.show(name, format=format, view=view, reload=reload)
+    p = Pipeline(name=name, base_path=base_path)
+    p.show(format=format, view=view, reload=reload)
+
+def delete(name: str, base_path: str | None = None, module: bool = False):
+    p = Pipeline(name=name, base_path=base_path)
+    p.delete(module=module)

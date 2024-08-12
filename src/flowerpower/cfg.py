@@ -69,8 +69,35 @@ class Config:
             params = yaml.full_load(f)
 
         return params
+    
+    def update(self, cfg: dict | Munch, name: str,) -> None:
+        """
+        Update the configuration with the given parameters.
 
-    def _write(self, cfg: dict | Munch, name: str) -> None:
+        Args:
+            cfg (dict | Munch): The parameters to update the configuration with.
+            name (str): The name of the configuration.
+
+        Returns:
+            None
+        """
+        if name == "pipeline":
+            if self._pipeline is None:
+                self._pipeline = munchify(cfg)
+            else:
+                self._pipeline.update(cfg)
+        if name == "tracker":
+            if self._tracker is None:
+                self._tracker = munchify(cfg)
+            else:
+                self._tracker.update(cfg)
+        if name == "scheduler":
+            if self._scheduler is None:
+                self._scheduler = munchify(cfg)
+            else:
+                self._scheduler.update(cfg)
+
+    def _write(self, name: str) -> None:
         """
         Write the configuration to a YAML file.
 
@@ -81,6 +108,7 @@ class Config:
         Returns:
             None
         """
+        cfg = eval(f"self._{name}")
         with open(f"{self._path}/{name}.yml", "w") as f:
             f.write(
                 eval(f"{name.upper()}_TEMPLATE")
@@ -105,16 +133,13 @@ class Config:
         """
         if pipeline:
             name = "pipeline"
-            cfg = self._pipeline
-            self._write(cfg, name)
+            self._write(name)
         if tracker:
             name = "tracker"
-            cfg = self._tracker
-            self._write(cfg, name)
+            self._write(name)
         if scheduler:
             name = "scheduler"
-            cfg = self._scheduler
-            self._write(cfg, name)
+            self._write(name)
 
     @staticmethod
     def _to_ht_params(d: dict, parent_dict: dict | None = None):
