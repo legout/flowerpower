@@ -32,7 +32,7 @@ jobs:
           echo "::set-output name=version_bump::true"
         else
           echo "No version bump detected."
-          echo "::set-output name=version_bump::false"
+          echo "::set-output name=version_bump::true"
         fi
 
     - name: Publish to PyPI
