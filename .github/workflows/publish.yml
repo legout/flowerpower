@@ -15,28 +15,28 @@ jobs:
 
     - name: Install Rye
       run: |
-        curl -sSf https://rye-up.com/get | bash
+        curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash
         echo "$HOME/.rye/shims" >> $GITHUB_PATH
 
     - name: Install dependencies
       run: |
         rye sync
 
-    - name: Check version bump
-      id: version_check
-      run: |
-        git fetch origin main
-        git diff origin/main pyproject.toml | grep 'version = ' > version_diff.txt
-        if [ -s version_diff.txt ]; then
-          echo "Version bump detected."
-          echo "::set-output name=version_bump::true"
-        else
-          echo "No version bump detected."
-          echo "::set-output name=version_bump::false"
-        fi
+    # - name: Check version bump
+    #   id: version_check
+    #   run: |
+    #     git fetch origin main
+    #     git diff origin/main pyproject.toml | grep 'version = ' > version_diff.txt
+    #     if [ -s version_diff.txt ]; then
+    #       echo "Version bump detected."
+    #       echo "::set-output name=version_bump::true"
+    #     else
+    #       echo "No version bump detected."
+    #       echo "::set-output name=version_bump::false"
+    #     fi
 
     - name: Publish to PyPI
-      if: steps.version_check.outputs.version_bump == 'true'
+      # if: steps.version_check.outputs.version_bump == 'true'
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
       run: |
