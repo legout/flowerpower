@@ -20,7 +20,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        rye sync
+        rye sync --no-lock
+    - name: Build package
+      run: |
+        rye build --sdist --wheel
 
     # - name: Check version bump
     #   id: version_check
@@ -36,8 +39,7 @@ jobs:
     #     fi
 
     - name: Publish to PyPI
-      # if: steps.version_check.outputs.version_bump == 'true'
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
       run: |
-        rye publish --token $PYPI_TOKEN
+        rye publish --token $PYPI_TOKEN --yes
