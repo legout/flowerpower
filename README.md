@@ -7,13 +7,19 @@ FlowerPower is a simple workflow framework based on the fantastic [Hamilton](htt
 ## Installation
 
 ```shell
-pip install "flowerpower" git+https://github.com/legout/flowerpower
+pip install "flowerpower" 
 # with scheduler
-pip install "flowerpower[scheduler]" git+https://github.com/legout/flowerpower
+pip install "flowerpower[scheduler]" 
 # with mqtt event broker
-pip install "flowerpower[scheduler,mqtt]" git+https://github.com/legout/flowerpower
+pip install "flowerpower[scheduler,mqtt]" 
 # with redis event broker
-pip install "flowerpower[scheduler,redis]" git+https://github.com/legout/flowerpower
+pip install "flowerpower[scheduler,redis]" 
+# with mongodb data store
+pip install "flowerpower[scheduler,mongodb]"
+# with ray distributed computing
+pip install "flowerpower[scheduler,ray]"
+# with dask distributed computing
+pip install "flowerpower[scheduler,dask]"
 ```
 
 ## Usage
@@ -43,15 +49,14 @@ docker-compose up postgres -d
 
 ### a) Initialze a new flowerpower project
 ```shell
-mkdir new-project
+flowerpower init new-project
 cd new-project
-python -m flowerpower.cli init 
 ```
 This adds basic config files `conf/pipelines.yml`, `conf/scheduler.yml` and `conf/tracker.yml`
 
 ### b) Add a new pipeline
 ```shell
-python -m flowerpower.cli add-pipeline my_flow
+flowerpoweradd-pipeline my_flow
 ```
 A new file `pipelines/my_flow.py` is created and the relevant entries are added to the config files.
 
@@ -66,9 +71,9 @@ Optinally edit the config files `conf/pipelines.yml`, `conf/scheduler.yml` and `
 
 ### d) Run or Scheduler the new pipeline
 ```shell
-python -m flowerpower.cli run-pipeline my_flow
+flowerpower run-pipeline my_flow
 # or schedule with a 30 seconds interval
-python -m flowerpower.cli schedule-pipeline my_flow interval --interval-params seconds=30 --auto-start
+flowerpower schedule-pipeline my_flow interval --interval-params seconds=30 --auto-start
 ```
 
 
