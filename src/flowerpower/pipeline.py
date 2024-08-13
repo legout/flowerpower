@@ -117,7 +117,7 @@ class PipelineManager:
 
         return dr, shutdown
 
-    def run(
+    def _run(
         self,
         name: str,
         environment: str = "prod",
@@ -153,14 +153,36 @@ class PipelineManager:
 
         return res
 
+    def run(
+        self,
+        name: str,
+        environment: str = "prod",
+        executor: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        with_tracker: bool = False,
+        reload: bool = False,
+        **kwargs,
+    ) -> Any:
+        return self._run(
+            name,
+            environment,
+            executor,
+            inputs,
+            final_vars,
+            with_tracker,
+            reload,
+            **kwargs,
+        )
+
     def schedule(
         self,
         name: str,
         environment: str = "prod",
         executor: str | None = None,
-        type: str | bool = None,
-        auto_start: bool = True,
-        background: bool = False,
+        type: str | None = None,
+        # auto_start: bool = True,
+        # background: bool = False,
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool | None = None,
@@ -170,17 +192,19 @@ class PipelineManager:
         if SchedulerManager is None:
             raise ValueError("APScheduler4 not installed. Please install it first.")
 
-        scheduler_cfg = self.cfg.scheduler.get("pipeline", None)
+        if "pipeline" in self.cfg.scheduler:
+            scheduler_cfg = self.cfg.scheduler.pipeline.get(name, None).copy()
+        else:
+            scheduler_cfg = None
 
         if scheduler_cfg is not None:
-            start_time = kwargs.pop("start_time", None) or scheduler_cfg.get(
+            start_time = kwargs.pop("start_time", None) or scheduler_cfg.pop(
                 "start_time", dt.datetime.now()
             )
-            end_time = kwargs.pop("end_time", None) or scheduler_cfg.get(
+            end_time = kwargs.pop("end_time", None) or scheduler_cfg.pop(
                 "end_time", None
             )
             type = type or scheduler_cfg.pop("type", None)
-            kwargs.update(scheduler_cfg)
 
         sm = SchedulerManager(name=name, base_path=self._base_path)
         # sm.configure_task(
@@ -193,7 +217,7 @@ class PipelineManager:
         trigger = self._get_trigger(name, type, start_time, end_time, **kwargs)
 
         id_ = sm.add_schedule(
-            self.run,
+            self._run,
             trigger=trigger,
             args=(name, environment, executor, inputs, final_vars, with_tracker),
             kwargs=kwargs,
@@ -201,10 +225,7 @@ class PipelineManager:
         logger.success(
             f"Added scheduler for {name} in environment {environment} with id {id_}"
         )
-
-        if auto_start:
-            sm.start_scheduler(background)
-        return sm, id_
+        print(kwargs)
 
     def _get_trigger(
         self,
@@ -463,8 +484,9 @@ class Pipeline(PipelineManager):
         reload: bool = False,
         **kwargs,
     ) -> Any:
+        name = self.name
         return super().run(
-            name=self.name,
+            name=name,
             environment=environment,
             executor=executor,
             inputs=inputs,
@@ -486,8 +508,9 @@ class Pipeline(PipelineManager):
         with_tracker: bool = False,
         **kwargs,
     ):
+        name = self.name
         return super().schedule(
-            name=self.name,
+            name=name,
             environment=environment,
             executor=executor,
             type=type,

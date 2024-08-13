@@ -1,7 +1,6 @@
 [project]
-authors = [{ name = "Volker Lorrmann", email = "ligno.blades@gmail.com" }]
+authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
 dependencies = [
-  #"pydala2 @ git+https://github.com/legout/pydala2",
   "sf-hamilton[visualization]>=1.69.0",
   "python-dotenv>=1.0.1",
   "fsspec>=2024.5.0",
@@ -12,18 +11,16 @@ dependencies = [
   "sf-hamilton-sdk>=0.5.2",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
+keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.3.0"
+version = "0.3.2"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-# legacy = [
-#   "pydala2[legacy] @ git+https://github.com/legout/pydala2",
-# ]
 dask = ["dask[complete]>=2024.7.1"]
 mongodb = ["pymongo>=4.7.2"]
 mqtt = ["paho-mqtt>=2.1.0"]
@@ -37,7 +34,6 @@ scheduler = [
   "sqlalchemy>=2.0.30",
 ]
 ui = ["sf-hamilton-ui>=0.0.11"]
-
 
 [build-system]
 build-backend = "hatchling.build"
@@ -60,3 +56,6 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/flowerpower"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests", "docs", "examples", "src/flowerpower.egg-info", "src/flowerpower/__pycache__", "docker"]

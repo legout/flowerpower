@@ -136,7 +136,7 @@ class SchedulerManager(Scheduler):
             "processpool": ProcessPoolJobExecutor(),
         }
 
-    def init_scheduler(self, **kwargs) -> Scheduler:
+    def init_scheduler(self, **kwargs):
         self.setup_data_store()
         self.setup_event_broker()
         self.setup_job_executors()
@@ -150,7 +150,7 @@ class SchedulerManager(Scheduler):
         )
         # return self.scheduler
 
-    def start_scheduler(self, background: bool = False, *args, **kwargs):
+    def start_worker(self, background: bool = False, *args, **kwargs):
         # if not self.scheduler:
         #    self.init_scheduler(*args, **kwargs)
         if background:
@@ -160,20 +160,17 @@ class SchedulerManager(Scheduler):
         # return self.scheduler
 
     # def get_current_scheduler(self):
-    # if not self.scheduler:
-    #    self.scheduler = current_scheduler.get()
+    #    self = current_scheduler.get()
 
     # def stop_scheduler(self):
     #     if not self.scheduler:
     #         self.get_current_scheduler()
     #     self.scheduler.stop()
 
-    # def remove_all_schedules(self):
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     for sched in self.scheduler.get_schedules():
-    #         self.scheduler.remove_schedule(sched.id)
-    #     # return self.scheduler
+    def remove_all_schedules(self):
+        for sched in self.get_schedules():
+            self.remove_schedule(sched.id)
+        # return self.scheduler
 
     # def add_schedule(self, *args, **kwargs) -> str:
     #     if not self.scheduler:
@@ -226,10 +223,14 @@ def get_schedule_manager(
     base_path: str | None = None,
     *args,
     **kwargs,
-) -> Scheduler:
+) -> SchedulerManager:
     manager = SchedulerManager(name, base_path)
     manager.init_scheduler(*args, **kwargs)
     return manager
+
+
+def get_current_scheduler_manager() -> SchedulerManager | None:
+    return current_scheduler.get()
 
 
 def get_scheduler(
@@ -250,7 +251,7 @@ def start_scheduler(
     **kwargs,
 ) -> Scheduler:
     manager = get_schedule_manager(name, base_path, *args, **kwargs)
-    manager.start_scheduler(background)
+    manager.start_worker(background)
     return manager.scheduler
 
 

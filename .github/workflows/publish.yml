@@ -1,0 +1,43 @@
+name: Publish to PyPI
+
+on:
+  push:
+    paths:
+      - 'pyproject.toml'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Rye
+      run: |
+        curl -sSf https://rye-up.com/get | bash
+        export PATH="$HOME/.rye/bin:$PATH"
+
+    - name: Install dependencies
+      run: |
+        rye sync
+
+    - name: Check version bump
+      id: version_check
+      run: |
+        git fetch origin main
+        git diff origin/main pyproject.toml | grep 'version = ' > version_diff.txt
+        if [ -s version_diff.txt ]; then
+          echo "Version bump detected."
+          echo "::set-output name=version_bump::true"
+        else
+          echo "No version bump detected."
+          echo "::set-output name=version_bump::false"
+        fi
+
+    - name: Publish to PyPI
+      if: steps.version_check.outputs.version_bump == 'true'
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      run: |
+        rye publish --token $PYPI_TOKEN
