@@ -27,6 +27,7 @@ class SchedulerManager(Scheduler):
         base_path: str | None = None,
         # conf_path: str | None = None,
         # pipelines_path: str = None,
+        **kwargs,
     ):
         self.name = name
 
@@ -41,8 +42,19 @@ class SchedulerManager(Scheduler):
         self._data_store = None
         self._event_broker = None
         self._sqla_engine = None
-        # self.scheduler = None
-        self.init_scheduler()
+
+        self.setup_data_store()
+        self.setup_event_broker()
+        self.setup_job_executors()
+
+        super().__init__(
+            data_store=self._data_store,
+            event_broker=self._event_broker,
+            job_executors=self._job_executors,
+            identity=self.name,
+            logger=logger,
+            **kwargs,
+        )
 
         sys.path.append(self._pipelines_path)
 
@@ -136,85 +148,22 @@ class SchedulerManager(Scheduler):
             "processpool": ProcessPoolJobExecutor(),
         }
 
-    def init_scheduler(self, **kwargs):
-        self.setup_data_store()
-        self.setup_event_broker()
-        self.setup_job_executors()
-        super().__init__(
-            data_store=self._data_store,
-            event_broker=self._event_broker,
-            job_executors=self._job_executors,
-            identity=self.name,
-            logger=logger,
-            **kwargs,
-        )
-        # return self.scheduler
-
-    def start_worker(self, background: bool = False, *args, **kwargs):
-        # if not self.scheduler:
-        #    self.init_scheduler(*args, **kwargs)
+    def start_worker(
+        self,
+        background: bool = False,
+    ):
         if background:
             self.start_in_background()
         else:
             self.run_until_stopped()
-        # return self.scheduler
 
-    # def get_current_scheduler(self):
-    #    self = current_scheduler.get()
-
-    # def stop_scheduler(self):
-    #     if not self.scheduler:
-    #         self.get_current_scheduler()
-    #     self.scheduler.stop()
+    def stop_worker(self) -> None:
+        self.stop()
+        self._exit_stack.close()
 
     def remove_all_schedules(self):
         for sched in self.get_schedules():
             self.remove_schedule(sched.id)
-        # return self.scheduler
-
-    # def add_schedule(self, *args, **kwargs) -> str:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.add_schedule(*args, **kwargs)
-    #     # return self.scheduler
-
-    # def add_job(self, *args, **kwargs) -> str:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.add_job(*args, **kwargs)
-
-    # def run_job(self, *args, **kwargs) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.run_job(*args, **kwargs)
-    #     # return self.scheduler
-
-    # def get_job_result(self, job_id: str) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.get_job_result(job_id)
-
-    # def get_jobs(self) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.get_jobs()
-
-    # def get_schedules(self) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.get_schedules()
-
-    # def get_schedule(self, schedule_id: str) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.get_schedule(schedule_id)
-
-    # def get_tasks(
-    #     self,
-    # ) -> Any:
-    #     if not self.scheduler:
-    #         self.init_scheduler()
-    #     return self.scheduler.get_tasks()
 
 
 # Wrapper functions for backward compatibility

@@ -25,19 +25,6 @@ jobs:
       run: |
         rye build --sdist --wheel
 
-    # - name: Check version bump
-    #   id: version_check
-    #   run: |
-    #     git fetch origin main
-    #     git diff origin/main pyproject.toml | grep 'version = ' > version_diff.txt
-    #     if [ -s version_diff.txt ]; then
-    #       echo "Version bump detected."
-    #       echo "::set-output name=version_bump::true"
-    #     else
-    #       echo "No version bump detected."
-    #       echo "::set-output name=version_bump::false"
-    #     fi
-
     - name: Publish to PyPI
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
