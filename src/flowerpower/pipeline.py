@@ -3,14 +3,14 @@ import importlib.util
 import importlib
 import os
 import sys
-from typing import Optional, Any, Callable
+from typing import Any, Callable
+from uuid import UUID
 
-from dateutil import tz
 from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
-from munch import munchify, unmunchify
-from .constants import PIPELINE_PY_TEMPLATE
+from munch import unmunchify
+from .templates import PIPELINE_PY_TEMPLATE
 from .cfg import Config
 
 
@@ -20,12 +20,12 @@ else:
     SchedulerManager = None
 
 
-from .helpers import get_executor
+from .helpers.executor import get_executor
+from .helpers.trigger import get_trigger
 
 
 class PipelineManager:
     def __init__(self, base_path: str | None = None):
-        # self.name = pipeline.split(".")[-1]
         self._base_path = base_path or ""
         self._conf_path = os.path.join(self._base_path, "conf")
         self._pipeline_path = os.path.join(self._base_path, "pipelines")
@@ -36,19 +36,56 @@ class PipelineManager:
         self._load_config()
 
     def _load_module(self, name: str):
+        """
+        Load a module dynamically.
+
+        Args:
+            name (str): The name of the module to load.
+
+        Returns:
+            None
+        """
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
         else:
             self._module = importlib.reload(self._module)
 
     def _load_config(self):
-        self.cfg = Config(path=self._conf_path)
+        """
+        Load the configuration file.
+
+        This method loads the configuration file specified by the `_conf_path` attribute and 
+        assigns it to the `cfg` attribute.
+
+        Parameters:
+        - None
+
+        Returns:
+        - None
+        """
+        self.cfg = Config(base_path=self._conf_path)
 
     def reload_module(self, name: str):
+        """
+        Reloads the specified module.
+
+        Args:
+            name (str): The name of the module to reload.
+        """
         self._load_module(name)
 
     def reload_config(self):
-        self.cfg = Config(path=self._conf_path)
+        """
+        Reloads the configuration by creating a new instance of the Config class with the base path
+        set to the specified configuration path.
+
+        Parameters:
+        - self: The current instance of the Pipeline class.
+
+        Returns:
+        - None
+        """
+        self.cfg = Config(base_path=self._conf_path)
 
     def _get_driver(
         self,
@@ -58,6 +95,29 @@ class PipelineManager:
         reload: bool = False,
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
+        """
+        Get the driver and shutdown function for a given pipeline.
+
+        Args:
+            name (str): The name of the pipeline.
+            executor (str | None, optional): The executor to use. Defaults to None.
+            with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+            reload (bool, optional): Whether to reload the module. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Keyword Args:
+            max_tasks (int, optional): The maximum number of tasks. Defaults to 20.
+            num_cpus (int, optional): The number of CPUs. Defaults to 4.
+            project_id (str, optional): The project ID for the tracker. Defaults to None.
+            username (str, optional): The username for the tracker. Defaults to None.
+            dag_name (str, optional): The DAG name for the tracker. Defaults to None.
+            tags (str, optional): The tags for the tracker. Defaults to None.
+            api_url (str, optional): The API URL for the tracker. Defaults to None.
+            ui_url (str, optional): The UI URL for the tracker. Defaults to None.
+
+        Returns:
+            tuple[driver.Driver, Callable | None]: A tuple containing the driver and shutdown function.
+        """
         max_tasks = kwargs.pop("max_tasks", 20)
         num_cpus = kwargs.pop("num_cpus", 4)
         executor_, shutdown = get_executor(
@@ -120,7 +180,7 @@ class PipelineManager:
     def _run(
         self,
         name: str,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
@@ -128,7 +188,24 @@ class PipelineManager:
         reload: bool = False,
         **kwargs,
     ) -> Any:
+        """
+        Run the pipeline with the given parameters.
+
+        Args:
+            name (str): The name of the pipeline.
+            environment (str, optional): The environment to run the pipeline in. Defaults to "dev".
+            executor (str | None, optional): The executor to use. Defaults to None.
+            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
+            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Any: The result of executing the pipeline.
+        """
         logger.info(f"Starting pipeline {name} in environment {environment}")
+
         pipeline_cfg = self.cfg.pipeline
         run_params = pipeline_cfg.run.get(name)[environment]
 
@@ -156,7 +233,7 @@ class PipelineManager:
     def run(
         self,
         name: str,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
@@ -164,6 +241,20 @@ class PipelineManager:
         reload: bool = False,
         **kwargs,
     ) -> Any:
+        """
+        Run the pipeline.
+        Args:
+            name (str): The name of the pipeline.
+            environment (str, optional): The environment to run the pipeline in. Defaults to "dev".
+            executor (str | None, optional): The executor to use. Defaults to None.
+            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            with_tracker (bool, optional): Whether to use a tracker. Defaults to False.
+            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+            **kwargs: Additional keyword arguments.
+        Returns:
+            Any: The result of running the pipeline.
+        """
         return self._run(
             name,
             environment,
@@ -178,31 +269,107 @@ class PipelineManager:
     def run_job(
         self,
         name: str,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool | None = None,
-    ):
+        reload: bool = False,
+        **kwargs,
+    ) -> Any:
+        """
+        Run a job in the pipeline.
+
+        Args:
+            name (str): The name of the job.
+            environment (str, optional): The environment to run the job in. Defaults to "dev".
+            executor (str | None, optional): The executor to use for the job. Defaults to None.
+            inputs (dict | None, optional): The inputs for the job. Defaults to None.
+            final_vars (list | None, optional): The final variables for the job. Defaults to None.
+            with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            reload (bool, optional): Whether to reload the job. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Any: The result of the job execution.
+        """
+        
         with SchedulerManager(name=name, base_path=self._base_path) as sm:
             if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
                 sm.configure_task(id="run-pipeline", func=self._run)
-            sm.add_job(
+            return sm.run_job(
                 "run-pipeline",
-                args=(name, environment, executor, inputs, final_vars, with_tracker),
+                args=(
+                    name,
+                    environment,
+                    executor,
+                    inputs,
+                    final_vars,
+                    with_tracker,
+                    reload,
+                ),
+                kwargs=kwargs,
                 job_executor=executor
                 if executor in ["async", "threadpool", "processpool"]
                 else "async",
             )
 
-    def add_job(self): ...
+    def add_job(
+        self,
+        name: str,
+        environment: str = "dev",
+        executor: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta | None = None,
+        **kwargs,
+    ) -> UUID:
+        """
+        Adds a job to the scheduler.
+
+        Args:
+            name (str): The name of the job.
+            environment (str, optional): The environment for the job. Defaults to "dev".
+            executor (str | None, optional): The executor for the job. Defaults to None.
+            inputs (dict | None, optional): The inputs for the job. Defaults to None.
+            final_vars (list | None, optional): The final variables for the job. Defaults to None.
+            with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            reload (bool, optional): Whether to reload the job. Defaults to False.
+            result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job. Defaults to None.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            UUID: The UUID of the added job.
+        """
+        with SchedulerManager(name=name, base_path=self._base_path) as sm:
+            if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
+                sm.configure_task(id="run-pipeline", func=self._run)
+            return sm.add_job(
+                "run-pipeline",
+                args=(
+                    name,
+                    environment,
+                    executor,
+                    inputs,
+                    final_vars,
+                    with_tracker,
+                    reload,
+                ),
+                kwargs=kwargs,
+                job_executor=executor
+                if executor in ["async", "threadpool", "processpool"]
+                else "async",
+                result_expiration_time=result_expiration_time,
+            )
 
     def schedule(
         self,
         name: str,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
-        type: str | None = None,
+        trigger_type: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool | None = None,
@@ -213,31 +380,62 @@ class PipelineManager:
         max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
         **kwargs,
-    ):
-        # TODO: Fix Scheduling
+    ) -> str:
+        """
+        Schedule a pipeline for execution.
+
+        Args:
+            name (str): The name of the pipeline.
+            environment (str, optional): The environment in which the pipeline will run. Defaults to "dev".
+            executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
+            trigger_type (str | None, optional): The type of trigger for the pipeline. Defaults to None.
+            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
+            paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
+            coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
+            misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs. Defaults to None.
+            max_jobs (float | dt.timedelta | None, optional): The maximum number of jobs for the pipeline. Defaults to None.
+            max_running_jobs (int | None, optional): The maximum number of running jobs for the pipeline. Defaults to None.
+            conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
+            **kwargs: Additional keyword arguments for the trigger.
+
+        Returns:
+            str: The ID of the scheduled pipeline.
+
+        Raises:
+            ValueError: If APScheduler4 is not installed.
+
+        """
         if SchedulerManager is None:
             raise ValueError("APScheduler4 not installed. Please install it first.")
 
+        trigger_kwargs = {}
         if "pipeline" in self.cfg.scheduler:
             scheduler_cfg = self.cfg.scheduler.pipeline.get(name, None).copy()
         else:
             scheduler_cfg = None
 
         if scheduler_cfg is not None:
-            start_time = kwargs.pop("start_time", None) or scheduler_cfg.pop(
-                "start_time", dt.datetime.now()
-            )
-            end_time = kwargs.pop("end_time", None) or scheduler_cfg.pop(
-                "end_time", None
-            )
-            type = type or scheduler_cfg.pop("type", None)
+            trigger_type = trigger_type or scheduler_cfg.pop("trigger_type", None)
+            for key in [
+                "crontab",
+                "year",
+                "month",
+                "week",
+                "day",
+                "days_of_week",
+                "hour",
+                "minute",
+                "second",
+                "timezone",
+            ]:
+                trigger_kwargs[key] = scheduler_cfg.pop(key, None)
 
         with SchedulerManager(name=name, base_path=self._base_path) as sm:
             if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
                 sm.configure_task(id="run-pipeline", func=self._run)
-            trigger, kwargs = self._get_trigger(
-                name, type, start_time, end_time, **kwargs
-            )
+            trigger, kwargs = get_trigger(trigger_type, **kwargs)
 
             id_ = sm.add_schedule(
                 "run-pipeline",
@@ -257,119 +455,7 @@ class PipelineManager:
             logger.success(
                 f"Added scheduler for {name} in environment {environment} with id {id_}"
             )
-
-    def _get_trigger(
-        self,
-        name: str,
-        type: str,
-        start_time: dt.datetime,
-        end_time: Optional[dt.datetime],
-        **kwargs,
-    ):
-        if type == "cron":
-            return self._get_cron_trigger(name, start_time, end_time, **kwargs)
-        elif type == "interval":
-            return self._get_interval_trigger(name, start_time, end_time, **kwargs)
-        elif type == "calendar":
-            return self._get_calendar_trigger(name, start_time, end_time, **kwargs)
-        elif type == "date":
-            return self._get_date_trigger(start_time)
-        else:
-            raise ValueError(f"Unknown trigger type: {type}")
-
-    def _get_cron_trigger(
-        self,
-        name: str,
-        start_time: dt.datetime,
-        end_time: Optional[dt.datetime],
-        **kwargs,
-    ):
-        from apscheduler.triggers.cron import CronTrigger
-
-        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
-
-        crontab = kwargs.pop("crontab", None) or scheduler_cfg.get("crontab", None)
-
-        if crontab is not None:
-            return (CronTrigger.from_crontab(crontab), kwargs)
-        else:
-            return (
-                CronTrigger(
-                    year=kwargs.pop("year", None) or scheduler_cfg.get("year", None),
-                    month=kwargs.pop("month", None) or scheduler_cfg.get("month", None),
-                    week=kwargs.pop("week", None) or scheduler_cfg.get("week", None),
-                    day=kwargs.pop("day", None) or scheduler_cfg.get("day", None),
-                    day_of_week=kwargs.pop("days_of_week", None)
-                    or scheduler_cfg.get("days_of_week", None),
-                    hour=kwargs.pop("hour", None) or scheduler_cfg.get("hour", None),
-                    minute=kwargs.pop("minute", None)
-                    or scheduler_cfg.get("minute", None),
-                    second=kwargs.pop("second", None)
-                    or scheduler_cfg.get("second", None),
-                    start_time=start_time,
-                    end_time=end_time,
-                    timezone=kwargs.pop("timezone", None)
-                    or scheduler_cfg.get("timezone", tz.gettz("Europe/Berlin")),
-                ),
-                kwargs,
-            )
-
-    def _get_interval_trigger(
-        self,
-        name: str,
-        start_time: dt.datetime,
-        end_time: Optional[dt.datetime],
-        **kwargs,
-    ):
-        from apscheduler.triggers.interval import IntervalTrigger
-
-        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
-
-        return (
-            IntervalTrigger(
-                weeks=kwargs.pop("weeks", 0) or scheduler_cfg.get("weeks", 0),
-                days=kwargs.pop("days", 0) or scheduler_cfg.get("days", 0),
-                hours=kwargs.pop("hours", 0) or scheduler_cfg.get("hours", 0),
-                minutes=kwargs.pop("minutes", 0) or scheduler_cfg.get("minutes", 0),
-                seconds=kwargs.pop("seconds", 0) or scheduler_cfg.get("seconds", 0),
-                microseconds=kwargs.pop("microseconds", 0)
-                or scheduler_cfg.get("microseconds", 0),
-                start_time=start_time,
-                end_time=end_time,
-            ),
-            kwargs,
-        )
-
-    def _get_calendar_trigger(
-        self,
-        name: str,
-        start_time: dt.datetime,
-        end_time: Optional[dt.datetime],
-        **kwargs,
-    ):
-        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
-
-        scheduler_cfg = self.cfg.scheduler.pipeline.get(name, {})
-
-        return (
-            CalendarIntervalTrigger(
-                weeks=kwargs.pop("weeks", 0) or scheduler_cfg.get("weeks", 0),
-                days=kwargs.pop("days", 0) or scheduler_cfg.get("days", 0),
-                hours=kwargs.pop("hours", 0) or scheduler_cfg.get("hours", 0),
-                minutes=kwargs.pop("minutes", 0) or scheduler_cfg.get("minutes", 0),
-                seconds=kwargs.pop("seconds", 0) or scheduler_cfg.get("seconds", 0),
-                start_time=start_time,
-                end_time=end_time,
-                timezone=kwargs.pop("timezone", None)
-                or scheduler_cfg.get("timezone", tz.gettz("Europe/Berlin")),
-            ),
-            kwargs,
-        )
-
-    def _get_date_trigger(self, start_time: dt.datetime, **kwargs):
-        from apscheduler.triggers.date import DateTrigger
-
-        return (DateTrigger(run_time=start_time), kwargs)
+            return id_
 
     def new(
         self,
@@ -380,6 +466,17 @@ class PipelineManager:
         schedule: dict | None = None,
         tracker: dict | None = None,
     ):
+        """
+        Add a new item to the pipeline.
+
+        Args:
+            name (str): The name of the item.
+            overwrite (bool, optional): Whether to overwrite an existing item with the same name. Defaults to False.
+            params (dict | None, optional): The parameters for the item. Defaults to None.
+            run (dict | None, optional): The run configuration for the item. Defaults to None.
+            schedule (dict | None, optional): The schedule configuration for the item. Defaults to None.
+            tracker (dict | None, optional): The tracker configuration for the item. Defaults to None.
+        """
         self.add(name, overwrite, params, run, schedule, tracker)
 
     def add(
@@ -391,6 +488,17 @@ class PipelineManager:
         schedule: dict | None = None,
         tracker: dict | None = None,
     ):
+        """
+        Adds a new pipeline with the given name.
+
+        Args:
+            name (str): The name of the pipeline.
+            overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+            params (dict | None, optional): The parameters for the pipeline. Defaults to None.
+            run (dict | None, optional): The run configuration for the pipeline. Defaults to None.
+            schedule (dict | None, optional): The schedule configuration for the pipeline. Defaults to None.
+            tracker (dict | None, optional): The tracker configuration for the pipeline. Defaults to None.
+        """
         logger.info(f"Creating new pipeline {name}")
 
         if not os.path.exists(self._conf_path):
@@ -416,78 +524,25 @@ class PipelineManager:
             )
         logger.info(f"Created pipeline module {name}.py")
 
-        self._update_pipeline_config(name, params, run)
-        self._update_scheduler_config(name, schedule)
-        self._update_tracker_config(name, tracker)
+        self.cfg.update({"run": {name: run}, "params": {name: params}}, name="pipeline")
+        logger.info(f"Updated pipeline configuration {self._conf_path}/pipeline.yml")
+        self.cfg.update({"pipeline": {name: schedule}}, name="scheduler")
+        logger.info(f"Updated scheduler configuration {self._conf_path}/scheduler.yml")
+        self.cfg.update({"pipeline": {name: tracker}}, name="tracker")
+        logger.info(f"Updated tracker configuration {self._conf_path}/tracker.yml")
+        self.cfg.write(pipeline=True, scheduler=True, tracker=True)
 
         logger.success(f"Created pipeline {name}")
 
-    def _update_pipeline_config(self, name: str, params: dict | None, run: dict | None):
-        pipeline_cfg = self.cfg.get("pipeline", None) or munchify(
-            {"run": {}, "params": {}}
-        )
-        if pipeline_cfg.params is None:
-            pipeline_cfg.params = {}
-        if pipeline_cfg.run is None:
-            pipeline_cfg.run = {}
-
-        pipeline_cfg.params[name] = params or None
-        pipeline_cfg.run[name] = run or munchify(
-            {
-                "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
-                "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
-            }
-        )
-        self.cfg.update(cfg=pipeline_cfg, name="pipeline")
-        self.cfg.write(pipeline=True)
-        logger.info(f"Updated pipeline configuration {self._conf_path}/pipeline.yml")
-
-    def _update_scheduler_config(self, name: str, schedule: dict | None):
-        scheduler_cfg = self.cfg.get("scheduler", None) or munchify(
-            {
-                "data_store": {"type": "memory"},
-                "event_broker": {"type": "local"},
-                "pipeline": {},
-            }
-        )
-        if scheduler_cfg.get("pipeline", None) is None:
-            scheduler_cfg.pipeline = {}
-        scheduler_cfg.pipeline[name] = schedule or {"type": None}
-        self.cfg.update(cfg=scheduler_cfg, name="scheduler")
-        self.cfg.write(scheduler=True)
-        logger.info(f"Updated scheduler configuration {self._conf_path}/scheduler.yml")
-
-    def _update_tracker_config(self, name: str, tracker: dict | None):
-        tracker_cfg = self.cfg.get("tracker", None) or munchify(
-            {
-                "username": None,
-                "api_url": "http://localhost:8241",
-                "ui_url": "http://localhost:8242",
-                "api_key": None,
-                "pipeline": {},
-            }
-        )
-        if tracker_cfg.pipeline is None:
-            tracker_cfg.pipeline = {}
-
-        tracker_cfg.pipeline[name] = tracker or {
-            "project_id": None,
-            "dag_name": None,
-            "tags": None,
-        }
-        self.cfg.update(cfg=tracker_cfg, name="tracker")
-        self.cfg.write(tracker=True)
-        logger.info(f"Updated tracker configuration {self._conf_path}/tracker.yml")
-
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
-        Deletes a pipeline configuration and/or module.
-
+        Delete a pipeline.
         Args:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
-            module (bool, optional): Whether to delete the pipeline module. Defaults to False.
+            module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
         """
+        
         if cfg:
             self.cfg.pipeline.run.pop(name)
             self.cfg.pipeline.params.pop(name)
@@ -501,13 +556,31 @@ class PipelineManager:
                 os.remove(f"{self._pipeline_path}/{name}.py")
                 logger.info(f"Deleted pipeline module {name}.py")
 
-    def show(self, name, format: str = "png", view: bool = False, reload: bool = False):
-        os.makedirs("graphs", exist_ok=True)
+    def show(
+        self, name: str, format: str = "png", view: bool = False, reload: bool = False
+    ):
+        """
+        Display the graph of functions for a given name.
+
+        Args:
+            name (str): The name of the graph.
+            format (str, optional): The format of the graph file. Defaults to "png".
+            view (bool, optional): Whether to open the graph file after generating it. Defaults to False.
+            reload (bool, optional): Whether to reload the graph data. Defaults to False.
+
+        Returns:
+            graph: The generated graph object.
+        """
+        os.makedirs(os.path.join(self._base_path, "graphs"), exist_ok=True)
         dr, _ = self._get_driver(
             name=name, executor=None, with_tracker=False, reload=reload
         )
+        graph = dr.display_all_functions(
+            os.path.join(self._base_path, "graphs", f"{name}.{format}")
+        )
         if view:
-            pass
+            graph.view()
+        return graph
 
 
 class Pipeline(PipelineManager):
@@ -518,7 +591,7 @@ class Pipeline(PipelineManager):
 
     def run(
         self,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
@@ -538,9 +611,56 @@ class Pipeline(PipelineManager):
             **kwargs,
         )
 
+    def run_job(
+        self,
+        environment: str = "dev",
+        executor: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        **kwargs,
+    ) -> Any:
+        name = self.name
+        return super().run_job(
+            name=name,
+            environment=environment,
+            executor=executor,
+            inputs=inputs,
+            final_vars=final_vars,
+            with_tracker=with_tracker,
+            reload=reload,
+            **kwargs,
+        )
+
+    def add_job(
+        self,
+        name: str,
+        environment: str = "prod",
+        executor: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta | None = None,
+        **kwargs,
+    ) -> UUID:
+        name = self.name
+        return super().add_job(
+            name=name,
+            environment=environment,
+            executor=executor,
+            inputs=inputs,
+            final_vars=final_vars,
+            with_tracker=with_tracker,
+            reload=reload,
+            result_expiration_time=result_expiration_time,
+            **kwargs,
+        )
+
     def schedule(
         self,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         type: str = "cron",
         auto_start: bool = True,
@@ -548,6 +668,12 @@ class Pipeline(PipelineManager):
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool = False,
+        paused: bool = False,
+        coalesce: str = "latest",
+        misfire_grace_time: float | dt.timedelta | None = None,
+        max_jobs: float | dt.timedelta | None = None,
+        max_running_jobs: int | None = None,
+        conflict_policy: str = "do_nothing",
         **kwargs,
     ):
         name = self.name
@@ -561,6 +687,12 @@ class Pipeline(PipelineManager):
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
+            paused=paused,
+            coalesce=coalesce,
+            misfire_grace_time=misfire_grace_time,
+            max_jobs=max_jobs,
+            max_running_jobs=max_running_jobs,
+            conflict_policy=conflict_policy,
             **kwargs,
         )
 
@@ -614,6 +746,48 @@ def run(
     p = Pipeline(name=name, base_path=base_path)
     return p.run(
         environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
+    )
+
+
+def run_job(
+    name: str,
+    environment: str = "prod",
+    executor: str | None = None,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    with_tracker: bool | None = None,
+    base_path: str | None = None,
+    reload: bool = False,
+    **kwargs,
+) -> Any:
+    p = Pipeline(name=name, base_path=base_path)
+    return p.run_job(
+        environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
+    )
+
+
+def add_job(
+    name: str,
+    environment: str = "prod",
+    executor: str | None = None,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    with_tracker: bool | None = None,
+    base_path: str | None = None,
+    reload: bool = False,
+    result_expiration_time: float | dt.timedelta | None = None,
+    **kwargs,
+) -> UUID:
+    p = Pipeline(name=name, base_path=base_path)
+    return p.add_job(
+        environment,
+        executor,
+        inputs,
+        final_vars,
+        with_tracker,
+        reload,
+        result_expiration_time,
+        **kwargs,
     )
 
 

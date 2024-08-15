@@ -1,61 +1,22 @@
 from pathlib import Path
-
+import os
 import yaml
 from hamilton.function_modifiers import value, source
 
-from loguru import logger
 from munch import Munch, munchify, unmunchify
-from .constants import PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE  # noqa: F401
+from .helpers.templates import PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE  # noqa: F401
 
 
-class Config:
-    def __init__(self, path: str = "conf") -> None:
-        self._path = path
-        self._check_conf_path()
-        self._set_cfg_filenames()
+class BaseConfig:
+    def __init__(self, name: str, base_path: str | None = None) -> None:
+        self._base_path = base_path or ""
+        self._base_path = str(self._base_path).rstrip("/")
+        if self._base_path.endswith("/conf"):
+            self._base_path = self._base_path.rstrip("/conf")
+        self.name = name
+        self._path = os.path.join(self._base_path, "conf", self.name + ".yml")
 
-        self._pipeline = None
-        self._pipeline_params = None
-        self._tracker = None
-        self._scheduler = None
-
-    def _check_conf_path(self) -> bool:
-        """
-        Check if the configuration path exists.
-
-        Args:
-            None
-
-        Returns:
-            bool: True if the path exists, False otherwise.
-        """
-        if not Path(self._path).exists():
-            logger.warning(f"conif path {self._path} does not exist.")
-
-    def _set_cfg_filenames(self):
-        """
-        Sets the filenames for the configuration files.
-
-        This method sets the filenames for the pipeline, tracker, and scheduler configuration files.
-        It uses the rglob method to find the files with the specified patterns in the given path.
-        The filenames are stored in the respective instance variables.
-
-        Note: This method assumes that there is at least one file matching each pattern in the given path.
-
-        Returns:
-            None
-        """
-        self._pipeline_path = list((Path(self._path)).rglob("pipeline*.y*ml"))
-        self._pipeline_path = self._pipeline_path[0] if self._pipeline_path else None
-
-        self._tracker_path = list((Path(self._path)).rglob("tracker*.y*ml"))
-        self._tracker_path = self._tracker_path[0] if self._tracker_path else None
-
-        self._scheduler_path = list((Path(self._path)).rglob("scheduler*.y*ml"))
-        self._scheduler_path = self._scheduler_path[0] if self._scheduler_path else None
-
-    @staticmethod
-    def _load(path: str) -> dict:
+    def load(self):
         """
         Load the configuration parameters from a YAML file.
 
@@ -65,43 +26,13 @@ class Config:
         Returns:
             dict: The loaded configuration parameters.
         """
-        with open(path) as f:
-            params = yaml.full_load(f)
+        if Path(self._base_path).exists():
+            with open(self._path) as f:
+                self._cfg = munchify(yaml.full_load(f))
+        else:
+            self._cfg = None
 
-        return params
-
-    def update(
-        self,
-        cfg: dict | Munch,
-        name: str,
-    ) -> None:
-        """
-        Update the configuration with the given parameters.
-
-        Args:
-            cfg (dict | Munch): The parameters to update the configuration with.
-            name (str): The name of the configuration.
-
-        Returns:
-            None
-        """
-        if name == "pipeline":
-            if self._pipeline is None:
-                self._pipeline = munchify(cfg)
-            else:
-                self._pipeline.update(cfg)
-        if name == "tracker":
-            if self._tracker is None:
-                self._tracker = munchify(cfg)
-            else:
-                self._tracker.update(cfg)
-        if name == "scheduler":
-            if self._scheduler is None:
-                self._scheduler = munchify(cfg)
-            else:
-                self._scheduler.update(cfg)
-
-    def _write(self, name: str) -> None:
+    def write(self) -> None:
         """
         Write the configuration to a YAML file.
 
@@ -112,41 +43,80 @@ class Config:
         Returns:
             None
         """
-        cfg = eval(f"self._{name}")
-        with open(f"{self._path}/{name}.yml", "w") as f:
+
+        with open(self._path, "w") as f:
             f.write(
-                eval(f"{name.upper()}_TEMPLATE")
-                + yaml.dump(unmunchify(cfg), sort_keys=False)
-                .replace("null", "")
-                .replace("{}", "")
+                eval(f"{self.name.upper()}_TEMPLATE")
+                + yaml.dump(unmunchify(self._cfg), sort_keys=False).replace("null", "")
             )
 
-    def write(
-        self, pipeline: bool = False, tracker: bool = False, scheduler: bool = False
-    ) -> None:
+    def update(self, cfg: dict | Munch) -> None:
         """
-        Write the configuration to file.
+        Update the configuration with the given parameters.
 
         Args:
-            pipeline (bool): If True, write the pipeline configuration to file.
-            tracker (bool): If True, write the tracker configuration to file.
-            scheduler (bool): If True, write the scheduler configuration to file.
+            cfg (dict | Munch): The parameters to update the configuration with.
+            name (str): The name of the configuration.
 
         Returns:
             None
         """
-        if pipeline:
-            name = "pipeline"
-            self._write(name)
-        if tracker:
-            name = "tracker"
-            self._write(name)
-        if scheduler:
-            name = "scheduler"
-            self._write(name)
+        if self._cfg is None:
+            self._cfg = munchify(cfg)
+        else:
+            self._cfg.update(cfg)
+        # self._write()
 
-    @staticmethod
-    def _to_ht_params(d: dict, parent_dict: dict | None = None):
+
+class TrackerConfig(BaseConfig):
+    name = "tracker"
+    init_cfg = {
+        "username": None,
+        "api_url": "http://localhost:8241",
+        "ui_url": "http://localhost:8242",
+        "api_key": None,
+        "pipeline": {},
+    }
+
+    def __init__(self, base_path: str | None = None) -> None:
+        super().__init__(self.name, base_path)
+
+        self.load()
+        self._cfg = self._cfg or self.init_cfg
+
+
+class SchedulerConfig(BaseConfig):
+    name = "scheduler"
+    init_cfg = {
+        "data_store": {"type": "memory"},
+        "event_broker": {"type": "local"},
+        "pipeline": {},
+    }
+
+    def __init__(self, base_path: str | None = None) -> None:
+        super().__init__(self.name, base_path)
+
+        self.load()
+        self._cfg = self._cfg or self.init_cfg
+
+
+class PipelineConfig(BaseConfig):
+    name = "pipeline"
+    init_cfg = {
+        "run": {
+            "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
+            "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
+        },
+        "params": {},
+    }
+
+    def __init__(self, base_path: str | None = None) -> None:
+        super().__init__(self.name, base_path)
+
+        self.load()
+        self._cfg = self._cfg or self.init_cfg
+
+    def _to_ht_params(self, d: dict, parent_dict: dict | None = None):
         """
         Recursively converts the values in a dictionary to `source` or `value` objects.
 
@@ -171,8 +141,7 @@ class Config:
                 d[k] = value(v)
         return d
 
-    @staticmethod
-    def _to_ht_parameterization(d: dict) -> dict:
+    def _to_ht_parameterization(self, d: dict) -> dict:
         """
         Convert a dictionary into a parameterization dictionary.
 
@@ -185,92 +154,104 @@ class Config:
         """
         return {k: {k: d[k]} for k in d}
 
-    def load_pipeline(self) -> Munch:
+    def load(self):
         """
-        Loads the pipeline configuration from a YAML file and returns it as a Munch object.
+        Load the configuration parameters.
+
+        This method loads the configuration parameters from the specified file path.
+        It updates the parameters dictionary with the loaded values and converts
+        certain values to a specific format using the `_to_ht_params` and
+        `_to_ht_parameterization` methods.
 
         Returns:
-            Munch: The loaded pipeline configuration.
-
-        Raises:
-            FileNotFoundError: If no YAML file with the name 'pipeline.yml' is found.
+            None
         """
+        ...
+        super().load()
 
-        if not self._pipeline_path:
-            logger.error("No YAML file found with name 'pipeline.yml'")
-            return
+        self._params = self._cfg.params.copy()
 
-        self._pipeline = munchify(self._load(self._pipeline_path))
-
-        self._pipeline_params = self._pipeline.params.copy()
-
-        for node in self._pipeline_params:
-            self._pipeline_params[node].update(
+        for node in self._params:
+            if self._params[node] is None:
+                continue
+            self._params[node].update(
                 {
                     k: self._to_ht_params(v)
-                    for k, v in self._pipeline_params[node].items()
+                    for k, v in self._params[node].items()
                     if v is not None
                 }
             )
-        self._pipeline_params.update(
+        self._params.update(
             {
                 k: self._to_ht_parameterization(v)
-                for k, v in self._pipeline_params.items()
+                for k, v in self._params.items()
                 if v is not None
             }
         )
-        self._pipeline_params = munchify(self._pipeline_params)
+        self._params = munchify(self._params)
 
-    def load_scheduler(self) -> Munch:
+
+class Config:
+    def __init__(self, base_path: str | None = None) -> None:
+        self._tracker = TrackerConfig(base_path)
+        self._scheduler = SchedulerConfig(base_path)
+        self._pipeline = PipelineConfig(base_path)
+
+    def update(
+        self,
+        cfg: dict | Munch,
+        name: str,
+    ) -> None:
         """
-        Loads the scheduler configuration from a YAML file.
+        Update the configuration with the given parameters.
+
+        Args:
+            cfg (dict | Munch): The parameters to update the configuration with.
+            name (str): The name of the configuration.
 
         Returns:
-            A Munch object representing the loaded scheduler configuration.
-
-        Raises:
-            FileNotFoundError: If no YAML file with the name 'scheduler.yml' is found.
+            None
         """
+        if name == "pipeline":
+            self._pipeline.update(cfg)
+        if name == "tracker":
+            self._tracker.update(cfg)
+        if name == "scheduler":
+            self._scheduler.update(cfg)
 
-        if not self._pipeline_path:
-            logger.error("No YAML file found with name 'scheduler'")
-            return
-
-        self._scheduler = munchify(self._load(self._scheduler_path))
-
-    def load_tracker(self) -> Munch:
+    def write(
+        self, pipeline: bool = False, tracker: bool = False, scheduler: bool = False
+    ) -> None:
         """
-        Loads the tracker from a YAML file.
+        Write the configuration to file.
+
+        Args:
+            pipeline (bool): If True, write the pipeline configuration to file.
+            tracker (bool): If True, write the tracker configuration to file.
+            scheduler (bool): If True, write the scheduler configuration to file.
 
         Returns:
-            Munch: The loaded tracker object.
+            None
         """
-        if not self._tracker_path:
-            logger.error("No YAML file found with name 'tracker'")
-            return
-
-        self._tracker = munchify(self._load(self._tracker_path))
+        if pipeline:
+            self._pipeline.write()
+        if tracker:
+            self._tracker.write()
+        if scheduler:
+            self._scheduler.write()
 
     @property
     def pipeline(self):
-        if self._pipeline is None:
-            self.load_pipeline()
-        return self._pipeline
+        return self._pipeline._cfg
 
     @property
     def scheduler(self):
-        if self._scheduler is None:
-            self.load_scheduler()
-        return self._scheduler
+        return self._scheduler._cfg
 
     @property
     def tracker(self):
-        if self._tracker is None:
-            self.load_tracker()
-        return self._tracker
+        return self._tracker._cfg
 
     @property
     def pipeline_params(self):
-        if self._pipeline is None:
-            self.load_pipeline()
-        return self._pipeline_params
+        return self._pipeline._params

@@ -1,46 +1,57 @@
-import os
-
+from loguru import logger
 from typer import Typer
 import importlib.util
 
-from .pipeline import run, schedule, add, delete
+from .pipeline import (
+    run as run_,
+    run_job as run_job_,
+    add_job as add_job_,
+    schedule as schedule_,
+    add as add_,
+    delete as delete_,
+    show as show_,
+)
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import get_scheduler
-    from .scheduler import start_scheduler as start_scheduler_
+    from .scheduler import start_worker as start_worker_
 else:
     get_scheduler = None
     start_scheduler_ = None
 
-from .main import init as init_
+from . import init as init_
 
 app = Typer()
 
 
 @app.command()
-def run_pipeline(
+def run(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
     executor: str = "local",
     base_path: str = "",
     inputs: str = "",
     final_vars: str = "",
-    with_tracker: bool = None,
+    with_tracker: bool = False,
+    reload: bool = False,
 ):
-    # run_params = (
-    #     dict([kw.split("=") for kw in run_params.split(",")]) if run_params else {}
-    # )
-    # tracker_params = (
-    #     dict([kw.split("=") for kw in tracker_params.split(",")])
-    #     if tracker_params
-    #     else {}
-    # )
-    # kwargs = {**run_params, **tracker_params}
+    """
+    Run the specified task.
+    Args:
+        name (str): The name of the task.
+        environment (str, optional): The environment to run the task in. Defaults to "dev".
+        executor (str, optional): The executor to use for running the task. Defaults to "local".
+        base_path (str, optional): The base path for the task. Defaults to "".
+        inputs (str, optional): The inputs for the task. Defaults to "".
+        final_vars (str, optional): The final variables for the task. Defaults to "".
+        with_tracker (bool, optional): Whether to use a tracker for the task. Defaults to False.
+        reload (bool, optional): Whether to reload the task. Defaults to False.
+    """
     inputs = eval(inputs) if len(inputs) else None
     final_vars = eval(final_vars) if len(final_vars) else None
     with_tracker = with_tracker if with_tracker is not None else None
 
-    _ = run(
+    _ = run_(
         name=name,
         environment=environment,
         executor=executor,
@@ -48,27 +59,141 @@ def run_pipeline(
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        reload=reload,
+    )
+
+
+def run_job(
+    name: str,
+    environment: str = "dev",
+    executor: str = "local",
+    base_path: str = "",
+    inputs: str = "",
+    final_vars: str = "",
+    with_tracker: bool = False,
+    reload: bool = False,
+):
+    """
+    Add a job to run the pipeline with the given parameters to the scheduler.
+    Executes the job immediatly.
+
+    Args:
+        name (str): The name of the job.
+        environment (str, optional): The environment to run the job in. Defaults to "dev".
+        executor (str, optional): The executor to use for the job. Defaults to None.
+        inputs (str, optional): The inputs for the job. Defaults to None.
+        final_vars (str, optional): The final variables for the job. Defaults to None.
+        with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
+        base_path (str, optional): The base path for the job. Defaults to None.
+        reload (bool): Whether to reload the job. Defaults to False.
+    """
+
+    inputs = eval(inputs) if len(inputs) else None
+    final_vars = eval(final_vars) if len(final_vars) else None
+    with_tracker = with_tracker if with_tracker is not None else None
+
+    _ = run_job_(
+        name=name,
+        environment=environment,
+        executor=executor,
+        base_path=base_path,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        reload=reload,
     )
 
 
 @app.command()
-def schedule_pipeline(
+def add_job(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
+    executor: str = "local",
+    base_path: str = "",
+    inputs: str = "",
+    final_vars: str = "",
+    with_tracker: bool = False,
+    reload: bool = False,
+):
+    """
+    Add a job to run the pipeline with the given parameters to the scheduler data store.
+    Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store for the
+    given `result_expiration_time` and can be fetched using the job id (UUID).
+
+    Args:
+        name (str): The name of the job.
+        environment (str, optional): The environment to run the job in. Defaults to "dev".
+        executor (str, optional): The executor to use for the job. Defaults to None.
+        inputs (str, optional): The inputs for the job. Defaults to None.
+        final_vars (str, optional): The final variables for the job. Defaults to None.
+        with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
+        base_path (str, optional): The base path for the job. Defaults to None.
+        reload (bool): Whether to reload the job. Defaults to False.
+    """
+
+    inputs = eval(inputs) if len(inputs) else None
+    final_vars = eval(final_vars) if len(final_vars) else None
+    with_tracker = with_tracker if with_tracker is not None else None
+
+    id_ = add_job_(
+        name=name,
+        environment=environment,
+        executor=executor,
+        base_path=base_path,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        reload=reload,
+    )
+    logger.info(f"Job {id_} added to the scheduler.")
+
+
+@app.command()
+def schedule(
+    name: str,
+    environment: str = "dev",
     executor: str = "local",
     base_path: str = "",
     type: str = "cron",
-    auto_start: bool = False,
-    background: bool = False,
     inputs: str = "",
     final_vars: str = "",
-    with_tracker: bool = None,
+    with_tracker: bool = False,
+    paused: bool = False,
+    coalesce: str = "latest",
+    misfire_grace_time: float = None,
+    max_jitter: float = None,
+    max_running_jobs: int = None,
+    conflict_policy: str = "do_nothing",
     crontab: str = "",
     cron_params: str = "",
     interval_params: str = "",
     calendarinterval_params: str = "",
     date_params: str = "",
 ):
+    """
+    Schedule a job with the given parameters.
+
+    Args:
+        name (str): The name of the job.
+        environment (str, optional): The environment to run the job in. Defaults to "dev".
+        executor (str, optional): The executor to use for running the job. Defaults to "local".
+        base_path (str, optional): The base path for the job. Defaults to "".
+        type (str, optional): The type of the job. Defaults to "cron".
+        inputs (str, optional): The inputs for the job. Defaults to "".
+        final_vars (str, optional): The final variables for the job. Defaults to "".
+        with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to False.
+        paused (bool, optional): Whether the job should be initially paused. Defaults to False.
+        coalesce (str, optional): The coalesce strategy for the job. Defaults to "latest".
+        misfire_grace_time (float, optional): The misfire grace time for the job. Defaults to None.
+        max_jitter (float, optional): The maximum jitter for the job. Defaults to None.
+        max_running_jobs (int, optional): The maximum number of running jobs. Defaults to None.
+        conflict_policy (str, optional): The conflict policy for the job. Defaults to "do_nothing".
+        crontab (str, optional): The crontab expression for the job. Defaults to "".
+        cron_params (str, optional): Additional parameters for the cron job. Defaults to "".
+        interval_params (str, optional): Additional parameters for the interval job. Defaults to "".
+        calendarinterval_params (str, optional): Additional parameters for the calendar interval job. Defaults to "".
+        date_params (str, optional): Additional parameters for the date job. Defaults to "".
+    """
     if get_scheduler is None:
         raise ValueError("APScheduler not installed. Please install it first.")
 
@@ -111,66 +236,28 @@ def schedule_pipeline(
     if crontab is not None:
         kwargs["crontab"] = crontab
 
-    schedule(
+    id_ = schedule_(
         name=name,
         environment=environment,
         executor=executor,
         base_path=base_path,
         type=type,
-        auto_start=auto_start,
-        background=background,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        paused=paused,
+        coalesce=coalesce,
+        misfire_grace_time=misfire_grace_time,
+        max_jitter=max_jitter,
+        max_running_jobs=max_running_jobs,
+        conflict_policy=conflict_policy,
         **kwargs,
     )
+    logger.info(f"Job {id_} scheduled.")
 
 
 @app.command()
-def start_scheduler(
-    base_path: str = "",
-    background: bool = True,
-):
-    conf_path = os.path.join(base_path, "conf")
-    pipelines_path = os.path.join(base_path, "pipelines")
-    start_scheduler_(
-        conf_path=conf_path, pipelines_path=pipelines_path, background=background
-    )
-
-    # @app.command()
-    # def show(
-    #     schedules: bool = False,
-    #     jobs: bool = False,
-    #     pipelines: bool = False,
-    #     conf_path: str = "",
-    #     pipelines_path: str = "pipelines",
-    # ):
-    #     if get_scheduler is None:
-    #         raise ValueError("APScheduler not installed. Please install it first.")
-    #     from rich.console import Console
-
-    #     console = Console()
-
-    #     if conf_path == "":
-    #         conf_path = None
-    #     if schedules:
-    #         console.rule("Schedules")
-    #         scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
-    #         console.print(scheduler.get_schedules())
-
-    #     if jobs:
-    #         console.rule("Jobs")
-    #         scheduler = get_scheduler(conf_path=conf_path, pipelines_path=pipelines_path)
-    #         console.print(scheduler.get_jobs())
-
-    # list schedules
-    # list jobs
-    # list pipelines
-    ...
-
-
-@app.command()
-def add_pipeline(
+def new(
     name: str,
     base_path: str = "",
     overwrite: bool = False,
@@ -179,6 +266,18 @@ def add_pipeline(
     schedule_params: str = "",
     tracker_params: str = "",
 ):
+    """
+    Create a new pipeline with the given parameters.
+
+    Args:
+        name (str): The name of the pipeline.
+        base_path (str, optional): The base path for the pipeline. Defaults to "".
+        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        pipeline_params (str, optional): Additional parameters for the pipeline. Defaults to "".
+        run_params (str, optional): Additional parameters for the run. Defaults to "".
+        schedule_params (str, optional): Additional parameters for the schedule. Defaults to "".
+        tracker_params (str, optional): Additional parameters for the tracker. Defaults to "".
+    """
     pipeline_params = (
         dict([kw.split("=") for kw in pipeline_params.split(",")])
         if pipeline_params
@@ -198,7 +297,7 @@ def add_pipeline(
         else {}
     )
 
-    add(
+    add_(
         name=name,
         base_path=base_path,
         overwrite=overwrite,
@@ -210,13 +309,91 @@ def add_pipeline(
 
 
 @app.command()
-def delete_pipeline():
-    delete()
+def delete(name: str, base_path: str = "", module: bool = False):
+    """
+    Delete a pipeline.
+
+    Args:
+        name (str): The name of the pipeline to delete.
+        base_path (str): The base path of the pipeline. Defaults to None.
+        module (bool, optional): Whether to delete the pipeline module. Defaults to False.
+    """
+    delete_(name=name, base_path=base_path, module=module)
 
 
 @app.command()
-def init(name: str, pipelines_path: str = "pipelines", conf_path: str = "conf"):
-    init_(name, pipelines_path=pipelines_path, conf_path=conf_path)
+def init(name: str):
+    """
+    Initialize the FlowerPower application.
+
+    Args:
+        name (str): The name of the application.
+    """
+    init_(name)
+
+
+@app.command()
+def start_worker(name: str, base_path: str = ""):
+    """
+    Start a worker.
+
+    Args:
+        name (str): The name of the worker.
+        base_path (str, optional): The base path. Defaults to "".
+    """
+
+    start_scheduler_(name=name, base_path=base_path, background=False)
+
+
+@app.command()
+def show(name: str, base_path: str = ""):
+    """
+    Show the pipeline.
+
+    Args:
+        name (str): The name of the pipeline.
+        base_path (str, optional): The base path of the pipeline. Defaults to "".
+    """
+    show_(name=name, base_path=base_path, view=True)
+
+
+@app.command()
+def hamilton_ui(
+    port: int = 8241,
+    base_path: str = "~/.hamilton/db",
+    no_migration: bool = False,
+    no_open: bool = False,
+    settings_file: str = "mini",
+    config_file: str = None,
+):
+    """
+    Start the Hamilton UI.
+
+    Args:
+        port (int, optional): The port to run the UI on. Defaults to 8241.
+        base_path (str, optional): The base path for the UI. Defaults to "~/.hamilton/db".
+        no_migration (bool, optional): Whether to run the migration. Defaults to False.
+        no_open (bool, optional): Whether to open the UI in the browser. Defaults to False.
+        settings_file (str, optional): The settings file to use. Defaults to "mini".
+        config_file (str, optional): The config file to use. Defaults to None.
+    """
+    try:
+        from hamilton_ui import commands
+    except ImportError:
+        logger.error(
+            "hamilton[ui] not installed -- you have to install this to run the UI. "
+            'Run `pip install "sf-hamilton[ui]"` to install and get started with the UI!'
+        )
+        raise app.Exit(code=1)
+
+    commands.run(
+        port=port,
+        base_path=base_path,
+        no_migration=no_migration,
+        no_open=no_open,
+        settings_file=settings_file,
+        config_file=config_file,
+    )
 
 
 if __name__ == "__main__":
