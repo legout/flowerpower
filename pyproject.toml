@@ -1,5 +1,5 @@
 [project]
-authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
+authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 dependencies = [
   "sf-hamilton[visualization]>=1.69.0",
   "python-dotenv>=1.0.1",
@@ -11,11 +11,19 @@ dependencies = [
   "sf-hamilton-sdk>=0.5.2",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
-keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
+keywords = [
+  "hamilton",
+  "workflow",
+  "pipeline",
+  "scheduler",
+  "apscheduler",
+  "dask",
+  "ray",
+]
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.3.5"
+version = "0.3.6"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -58,4 +66,11 @@ allow-direct-references = true
 packages = ["src/flowerpower"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["tests", "docs", "examples", "src/flowerpower.egg-info", "src/flowerpower/__pycache__", "docker"]
+exclude = [
+  "tests",
+  "docs",
+  "examples",
+  "src/flowerpower.egg-info",
+  "src/flowerpower/__pycache__",
+  "docker",
+]

@@ -10,7 +10,7 @@ from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import unmunchify
-from .templates import PIPELINE_PY_TEMPLATE
+from .helpers.templates import PIPELINE_PY_TEMPLATE
 from .cfg import Config
 
 
@@ -26,6 +26,15 @@ from .helpers.trigger import get_trigger
 
 class PipelineManager:
     def __init__(self, base_path: str | None = None):
+        """
+        Initializes the Pipeline object.
+
+        Args:
+            base_path (str | None): The flowerpower base path. Defaults to None.
+
+        Returns:
+            None
+        """
         self._base_path = base_path or ""
         self._conf_path = os.path.join(self._base_path, "conf")
         self._pipeline_path = os.path.join(self._base_path, "pipelines")
@@ -54,7 +63,7 @@ class PipelineManager:
         """
         Load the configuration file.
 
-        This method loads the configuration file specified by the `_conf_path` attribute and 
+        This method loads the configuration file specified by the `_conf_path` attribute and
         assigns it to the `cfg` attribute.
 
         Parameters:
@@ -243,6 +252,7 @@ class PipelineManager:
     ) -> Any:
         """
         Run the pipeline.
+
         Args:
             name (str): The name of the pipeline.
             environment (str, optional): The environment to run the pipeline in. Defaults to "dev".
@@ -278,7 +288,8 @@ class PipelineManager:
         **kwargs,
     ) -> Any:
         """
-        Run a job in the pipeline.
+        Add a job to run the pipeline with the given parameters to the scheduler.
+        Executes the job immediatly and returns the result of the execution.
 
         Args:
             name (str): The name of the job.
@@ -293,7 +304,7 @@ class PipelineManager:
         Returns:
             Any: The result of the job execution.
         """
-        
+
         with SchedulerManager(name=name, base_path=self._base_path) as sm:
             if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
                 sm.configure_task(id="run-pipeline", func=self._run)
@@ -327,7 +338,9 @@ class PipelineManager:
         **kwargs,
     ) -> UUID:
         """
-        Adds a job to the scheduler.
+        Add a job to run the pipeline with the given parameters to the scheduler data store.
+        Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store for the
+        given `result_expiration_time` and can be fetched using the job id (UUID).
 
         Args:
             name (str): The name of the job.
@@ -376,7 +389,7 @@ class PipelineManager:
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
-        max_jobs: float | dt.timedelta | None = None,
+        max_jitter: float | dt.timedelta | None = None,
         max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
         **kwargs,
@@ -395,7 +408,7 @@ class PipelineManager:
             paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
             coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
             misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs. Defaults to None.
-            max_jobs (float | dt.timedelta | None, optional): The maximum number of jobs for the pipeline. Defaults to None.
+            max_jitter (float | dt.timedelta | None, optional): The maximum number of seconds to randomly add to the scheduled. Defaults to None.
             max_running_jobs (int | None, optional): The maximum number of running jobs for the pipeline. Defaults to None.
             conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
             **kwargs: Additional keyword arguments for the trigger.
@@ -448,7 +461,7 @@ class PipelineManager:
                 paused=paused,
                 coalesce=coalesce,
                 misfire_grace_time=misfire_grace_time,
-                max_jobs=max_jobs,
+                max_jitter=max_jitter,
                 max_running_jobs=max_running_jobs,
                 conflict_policy=conflict_policy,
             )
@@ -537,12 +550,13 @@ class PipelineManager:
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
         Delete a pipeline.
+
         Args:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
         """
-        
+
         if cfg:
             self.cfg.pipeline.run.pop(name)
             self.cfg.pipeline.params.pop(name)
@@ -671,7 +685,7 @@ class Pipeline(PipelineManager):
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
-        max_jobs: float | dt.timedelta | None = None,
+        max_jitter: float | dt.timedelta | None = None,
         max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
         **kwargs,
@@ -690,7 +704,7 @@ class Pipeline(PipelineManager):
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
-            max_jobs=max_jobs,
+            max_jitter=max_jitter,
             max_running_jobs=max_running_jobs,
             conflict_policy=conflict_policy,
             **kwargs,
@@ -715,6 +729,18 @@ def add(
     tracker: dict | None = None,
     base_path: str | None = None,
 ):
+    """
+    Add a pipeline to the PipelineManager.
+
+    Args:
+        name (str): The name of the pipeline.
+        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        params (dict | None, optional): The parameters for the pipeline. Defaults to None.
+        run (dict | None, optional): The run configuration for the pipeline. Defaults to None.
+        schedule (dict | None, optional): The schedule configuration for the pipeline. Defaults to None.
+        tracker (dict | None, optional): The tracker configuration for the pipeline. Defaults to None.
+        base_path (str | None, optional): The base path for the pipeline. Defaults to None.
+    """
     pm = PipelineManager(base_path=base_path)
     pm.add(name, overwrite, params, run, schedule, tracker)
 
@@ -728,13 +754,25 @@ def new(
     tracker: dict | None = None,
     base_path: str | None = None,
 ):
+    """
+    Create a new pipeline.
+
+    Args:
+        name (str): The name of the pipeline.
+        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        params (dict | None, optional): The parameters for the pipeline. Defaults to None.
+        run (dict | None, optional): The run configuration for the pipeline. Defaults to None.
+        schedule (dict | None, optional): The schedule configuration for the pipeline. Defaults to None.
+        tracker (dict | None, optional): The tracker configuration for the pipeline. Defaults to None.
+        base_path (str | None, optional): The base path for the pipeline. Defaults to None.
+    """
     pm = PipelineManager(base_path=base_path)
     pm.new(name, overwrite, params, run, schedule, tracker)
 
 
 def run(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
     executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -743,6 +781,22 @@ def run(
     reload: bool = False,
     **kwargs,
 ) -> Any:
+    """
+    Run the pipeline with the given parameters.
+
+    Args:
+        name (str): The name of the pipeline.
+        environment (str, optional): The environment to run the pipeline in. Defaults to "dev".
+        executor (str | None, optional): The executor to use. Defaults to None.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+        base_path (str | None, optional): The base path for the pipeline. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+        **kwargs: Additional keyword arguments.
+    Returns:
+        Any: The result of running the pipeline.
+    """
     p = Pipeline(name=name, base_path=base_path)
     return p.run(
         environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
@@ -751,7 +805,7 @@ def run(
 
 def run_job(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
     executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -760,6 +814,25 @@ def run_job(
     reload: bool = False,
     **kwargs,
 ) -> Any:
+    """
+    Add a job to run the pipeline with the given parameters to the scheduler.
+    Executes the job immediatly and returns the job result.
+
+    Args:
+        name (str): The name of the job.
+        environment (str, optional): The environment to run the job in. Defaults to "dev".
+        executor (str | None, optional): The executor to use for the job. Defaults to None.
+        inputs (dict | None, optional): The inputs for the job. Defaults to None.
+        final_vars (list | None, optional): The final variables for the job. Defaults to None.
+        with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+        base_path (str | None, optional): The base path for the job. Defaults to None.
+        reload (bool, optional): Whether to reload the job. Defaults to False.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        Any: The result of running the job.
+    """
+
     p = Pipeline(name=name, base_path=base_path)
     return p.run_job(
         environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
@@ -768,7 +841,7 @@ def run_job(
 
 def add_job(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
     executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -778,6 +851,26 @@ def add_job(
     result_expiration_time: float | dt.timedelta | None = None,
     **kwargs,
 ) -> UUID:
+    """
+    Add a job to run the pipeline with the given parameters to the scheduler data store.
+    Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store for the
+    given `result_expiration_time` and can be fetched using the job id (UUID).
+
+    Args:
+        name (str): The name of the job.
+        environment (str, optional): The environment to run the job in. Defaults to "dev".
+        executor (str | None, optional): The executor to use for the job. Defaults to None.
+        inputs (dict | None, optional): The inputs for the job. Defaults to None.
+        final_vars (list | None, optional): The final variables for the job. Defaults to None.
+        with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+        base_path (str | None, optional): The base path for the job. Defaults to None.
+        reload (bool, optional): Whether to reload the job. Defaults to False.
+        result_expiration_time (float | dt.timedelta | None, optional): The expiration time for the job result. Defaults to None.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        UUID: The UUID of the added job.
+    """
     p = Pipeline(name=name, base_path=base_path)
     return p.add_job(
         environment,
@@ -793,7 +886,7 @@ def add_job(
 
 def schedule(
     name: str,
-    environment: str = "prod",
+    environment: str = "dev",
     executor: str | None = None,
     type: str = "cron",
     auto_start: bool = True,
@@ -801,11 +894,42 @@ def schedule(
     inputs: dict | None = None,
     final_vars: list | None = None,
     with_tracker: bool = False,
+    paused: bool = False,
+    coalesce: str = "latest",
+    misfire_grace_time: float | dt.timedelta | None = None,
+    max_jitter: float | dt.timedelta | None = None,
+    max_running_jobs: int | None = None,
+    conflict_policy: str = "do_nothing",
     base_path: str | None = None,
     **kwargs,
-):
+) -> str:
+    """
+    Schedule a pipeline for execution.
+
+    Args:
+        name (str): The name of the pipeline.
+        environment (str, optional): The environment in which the pipeline will run. Defaults to "dev".
+        executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
+        type (str, optional): The type of schedule. Defaults to "cron".
+        auto_start (bool, optional): Whether to automatically start the pipeline. Defaults to True.
+        background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        with_tracker (bool, optional): Whether to use a tracker for the pipeline. Defaults to False.
+        paused (bool, optional): Whether to start the pipeline in a paused state. Defaults to False.
+        coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
+        misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs. Defaults to None.
+        max_jitter (float | dt.timedelta | None, optional): The maximum number of seconds to randomly add to the scheduled. Defaults to None.
+        max_running_jobs (int | None, optional): The maximum number of running jobs. Defaults to None.
+        conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
+        base_path (str | None, optional): The base path for the pipeline. Defaults to None.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        str: The ID of the scheduled pipeline.
+    """
     p = Pipeline(name=name, base_path=base_path)
-    p.schedule(
+    return p.schedule(
         environment,
         executor,
         type,
@@ -814,6 +938,12 @@ def schedule(
         inputs,
         final_vars,
         with_tracker,
+        paused,
+        coalesce,
+        misfire_grace_time,
+        max_jitter,
+        max_running_jobs,
+        conflict_policy,
         **kwargs,
     )
 
@@ -825,10 +955,28 @@ def show(
     base_path: str | None = None,
     reload: bool = False,
 ):
+    """
+    Display the pipeline with the given name.
+
+    Parameters:
+        name (str): The name of the pipeline.
+        format (str, optional): The format of the displayed pipeline. Defaults to "png".
+        view (bool, optional): Whether to display the pipeline. Defaults to False.
+        base_path (str | None, optional): The base path of the pipeline. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+    """
     p = Pipeline(name=name, base_path=base_path)
     p.show(format=format, view=view, reload=reload)
 
 
 def delete(name: str, base_path: str | None = None, module: bool = False):
+    """
+    Delete a pipeline.
+
+    Args:
+        name (str): The name of the pipeline to delete.
+        base_path (str | None, optional): The base path of the pipeline. Defaults to None.
+        module (bool, optional): Whether to delete the pipeline module. Defaults to False.
+    """
     p = Pipeline(name=name, base_path=base_path)
     p.delete(module=module)
