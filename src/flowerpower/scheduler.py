@@ -51,10 +51,10 @@ class SchedulerManager(Scheduler):
             base_path = os.getcwd()
 
         self._base_path = base_path
-        self._conf_path = os.path.join(base_path, "conf")  # or conf_path
+        self._conf_dir = os.path.join(base_path, "conf")  # or conf_dir
         self._pipelines_path = os.path.join(base_path, "pipelines")  # or pipelines_path
 
-        self.cfg = Config(self._conf_path).scheduler
+        self.cfg = Config(self._conf_dir).scheduler
         self._data_store = None
         self._event_broker = None
         self._sqla_engine = None
