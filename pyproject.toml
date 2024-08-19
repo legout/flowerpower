@@ -1,5 +1,5 @@
 [project]
-authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
+authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
 dependencies = [
   "sf-hamilton[visualization]>=1.69.0",
   "python-dotenv>=1.0.1",
@@ -23,7 +23,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.4.0"
+version = "0.4.1"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -35,11 +35,11 @@ mqtt = ["paho-mqtt>=2.1.0"]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
 scheduler = [
-    "aiosqlite>=0.20.0",
-    "greenlet>=3.0.3",
-    "asyncpg>=0.29.0",
-    "sqlalchemy>=2.0.30",
-    "apscheduler>=4.0.0a5",
+  "aiosqlite>=0.20.0",
+  "greenlet>=3.0.3",
+  "asyncpg>=0.29.0",
+  "sqlalchemy>=2.0.30",
+  "apscheduler>=4.0.0a5",
 ]
 ui = ["sf-hamilton-ui>=0.0.11"]
 
@@ -49,12 +49,12 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-    "ipython>=8.24.0",
-    "isort>=5.13.2",
-    "pillow>=10.3.0",
-    "cloudpickle>=3.0.0",
-    "dill>=0.3.8",
-    "cbor2>=5.6.4",
+  "ipython>=8.24.0",
+  "isort>=5.13.2",
+  "pillow>=10.3.0",
+  "cloudpickle>=3.0.0",
+  "dill>=0.3.8",
+  "cbor2>=5.6.4",
 ]
 #[tool.rye.scripts]
 #flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}

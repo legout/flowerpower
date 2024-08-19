@@ -105,7 +105,8 @@ class SchedulerManager(Scheduler):
         Sets up the event broker based on the configuration settings.
 
         If the 'event_broker' key is present in the configuration, it checks for the 'type' key.
-        If the 'type' key is present, it initializes the event broker using the specified type and other optional parameters.
+        If the 'type' key is present, it initializes the event broker using the specified type and other optional
+            parameters.
         The optional parameters include 'uri', 'sqla_engine', 'host', 'port', 'username', and 'password'.
 
         Parameters:

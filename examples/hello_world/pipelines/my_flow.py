@@ -8,7 +8,7 @@ PARAMS = Config(Path(__file__).parents[1]).pipeline_params.my_flow
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""
-    return pd.Series(range(1_000_000))*10
+    return pd.Series(range(1_000_000)) * 10
 
 
 def signups() -> pd.Series:

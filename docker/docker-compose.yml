@@ -1,19 +1,19 @@
 version: "3.8"
 services:
-  # jupytercode:
-  #   build: 
-  #     context: .
-  #     args:
-  #       - CODE_VERSION=4.89.1
-  #       - PLATFORM=arm64
-  #   image: jupytercode:latest
-  #   user: root
-  #   environment:
-  #     - GRANT_SUDO=yes
-  #   ports:
-  #     - 8888:8888
-  #   volumes:
-  #     - jupytercode:/home/jovyan
+  jupytercode:
+    build: 
+      context: .
+      args:
+        - CODE_VERSION=4.92.1
+        - PLATFORM=arm64
+    image: jupytercode:latest
+    user: root
+    environment:
+      - GRANT_SUDO=yes
+    ports:
+      - 8888:8888
+    volumes:
+      - jupytercode:/home/jovyan
   #
   minio:
     image: minio/minio
@@ -34,109 +34,91 @@ services:
   #   ports:
   #     - 1883:1883
   #   command: mosquitto -c /mosquitto/config/mosquitto.conf
+  
   mqtt:
     image: emqx/emqx
     ports:
       - 1883:1883
-      - 8083:8083
-      - 8084:8084
-      - 8883:8883
       - 18083:18083
 
-  # redis:
-  #   image: valkey/valkey
-  #   ports:
-  #     - 6379:6379
-
-  dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly
-    network_mode: host
-    ulimits:
-      memlock: -1
+  redis:
+    image: valkey/valkey
     ports:
       - 6379:6379
+
+  # dragonfly:
+  #   image: docker.dragonflydb.io/dragonflydb/dragonfly
+  #   network_mode: host
+  #   ulimits:
+  #     memlock: -1
+  #   ports:
+  #     - 6379:6379
   
   mongodb:
     image: mongo
     ports:
       - 27017:27017
 
-  # nodered:
-  #   image: nodered/node-red
-  #   volumes:
-  #     - nodered:/data
-  #   ports: 
-  #     - 1880:1880
-  #
+  nodered:
+    image: nodered/node-red
+    volumes:
+      - nodered:/data
+    ports: 
+      - 1880:1880
+  
   postgres:
     image: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=flowerpower
-      - POSTGRES_USER=edge
-      - POSTGRES_PASSWORD=edge
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
     ports:
       - 5432:5432
-    restart: always
 
-  # backend:
-  #   image: dagworks/ui-backend:latest
-  #   entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
-  #   ports:
-  #     - 8241:8241
-  #   environment:
-  #     - DB_HOST=postgres
-  #     - DB_PORT=5432
-  #     - DB_NAME=flowerpower
-  #     - DB_USER=edge
-  #     - DB_PASSWORD=edge # TODO: Change this to a secret
-  #     - HAMILTON_BLOB_STORE=local
-  #     - HAMILTON_ENV=local # local env
-  #     - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
-  #     - DJANGO_SECRET_KEY=do_not_use_in_production
-  #     - HAMILTON_TELEMETRY_ENABLED=false #${HAMILTON_TELEMETRY_ENABLED-true}
-  #     - HAMILTON_AUTH_MODE=permissive
-  #   depends_on:
-  #     - postgres
-  #   volumes:
-  #     - backend_data:/data/
 
-  # hamilton_ui:
-  #   image: dagworks/ui-frontend:latest
-  #   ports:
-  #     - 8242:8242
-  #   environment:
-  #     - NODE_ENV=development
-  #     - REACT_APP_AUTH_MODE=local
-  #     - REACT_APP_USE_POSTHOG=false
-  #   depends_on:
-  #     - backend
+  backend:
+    container_name: ui-backend
+    image: dagworks/ui-backend:latest
+    ports:
+      - "8241:8241"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=user
+      - DB_PASSWORD=password # TODO: Change this to a secret
+      - HAMILTON_BLOB_STORE=local
+      - HAMILTON_ENV=local # local env
+      - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
+      - DJANGO_SECRET_KEY=do_not_use_in_production
+      - HAMILTON_TELEMETRY_ENABLED=${HAMILTON_TELEMETRY_ENABLED-true}
+      - HAMILTON_AUTH_MODE=permissive
+    depends_on:
+      - postgres
+    volumes:
+      - backend_data:/data/
 
-  # nginx:
-  #   image: nginx:latest
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf
-  #   ports:
-  #     - 80:80
-  #     - 443:443
-  #   depends_on:
-  #     - hamilton_ui
+  frontend:
+    container_name: ui-frontend
+    image: dagworks/ui-frontend:latest
+    ports:
+      - "8242:8242"
+    environment:
+      - NGINX_PORT=8242 # NB Custom port won't be visible in console & will mean the backend's shortcut will fail
+      - NODE_ENV=development
+      - REACT_APP_AUTH_MODE=local
+      - REACT_APP_USE_POSTHOG=false
+      - REACT_APP_API_URL=http://backend:8241
+    depends_on:
+      - backend
 
-  # caddy:
-  #   image: caddy:latest
-  #   volumes:
-  #     - .conf/Caddyfile:/etc/caddy/Caddyfile
-  #   ports:
-  #     - 80:80
-  #     - 443:443
-  #   depends_on:
-  #     - hamilton_ui
 
 volumes:
-  #jupytercode:
+  jupytercode:
   minio_data:
-  minio_config:
-  #nodered:
+  #minio_config:
+  nodered:
   postgres_data:
-  #backend_data:
+  backend_data:

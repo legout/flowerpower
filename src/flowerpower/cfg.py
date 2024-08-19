@@ -8,13 +8,13 @@ from .helpers.templates import PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TE
 
 
 class BaseConfig:
-    def __init__(self, name: str, base_path: str | None = None) -> None:
-        self._base_path = base_path or ""
-        self._base_path = str(self._base_path).rstrip("/")
-        if self._base_path.endswith("/conf"):
-            self._base_path = self._base_path.rstrip("/conf")
+    def __init__(self, name: str, base_dir: str | None = None) -> None:
+        self.base_dir = base_dir or ""
+        self.base_dir = str(self.base_dir).rstrip("/")
+        if self.base_dir.endswith("/conf"):
+            self.base_dir = self.base_dir.rstrip("/conf")
         self.name = name
-        self._path = os.path.join(self._base_path, "conf", self.name + ".yml")
+        self._path = os.path.join(self.base_dir, "conf", self.name + ".yml")
 
     def load(self):
         """
@@ -78,8 +78,8 @@ class TrackerConfig(BaseConfig):
         "pipeline": {},
     }
 
-    def __init__(self, base_path: str | None = None) -> None:
-        super().__init__(self.name, base_path)
+    def __init__(self, base_dir: str | None = None) -> None:
+        super().__init__(self.name, base_dir)
 
         self.load()
         self._cfg = self._cfg or self.init_cfg
@@ -94,8 +94,8 @@ class SchedulerConfig(BaseConfig):
         "pipeline": {},
     }
 
-    def __init__(self, base_path: str | None = None) -> None:
-        super().__init__(self.name, base_path)
+    def __init__(self, base_dir: str | None = None) -> None:
+        super().__init__(self.name, base_dir)
 
         self.load()
         self._cfg = self._cfg or self.init_cfg
@@ -111,8 +111,8 @@ class PipelineConfig(BaseConfig):
         "params": {},
     }
 
-    def __init__(self, base_path: str | None = None) -> None:
-        super().__init__(self.name, base_path)
+    def __init__(self, base_dir: str | None = None) -> None:
+        super().__init__(self.name, base_dir)
 
         self.load()
         self._cfg = self._cfg or self.init_cfg
@@ -171,7 +171,7 @@ class PipelineConfig(BaseConfig):
         super().load()
         if self._cfg is None:
             return
-        
+
         self._params = self._cfg.params.copy()
 
         for node in self._params:
@@ -195,10 +195,10 @@ class PipelineConfig(BaseConfig):
 
 
 class Config:
-    def __init__(self, base_path: str | None = None) -> None:
-        self._tracker = TrackerConfig(base_path)
-        self._scheduler = SchedulerConfig(base_path)
-        self._pipeline = PipelineConfig(base_path)
+    def __init__(self, base_dir: str | None = None) -> None:
+        self._tracker = TrackerConfig(base_dir)
+        self._scheduler = SchedulerConfig(base_dir)
+        self._pipeline = PipelineConfig(base_dir)
 
     def update(
         self,

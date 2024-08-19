@@ -1,5 +1,3 @@
-
-
 from loguru import logger
 from typer import Typer
 import importlib.util
@@ -31,7 +29,7 @@ def run(
     name: str,
     environment: str = "dev",
     executor: str = "local",
-    base_path: str = "",
+    base_dir: str = "",
     inputs: str = "",
     final_vars: str = "",
     with_tracker: bool = False,
@@ -43,7 +41,7 @@ def run(
         name (str): The name of the task.
         environment (str, optional): The environment to run the task in. Defaults to "dev".
         executor (str, optional): The executor to use for running the task. Defaults to "local".
-        base_path (str, optional): The base path for the task. Defaults to "".
+        base_dir (str, optional): The base path for the task. Defaults to "".
         inputs (str, optional): The inputs for the task. Defaults to "".
         final_vars (str, optional): The final variables for the task. Defaults to "".
         with_tracker (bool, optional): Whether to use a tracker for the task. Defaults to False.
@@ -57,19 +55,20 @@ def run(
         name=name,
         environment=environment,
         executor=executor,
-        base_path=base_path,
+        base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
         reload=reload,
     )
 
+
 @app.command()
 def run_job(
     name: str,
     environment: str = "dev",
     executor: str = "local",
-    base_path: str = "",
+    base_dir: str = "",
     inputs: str = "",
     final_vars: str = "",
     with_tracker: bool = False,
@@ -86,7 +85,7 @@ def run_job(
         inputs (str, optional): The inputs for the job. Defaults to None.
         final_vars (str, optional): The final variables for the job. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
-        base_path (str, optional): The base path for the job. Defaults to None.
+        base_dir (str, optional): The base path for the job. Defaults to None.
         reload (bool): Whether to reload the job. Defaults to False.
     """
 
@@ -98,7 +97,7 @@ def run_job(
         name=name,
         environment=environment,
         executor=executor,
-        base_path=base_path,
+        base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
@@ -111,7 +110,7 @@ def add_job(
     name: str,
     environment: str = "dev",
     executor: str = "local",
-    base_path: str = "",
+    base_dir: str = "",
     inputs: str = "",
     final_vars: str = "",
     with_tracker: bool = False,
@@ -129,7 +128,7 @@ def add_job(
         inputs (str, optional): The inputs for the job. Defaults to None.
         final_vars (str, optional): The final variables for the job. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
-        base_path (str, optional): The base path for the job. Defaults to None.
+        base_dir (str, optional): The base path for the job. Defaults to None.
         reload (bool): Whether to reload the job. Defaults to False.
     """
 
@@ -141,7 +140,7 @@ def add_job(
         name=name,
         environment=environment,
         executor=executor,
-        base_path=base_path,
+        base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
@@ -155,7 +154,7 @@ def schedule(
     name: str,
     environment: str = "dev",
     executor: str = "local",
-    base_path: str = "",
+    base_dir: str = "",
     type: str = "cron",
     inputs: str = "",
     final_vars: str = "",
@@ -179,7 +178,7 @@ def schedule(
         name (str): The name of the job.
         environment (str, optional): The environment to run the job in. Defaults to "dev".
         executor (str, optional): The executor to use for running the job. Defaults to "local".
-        base_path (str, optional): The base path for the job. Defaults to "".
+        base_dir (str, optional): The base path for the job. Defaults to "".
         type (str, optional): The type of the job. Defaults to "cron".
         inputs (str, optional): The inputs for the job. Defaults to "".
         final_vars (str, optional): The final variables for the job. Defaults to "".
@@ -242,7 +241,7 @@ def schedule(
         name=name,
         environment=environment,
         executor=executor,
-        base_path=base_path,
+        base_dir=base_dir,
         type=type,
         inputs=inputs,
         final_vars=final_vars,
@@ -261,7 +260,7 @@ def schedule(
 @app.command()
 def new(
     name: str,
-    base_path: str = "",
+    base_dir: str = "",
     overwrite: bool = False,
     pipeline_params: str = "",
     run_params: str = "",
@@ -273,7 +272,7 @@ def new(
 
     Args:
         name (str): The name of the pipeline.
-        base_path (str, optional): The base path for the pipeline. Defaults to "".
+        base_dir (str, optional): The base path for the pipeline. Defaults to "".
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
         pipeline_params (str, optional): Additional parameters for the pipeline. Defaults to "".
         run_params (str, optional): Additional parameters for the run. Defaults to "".
@@ -301,7 +300,7 @@ def new(
 
     add_(
         name=name,
-        base_path=base_path,
+        base_dir=base_dir,
         overwrite=overwrite,
         params=pipeline_params,
         run=run_params,
@@ -311,16 +310,16 @@ def new(
 
 
 @app.command()
-def delete(name: str, base_path: str = "", module: bool = False):
+def delete(name: str, base_dir: str = "", module: bool = False):
     """
     Delete a pipeline.
 
     Args:
         name (str): The name of the pipeline to delete.
-        base_path (str): The base path of the pipeline. Defaults to None.
+        base_dir (str): The base path of the pipeline. Defaults to None.
         module (bool, optional): Whether to delete the pipeline module. Defaults to False.
     """
-    delete_(name=name, base_path=base_path, module=module)
+    delete_(name=name, base_dir=base_dir, module=module)
 
 
 @app.command()
@@ -335,34 +334,34 @@ def init(name: str):
 
 
 @app.command()
-def start_worker(name: str, base_path: str = ""):
+def start_worker(name: str, base_dir: str = ""):
     """
     Start a worker.
 
     Args:
         name (str): The name of the worker.
-        base_path (str, optional): The base path. Defaults to "".
+        base_dir (str, optional): The base path. Defaults to "".
     """
 
-    start_worker_(name=name, base_path=base_path, background=False)
+    start_worker_(name=name, base_dir=base_dir, background=False)
 
 
 @app.command()
-def show(name: str, base_path: str = ""):
+def show(name: str, base_dir: str = ""):
     """
     Show the pipeline.
 
     Args:
         name (str): The name of the pipeline.
-        base_path (str, optional): The base path of the pipeline. Defaults to "".
+        base_dir (str, optional): The base path of the pipeline. Defaults to "".
     """
-    show_(name=name, base_path=base_path, view=True)
+    show_(name=name, base_dir=base_dir, view=True)
 
 
 @app.command()
 def hamilton_ui(
     port: int = 8241,
-    base_path: str = "~/.hamilton/db",
+    base_dir: str = "~/.hamilton/db",
     no_migration: bool = False,
     no_open: bool = False,
     settings_file: str = "mini",
@@ -373,7 +372,7 @@ def hamilton_ui(
 
     Args:
         port (int, optional): The port to run the UI on. Defaults to 8241.
-        base_path (str, optional): The base path for the UI. Defaults to "~/.hamilton/db".
+        base_dir (str, optional): The base path for the UI. Defaults to "~/.hamilton/db".
         no_migration (bool, optional): Whether to run the migration. Defaults to False.
         no_open (bool, optional): Whether to open the UI in the browser. Defaults to False.
         settings_file (str, optional): The settings file to use. Defaults to "mini".
@@ -390,7 +389,7 @@ def hamilton_ui(
 
     commands.run(
         port=port,
-        base_dir=base_path,
+        base_dir=base_dir,
         no_migration=no_migration,
         no_open=no_open,
         settings_file=settings_file,
