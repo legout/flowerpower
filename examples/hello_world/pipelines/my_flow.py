@@ -8,12 +8,12 @@ PARAMS = Config(Path(__file__).parents[1]).pipeline_params.my_flow
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""
-    return pd.Series([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+    return pd.Series(range(1_000_000))*10
 
 
 def signups() -> pd.Series:
     """Returns a series of signups data."""
-    return pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    return pd.Series(range(1_000_000))
 
 
 @parameterize(**PARAMS.avg_x_wk_spend)
@@ -47,4 +47,5 @@ def spend_zero_mean_unit_variance(
     spend_zero_mean: pd.Series, spend_std_dev: float
 ) -> pd.Series:
     """Function showing one way to make spend have zero mean and unit variance."""
+    print("spend_zero_mean_unit_variance", spend_zero_mean / spend_std_dev)
     return spend_zero_mean / spend_std_dev

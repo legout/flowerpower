@@ -22,8 +22,5 @@ username:
 api_url: http://localhost:8241
 ui_url: http://localhost:8242
 api_key: 
-pipeline:
-  my_flow:
-    project_id: 
-    dag_name: 
-    tags: 
+
+pipeline: 

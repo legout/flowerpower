@@ -1,4 +1,4 @@
-version: "2"
+version: "3.8"
 services:
   # jupytercode:
   #   build: 
@@ -27,16 +27,32 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
   
+  # mqtt:
+  #   image: eclipse-mosquitto
+  #   volumes:
+  #     - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
+  #   ports:
+  #     - 1883:1883
+  #   command: mosquitto -c /mosquitto/config/mosquitto.conf
   mqtt:
-    image: eclipse-mosquitto
-    volumes:
-      - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    image: emqx/emqx
     ports:
       - 1883:1883
-    command: mosquitto -c /mosquitto/config/mosquitto.conf
+      - 8083:8083
+      - 8084:8084
+      - 8883:8883
+      - 18083:18083
 
-  redis:
-    image: valkey/valkey
+  # redis:
+  #   image: valkey/valkey
+  #   ports:
+  #     - 6379:6379
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    network_mode: host
+    ulimits:
+      memlock: -1
     ports:
       - 6379:6379
   
@@ -53,7 +69,7 @@ services:
   #     - 1880:1880
   #
   postgres:
-    image: postgres:12
+    image: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -64,38 +80,38 @@ services:
       - 5432:5432
     restart: always
 
-  backend:
-    image: dagworks/ui-backend:latest
-    entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
-    ports:
-      - 8241:8241
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=flowerpower
-      - DB_USER=edge
-      - DB_PASSWORD=edge # TODO: Change this to a secret
-      - HAMILTON_BLOB_STORE=local
-      - HAMILTON_ENV=local # local env
-      - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
-      - DJANGO_SECRET_KEY=do_not_use_in_production
-      - HAMILTON_TELEMETRY_ENABLED=false #${HAMILTON_TELEMETRY_ENABLED-true}
-      - HAMILTON_AUTH_MODE=permissive
-    depends_on:
-      - postgres
-    volumes:
-      - backend_data:/data/
+  # backend:
+  #   image: dagworks/ui-backend:latest
+  #   entrypoint: ["/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh"]
+  #   ports:
+  #     - 8241:8241
+  #   environment:
+  #     - DB_HOST=postgres
+  #     - DB_PORT=5432
+  #     - DB_NAME=flowerpower
+  #     - DB_USER=edge
+  #     - DB_PASSWORD=edge # TODO: Change this to a secret
+  #     - HAMILTON_BLOB_STORE=local
+  #     - HAMILTON_ENV=local # local env
+  #     - HAMILTON_LOCAL_BLOB_DIR=/data/blobs # TODO -- set this up to be a better one
+  #     - DJANGO_SECRET_KEY=do_not_use_in_production
+  #     - HAMILTON_TELEMETRY_ENABLED=false #${HAMILTON_TELEMETRY_ENABLED-true}
+  #     - HAMILTON_AUTH_MODE=permissive
+  #   depends_on:
+  #     - postgres
+  #   volumes:
+  #     - backend_data:/data/
 
-  hamilton_ui:
-    image: dagworks/ui-frontend:latest
-    ports:
-      - 8242:8242
-    environment:
-      - NODE_ENV=development
-      - REACT_APP_AUTH_MODE=local
-      - REACT_APP_USE_POSTHOG=false
-    depends_on:
-      - backend
+  # hamilton_ui:
+  #   image: dagworks/ui-frontend:latest
+  #   ports:
+  #     - 8242:8242
+  #   environment:
+  #     - NODE_ENV=development
+  #     - REACT_APP_AUTH_MODE=local
+  #     - REACT_APP_USE_POSTHOG=false
+  #   depends_on:
+  #     - backend
 
   # nginx:
   #   image: nginx:latest
@@ -118,9 +134,9 @@ services:
   #     - hamilton_ui
 
 volumes:
-  jupytercode:
+  #jupytercode:
   minio_data:
   minio_config:
-  nodered:
+  #nodered:
   postgres_data:
-  backend_data:
+  #backend_data:

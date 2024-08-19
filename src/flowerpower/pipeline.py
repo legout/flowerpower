@@ -305,11 +305,13 @@ class PipelineManager:
             Any: The result of the job execution.
         """
 
-        with SchedulerManager(name=name, base_path=self._base_path) as sm:
-            if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
-                sm.configure_task(id="run-pipeline", func=self._run)
+        with SchedulerManager(
+            name=name, base_path=self._base_path, role="scheduler"
+        ) as sm:
+            # if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
+            #    sm.configure_task(func_or_task_id="run-pipeline", func=self._run)
             return sm.run_job(
-                "run-pipeline",
+                self._run,
                 args=(
                     name,
                     environment,
@@ -334,7 +336,7 @@ class PipelineManager:
         final_vars: list | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
-        result_expiration_time: float | dt.timedelta | None = None,
+        result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> UUID:
         """
@@ -356,11 +358,13 @@ class PipelineManager:
         Returns:
             UUID: The UUID of the added job.
         """
-        with SchedulerManager(name=name, base_path=self._base_path) as sm:
-            if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
-                sm.configure_task(id="run-pipeline", func=self._run)
+        with SchedulerManager(
+            name=name, base_path=self._base_path, role="scheduler"
+        ) as sm:
+            # if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
+            #    sm.configure_task(func_or_task_id="run-pipeline", func=self._run)
             return sm.add_job(
-                "run-pipeline",
+                self._run,
                 args=(
                     name,
                     environment,
@@ -445,13 +449,15 @@ class PipelineManager:
             ]:
                 trigger_kwargs[key] = scheduler_cfg.pop(key, None)
 
-        with SchedulerManager(name=name, base_path=self._base_path) as sm:
-            if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
-                sm.configure_task(id="run-pipeline", func=self._run)
+        with SchedulerManager(
+            name=name, base_path=self._base_path, role="scheduler"
+        ) as sm:
+            # if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
+            #    sm.configure_task(func_or_task_id="run-pipeline", func=self._run)
             trigger, kwargs = get_trigger(trigger_type, **kwargs)
 
             id_ = sm.add_schedule(
-                "run-pipeline",
+                self._run,
                 trigger=trigger,
                 args=(name, environment, executor, inputs, final_vars, with_tracker),
                 kwargs=kwargs,
@@ -649,14 +655,13 @@ class Pipeline(PipelineManager):
 
     def add_job(
         self,
-        name: str,
-        environment: str = "prod",
+        environment: str = "dev",
         executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
-        result_expiration_time: float | dt.timedelta | None = None,
+        result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> UUID:
         name = self.name
@@ -677,8 +682,6 @@ class Pipeline(PipelineManager):
         environment: str = "dev",
         executor: str | None = None,
         type: str = "cron",
-        auto_start: bool = True,
-        background: bool = False,
         inputs: dict | None = None,
         final_vars: list | None = None,
         with_tracker: bool = False,
@@ -696,8 +699,6 @@ class Pipeline(PipelineManager):
             environment=environment,
             executor=executor,
             type=type,
-            auto_start=auto_start,
-            background=background,
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
@@ -848,7 +849,7 @@ def add_job(
     with_tracker: bool | None = None,
     base_path: str | None = None,
     reload: bool = False,
-    result_expiration_time: float | dt.timedelta | None = None,
+    result_expiration_time: float | dt.timedelta = 0,
     **kwargs,
 ) -> UUID:
     """

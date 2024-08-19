@@ -26,7 +26,7 @@ class BaseConfig:
         Returns:
             dict: The loaded configuration parameters.
         """
-        if Path(self._base_path).exists():
+        if Path(self._path).exists():
             with open(self._path) as f:
                 self._cfg = munchify(yaml.full_load(f))
         else:
@@ -90,6 +90,7 @@ class SchedulerConfig(BaseConfig):
     init_cfg = {
         "data_store": {"type": "memory"},
         "event_broker": {"type": "local"},
+        "cleanup_interval": {"unit": "minutes", "value": 15},
         "pipeline": {},
     }
 
@@ -168,7 +169,9 @@ class PipelineConfig(BaseConfig):
         """
         ...
         super().load()
-
+        if self._cfg is None:
+            return
+        
         self._params = self._cfg.params.copy()
 
         for node in self._params:

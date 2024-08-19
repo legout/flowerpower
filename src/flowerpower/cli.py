@@ -1,3 +1,5 @@
+
+
 from loguru import logger
 from typer import Typer
 import importlib.util
@@ -62,7 +64,7 @@ def run(
         reload=reload,
     )
 
-
+@app.command()
 def run_job(
     name: str,
     environment: str = "dev",
@@ -342,7 +344,7 @@ def start_worker(name: str, base_path: str = ""):
         base_path (str, optional): The base path. Defaults to "".
     """
 
-    start_scheduler_(name=name, base_path=base_path, background=False)
+    start_worker_(name=name, base_path=base_path, background=False)
 
 
 @app.command()
@@ -388,7 +390,7 @@ def hamilton_ui(
 
     commands.run(
         port=port,
-        base_path=base_path,
+        base_dir=base_path,
         no_migration=no_migration,
         no_open=no_open,
         settings_file=settings_file,

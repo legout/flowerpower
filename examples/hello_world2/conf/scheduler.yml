@@ -48,6 +48,12 @@
 # event_broker:
 #   type: local # or memory
 #
+# ## cleanup interval configuration
+#
+# cleanup_interval:
+#   unit: minutes
+#   value: 15
+#
 # ## pipeline schedule configuration
 #
 # pipeline:
@@ -76,10 +82,14 @@
 #
 # ---------------------------------------------------------- #
 
-data_path:
+data_store:
   type: memory
+
 event_broker:
   type: local
-pipeline:
-  my_flow:
-    type: 
+
+cleanup_interval:
+  unit: minutes
+  value: 15
+  
+pipeline: 

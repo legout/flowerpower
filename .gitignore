@@ -11,3 +11,4 @@ wheels/
 .env
 .vscode
 docker/config/.bash_history
+docker/assets

@@ -7,12 +7,12 @@
 # ### postgres
 # data_store:
 #   type: sqlalchemy
-#   url: postgresql+asyncpg://edge:edge@postgres/flowerpower
+#   uri: postgresql+asyncpg://edge:edge@postgres/flowerpower
 #
 # ### sqlite
 # data_store:
 #   type: sqlalchemy
-#   url: sqlite+aiosqlite:///flowerpower.db
+#   uri: sqlite+aiosqlite:///flowerpower.db
 #
 # ### memory
 # data_store:
@@ -21,14 +21,14 @@
 # ### mongodb
 # data_store:
 #   type: mongodb
-#   url: mongodb://localhost:27017/scheduler
+#   uri: mongodb://localhost:27017/scheduler
 #
 # ## event broker configuration
 #
 # ### postgres
 # event_broker:
 #   type: asyncpg
-#   url: postgresql+asyncpg://edge:edge@db/flowerpower
+#   uri: postgresql+asyncpg://edge:edge@db/flowerpower
 #
 # ### mqtt
 # event_broker:
@@ -75,8 +75,22 @@
 #     microseconds:
 #
 # ---------------------------------------------------------- #
+data_store:
+  type: sqlalchemy
+  uri: postgresql+asyncpg://edge:edge@localhost:5432/flowerpower
+  #uri: sqlite+aiosqlite:///test.db
+
+event_broker:
+  type: mqtt
+  host: localhost
+  port: 1883
+
+cleanup_interval:
+  unit: minutes
+  value: 60
 
 pipeline:
   my_flow:
     type: interval
     seconds: 30
+

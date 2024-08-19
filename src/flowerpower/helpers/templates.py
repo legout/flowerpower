@@ -83,6 +83,12 @@ SCHEDULER_TEMPLATE = """# ---------------- Scheduler Configuration -------------
 # event_broker:
 #   type: local # or memory
 #
+# ## cleanup interval configuration
+#
+# cleanup_interval:
+#   unit: minutes
+#   value: 15
+#
 # ## pipeline schedule configuration
 #
 # pipeline:

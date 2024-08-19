@@ -18,13 +18,16 @@
 #
 # ---------------------------------------------------------- #
 
-username: volker.lorrmann@siemens.com
+username: volker.lorrmann@gmail.com
 api_url: http://localhost:8241
-ui_url: http://localhost:8242
-api_key:
+ui_url: http://localhost:8241
+api_key: 
 
 pipeline:
   my_flow:
-    project_id: 3
-    dag_name: first_dag
+    project_id: 1
     tags:
+      environment: dev
+      version: 1.0
+    dag_name: my_flow_123
+  

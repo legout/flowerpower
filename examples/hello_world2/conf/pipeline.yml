@@ -32,14 +32,13 @@
 # ---------------------------------------------------------- #
 
 run:
-  my_flow:
-    dev:
-      inputs: 
-      final_vars: 
-      with_tracker: false
-    prod:
-      inputs: 
-      final_vars: 
-      with_tracker: true
-params:
-  my_flow: 
+  dev:
+    inputs: 
+    final_vars: 
+    with_tracker: false
+  prod:
+    inputs: 
+    final_vars: 
+    with_tracker: true
+    
+params: 

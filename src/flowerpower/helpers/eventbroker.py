@@ -1,8 +1,15 @@
+
+from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
+from apscheduler.eventbrokers.mqtt import MQTTEventBroker
+from apscheduler.eventbrokers.redis import RedisEventBroker
+from apscheduler.eventbrokers.local import LocalEventBroker
 from sqlalchemy.engine import Engine
 
 ALL_EVENT_BROKERS = [
+    "sqlalchemy",
     "asyncpg",
     "psycopg3",
+    "postgresql",
     "mqtt",
     "redis",
     "local",
@@ -14,7 +21,7 @@ class EventBroker:
     def __init__(
         self,
         type: str,
-        url: str | None,
+        uri: str | None = None,
         sqla_engine: Engine | None = None,
         host: str = "localhost",
         port: int = 1883,
@@ -22,12 +29,12 @@ class EventBroker:
         password: str | None = None,
     ):
         self.type = type
-        self.url = url
+        self.uri = uri
         self.host = host
         self.port = port
         self.username = username
         self.password = password
-        self.sqla_engine = sqla_engine
+        self._sqla_engine = sqla_engine
 
         if type not in ALL_EVENT_BROKERS:
             raise ValueError(
@@ -35,17 +42,15 @@ class EventBroker:
             )
 
     def _setup_asyncpg_event_broker(self):
-        from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 
         if self._sqla_engine is None:
-            self._event_broker = AsyncpgEventBroker.from_dsn(dsn=self.url)
+            self._event_broker = AsyncpgEventBroker.from_dsn(dsn=self.uri)
         else:
             self._event_broker = AsyncpgEventBroker.from_async_sqla_engine(
-                engine=self.sqla_engine
+                engine=self._sqla_engine
             )
 
     def _setup_mqtt_event_broker(self):
-        from apscheduler.eventbrokers.mqtt import MQTTEventBroker
 
         self._event_broker = MQTTEventBroker(
             self.host, self.port, topic="flowerpower/scheduler"
@@ -57,19 +62,17 @@ class EventBroker:
             )
 
     def _setup_redis_event_broker(self):
-        from apscheduler.eventbrokers.redis import RedisEventBroker
 
-        if self.url is None:
-            self.url = "redis://{self.host}:{self.port}"
-        self._event_broker = RedisEventBroker(self.url)
+        if self.uri is None:
+            self.uri = f"redis://{self.host}:{self.port}"
+        self._event_broker = RedisEventBroker(self.uri)
 
     def _setup_local_event_broker(self):
-        from apscheduler.eventbrokers.local import LocalEventBroker
 
         self._event_broker = LocalEventBroker()
 
     def setup(self):
-        if self.type == "asyncpg" or self.type == "psycopg3":
+        if self.type in ["sqlalchemy", "asyncpg", "psycopg3", "postgresql"]:
             self._setup_asyncpg_event_broker()
         elif self.type == "mqtt":
             self._setup_mqtt_event_broker()
@@ -82,9 +85,9 @@ class EventBroker:
         return self._event_broker
 
 
-def get_event_broker(
+def setup_event_broker(
     type: str,
-    url: str | None = None,
+    uri: str | None = None,
     sqla_engine: Engine | None = None,
     host: str = "localhost",
     port: int = 1883,
@@ -93,7 +96,7 @@ def get_event_broker(
 ):
     eb = EventBroker(
         type=type,
-        url=url,
+        uri=uri,
         sqla_engine=sqla_engine,
         host=host,
         port=port,
