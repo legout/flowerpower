@@ -1,6 +1,7 @@
-# FlowerPower
+<center><h1>FlowerPower</h1></center>
+<center><h2>Simple Workflow Framework - Hamilton + APScheduler = FlowerPower</h2></center>
 
-![Bild](./image.png)
+<center><img src="./image.png" alt="Bild" width="600" height="400" ></center>
 
 ## Table of Contents
 1. [Overview](#overview)
