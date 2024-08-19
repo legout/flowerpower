@@ -2,6 +2,21 @@
 
 ![Bild](./image.png)
 
+## Table of Contents
+1. [Overview](#overview)
+2. [Installation](#installation)
+3. [Usage](#usage)
+    1. [Initialze a new flowerpower project](#initialze-a-new-flowerpower-project)
+    2. [Add a new pipeline](#add-a-new-pipeline)
+    3. [Setup a pipeline](#setup-a-pipeline)
+    4. [Run a pipeline](#run-a-pipeline)
+    5. [Schedule a pipeline](#schedule-a-pipeline)
+    6. [Start a woker](#start-a-woker)
+    7. [Track a pipeline](#track-a-pipeline)
+    8. [Optional: Dev Services](#optional-dev-services)
+
+
+## Overview
 FlowerPower is a simple workflow framework based on the fantastic python libraries [Hamilton](https://github.com/DAGWorks-Inc/hamilton) and [APScheduler (Advanced Python Scheduler)](https://github.com/agronholm/apscheduler) 
 
 **Hamilton** is used as the core engine to create Directed Acyclic Graphs (DAGs) from your pipeline functions and execute them in a controlled manner. It is highly recommended to read the [Hamilton documentation](https://hamilton.dagworks.io/en/latest/) and check out their [examples](https://github.com/DAGWorks-Inc/hamilton/examples) to understand the core concepts of FlowerPower.
