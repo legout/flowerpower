@@ -1,5 +1,4 @@
 
-from email.mime import base
 import os
 import datetime as dt
 
@@ -17,7 +16,7 @@ def init(name: str, conf_path: str = "conf", pipelines_path: str = "pipelines"):
     os.makedirs(os.path.join(name, "conf"), exist_ok=True)
     os.makedirs(os.path.join(name, "pipelines"), exist_ok=True)
     
-    cfg = Config(base_path=name)
+    cfg = Config(base_dir=name)
 
     with open(os.path.join(name, "README.md"), "w") as f:
         f.write(
