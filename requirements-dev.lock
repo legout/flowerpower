@@ -57,6 +57,7 @@ colorlog==6.8.2
 decorator==5.1.1
     # via ipython
 dill==0.3.8
+    # via flowerpower
 django==5.1
     # via django-extensions
     # via django-ninja

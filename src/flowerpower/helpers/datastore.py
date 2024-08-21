@@ -1,7 +1,3 @@
-from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
-from sqlalchemy.ext.asyncio import create_async_engine
-from apscheduler.datastores.mongodb import MongoDBDataStore
-from apscheduler.datastores.memory import MemoryDataStore
 
 
 ALL_DATA_STORES = [
@@ -27,13 +23,20 @@ class DataStore:
             )
 
     def _setup_sqlalchemy(self):
+        from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
+        from sqlalchemy.ext.asyncio import create_async_engine
+
         self.sqla_engine = create_async_engine(self.engine_or_uri)
         self._data_store = SQLAlchemyDataStore(self.sqla_engine)
 
     def _setup_mongodb(self, uri: str):
+        from apscheduler.datastores.mongodb import MongoDBDataStore
+
         self._data_store = MongoDBDataStore(self.engine_or_uri)
 
     def _setup_memory(self):
+        from apscheduler.datastores.memory import MemoryDataStore
+
         self._data_store = MemoryDataStore()
 
     def setup(

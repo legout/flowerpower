@@ -1,8 +1,3 @@
-
-from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
-from apscheduler.eventbrokers.mqtt import MQTTEventBroker
-from apscheduler.eventbrokers.redis import RedisEventBroker
-from apscheduler.eventbrokers.local import LocalEventBroker
 from sqlalchemy.engine import Engine
 
 ALL_EVENT_BROKERS = [
@@ -42,6 +37,7 @@ class EventBroker:
             )
 
     def _setup_asyncpg_event_broker(self):
+        from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 
         if self._sqla_engine is None:
             self._event_broker = AsyncpgEventBroker.from_dsn(dsn=self.uri)
@@ -51,6 +47,7 @@ class EventBroker:
             )
 
     def _setup_mqtt_event_broker(self):
+        from apscheduler.eventbrokers.mqtt import MQTTEventBroker
 
         self._event_broker = MQTTEventBroker(
             self.host, self.port, topic="flowerpower/scheduler"
@@ -62,12 +59,14 @@ class EventBroker:
             )
 
     def _setup_redis_event_broker(self):
+        from apscheduler.eventbrokers.redis import RedisEventBroker
 
         if self.uri is None:
             self.uri = f"redis://{self.host}:{self.port}"
         self._event_broker = RedisEventBroker(self.uri)
 
     def _setup_local_event_broker(self):
+        from apscheduler.eventbrokers.local import LocalEventBroker
 
         self._event_broker = LocalEventBroker()
 

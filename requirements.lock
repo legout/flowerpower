@@ -50,6 +50,8 @@ click==8.1.7
     # via typer
 colorlog==6.8.2
     # via sf-hamilton-ui
+dill==0.3.8
+    # via flowerpower
 django==5.1
     # via django-extensions
     # via django-ninja
