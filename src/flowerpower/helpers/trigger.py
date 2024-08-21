@@ -90,8 +90,7 @@ class Trigger:
         if crontab is not None:
             return (CronTrigger.from_crontab(crontab), kwargs)
         else:
-            return (
-                CronTrigger(
+            return CronTrigger(
                     year=kwargs.pop("year", None),
                     month=kwargs.pop("month", None),
                     week=kwargs.pop("week", None),
@@ -103,9 +102,7 @@ class Trigger:
                     start_time=start_time,
                     end_time=end_time,
                     timezone=timezone,
-                ),
-                kwargs,
-            )
+                )
 
     def _get_interval_trigger(
         self,
@@ -115,8 +112,7 @@ class Trigger:
     ):
         from apscheduler.triggers.interval import IntervalTrigger
 
-        return (
-            IntervalTrigger(
+        return IntervalTrigger(
                 weeks=kwargs.pop("weeks", 0),
                 days=kwargs.pop("days", 0),
                 hours=kwargs.pop("hours", 0),
@@ -125,9 +121,7 @@ class Trigger:
                 microseconds=kwargs.pop("microseconds", 0),
                 start_time=start_time,
                 end_time=end_time,
-            ),
-            kwargs,
-        )
+            )
 
     def _get_calendar_trigger(
         self,
@@ -138,8 +132,7 @@ class Trigger:
     ):
         from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
-        return (
-            CalendarIntervalTrigger(
+        return CalendarIntervalTrigger(
                 weeks=kwargs.pop("weeks", 0),
                 days=kwargs.pop("days", 0),
                 hours=kwargs.pop("hours", 0),
@@ -148,14 +141,12 @@ class Trigger:
                 start_time=start_time,
                 end_time=end_time,
                 timezone=timezone,
-            ),
-            kwargs,
-        )
+            )
 
     def _get_date_trigger(self, start_time: dt.datetime, **kwargs):
         from apscheduler.triggers.date import DateTrigger
 
-        return (DateTrigger(run_time=start_time), kwargs)
+        return DateTrigger(run_time=start_time)
 
 
 def get_trigger(trigger_type: str, **kwargs):
