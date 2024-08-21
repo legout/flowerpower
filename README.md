@@ -20,30 +20,48 @@
 ## Overview
 FlowerPower is a simple workflow framework based on the fantastic python libraries [Hamilton](https://github.com/DAGWorks-Inc/hamilton) and [APScheduler (Advanced Python Scheduler)](https://github.com/agronholm/apscheduler) 
 
-**Hamilton** is used as the core engine to create Directed Acyclic Graphs (DAGs) from your pipeline functions and execute them in a controlled manner. It is highly recommended to read the [Hamilton documentation](https://hamilton.dagworks.io/en/latest/) and check out their [examples](https://github.com/DAGWorks-Inc/hamilton/examples) to understand the core concepts of FlowerPower.
+**[Hamilton](https://github.com/DAGWorks-Inc/hamilton)** is used as the core engine to create Directed Acyclic Graphs (DAGs) from your pipeline functions and execute them in a controlled manner. It is highly recommended to read the [Hamilton documentation](https://hamilton.dagworks.io/en/latest/) and check out their [examples](https://github.com/DAGWorks-Inc/hamilton/examples) to understand the core concepts of FlowerPower.
 
-**APScheduler** is used to schedule the pipeline execution. You can schedule the pipeline to run at a specific time, at a specific interval or at a specific cron expression. Furthermore, APScheduler can be used to run the pipeline in a distributed environment. In this case you need to setup a data store (e.g. postgres, mongodb, mysql, sqlite) to store the job information and an event broker (e.g. redis, mqtt) to communicate between the scheduler and the workers. At least a data store is required to persist the scheduled pipeline jobs after a worker restart, even if you run on a single machine. The data store and event broker can be configured in the flowerpower project config file `conf/scheduler.yml` (see below).
+**[APScheduler](https://github.com/agronholm/apscheduler)** is used to schedule the pipeline execution. You can schedule the pipeline to run at a specific time, at a specific interval or at a specific cron expression. Furthermore, APScheduler can be used to run the pipeline in a distributed environment. 
+
+
+#### The main features of the FlowerPower framework are:
+
+1. **Pipeline Workflows**: FlowerPower uses the Hamilton library to create Directed Acyclic Graphs (DAGs) from pipeline functions, allowing you to define and execute complex workflow pipelines.
+
+2. **Scheduling and Execution**: FlowerPower integrates the APScheduler library to allow scheduling of pipeline executions at specific times, intervals, or based on cron expressions. It supports running pipelines in a distributed environment with a data store and event broker.
+
+3. **Parameterization**: FlowerPower allows you to parameterize your pipeline functions, either by setting default values or defining parameters in a configuration file.
+
+4. **Tracking and Monitoring**: FlowerPower can integrate with the Hamilton UI to provide tracking and monitoring of pipeline executions, including visualization of the DAG.
+
+5. **Flexible Configuration**: FlowerPower uses configuration files (`conf/pipelines.yml`, `conf/scheduler.yml`, `conf/tracker.yml`) to set up pipelines, scheduling, and tracking, allowing for easy customization.
+
+6. **Distributed Execution**: FlowerPower supports running pipelines in a distributed environment by using a data store (e.g., PostgreSQL, MongoDB, SQLite) to persist job information and an event broker (e.g., Redis, MQTT) for communication between the scheduler and workers.
+
+7. **Easy Setup and Usage**: FlowerPower provides command-line tools and Python APIs for initializing new projects, adding new pipelines, running and scheduling pipelines, and starting workers.
+
+Overall, FlowerPower aims to provide a simple and flexible workflow framework that combines the power of Hamilton and APScheduler to enable the creation and execution of complex data pipelines, with support for scheduling, distribution, and monitoring.
 
 ## Installation
 
 ```shell
-pip install "flowerpower" 
-# with scheduler
+pip install flowerpower 
+# scheduling 
 pip install "flowerpower[scheduler]" 
-# with mqtt event broker
+# mqtt event broker
 pip install "flowerpower[scheduler,mqtt]" 
-# with redis event broker
+# redis event broker
 pip install "flowerpower[scheduler,redis]" 
-# with mongodb data store
+# mongodb data store
 pip install "flowerpower[scheduler,mongodb]"
-# with ray distributed computing
+# distributed computing using ray
 pip install "flowerpower[scheduler,ray]"
-# with dask distributed computing
+# dask distributed computing using dask
 pip install "flowerpower[scheduler,dask]"
 ```
 
 ## Usage
-
 
 ### Initialze a new flowerpower project
 In the command line, run the following command to initialize a new flowerpower project
