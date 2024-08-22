@@ -33,7 +33,7 @@ class SchedulerManager(Scheduler):
     def __init__(
         self,
         name: str | None = None,
-        base_path: str | None = None,
+        base_dir: str | None = None,
         **kwargs,
     ):
         """
@@ -47,17 +47,17 @@ class SchedulerManager(Scheduler):
         """
         self.name = name or ""
 
-        if base_path is None:
-            base_path = os.getcwd()
+        if base_dir is None:
+            base_dir = os.getcwd()
 
-        self._base_path = base_path
-        self._conf_dir = os.path.join(base_path, "conf")  # or conf_dir
-        self._pipelines_path = os.path.join(base_path, "pipelines")  # or pipelines_path
+        self._base_dir = base_dir
+        self._conf_dir = os.path.join(base_dir, "conf")  # or conf_dir
+        self._pipelines_path = os.path.join(base_dir, "pipelines")  # or pipelines_path
 
-        self.cfg = Config(self._conf_dir).scheduler
-        self._data_store = None
-        self._event_broker = None
-        self._sqla_engine = None
+        self.cfg = Config(self._base_dir).scheduler
+        #self._data_store = None
+        #self._event_broker = None
+        #self._sqla_engine = None
 
         self._setup_data_store()
         self._setup_event_broker()

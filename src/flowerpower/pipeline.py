@@ -37,7 +37,7 @@ class PipelineManager:
             None
         """
         self._base_dir = base_dir or ""
-        #self._conf_dir = os.path.join(self._base_dir, "conf")
+        self._conf_dir = os.path.join(self._base_dir, "conf")
         self._pipeline_dir = os.path.join(self._base_dir, "pipelines")
 
         sys.path.append(self._pipeline_dir)
@@ -95,7 +95,7 @@ class PipelineManager:
         Returns:
         - None
         """
-        self.cfg = Config(base_dir=self._conf_dir)
+        self.cfg = Config(base_dir=self._base_dir)
 
     def _get_driver(
         self,

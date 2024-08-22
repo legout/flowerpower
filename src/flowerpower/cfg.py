@@ -9,12 +9,12 @@ from .helpers.templates import PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TE
 
 class BaseConfig:
     def __init__(self, name: str, base_dir: str | None = None) -> None:
-        self.base_dir = base_dir or ""
-        self.base_dir = str(self.base_dir).rstrip("/")
-        if self.base_dir.endswith("conf"):
-            self.base_dir = self.base_dir.rstrip("conf").rstrip("/")
+        self._base_dir = base_dir or ""
+        self._base_dir = str(self._base_dir).rstrip("/")
+        if self._base_dir.endswith("conf"):
+            self._base_dir = self._base_dir.rstrip("conf").rstrip("/")
         self.name = name
-        self._path = os.path.join(self.base_dir, "conf", self.name + ".yml")
+        self._path = os.path.join(self._base_dir, "conf", self.name + ".yml")
 
     def load(self):
         """
