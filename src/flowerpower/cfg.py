@@ -173,7 +173,8 @@ class PipelineConfig(BaseConfig):
         if self._cfg is None:
             return
 
-        self._params = self._cfg.params.copy()
+        
+        self._params = self._cfg.params.copy() if self._cfg.params is not None else {}
 
         for node in self._params:
             if self._params[node] is None:
