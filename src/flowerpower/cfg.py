@@ -1,10 +1,15 @@
-from pathlib import Path
 import os
-import yaml
-from hamilton.function_modifiers import value, source
+from pathlib import Path
 
+import yaml
+from hamilton.function_modifiers import source, value
 from munch import Munch, munchify, unmunchify
-from .helpers.templates import PIPELINE_TEMPLATE, SCHEDULER_TEMPLATE, TRACKER_TEMPLATE  # noqa: F401
+
+from .helpers.templates import (
+    PIPELINE_TEMPLATE,  # noqa: F401
+    SCHEDULER_TEMPLATE,
+    TRACKER_TEMPLATE,
+)
 
 
 class BaseConfig:
@@ -47,7 +52,9 @@ class BaseConfig:
         with open(self._path, "w") as f:
             f.write(
                 eval(f"{self.name.upper()}_TEMPLATE")
-                + yaml.dump(unmunchify(self._cfg), sort_keys=False).replace("null", "").replace("{}","")
+                + yaml.dump(unmunchify(self._cfg), sort_keys=False)
+                .replace("null", "")
+                .replace("{}", "")
             )
 
     def update(self, cfg: dict | Munch) -> None:
@@ -105,10 +112,10 @@ class PipelineConfig(BaseConfig):
     name = "pipeline"
     init_cfg = {
         "run": {},
-        #{
+        # {
         #    "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
         #    "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
-        #},
+        # },
         "params": {},
     }
 
@@ -173,7 +180,6 @@ class PipelineConfig(BaseConfig):
         if self._cfg is None:
             return
 
-        
         self._params = self._cfg.params.copy() if self._cfg.params is not None else {}
 
         for node in self._params:

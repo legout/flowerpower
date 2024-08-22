@@ -1,8 +1,8 @@
-import importlib.util
-from hamilton.execution import executors
 import importlib
-from loguru import logger
+import importlib.util
 
+from hamilton.execution import executors
+from loguru import logger
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
@@ -14,6 +14,7 @@ if importlib.util.find_spec("ray"):
     import ray
 else:
     ray = None
+
 
 def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
     shutdown = None

@@ -1,14 +1,13 @@
-import sys
-import importlib.util
-
-
 import datetime as dt
+import importlib.util
+import sys
 
 if importlib.util.find_spec("apscheduler"):
     from apscheduler import Scheduler, current_scheduler
     from apscheduler.executors.async_ import AsyncJobExecutor
-    from apscheduler.executors.thread import ThreadPoolJobExecutor
     from apscheduler.executors.subprocess import ProcessPoolJobExecutor
+    from apscheduler.executors.thread import ThreadPoolJobExecutor
+
     from .helpers import monkey
 
     monkey.patch_pickle()
@@ -19,12 +18,13 @@ else:
         "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[scheduler]`"
     )
 
-from .cfg import Config
 import os
-from loguru import logger
 import uuid
 from typing import Any
 
+from loguru import logger
+
+from .cfg import Config
 from .helpers.datastore import setup_data_store
 from .helpers.eventbroker import setup_event_broker
 
@@ -41,7 +41,7 @@ class SchedulerManager(Scheduler):
 
         Args:
             name (str | None, optional): The name of the scheduler. Defaults to None.
-            base_path (str | None, optional): The flowerpower base path. Defaults to None.
+            base_dir (str | None, optional): The flowerpower base path. Defaults to None.
             **kwargs: Additional keyword arguments.
 
         """
@@ -55,9 +55,9 @@ class SchedulerManager(Scheduler):
         self._pipelines_path = os.path.join(base_dir, "pipelines")  # or pipelines_path
 
         self.cfg = Config(self._base_dir).scheduler
-        #self._data_store = None
-        #self._event_broker = None
-        #self._sqla_engine = None
+        # self._data_store = None
+        # self._event_broker = None
+        # self._sqla_engine = None
 
         self._setup_data_store()
         self._setup_event_broker()
@@ -178,7 +178,7 @@ class SchedulerManager(Scheduler):
 # Wrapper functions for backward compatibility
 def get_schedule_manager(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ) -> SchedulerManager:
@@ -187,14 +187,14 @@ def get_schedule_manager(
 
     Args:
         name (str | None, optional): The name of the scheduler manager. Defaults to None.
-        base_path (str | None, optional): The base path for the scheduler manager. Defaults to None.
+        base_dir (str | None, optional): The base path for the scheduler manager. Defaults to None.
         *args: Additional positional arguments to be passed to the SchedulerManager constructor.
         **kwargs: Additional keyword arguments to be passed to the SchedulerManager constructor.
 
     Returns:
         SchedulerManager: The initialized SchedulerManager instance.
     """
-    manager = SchedulerManager(name, base_path, *args, **kwargs)
+    manager = SchedulerManager(name, base_dir, *args, **kwargs)
     return manager
 
 
@@ -210,7 +210,7 @@ def get_current_scheduler_manager() -> SchedulerManager | None:
 
 def get_scheduler(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ) -> SchedulerManager:
@@ -219,20 +219,20 @@ def get_scheduler(
 
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
-        base_path (str | None, optional): The base path. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
         *args: Additional positional arguments.
         **kwargs: Additional keyword arguments.
 
     Returns:
         SchedulerManager: The initialized SchedulerManager instance.
     """
-    manager = get_schedule_manager(name, base_path, *args, **kwargs)
+    manager = get_schedule_manager(name, base_dir, *args, **kwargs)
     return manager
 
 
 def start_worker(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     background: bool = False,
     *args,
     **kwargs,
@@ -242,7 +242,7 @@ def start_worker(
 
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
-        base_path (str | None, optional): The base path for the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path for the scheduler. Defaults to None.
         background (bool, optional): Whether to start the scheduler in the background. Defaults to False.
         *args: Additional positional arguments.
         **kwargs: Additional keyword arguments.
@@ -250,9 +250,9 @@ def start_worker(
     Returns:
         SchedulerManager: The scheduler instance.
     """
-    # manager = get_schedule_manager(name, base_path, role="worker", *args, **kwargs)
+    # manager = get_schedule_manager(name, base_dir, role="worker", *args, **kwargs)
     with get_schedule_manager(
-        name, base_path, role="worker", *args, **kwargs
+        name, base_dir, role="worker", *args, **kwargs
     ) as manager:
         manager.start_worker(background)
 
@@ -263,7 +263,7 @@ def start_worker(
 
 def remove_all_schedules(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ):
@@ -272,17 +272,17 @@ def remove_all_schedules(
 
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
-        base_path (str | None, optional): The base path. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
         *args: Additional positional arguments.
         **kwargs: Additional keyword arguments.
     """
-    manager = get_schedule_manager(name, base_path, *args, **kwargs)
+    manager = get_schedule_manager(name, base_dir, *args, **kwargs)
     manager.remove_all_schedules()
 
 
 def add_schedule(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ) -> str:
@@ -291,21 +291,21 @@ def add_schedule(
 
     Args:
         name (str, optional): The name of the schedule. Defaults to None.
-        base_path (str, optional): The base path for the schedule. Defaults to None.
+        base_dir (str, optional): The base path for the schedule. Defaults to None.
         *args: Variable length argument list.
         **kwargs: Arbitrary keyword arguments.
 
     Returns:
         str: The ID of the added schedule.
     """
-    manager = SchedulerManager(name, base_path, role="scheduler")
+    manager = SchedulerManager(name, base_dir, role="scheduler")
     id_ = manager.add_schedule(*args, **kwargs)
     return id_
 
 
 def add_job(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ) -> uuid.UUID:
@@ -316,21 +316,21 @@ def add_job(
 
     Args:
         name (str | None): The name of the job. Defaults to None.
-        base_path (str | None): The base path for the job. Defaults to None.
+        base_dir (str | None): The base path for the job. Defaults to None.
         *args: Variable length argument list.
         **kwargs: Arbitrary keyword arguments.
 
     Returns:
         uuid.UUID: The ID of the added job.
     """
-    manager = SchedulerManager(name, base_path, role="scheduler")
+    manager = SchedulerManager(name, base_dir, role="scheduler")
     id_ = manager.add_job(*args, **kwargs)
     return id_, manager
 
 
 def run_job(
     name: str | None = None,
-    base_path: str | None = None,
+    base_dir: str | None = None,
     *args,
     **kwargs,
 ) -> Any:
@@ -339,7 +339,7 @@ def run_job(
 
     Args:
         name (str, optional): The name of the job. Defaults to None.
-        base_path (str, optional): The base path of the job. Defaults to None.
+        base_dir (str, optional): The base path of the job. Defaults to None.
         *args: Variable length argument list.
         **kwargs: Arbitrary keyword arguments.
 
@@ -347,6 +347,6 @@ def run_job(
         Any: The SchedulerManager instance.
 
     """
-    manager = SchedulerManager(name, base_path, role="scheduler")
+    manager = SchedulerManager(name, base_dir, role="scheduler")
     manager.run_job(*args, **kwargs)
     return manager

@@ -14,17 +14,16 @@ class SM(Scheduler):
             self._event_broker = AsyncpgEventBroker.from_async_sqla_engine(
                 self._data_store._engine
             )
-        
+
         super().__init__(
             identity=self.name,
             data_store=self._data_store,
             event_broker=self._event_broker,
-            #job_executors=self._job_executors,
+            # job_executors=self._job_executors,
         )
 
 
 class TestJob:
-    
     def __init__(self, name):
         self.name = name
 
@@ -34,8 +33,8 @@ class TestJob:
     def add_job(self, *args, **kwargs):
         with SM(
             name="test",
-            #ds_uri="sqlite+aiosqlite:///test.db",
-            ds_uri="postgresql+asyncpg://edge:edge@localhost:5432/flowerpower", 
+            # ds_uri="sqlite+aiosqlite:///test.db",
+            ds_uri="postgresql+asyncpg://edge:edge@localhost:5432/flowerpower",
             eb_uri="redis://localhost:6379",
         ) as sched:
             sched.add_job(self.run, args=args, kwargs=kwargs)

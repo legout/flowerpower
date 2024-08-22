@@ -1,6 +1,5 @@
 import datetime as dt
 
-
 ALL_TRIGGER_TYPES = [
     "cron",
     "interval",
@@ -91,18 +90,18 @@ class Trigger:
             return (CronTrigger.from_crontab(crontab), kwargs)
         else:
             return CronTrigger(
-                    year=kwargs.pop("year", None),
-                    month=kwargs.pop("month", None),
-                    week=kwargs.pop("week", None),
-                    day=kwargs.pop("day", None),
-                    day_of_week=kwargs.pop("days_of_week", None),
-                    hour=kwargs.pop("hour", None),
-                    minute=kwargs.pop("minute", None),
-                    second=kwargs.pop("second", None),
-                    start_time=start_time,
-                    end_time=end_time,
-                    timezone=timezone,
-                )
+                year=kwargs.pop("year", None),
+                month=kwargs.pop("month", None),
+                week=kwargs.pop("week", None),
+                day=kwargs.pop("day", None),
+                day_of_week=kwargs.pop("days_of_week", None),
+                hour=kwargs.pop("hour", None),
+                minute=kwargs.pop("minute", None),
+                second=kwargs.pop("second", None),
+                start_time=start_time,
+                end_time=end_time,
+                timezone=timezone,
+            )
 
     def _get_interval_trigger(
         self,
@@ -113,15 +112,15 @@ class Trigger:
         from apscheduler.triggers.interval import IntervalTrigger
 
         return IntervalTrigger(
-                weeks=kwargs.pop("weeks", 0),
-                days=kwargs.pop("days", 0),
-                hours=kwargs.pop("hours", 0),
-                minutes=kwargs.pop("minutes", 0),
-                seconds=kwargs.pop("seconds", 0),
-                microseconds=kwargs.pop("microseconds", 0),
-                start_time=start_time,
-                end_time=end_time,
-            )
+            weeks=kwargs.pop("weeks", 0),
+            days=kwargs.pop("days", 0),
+            hours=kwargs.pop("hours", 0),
+            minutes=kwargs.pop("minutes", 0),
+            seconds=kwargs.pop("seconds", 0),
+            microseconds=kwargs.pop("microseconds", 0),
+            start_time=start_time,
+            end_time=end_time,
+        )
 
     def _get_calendar_trigger(
         self,
@@ -133,15 +132,15 @@ class Trigger:
         from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
         return CalendarIntervalTrigger(
-                weeks=kwargs.pop("weeks", 0),
-                days=kwargs.pop("days", 0),
-                hours=kwargs.pop("hours", 0),
-                minutes=kwargs.pop("minutes", 0),
-                seconds=kwargs.pop("seconds", 0),
-                start_time=start_time,
-                end_time=end_time,
-                timezone=timezone,
-            )
+            weeks=kwargs.pop("weeks", 0),
+            days=kwargs.pop("days", 0),
+            hours=kwargs.pop("hours", 0),
+            minutes=kwargs.pop("minutes", 0),
+            seconds=kwargs.pop("seconds", 0),
+            start_time=start_time,
+            end_time=end_time,
+            timezone=timezone,
+        )
 
     def _get_date_trigger(self, start_time: dt.datetime, **kwargs):
         from apscheduler.triggers.date import DateTrigger

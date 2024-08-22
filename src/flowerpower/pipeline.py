@@ -1,9 +1,8 @@
 import datetime as dt
-import importlib.util
 import importlib
+import importlib.util
 import os
 import sys
-from tkinter import ALL
 from typing import Any, Callable
 from uuid import UUID
 
@@ -11,9 +10,9 @@ from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import unmunchify
-from .helpers.templates import PIPELINE_PY_TEMPLATE
-from .cfg import Config
 
+from .cfg import Config
+from .helpers.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -22,7 +21,7 @@ else:
 
 
 from .helpers.executor import get_executor
-from .helpers.trigger import get_trigger, ALL_TRIGGER_KWARGS
+from .helpers.trigger import ALL_TRIGGER_KWARGS, get_trigger
 
 
 class PipelineManager:
@@ -239,9 +238,9 @@ class PipelineManager:
         self,
         name: str,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool = False,
         reload: bool = False,
         **kwargs,
@@ -262,13 +261,13 @@ class PipelineManager:
             Any: The result of running the pipeline.
         """
         return self._run(
-            name,
-            environment,
-            executor,
-            inputs,
-            final_vars,
-            with_tracker,
-            reload,
+            name=name,
+            environment=environment,
+            inputs=inputs,
+            final_vars=final_vars,
+            executor=executor,
+            with_tracker=with_tracker,
+            reload=reload,
             **kwargs,
         )
 
@@ -276,9 +275,9 @@ class PipelineManager:
         self,
         name: str,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
         **kwargs,
@@ -311,9 +310,9 @@ class PipelineManager:
                 args=(
                     name,
                     environment,
-                    executor,
                     inputs,
                     final_vars,
+                    executor,
                     with_tracker,
                     reload,
                 ),
@@ -327,9 +326,9 @@ class PipelineManager:
         self,
         name: str,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
@@ -363,9 +362,9 @@ class PipelineManager:
                 args=(
                     name,
                     environment,
-                    executor,
                     inputs,
                     final_vars,
+                    executor,
                     with_tracker,
                     reload,
                 ),
@@ -383,8 +382,8 @@ class PipelineManager:
         final_vars: list | None = None,
         environment: str = "dev",
         executor: str | None = None,
-        trigger_type: str | None = None,
         with_tracker: bool | None = None,
+        trigger_type: str | None = None,
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
@@ -459,7 +458,7 @@ class PipelineManager:
             id_ = sm.add_schedule(
                 self._run,
                 trigger=trigger,
-                args=(name, environment, executor, inputs, final_vars, with_tracker),
+                args=(name, environment, inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
                 **schedule_kwargs,
             )
@@ -539,7 +538,7 @@ class PipelineManager:
             "dev": {"final_vars": [], "inputs": {}},
             "prod": {"final_vars": [], "inputs": {}},
         }
-        
+
         self.cfg.update({"run": {name: run}, "params": {name: params}}, name="pipeline")
         logger.info(f"Updated pipeline configuration {self._conf_dir}/pipeline.yml")
         self.cfg.update({"pipeline": {name: schedule}}, name="scheduler")
@@ -609,9 +608,9 @@ class Pipeline(PipelineManager):
     def run(
         self,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool = False,
         reload: bool = False,
         **kwargs,
@@ -631,9 +630,9 @@ class Pipeline(PipelineManager):
     def run_job(
         self,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
         **kwargs,
@@ -653,9 +652,9 @@ class Pipeline(PipelineManager):
     def add_job(
         self,
         environment: str = "dev",
-        executor: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
@@ -677,10 +676,10 @@ class Pipeline(PipelineManager):
     def schedule(
         self,
         environment: str = "dev",
-        executor: str | None = None,
         type: str = "cron",
         inputs: dict | None = None,
         final_vars: list | None = None,
+        executor: str | None = None,
         with_tracker: bool = False,
         paused: bool = False,
         coalesce: str = "latest",
@@ -771,9 +770,9 @@ def new(
 def run(
     name: str,
     environment: str = "dev",
-    executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    executor: str | None = None,
     with_tracker: bool = False,
     base_dir: str | None = None,
     reload: bool = False,
@@ -797,16 +796,22 @@ def run(
     """
     p = Pipeline(name=name, base_dir=base_dir)
     return p.run(
-        environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
+        environment=environment,
+        executor=executor,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        reload=reload,
+        **kwargs,
     )
 
 
 def run_job(
     name: str,
     environment: str = "dev",
-    executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    executor: str | None = None,
     with_tracker: bool | None = None,
     base_dir: str | None = None,
     reload: bool = False,
@@ -833,16 +838,22 @@ def run_job(
 
     p = Pipeline(name=name, base_dir=base_dir)
     return p.run_job(
-        environment, executor, inputs, final_vars, with_tracker, reload, **kwargs
+        environment=environment,
+        executor=executor,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        reload=reload,
+        **kwargs,
     )
 
 
 def add_job(
     name: str,
     environment: str = "dev",
-    executor: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    executor: str | None = None,
     with_tracker: bool | None = None,
     base_dir: str | None = None,
     reload: bool = False,
@@ -872,13 +883,13 @@ def add_job(
     """
     p = Pipeline(name=name, base_dir=base_dir)
     return p.add_job(
-        environment,
-        executor,
-        inputs,
-        final_vars,
-        with_tracker,
-        reload,
-        result_expiration_time,
+        environment=environment,
+        executor=executor,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        reload=reload,
+        result_expiration_time=result_expiration_time,
         **kwargs,
     )
 
@@ -886,12 +897,10 @@ def add_job(
 def schedule(
     name: str,
     environment: str = "dev",
-    executor: str | None = None,
     type: str = "cron",
-    auto_start: bool = True,
-    background: bool = False,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    executor: str | None = None,
     with_tracker: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
@@ -930,20 +939,18 @@ def schedule(
     """
     p = Pipeline(name=name, base_dir=base_dir)
     return p.schedule(
-        environment,
-        executor,
-        type,
-        auto_start,
-        background,
-        inputs,
-        final_vars,
-        with_tracker,
-        paused,
-        coalesce,
-        misfire_grace_time,
-        max_jitter,
-        max_running_jobs,
-        conflict_policy,
+        environment=environment,
+        executor=executor,
+        type=type,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        paused=paused,
+        coalesce=coalesce,
+        misfire_grace_time=misfire_grace_time,
+        max_jitter=max_jitter,
+        max_running_jobs=max_running_jobs,
+        conflict_policy=conflict_policy,
         **kwargs,
     )
 
