@@ -11,8 +11,8 @@ class BaseConfig:
     def __init__(self, name: str, base_dir: str | None = None) -> None:
         self.base_dir = base_dir or ""
         self.base_dir = str(self.base_dir).rstrip("/")
-        if self.base_dir.endswith("/conf"):
-            self.base_dir = self.base_dir.rstrip("/conf")
+        if self.base_dir.endswith("conf"):
+            self.base_dir = self.base_dir.rstrip("conf").rstrip("/")
         self.name = name
         self._path = os.path.join(self.base_dir, "conf", self.name + ".yml")
 
