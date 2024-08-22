@@ -47,7 +47,7 @@ class BaseConfig:
         with open(self._path, "w") as f:
             f.write(
                 eval(f"{self.name.upper()}_TEMPLATE")
-                + yaml.dump(unmunchify(self._cfg), sort_keys=False).replace("null", "")
+                + yaml.dump(unmunchify(self._cfg), sort_keys=False).replace("null", "").replace("{}","")
             )
 
     def update(self, cfg: dict | Munch) -> None:
@@ -82,7 +82,7 @@ class TrackerConfig(BaseConfig):
         super().__init__(self.name, base_dir)
 
         self.load()
-        self._cfg = self._cfg or self.init_cfg
+        self._cfg = self._cfg or munchify(self.init_cfg)
 
 
 class SchedulerConfig(BaseConfig):
@@ -98,16 +98,17 @@ class SchedulerConfig(BaseConfig):
         super().__init__(self.name, base_dir)
 
         self.load()
-        self._cfg = self._cfg or self.init_cfg
+        self._cfg = self._cfg or munchify(self.init_cfg)
 
 
 class PipelineConfig(BaseConfig):
     name = "pipeline"
     init_cfg = {
-        "run": {
-            "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
-            "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
-        },
+        "run": {},
+        #{
+        #    "dev": {"inputs": None, "final_vars": None, "with_tracker": False},
+        #    "prod": {"inputs": None, "final_vars": None, "with_tracker": True},
+        #},
         "params": {},
     }
 
@@ -115,7 +116,7 @@ class PipelineConfig(BaseConfig):
         super().__init__(self.name, base_dir)
 
         self.load()
-        self._cfg = self._cfg or self.init_cfg
+        self._cfg = self._cfg or munchify(self.init_cfg)
 
     def _to_ht_params(self, d: dict, parent_dict: dict | None = None):
         """

@@ -535,6 +535,11 @@ class PipelineManager:
             )
         logger.info(f"Created pipeline module {name}.py")
 
+        run = run or {
+            "dev": {"final_vars": [], "inputs": {}},
+            "prod": {"final_vars": [], "inputs": {}},
+        }
+        
         self.cfg.update({"run": {name: run}, "params": {name: params}}, name="pipeline")
         logger.info(f"Updated pipeline configuration {self._conf_dir}/pipeline.yml")
         self.cfg.update({"pipeline": {name: schedule}}, name="scheduler")
