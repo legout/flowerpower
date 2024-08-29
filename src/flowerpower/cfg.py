@@ -7,8 +7,8 @@ from munch import Munch, munchify, unmunchify
 
 from .helpers.templates import (
     PIPELINE_TEMPLATE,  # noqa: F401
-    SCHEDULER_TEMPLATE,
-    TRACKER_TEMPLATE,
+    SCHEDULER_TEMPLATE, # noqa: F401
+    TRACKER_TEMPLATE,  # noqa: F401
 )
 
 

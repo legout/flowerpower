@@ -1,6 +1,6 @@
 import datetime as dt
-import importlib
 import importlib.util
+import importlib
 import os
 import sys
 from typing import Any, Callable
@@ -10,9 +10,9 @@ from hamilton import driver
 from hamilton_sdk import adapters
 from loguru import logger
 from munch import unmunchify
-
-from .cfg import Config
 from .helpers.templates import PIPELINE_PY_TEMPLATE
+from .cfg import Config
+
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -21,7 +21,7 @@ else:
 
 
 from .helpers.executor import get_executor
-from .helpers.trigger import ALL_TRIGGER_KWARGS, get_trigger
+from .helpers.trigger import get_trigger, ALL_TRIGGER_KWARGS
 
 
 class PipelineManager:
@@ -41,10 +41,9 @@ class PipelineManager:
 
         sys.path.append(self._pipeline_dir)
 
-        # self._load_module()
         self._load_config()
 
-    def _load_module(self, name: str):
+    def load_module(self, name: str):
         """
         Load a module dynamically.
 
@@ -59,7 +58,7 @@ class PipelineManager:
         else:
             self._module = importlib.reload(self._module)
 
-    def _load_config(self):
+    def load_config(self):
         """
         Load the configuration file.
 
@@ -74,27 +73,8 @@ class PipelineManager:
         """
         self.cfg = Config(base_dir=self._base_dir)
 
-    def reload_module(self, name: str):
-        """
-        Reloads the specified module.
 
-        Args:
-            name (str): The name of the module to reload.
-        """
-        self._load_module(name)
 
-    def reload_config(self):
-        """
-        Reloads the configuration by creating a new instance of the Config class with the base path
-        set to the specified configuration path.
-
-        Parameters:
-        - self: The current instance of the Pipeline class.
-
-        Returns:
-        - None
-        """
-        self.cfg = Config(base_dir=self._base_dir)
 
     def _get_driver(
         self,
@@ -133,7 +113,7 @@ class PipelineManager:
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
         if reload or not hasattr(self, "_module"):
-            self._load_module(name)
+            self.load_module(name)
 
         if with_tracker:
             tracker_cfg = self.cfg.tracker.pipeline.get(name, {})
@@ -603,7 +583,7 @@ class Pipeline(PipelineManager):
     def __init__(self, name: str, base_dir: str | None = None):
         super().__init__(base_dir)
         self.name = name
-        self._load_module(name)
+        self.load_module(name)
 
     def run(
         self,
@@ -713,8 +693,8 @@ class Pipeline(PipelineManager):
     def delete(self, cfg: bool = True, module: bool = False):
         return super().delete(self.name, cfg, module)
 
-    def reload_module(self):
-        return super().reload_module(self.name)
+    def load_module(self):
+        super().load_module(self.name)
 
 
 def add(
