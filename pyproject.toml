@@ -50,12 +50,13 @@ requires = ["hatchling"]
 
 [tool.rye]
 dev-dependencies = [
-  "ipython>=8.24.0",
-  "isort>=5.13.2",
-  "pillow>=10.3.0",
-  "cloudpickle>=3.0.0",
-  "dill>=0.3.8",
-  "cbor2>=5.6.4",
+    "ipython>=8.24.0",
+    "isort>=5.13.2",
+    "pillow>=10.3.0",
+    "cloudpickle>=3.0.0",
+    "dill>=0.3.8",
+    "cbor2>=5.6.4",
+    "lxml>=5.3.0",
 ]
 #[tool.rye.scripts]
 #flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}
