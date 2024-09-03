@@ -12,10 +12,10 @@ from .pipeline import schedule as schedule_
 from .pipeline import show as show_
 
 if importlib.util.find_spec("apscheduler"):
-    from .scheduler import get_scheduler
+    from .scheduler import get_schedule_manager
     from .scheduler import start_worker as start_worker_
 else:
-    get_scheduler = None
+    get_schedule_manager = None
     start_scheduler_ = None
 
 from . import init as init_
@@ -194,7 +194,7 @@ def schedule(
         calendarinterval_params (str, optional): Additional parameters for the calendar interval job. Defaults to "".
         date_params (str, optional): Additional parameters for the date job. Defaults to "".
     """
-    if get_scheduler is None:
+    if get_schedule_manager is None:
         raise ValueError("APScheduler not installed. Please install it first.")
 
     inputs = eval(inputs) if len(inputs) else None

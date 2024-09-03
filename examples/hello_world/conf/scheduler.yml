@@ -77,13 +77,14 @@
 # ---------------------------------------------------------- #
 data_store:
   type: sqlalchemy
-  uri: postgresql+asyncpg://edge:edge@localhost:5432/flowerpower
+  uri: postgresql+asyncpg://postgres:password@localhost:5432/flowerpower?ssl=require
+  #ssl: true
   #uri: sqlite+aiosqlite:///test.db
 
 event_broker:
-  type: mqtt
-  host: localhost
-  port: 1883
+  type: sqlalchemy
+  uri: postgresql+asyncpg://postgres:password@localhost:5432/flowerpower?ssl=require
+  #ssl: true
 
 cleanup_interval:
   unit: minutes
@@ -91,6 +92,5 @@ cleanup_interval:
 
 pipeline:
   my_flow:
-    type: interval
-    seconds: 30
-
+    trigger_type: interval
+    seconds: 60

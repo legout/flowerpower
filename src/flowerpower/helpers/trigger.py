@@ -1,4 +1,5 @@
 import datetime as dt
+from tzlocal import get_localzone
 
 ALL_TRIGGER_TYPES = [
     "cron",
@@ -77,12 +78,15 @@ class Trigger:
 
     def _get_cron_trigger(
         self,
-        start_time: dt.datetime | None = None,
+        start_time: dt.datetime | None = dt.datetime.now(),
         end_time: dt.datetime | None = None,
         timezone: str | None = None,
         **kwargs,
     ):
         from apscheduler.triggers.cron import CronTrigger
+
+        if timezone is None:
+            timezone = get_localzone().key
 
         crontab = kwargs.pop("crontab", None)
 

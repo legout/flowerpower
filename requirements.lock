@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: true
 #   with-sources: true
+#   generate-hashes: false
+#   universal: false
 
 --index-url https://pypi.org/simple/
 
@@ -26,7 +28,7 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.4.0
     # via apscheduler
-apscheduler @ git+https://github.com/agronholm/apscheduler.git@8ed2b1babf6c7c173f2c8ed11b9417c891aa0dac
+apscheduler==4.0.0a5
     # via flowerpower
 asgiref==3.8.1
     # via django
@@ -39,7 +41,7 @@ attrs==24.2.0
     # via referencing
 backoff==2.2.1
     # via posthog
-certifi==2024.7.4
+certifi==2024.8.30
     # via requests
 charset-normalizer==3.3.2
     # via requests
@@ -52,7 +54,7 @@ colorlog==6.8.2
     # via sf-hamilton-ui
 dill==0.3.8
     # via flowerpower
-django==5.1
+django==5.1.1
     # via django-extensions
     # via django-ninja
     # via sf-hamilton-ui
@@ -110,7 +112,7 @@ mypy-extensions==1.0.0
     # via typing-inspect
 networkx==3.3
     # via sf-hamilton
-numpy==2.1.0
+numpy==2.1.1
     # via pandas
     # via sf-hamilton
 packaging==24.1
@@ -121,7 +123,7 @@ pandas==2.2.2
     # via sf-hamilton
 passlib==1.7.4
     # via sf-hamilton-ui
-posthog==3.6.0
+posthog==3.6.3
     # via sf-hamilton-sdk
 protobuf==5.28.0
     # via ray
@@ -179,7 +181,7 @@ smmap==5.0.1
     # via gitdb
 sniffio==1.3.1
     # via anyio
-sqlalchemy==2.0.32
+sqlalchemy==2.0.33
     # via flowerpower
 sqlglot==25.18.0
     # via sf-hamilton-sdk
@@ -206,5 +208,5 @@ tzlocal==5.2
     # via apscheduler
 urllib3==2.2.2
     # via requests
-yarl==1.9.4
+yarl==1.9.7
     # via aiohttp

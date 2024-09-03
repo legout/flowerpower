@@ -208,26 +208,26 @@ def get_current_scheduler_manager() -> SchedulerManager | None:
     return current_scheduler.get()
 
 
-def get_scheduler(
-    name: str | None = None,
-    base_dir: str | None = None,
-    *args,
-    **kwargs,
-) -> SchedulerManager:
-    """
-    Get the scheduler object.
+# def get_scheduler(
+#     name: str | None = None,
+#     base_dir: str | None = None,
+#     *args,
+#     **kwargs,
+# ) -> SchedulerManager:
+#     """
+#     Get the scheduler object.
 
-    Args:
-        name (str | None, optional): The name of the scheduler. Defaults to None.
-        base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
-        **kwargs: Additional keyword arguments.
+#     Args:
+#         name (str | None, optional): The name of the scheduler. Defaults to None.
+#         base_dir (str | None, optional): The base path. Defaults to None.
+#         *args: Additional positional arguments.
+#         **kwargs: Additional keyword arguments.
 
-    Returns:
-        SchedulerManager: The initialized SchedulerManager instance.
-    """
-    manager = get_schedule_manager(name, base_dir, *args, **kwargs)
-    return manager
+#     Returns:
+#         SchedulerManager: The initialized SchedulerManager instance.
+#     """
+#     manager = get_schedule_manager(name, base_dir, *args, **kwargs)
+#     return manager
 
 
 def start_worker(
@@ -251,9 +251,7 @@ def start_worker(
         SchedulerManager: The scheduler instance.
     """
     # manager = get_schedule_manager(name, base_dir, role="worker", *args, **kwargs)
-    with get_schedule_manager(
-        name, base_dir, role="worker", *args, **kwargs
-    ) as manager:
+    with SchedulerManager(name, base_dir, role="worker", *args, **kwargs) as manager:
         manager.start_worker(background)
 
 
@@ -276,8 +274,8 @@ def remove_all_schedules(
         *args: Additional positional arguments.
         **kwargs: Additional keyword arguments.
     """
-    manager = get_schedule_manager(name, base_dir, *args, **kwargs)
-    manager.remove_all_schedules()
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        manager.remove_all_schedules()
 
 
 def add_schedule(
@@ -298,8 +296,8 @@ def add_schedule(
     Returns:
         str: The ID of the added schedule.
     """
-    manager = SchedulerManager(name, base_dir, role="scheduler")
-    id_ = manager.add_schedule(*args, **kwargs)
+    with SchedulerManager(name, base_dir, role="scheduler") as manager:
+        id_ = manager.add_schedule(*args, **kwargs)
     return id_
 
 
@@ -323,9 +321,9 @@ def add_job(
     Returns:
         uuid.UUID: The ID of the added job.
     """
-    manager = SchedulerManager(name, base_dir, role="scheduler")
-    id_ = manager.add_job(*args, **kwargs)
-    return id_, manager
+    with SchedulerManager(name, base_dir, role="scheduler") as manager:
+        id_ = manager.add_job(*args, **kwargs)
+    return id_
 
 
 def run_job(
@@ -347,6 +345,101 @@ def run_job(
         Any: The SchedulerManager instance.
 
     """
-    manager = SchedulerManager(name, base_dir, role="scheduler")
-    manager.run_job(*args, **kwargs)
-    return manager
+    with SchedulerManager(name, base_dir, role="scheduler") as manager:
+        result = manager.run_job(*args, **kwargs)
+
+    return result
+
+
+def get_schedules(
+    name: str | None = None,
+    base_dir: str | None = None,
+    *args,
+    **kwargs,
+):
+    """
+    Get all schedules from the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        list: A list of schedules.
+    """
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        schedules = manager.get_schedules()
+    return schedules
+
+
+def get_tasks(
+    name: str | None = None,
+    base_dir: str | None = None,
+    *args,
+    **kwargs,
+):
+    """
+    Get all tasks from the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        list: A list of tasks.
+    """
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        tasks = manager.get_tasks()
+    return tasks
+
+
+def get_jobs(
+    name: str | None = None,
+    base_dir: str | None = None,
+    *args,
+    **kwargs,
+):
+    """
+    Get all jobs from the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        list: A list of jobs.
+    """
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        jobs = manager.get_jobs()
+    return jobs
+
+
+def get_job_result(
+    job_id: str,
+    name: str | None = None,
+    base_dir: str | None = None,
+    *args,
+    **kwargs,
+) -> Any:
+    """
+    Get the result of a job using the job id.
+
+    Args:
+        job_id (str): The ID of the job.
+        name (str | None, optional): The name of the job. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        Any: The result of the job.
+    """
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        result = manager.get_job_result(job_id)
+    return result

@@ -41,7 +41,7 @@ class PipelineManager:
 
         sys.path.append(self._pipeline_dir)
 
-        self._load_config()
+        self.load_config()
 
     def load_module(self, name: str):
         """
@@ -72,9 +72,6 @@ class PipelineManager:
         - None
         """
         self.cfg = Config(base_dir=self._base_dir)
-
-
-
 
     def _get_driver(
         self,
@@ -128,6 +125,9 @@ class PipelineManager:
                     "ui_url",
                 ]
             }
+            tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
+            tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
+
             project_id = tracker_kwargs.get("project_id", None)
 
             if project_id is None:
@@ -420,7 +420,7 @@ class PipelineManager:
         schedule_kwargs = {
             arg: eval(arg) or scheduler_cfg.get(arg, None)
             for arg in [
-                "executor",
+                # "executor",
                 "paused",
                 "coalesce",
                 "misfire_grace_time",
@@ -440,6 +440,9 @@ class PipelineManager:
                 trigger=trigger,
                 args=(name, environment, inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
+                job_executor=executor
+                if executor in ["async", "threadpool", "processpool"]
+                else "async",
                 **schedule_kwargs,
             )
             logger.success(
@@ -583,7 +586,7 @@ class Pipeline(PipelineManager):
     def __init__(self, name: str, base_dir: str | None = None):
         super().__init__(base_dir)
         self.name = name
-        self.load_module(name)
+        self.load_module()
 
     def run(
         self,
@@ -656,7 +659,7 @@ class Pipeline(PipelineManager):
     def schedule(
         self,
         environment: str = "dev",
-        type: str = "cron",
+        trigger_type: str = "cron",
         inputs: dict | None = None,
         final_vars: list | None = None,
         executor: str | None = None,
@@ -674,7 +677,7 @@ class Pipeline(PipelineManager):
             name=name,
             environment=environment,
             executor=executor,
-            type=type,
+            trigger_type=trigger_type,
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
@@ -877,7 +880,7 @@ def add_job(
 def schedule(
     name: str,
     environment: str = "dev",
-    type: str = "cron",
+    trigger_type: str = "cron",
     inputs: dict | None = None,
     final_vars: list | None = None,
     executor: str | None = None,
@@ -898,7 +901,7 @@ def schedule(
         name (str): The name of the pipeline.
         environment (str, optional): The environment in which the pipeline will run. Defaults to "dev".
         executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
-        type (str, optional): The type of schedule. Defaults to "cron".
+        trigger_type (str, optional): The type of schedule. Defaults to "cron".
         auto_start (bool, optional): Whether to automatically start the pipeline. Defaults to True.
         background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
@@ -921,7 +924,7 @@ def schedule(
     return p.schedule(
         environment=environment,
         executor=executor,
-        type=type,
+        tigger_type=trigger_type,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
