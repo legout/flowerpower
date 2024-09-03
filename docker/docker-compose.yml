@@ -72,7 +72,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=flowerpower
-      - POSTGRES_USER=user
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
     ports:
       - 5432:5432

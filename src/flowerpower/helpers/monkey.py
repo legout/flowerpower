@@ -1,6 +1,7 @@
 import sys
 
 from dill import dumps, loads
+#from cloudpickle import dumps, loads
 
 
 def patch_pickle():

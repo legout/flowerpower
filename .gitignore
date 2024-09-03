@@ -12,5 +12,5 @@ wheels/
 .vscode
 docker/config/.bash_history
 docker/assets
-dev
-dev/simple_with_class
+dev/simple
+dev/

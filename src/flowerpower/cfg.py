@@ -266,3 +266,4 @@ class Config:
     @property
     def pipeline_params(self):
         return self._pipeline._params
+

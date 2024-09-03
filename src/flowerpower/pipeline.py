@@ -429,14 +429,19 @@ class PipelineManager:
                 "conflict_policy",
             ]
         }
+        schedule_kwargs["paused"] = schedule_kwargs.get("paused", False) or False
 
         with SchedulerManager(
-            name=name, base_dir=self._base_dir, role="scheduler"
+            name=name + "_scheduler", base_dir=self._base_dir, role="scheduler"
         ) as sm:
             trigger = get_trigger(trigger_type, **trigger_kwargs)
-
+            # print("datastore", sm.data_store)
+            # print("event_broker", sm.event_broker)
+            print("trigger", trigger)
+            print("kwargs", kwargs)
+            print("scheduler_kwargs", schedule_kwargs)
             id_ = sm.add_schedule(
-                self._run,
+                func_or_task_id=self._run,
                 trigger=trigger,
                 args=(name, environment, inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
