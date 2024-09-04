@@ -297,9 +297,11 @@ class PipelineManager:
                     reload,
                 ),
                 kwargs=kwargs,
-                job_executor=executor
-                if executor in ["async", "threadpool", "processpool"]
-                else "async",
+                job_executor=(
+                    executor
+                    if executor in ["async", "threadpool", "processpool"]
+                    else "threadpool"
+                ),
             )
 
     def add_job(
@@ -349,9 +351,11 @@ class PipelineManager:
                     reload,
                 ),
                 kwargs=kwargs,
-                job_executor=executor
-                if executor in ["async", "threadpool", "processpool"]
-                else "async",
+                job_executor=(
+                    executor
+                    if executor in ["async", "threadpool", "processpool"]
+                    else "threadpool"
+                ),
                 result_expiration_time=result_expiration_time,
             )
 
@@ -368,8 +372,9 @@ class PipelineManager:
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
+        # max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
+        job_result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> str:
         """
@@ -392,6 +397,8 @@ class PipelineManager:
             max_running_jobs (int | None, optional): The maximum number of running jobs for the pipeline.
                 Defaults to None.
             conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
+            job_result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
+                Defaults to None.
             **kwargs: Additional keyword arguments for the trigger.
 
         Returns:
@@ -425,8 +432,9 @@ class PipelineManager:
                 "coalesce",
                 "misfire_grace_time",
                 "max_jitter",
-                "max_running_jobs",
+                # "max_running_jobs",
                 "conflict_policy",
+                "job_result_expiration_time",
             ]
         }
         schedule_kwargs["paused"] = schedule_kwargs.get("paused", False) or False
@@ -445,9 +453,11 @@ class PipelineManager:
                 trigger=trigger,
                 args=(name, environment, inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
-                job_executor=executor
-                if executor in ["async", "threadpool", "processpool"]
-                else "async",
+                job_executor=(
+                    executor
+                    if executor in ["async", "threadpool", "processpool"]
+                    else "threadpool"
+                ),
                 **schedule_kwargs,
             )
             logger.success(
@@ -673,8 +683,9 @@ class Pipeline(PipelineManager):
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
+        # max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
+        job_result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ):
         name = self.name
@@ -690,7 +701,8 @@ class Pipeline(PipelineManager):
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
             max_jitter=max_jitter,
-            max_running_jobs=max_running_jobs,
+            # max_running_jobs=max_running_jobs,
+            job_result_expiration_time=job_result_expiration_time,
             conflict_policy=conflict_policy,
             **kwargs,
         )
@@ -894,8 +906,9 @@ def schedule(
     coalesce: str = "latest",
     misfire_grace_time: float | dt.timedelta | None = None,
     max_jitter: float | dt.timedelta | None = None,
-    max_running_jobs: int | None = None,
+    # max_running_jobs: int | None = None,
     conflict_policy: str = "do_nothing",
+    job_result_expiration_time: float | dt.timedelta = 0,
     base_dir: str | None = None,
     **kwargs,
 ) -> str:
@@ -919,6 +932,8 @@ def schedule(
             scheduled. Defaults to None.
         max_running_jobs (int | None, optional): The maximum number of running jobs. Defaults to None.
         conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
+        job_result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
+                Defaults to None.
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
         **kwargs: Additional keyword arguments.
 
@@ -937,7 +952,8 @@ def schedule(
         coalesce=coalesce,
         misfire_grace_time=misfire_grace_time,
         max_jitter=max_jitter,
-        max_running_jobs=max_running_jobs,
+        # max_running_jobs=max_running_jobs,
+        job_result_expiration_time=job_result_expiration_time,
         conflict_policy=conflict_policy,
         **kwargs,
     )

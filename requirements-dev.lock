@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: true
 #   with-sources: true
+#   generate-hashes: false
+#   universal: false
 
 --index-url https://pypi.org/simple/
 
@@ -26,7 +28,7 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.4.0
     # via apscheduler
-apscheduler==4.0.0a5
+apscheduler @ git+https://github.com/agronholm/apscheduler@8ed2b1babf6c7c173f2c8ed11b9417c891aa0dac
     # via flowerpower
 asgiref==3.8.1
     # via django
@@ -191,7 +193,7 @@ rich==13.8.0
 rpds-py==0.20.0
     # via jsonschema
     # via referencing
-sf-hamilton==1.75.0
+sf-hamilton==1.75.1
     # via flowerpower
     # via sf-hamilton-sdk
 sf-hamilton-sdk==0.7.0
@@ -210,7 +212,7 @@ sniffio==1.3.1
     # via anyio
 sqlalchemy==2.0.33
     # via flowerpower
-sqlglot==25.18.0
+sqlglot==25.19.0
     # via sf-hamilton-sdk
 sqlparse==0.5.1
     # via django
@@ -242,5 +244,5 @@ urllib3==2.2.2
     # via requests
 wcwidth==0.2.13
     # via prompt-toolkit
-yarl==1.9.7
+yarl==1.9.8
     # via aiohttp
