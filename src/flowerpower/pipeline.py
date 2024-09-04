@@ -372,9 +372,9 @@ class PipelineManager:
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
-        # max_running_jobs: int | None = None,
+        max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
-        job_result_expiration_time: float | dt.timedelta = 0,
+        # job_result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> str:
         """
@@ -432,9 +432,9 @@ class PipelineManager:
                 "coalesce",
                 "misfire_grace_time",
                 "max_jitter",
-                # "max_running_jobs",
+                "max_running_jobs",
                 "conflict_policy",
-                "job_result_expiration_time",
+                # "job_result_expiration_time",
             ]
         }
         schedule_kwargs["paused"] = schedule_kwargs.get("paused", False) or False
@@ -683,9 +683,9 @@ class Pipeline(PipelineManager):
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
-        # max_running_jobs: int | None = None,
+        max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
-        job_result_expiration_time: float | dt.timedelta = 0,
+        # job_result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ):
         name = self.name
@@ -701,8 +701,8 @@ class Pipeline(PipelineManager):
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
             max_jitter=max_jitter,
-            # max_running_jobs=max_running_jobs,
-            job_result_expiration_time=job_result_expiration_time,
+            max_running_jobs=max_running_jobs,
+            # job_result_expiration_time=job_result_expiration_time,
             conflict_policy=conflict_policy,
             **kwargs,
         )
@@ -906,9 +906,9 @@ def schedule(
     coalesce: str = "latest",
     misfire_grace_time: float | dt.timedelta | None = None,
     max_jitter: float | dt.timedelta | None = None,
-    # max_running_jobs: int | None = None,
+    max_running_jobs: int | None = None,
     conflict_policy: str = "do_nothing",
-    job_result_expiration_time: float | dt.timedelta = 0,
+    # job_result_expiration_time: float | dt.timedelta = 0,
     base_dir: str | None = None,
     **kwargs,
 ) -> str:
@@ -952,8 +952,8 @@ def schedule(
         coalesce=coalesce,
         misfire_grace_time=misfire_grace_time,
         max_jitter=max_jitter,
-        # max_running_jobs=max_running_jobs,
-        job_result_expiration_time=job_result_expiration_time,
+        max_running_jobs=max_running_jobs,
+        # job_result_expiration_time=job_result_expiration_time,
         conflict_policy=conflict_policy,
         **kwargs,
     )

@@ -39,8 +39,8 @@ scheduler = [
   "aiosqlite>=0.20.0",
   "greenlet>=3.0.3",
   "asyncpg>=0.29.0",
-  "sqlalchemy>=2.0.30", #"apscheduler>=4.0.0a5",
-  "apscheduler @ git+https://github.com/agronholm/apscheduler",
+  "sqlalchemy>=2.0.30",
+  "apscheduler>=4.0.0a5", #"apscheduler @ git+https://github.com/agronholm/apscheduler",
 ]
 ui = ["sf-hamilton-ui>=0.0.11"]
 
