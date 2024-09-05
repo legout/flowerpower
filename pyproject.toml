@@ -24,7 +24,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.5.3"
+version = "0.5.3.1"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"

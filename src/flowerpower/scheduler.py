@@ -251,7 +251,7 @@ def start_worker(
         SchedulerManager: The scheduler instance.
     """
     # manager = get_schedule_manager(name, base_dir, role="worker", *args, **kwargs)
-    with SchedulerManager(name, base_dir, role="worker", *args, **kwargs) as manager:
+    with SchedulerManager(name, base_dir, *args, **kwargs) as manager:
         manager.start_worker(background)
 
 
