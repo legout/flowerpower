@@ -113,29 +113,29 @@ class PipelineManager:
             self.load_module(name)
 
         if with_tracker:
-            tracker_cfg = self.cfg.tracker.pipeline.get(name, {})
+            tracker_cfg = self.cfg.tracker
             tracker_kwargs = {
                 key: kwargs.pop(key, None) or tracker_cfg.get(key, None)
-                for key in [
-                    "project_id",
-                    "username",
-                    "dag_name",
-                    "tags",
-                    "api_url",
-                    "ui_url",
-                ]
+                for key in ["username", "api_url", "ui_url", "api_key"]
             }
+            tracker_kwargs.update(
+                {
+                    key: kwargs.pop(key, None)
+                    or tracker_cfg.pipeline.get(name, {}).get(key, None)
+                    for key in ["project_id", "dag_name", "tags"]
+                }
+            )
             tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
             tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
 
-            project_id = tracker_kwargs.get("project_id", None)
+            # project_id = tracker_kwargs.pop("project_id", None)
 
-            if project_id is None:
+            if tracker_kwargs.get("project_id") is None:
                 raise ValueError(
                     "Please provide a project_id if you want to use the tracker"
                 )
 
-            tracker = adapters.HamiltonTracker(project_id=project_id, **tracker_kwargs)
+            tracker = adapters.HamiltonTracker(**tracker_kwargs)
 
             dr = (
                 driver.Builder()
