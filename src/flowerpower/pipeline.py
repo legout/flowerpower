@@ -110,7 +110,7 @@ class PipelineManager:
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
         if reload or not hasattr(self, "_module"):
-            self.load_module(name)
+            self.load_module()
 
         if with_tracker:
             tracker_cfg = self.cfg.tracker
