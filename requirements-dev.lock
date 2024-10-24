@@ -28,7 +28,7 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.4.0
     # via apscheduler
-apscheduler @ git+https://github.com/agronholm/apscheduler@8ed2b1babf6c7c173f2c8ed11b9417c891aa0dac
+apscheduler==4.0.0a5
     # via flowerpower
 asgiref==3.8.1
     # via django
