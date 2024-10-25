@@ -80,6 +80,7 @@ graphviz==0.20.3
     # via sf-hamilton
 greenlet==3.0.3
     # via flowerpower
+    # via sqlalchemy
 idna==3.8
     # via anyio
     # via requests

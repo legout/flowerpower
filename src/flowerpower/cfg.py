@@ -3,6 +3,7 @@ import os
 from dataclasses import asdict, dataclass, field
 
 import yaml
+from hamilton.function_modifiers import source, value
 from munch import Munch, munchify, unmunchify
 
 
@@ -113,6 +114,7 @@ class PipelineConfig(BaseConfig):
             else self.tracker.to_dict()
         )
         if isinstance(self.func, dict):
+            self.hamilton_func_params = self.func_args_to_hamilton_parameters(self.func)
             self.func = munchify(self.func)
 
     def to_dict(self):
@@ -135,6 +137,33 @@ class PipelineConfig(BaseConfig):
     def from_yaml(cls, name: str, path: str):
         with open(path) as f:
             return cls.from_dict(name, yaml.full_load(f))
+
+    @staticmethod
+    def func_args_to_hamilton_parameters(d: dict):
+        def transform_recursive(val, original_dict):
+            # If it's a dictionary, recursively transform its values
+            if isinstance(val, dict):
+                return {
+                    k: transform_recursive(v, original_dict) for k, v in val.items()
+                }
+            # If it's a string and matches a key in the original dictionary
+            elif isinstance(val, str) and val in original_dict:
+                return source(val)
+            # For all other values
+            else:
+                return value(val)
+
+        # result = {}
+        # for key, val in d.items():
+        #     result[key] = {
+        #         key: val
+        #     }
+
+        # Step 1: Replace each value with a dictionary containing key and value
+        result = {k: {k: d[k]} for k in d}
+
+        # Step 2 & 3: Transform all values recursively
+        return {k: transform_recursive(v, d) for k, v in result.items()}
 
 
 @dataclass

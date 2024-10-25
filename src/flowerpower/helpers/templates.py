@@ -149,5 +149,7 @@ from hamilton.function_modifiers import parameterize
 from flowerpower.cfg import Config
 from pathlib import Path
 
-PARAMS = Config.load(Path(__file__).parents[1], pipeline_name="{name}").func
+PARAMS = Config.load(
+    Path(__file__).parents[1], pipeline_name="{name}"
+).pipeline.hamilton_func_params
 """
