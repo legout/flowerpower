@@ -159,7 +159,7 @@ requests==2.32.3
     # via ray
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
-rich==13.8.0
+rich==13.9.3
     # via flowerpower
     # via typer
 rpds-py==0.20.0

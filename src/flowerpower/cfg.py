@@ -29,6 +29,8 @@ class BaseConfig:
 class PipelineRunConfig(BaseConfig):
     final_vars: list[str] = field(default_factory=list)
     inputs: dict | Munch = field(default_factory=dict)
+    executor: str | None = None
+    with_tracker: bool = False
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
@@ -36,8 +38,8 @@ class PipelineRunConfig(BaseConfig):
 
 
 @dataclass
-class PipelineScheduleConfig(BaseConfig):
-    type_: str | None = None
+class PipelineScheduleTriggerConfig(BaseConfig):
+    type: str | None = None
     crontab: str | None = None
     year: str | int | None = None
     month: str | int | None = None
@@ -52,6 +54,28 @@ class PipelineScheduleConfig(BaseConfig):
     start_time: dt.datetime | None = None
     end_time: dt.datetime | None = None
     timezone: str | None = None
+
+
+@dataclass
+class PipelineScheduleRunConfig(BaseConfig):
+    id: str | None = None
+    executor: str | None = None
+    paused: bool = False
+    coalesce: str = "latest"  # other options are "all" and "earliest"
+    misfire_grace_time: int | float | dt.timedelta | None = None
+    max_jitter: int | float | dt.timedelta | None = None
+    max_running_jobs: int | None = None
+    conflict_poilcy: str | None = (
+        "do_nothing"  # other options are "replace" and "exception"
+    )
+
+
+@dataclass
+class PipelineScheduleConfig(BaseConfig):
+    run: PipelineScheduleRunConfig = field(default_factory=PipelineScheduleRunConfig)
+    trigger: PipelineScheduleTriggerConfig = field(
+        default_factory=PipelineScheduleTriggerConfig
+    )
 
 
 @dataclass
@@ -83,6 +107,11 @@ class PipelineConfig(BaseConfig):
             if isinstance(self.schedule, dict | Munch)
             else self.schedule.to_dict()
         )
+        self.tracker = PipelineTrackerConfig(
+            **self.tracker
+            if isinstance(self.tracker, dict | Munch)
+            else self.tracker.to_dict()
+        )
         if isinstance(self.func, dict):
             self.func = munchify(self.func)
 
@@ -112,6 +141,8 @@ class PipelineConfig(BaseConfig):
 class ProjectSchedulerConfig(BaseConfig):
     data_store: dict | Munch = field(default_factory=dict)
     event_broker: dict | Munch = field(default_factory=dict)
+    cleanup_interval: int | float | dt.timedelta = 900  # int in secods
+    max_concurrent_jobs: int = 100
 
     def __post_init__(self):
         if isinstance(self.data_store, dict):
@@ -177,14 +208,12 @@ class Config(BaseConfig):
             if os.path.exists(
                 os.path.join(base_dir, "conf", f"pipelines/{pipeline_name}.yml")
             ):
-                print(pipeline_name)
                 pipeline = PipelineConfig.from_yaml(
                     name=pipeline_name,
                     path=os.path.join(
                         base_dir, "conf", f"pipelines/{pipeline_name}.yml"
                     ),
                 )
-                print(pipeline)
             else:
                 pipeline = PipelineConfig(name=pipeline_name)
         else:

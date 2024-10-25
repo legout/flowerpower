@@ -26,7 +26,6 @@ app = Typer()
 @app.command()
 def run(
     name: str,
-    environment: str = "dev",
     executor: str = "local",
     base_dir: str = "",
     inputs: str = "",
@@ -38,7 +37,6 @@ def run(
     Run the specified task.
     Args:
         name (str): The name of the task.
-        environment (str, optional): The environment to run the task in. Defaults to "dev".
         executor (str, optional): The executor to use for running the task. Defaults to "local".
         base_dir (str, optional): The base path for the task. Defaults to "".
         inputs (str, optional): The inputs for the task. Defaults to "".
@@ -52,7 +50,6 @@ def run(
 
     _ = run_(
         name=name,
-        environment=environment,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
@@ -65,7 +62,6 @@ def run(
 @app.command()
 def run_job(
     name: str,
-    environment: str = "dev",
     executor: str = "local",
     base_dir: str = "",
     inputs: str = "",
@@ -79,7 +75,6 @@ def run_job(
 
     Args:
         name (str): The name of the job.
-        environment (str, optional): The environment to run the job in. Defaults to "dev".
         executor (str, optional): The executor to use for the job. Defaults to None.
         inputs (str, optional): The inputs for the job. Defaults to None.
         final_vars (str, optional): The final variables for the job. Defaults to None.
@@ -94,7 +89,6 @@ def run_job(
 
     _ = run_job_(
         name=name,
-        environment=environment,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
@@ -107,7 +101,6 @@ def run_job(
 @app.command()
 def add_job(
     name: str,
-    environment: str = "dev",
     executor: str = "local",
     base_dir: str = "",
     inputs: str = "",
@@ -122,7 +115,6 @@ def add_job(
 
     Args:
         name (str): The name of the job.
-        environment (str, optional): The environment to run the job in. Defaults to "dev".
         executor (str, optional): The executor to use for the job. Defaults to None.
         inputs (str, optional): The inputs for the job. Defaults to None.
         final_vars (str, optional): The final variables for the job. Defaults to None.
@@ -137,7 +129,6 @@ def add_job(
 
     id_ = add_job_(
         name=name,
-        environment=environment,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
@@ -151,7 +142,6 @@ def add_job(
 @app.command()
 def schedule(
     name: str,
-    environment: str = "dev",
     executor: str = "local",
     base_dir: str = "",
     type: str = "cron",
@@ -175,7 +165,6 @@ def schedule(
 
     Args:
         name (str): The name of the job.
-        environment (str, optional): The environment to run the job in. Defaults to "dev".
         executor (str, optional): The executor to use for running the job. Defaults to "local".
         base_dir (str, optional): The base path for the job. Defaults to "".
         type (str, optional): The type of the job. Defaults to "cron".
@@ -238,7 +227,6 @@ def schedule(
 
     id_ = schedule_(
         name=name,
-        environment=environment,
         executor=executor,
         base_dir=base_dir,
         type=type,

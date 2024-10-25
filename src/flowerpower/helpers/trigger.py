@@ -65,8 +65,16 @@ class Trigger:
                     f"Invalid argument: {k}. Valid arguments are: {ALL_TRIGGER_KWARGS[self.trigger_type]}"
                 )
 
+    def _filter_kwargs(self, **kwargs):
+        return {
+            k: v
+            for k, v in kwargs.items()
+            if k in ALL_TRIGGER_KWARGS[self.trigger_type]
+        }
+
     def get(self, **kwargs):
         self._check_kwargs(**kwargs)
+        kwargs = self._filter_kwargs(**kwargs)
         if self.trigger_type == "cron":
             return self._get_cron_trigger(**kwargs)
         elif self.trigger_type == "interval":
