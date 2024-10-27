@@ -18,9 +18,9 @@
 #
 # ---------------------------------------------------------- #
 
-username: volker.lorrmann@gmail.com
-api_url: http://localhost:8241
-ui_url: https://localhost:8242
+username: volker.lorrmann@siemens.com
+api_url: http://lodl.nes.siemens.de:8241
+ui_url: https://lodl.nes.siemens.de:8242
 api_key:
 
 pipeline:

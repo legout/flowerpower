@@ -118,7 +118,7 @@ class PipelineManager:
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
         if reload or not hasattr(self, "_module"):
-            self.load_module(name)
+            self.load_module()
 
         if with_tracker:
             tracker_cfg = {
@@ -137,6 +137,7 @@ class PipelineManager:
                     "Please provide a project_id if you want to use the tracker"
                 )
 
+            tracker = adapters.HamiltonTracker(**tracker_kwargs)
             tracker = adapters.HamiltonTracker(**tracker_kwargs)
 
             dr = (
