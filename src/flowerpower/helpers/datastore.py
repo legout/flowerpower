@@ -10,15 +10,20 @@ ALL_DATA_STORES = [
 
 
 class DataStore:
-    def __init__(self, type: str, engine_or_uri: str):
-        self.type = type
+    def __init__(self, type: str | None = None, engine_or_uri: str | None = None):
+        self.type = type or "memory"
         self.engine_or_uri = engine_or_uri
         self.sqla_engine = None
 
-        if type not in ALL_DATA_STORES:
+        if self.type not in ALL_DATA_STORES:
             raise ValueError(
                 f"Invalid data store type: {type}. Valid data store types are: {ALL_DATA_STORES}"
             )
+        if (
+            type in ["sqlalchemy", "sqlite", "postgresql", "mysql", "mongodb"]
+            and not engine_or_uri
+        ):
+            raise ValueError(f"Data store type {type} requires an engine or uri")
 
     def _setup_sqlalchemy(self):
         from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore

@@ -15,15 +15,15 @@ ALL_EVENT_BROKERS = [
 class EventBroker:
     def __init__(
         self,
-        type: str,
+        type: str | None = None,
         uri: str | None = None,
         sqla_engine: Engine | None = None,
-        host: str = "localhost",
-        port: int = 1883,
+        host: str | None = None,
+        port: int = 0,
         username: str | None = None,
         password: str | None = None,
     ):
-        self.type = type
+        self.type = type or "memory"
         self.uri = uri
         self.host = host
         self.port = port
@@ -31,9 +31,21 @@ class EventBroker:
         self.password = password
         self._sqla_engine = sqla_engine
 
-        if type not in ALL_EVENT_BROKERS:
+        if self.type not in ALL_EVENT_BROKERS:
             raise ValueError(
                 f"Invalid event broker type: {type}. Valid event broker types are: {ALL_EVENT_BROKERS}"
+            )
+        if type in ["sqlalchemy", "asyncpg", "psycopg3", "postgresql"] and not (
+            sqla_engine or uri
+        ):
+            raise ValueError(f"Event broker type `{type} requires an `engine` or `uri`")
+        if type == "mqtt" and not ((host and port) or uri):
+            raise ValueError(
+                f"Event broker type `mqtt` requires a `host` and `port` or `uri`"
+            )
+        if type == "redis" and not (uri or (host and port)):
+            raise ValueError(
+                f"Event broker type `redis` requires a `uri` or `host` and `port`"
             )
 
     def _setup_asyncpg_event_broker(self):
@@ -48,6 +60,13 @@ class EventBroker:
 
     def _setup_mqtt_event_broker(self):
         from apscheduler.eventbrokers.mqtt import MQTTEventBroker
+
+        if self.uri is not None:
+            if ":" in self.uri:
+                self.host, self.port = self.uri.split(":")
+                self.port = int(self.port)
+            else:
+                self.host = self.uri
 
         self._event_broker = MQTTEventBroker(
             self.host, self.port, topic="flowerpower/scheduler"
@@ -88,8 +107,8 @@ def setup_event_broker(
     type: str,
     uri: str | None = None,
     sqla_engine: Engine | None = None,
-    host: str = "localhost",
-    port: int = 1883,
+    host: str | None = None,
+    port: int = 0,
     username: str | None = None,
     password: str | None = None,
 ):

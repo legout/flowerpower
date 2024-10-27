@@ -54,7 +54,7 @@ class SchedulerManager(Scheduler):
         self._conf_dir = os.path.join(base_dir, "conf")  # or conf_dir
         self._pipelines_path = os.path.join(base_dir, "pipelines")  # or pipelines_path
 
-        self.cfg = Config(self._base_dir).scheduler
+        self.cfg = Config.load(self._base_dir)
         # self._data_store = None
         # self._event_broker = None
         # self._sqla_engine = None
@@ -63,19 +63,14 @@ class SchedulerManager(Scheduler):
         self._setup_event_broker()
         self._setup_job_executors()
 
-        cleanup_interval = self.cfg.get("cleanup_interval", None) or {
-            "unit": "minutes",
-            "value": 15,
-        }
         super().__init__(
             data_store=self._data_store,
             event_broker=self._event_broker,
             job_executors=self._job_executors,
             identity=self.name,
             logger=logger,
-            cleanup_interval=dt.timedelta(
-                **{cleanup_interval.unit: cleanup_interval.value}
-            ),
+            cleanup_interval=self.cfg.project.scheduler.cleanup_interval,
+            max_concurrent_jobs=self.cfg.project.scheduler.max_concurrent_jobs,
             **kwargs,
         )
 
@@ -93,12 +88,11 @@ class SchedulerManager(Scheduler):
         Returns:
             None
         """
-        if "data_store" in self.cfg:
-            if "type" in self.cfg.data_store:
-                self._data_store, self._sqla_engine = setup_data_store(
-                    type=self.cfg.data_store.type,
-                    engine_or_uri=self.cfg.data_store.get("uri", None),
-                )
+
+        self._data_store, self._sqla_engine = setup_data_store(
+            type=self.cfg.project.scheduler.data_store.get("type", "memory"),
+            engine_or_uri=self.cfg.project.scheduler.data_store.get("uri", None),
+        )
 
     def _setup_event_broker(self):
         """
@@ -115,17 +109,15 @@ class SchedulerManager(Scheduler):
         Returns:
             None
         """
-        if "event_broker" in self.cfg:
-            if "type" in self.cfg.event_broker:
-                self._event_broker = setup_event_broker(
-                    type=self.cfg.event_broker.type,
-                    uri=self.cfg.event_broker.get("uri", None),
-                    sqla_engine=self._sqla_engine,
-                    host=self.cfg.event_broker.get("host", "localhost"),
-                    port=self.cfg.event_broker.get("port", 1883),
-                    username=self.cfg.event_broker.get("username", None),
-                    password=self.cfg.event_broker.get("password", None),
-                )
+        self._event_broker = setup_event_broker(
+            type=self.cfg.project.scheduler.event_broker.get("type", "memory"),
+            uri=self.cfg.project.scheduler.event_broker.get("uri", None),
+            sqla_engine=self._sqla_engine,
+            host=self.cfg.project.scheduler.event_broker.get("host", None),
+            port=self.cfg.project.scheduler.event_broker.get("port", 0),
+            username=self.cfg.project.scheduler.event_broker.get("username", None),
+            password=self.cfg.project.scheduler.event_broker.get("password", None),
+        )
 
     def _setup_job_executors(self):
         self._job_executors = {
