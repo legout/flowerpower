@@ -114,7 +114,7 @@ class PipelineConfig(BaseConfig):
             else self.tracker.to_dict()
         )
         if isinstance(self.func, dict):
-            self.hamilton_func_params = self.func_args_to_hamilton_parameters(self.func)
+            self.hamilton_func_params = munchify(self.f_args_to_ht_params(self.func))
             self.func = munchify(self.func)
 
     def to_dict(self):
@@ -139,7 +139,9 @@ class PipelineConfig(BaseConfig):
             return cls.from_dict(name, yaml.full_load(f))
 
     @staticmethod
-    def func_args_to_hamilton_parameters(d: dict):
+    def f_args_to_ht_params(d: dict) -> dict:
+        """Coverts a dictionary of function arguments to Hamilton function parameters"""
+
         def transform_recursive(val, original_dict):
             # If it's a dictionary, recursively transform its values
             if isinstance(val, dict):

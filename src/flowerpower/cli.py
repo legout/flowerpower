@@ -289,7 +289,7 @@ def new(
         name=name,
         base_dir=base_dir,
         overwrite=overwrite,
-        params=pipeline_params,
+        func=pipeline_params,
         run=run_params,
         schedule=schedule_params,
         tracker=tracker_params,
@@ -310,14 +310,16 @@ def delete(name: str, base_dir: str = "", module: bool = False):
 
 
 @app.command()
-def init(name: str):
+def init(name: str, base_dir: str = "", conf_path: str = "", pipelines_path: str = ""):
     """
     Initialize the FlowerPower application.
 
     Args:
         name (str): The name of the application.
     """
-    init_(name)
+    init_(
+        name=name, base_dir=base_dir, conf_path=conf_path, pipelines_path=pipelines_path
+    )
 
 
 @app.command()
