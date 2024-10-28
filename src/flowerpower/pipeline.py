@@ -2,6 +2,9 @@ import datetime as dt
 import importlib.util
 import importlib
 import os
+import rich
+from rich.table import Table
+
 import sys
 from typing import Any, Callable
 from uuid import UUID
@@ -436,7 +439,7 @@ class PipelineManager:
                 ),
                 **schedule_kwargs,
             )
-            logger.success(f"Added scheduler for {name} with id {id_}")
+            rich.print(f"✅ Successfully added schedule for [blue]{name}[/blue] with ID [green]{id_}[/green]")
             return id_
 
     def new(
@@ -485,7 +488,7 @@ class PipelineManager:
             schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline. Defaults to {}.
             tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline. Defaults to {}.
         """
-        logger.info(f"Creating new pipeline {name}")
+
 
         if not os.path.exists(self._conf_dir):
             raise ValueError(
@@ -508,7 +511,7 @@ class PipelineManager:
                     name=name, date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
             )
-        logger.info(f"Created pipeline pipelines/{name}.py")
+            #rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
 
         if pipeline_config:
             self.cfg.pipeline = (
@@ -524,9 +527,9 @@ class PipelineManager:
             )
 
         self.cfg.save()
-        logger.info(f"Updated pipeline config conf/pipelines/{name}.yml")
+        #rich.print(f"   Added config file [italic green]conf/pipelines/{name}.yml[/italic green]")
 
-        logger.success(f"Created pipeline {name}")
+        rich.print(f"🔧 Created new pipeline [bold blue]{name}[/bold blue]")
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
@@ -541,14 +544,14 @@ class PipelineManager:
         if cfg:
             if os.path.exists(f"{self._conf_dir}/pipelines/{name}.yml"):
                 os.remove(f"{self._conf_dir}/pipelines/{name}.yml")
-                logger.info(f"Deleted pipeline config for {name}")
+                rich.print(f"🗑️ Deleted pipeline config for {name}")
 
         if module:
             if os.path.exists(f"{self._pipeline_dir}/{name}.py"):
                 os.remove(f"{self._pipeline_dir}/{name}.py")
-                logger.info(f"Deleted pipeline module {name}.py")
+                rich.print(f"🗑️ Deleted pipeline config for {name}")
 
-    def show(
+    def show_dag(
         self, name: str, format: str = "png", view: bool = False, reload: bool = False
     ):
         """
@@ -574,6 +577,70 @@ class PipelineManager:
             graph.view()
         return graph
 
+    def all_pipelines(self) -> None:
+        """
+        Print all available pipelines in a formatted table.
+
+        Returns:
+            None
+        """
+
+        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
+        if not pipeline_files:
+            rich.print("[yellow]No pipelines found[/yellow]")
+            return
+
+        table = Table(title="Available Pipelines")
+        table.add_column("Pipeline Name", style="blue")
+        table.add_column("Last Modified", style="green")
+        table.add_column("Size", style="cyan")
+
+        for f in pipeline_files:
+            path = os.path.join(self._pipeline_dir, f)
+            name = os.path.splitext(f)[0]
+            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M:%S")
+            size = f"{os.path.getsize(path) / 1024:.1f} KB"
+            table.add_row(name, mod_time, size)
+
+        rich.print(table)
+    def print_pipelines(self) -> None:
+        """
+        Print all available pipelines in a formatted table.
+
+        Returns:
+            None
+        """
+        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
+        if not pipeline_files:
+            rich.print("[yellow]No pipelines found[/yellow]")
+            return
+
+        table = rich.table.Table(title="Available Pipelines")
+        table.add_column("Pipeline Name", style="blue")
+        table.add_column("Last Modified", style="green")
+        table.add_column("Size", style="cyan")
+
+        for f in pipeline_files:
+            path = os.path.join(self._pipeline_dir, f)
+            name = os.path.splitext(f)[0]
+            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M:%S")
+            size = f"{os.path.getsize(path) / 1024:.1f} KB"
+            table.add_row(name, mod_time, size)
+
+        rich.print(table)
+
+    def get_pipelines(self) -> list[str]:
+        """
+        List all available pipelines.
+
+        Returns:
+            list[str]: List of pipeline names.
+        """
+        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
+        pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
+        #for name in pipeline_names:
+        #    rich.print(f"📦 [blue]{name}[/blue]")
+        return pipeline_names
 
 class Pipeline(PipelineManager):
     def __init__(self, name: str, base_dir: str | None = None):
@@ -678,7 +745,7 @@ class Pipeline(PipelineManager):
         )
 
     def show(self, format: str = "png", view: bool = False, reload: bool = False):
-        return super().show(self.name, format=format, view=view, reload=reload)
+        return super().show_dag(self.name, format=format, view=view, reload=reload)
 
     def delete(self, cfg: bool = True, module: bool = False):
         return super().delete(self.name, cfg, module)

@@ -1,0 +1,37 @@
+func: {}
+run:
+  executor: null
+  final_vars: []
+  inputs: {}
+  with_tracker: false
+schedule:
+  run:
+    coalesce: latest
+    conflict_poilcy: do_nothing
+    executor: null
+    id: null
+    max_jitter: null
+    max_running_jobs: null
+    misfire_grace_time: null
+    paused: false
+  trigger:
+    crontab: null
+    day: null
+    days: 0
+    end_time: null
+    minute: null
+    minutes: 0
+    month: null
+    second: null
+    seconds: 0
+    start_time: null
+    timezone: null
+    type: null
+    week: null
+    weeks: 0
+    year: null
+tracker:
+  dag_name: null
+  project_id: null
+  tags: {}
+  version: null
