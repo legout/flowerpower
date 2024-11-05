@@ -27,6 +27,7 @@ from loguru import logger
 from .cfg import Config
 from .helpers.datastore import setup_data_store
 from .helpers.eventbroker import setup_event_broker
+from .helpers.scheduler import display_schedules
 
 
 class SchedulerManager(Scheduler):
@@ -165,6 +166,17 @@ class SchedulerManager(Scheduler):
         """
         for sched in self.get_schedules():
             self.remove_schedule(sched.id)
+
+    def show_schedules(self):
+        """
+        Shows all schedules in the scheduler.
+
+        This method iterates over all schedules in the scheduler and prints their details.
+
+        Parameters:
+            None
+        """
+        display_schedules(self.get_schedules())
 
 
 # Wrapper functions for backward compatibility

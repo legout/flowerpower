@@ -40,7 +40,7 @@ class PipelineRunConfig(BaseConfig):
 
 @dataclass
 class PipelineScheduleTriggerConfig(BaseConfig):
-    type: str | None = None
+    type_: str | None = None
     crontab: str | None = None
     year: str | int | None = None
     month: str | int | None = None
@@ -48,6 +48,9 @@ class PipelineScheduleTriggerConfig(BaseConfig):
     week: str | int | None = None
     days: int | float = 0
     day: str | int | None = None
+    day_of_week: str | int | None = None
+    hours: int | float = 0
+    hour: str | int | None = None
     minutes: int | float = 0
     minute: str | int | None = None
     seconds: int | float = 0
@@ -59,14 +62,14 @@ class PipelineScheduleTriggerConfig(BaseConfig):
 
 @dataclass
 class PipelineScheduleRunConfig(BaseConfig):
-    id: str | None = None
+    id_: str | None = None
     executor: str | None = None
     paused: bool = False
     coalesce: str = "latest"  # other options are "all" and "earliest"
     misfire_grace_time: int | float | dt.timedelta | None = None
     max_jitter: int | float | dt.timedelta | None = None
     max_running_jobs: int | None = None
-    conflict_poilcy: str | None = (
+    conflict_policy: str | None = (
         "do_nothing"  # other options are "replace" and "exception"
     )
 
@@ -77,6 +80,16 @@ class PipelineScheduleConfig(BaseConfig):
     trigger: PipelineScheduleTriggerConfig = field(
         default_factory=PipelineScheduleTriggerConfig
     )
+
+    def __post_init__(self):
+        self.run = PipelineScheduleRunConfig(
+            **self.run if isinstance(self.run, dict | Munch) else self.run.to_dict()
+        )
+        self.trigger = PipelineScheduleTriggerConfig(
+            **self.trigger
+            if isinstance(self.trigger, dict | Munch)
+            else self.trigger.to_dict()
+        )
 
 
 @dataclass

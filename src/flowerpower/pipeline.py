@@ -365,6 +365,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         trigger_type: str | None = None,
+        id_: str | None = None,
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
@@ -384,6 +385,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
+            id_ (str | None, optional): The ID of the scheduled pipeline. Defaults to None.
             paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
             coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
             misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs.
@@ -409,28 +411,44 @@ class PipelineManager:
 
         # if "pipeline" in self.cfg.scheduler:
         scheduler_cfg = self.cfg.pipeline.schedule  # .copy()
+        run_cfg = self.cfg.pipeline.run
 
-        trigger_type = trigger_type or scheduler_cfg.trigger.type
-
+        kwargs.update(
+            {arg: eval(arg) or getattr(run_cfg, arg) for arg in run_cfg.to_dict()}
+        )
         trigger_kwargs = {
             key: kwargs.pop(key, None) or getattr(scheduler_cfg.trigger, key)
             for key in scheduler_cfg.trigger.to_dict()
         }
+        trigger_type = trigger_type or scheduler_cfg.trigger.type_
+        trigger_kwargs.pop("type_", None)
 
         schedule_kwargs = {
             arg: eval(arg) or getattr(scheduler_cfg.run, arg)
             for arg in scheduler_cfg.run.to_dict()
         }
+        executor = executor or scheduler_cfg.run.executor
+        id_ = id_ or scheduler_cfg.run.id_
+        schedule_kwargs.pop("executor", None)
+        schedule_kwargs.pop("id_", None)
+
+        # kwargs.update(
+        #     {
+        #         k: eval(k)
+        #         for k in ["name", "inputs", "final_vars", "executor", "with_tracker"]
+        #     }
+        # )
 
         with SchedulerManager(
             name=name + "_scheduler", base_dir=self._base_dir, role="scheduler"
         ) as sm:
-            trigger = get_trigger(trigger_type, **trigger_kwargs)
+            trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
 
             id_ = sm.add_schedule(
                 func_or_task_id=self._run,
                 trigger=trigger,
-                args=(name, inputs, final_vars, executor, with_tracker),
+                id=id_,
+                # args=(name, inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -439,7 +457,9 @@ class PipelineManager:
                 ),
                 **schedule_kwargs,
             )
-            rich.print(f"✅ Successfully added schedule for [blue]{name}[/blue] with ID [green]{id_}[/green]")
+            rich.print(
+                f"✅ Successfully added schedule for [blue]{name}[/blue] with ID [green]{id_}[/green]"
+            )
             return id_
 
     def new(
@@ -489,7 +509,6 @@ class PipelineManager:
             tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline. Defaults to {}.
         """
 
-
         if not os.path.exists(self._conf_dir):
             raise ValueError(
                 f"Configuration path {self._conf_dir} does not exist. Please run flowerpower init first."
@@ -511,7 +530,7 @@ class PipelineManager:
                     name=name, date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
             )
-            #rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
+            # rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
 
         if pipeline_config:
             self.cfg.pipeline = (
@@ -527,7 +546,7 @@ class PipelineManager:
             )
 
         self.cfg.save()
-        #rich.print(f"   Added config file [italic green]conf/pipelines/{name}.yml[/italic green]")
+        # rich.print(f"   Added config file [italic green]conf/pipelines/{name}.yml[/italic green]")
 
         rich.print(f"🔧 Created new pipeline [bold blue]{name}[/bold blue]")
 
@@ -585,7 +604,10 @@ class PipelineManager:
             None
         """
 
-        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
+        pipeline_files = [
+            f for f in os.listdir(self._pipeline_dir) if f.endswith(".py")
+        ]
+
         if not pipeline_files:
             rich.print("[yellow]No pipelines found[/yellow]")
             return
@@ -598,55 +620,34 @@ class PipelineManager:
         for f in pipeline_files:
             path = os.path.join(self._pipeline_dir, f)
             name = os.path.splitext(f)[0]
-            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M:%S")
-            size = f"{os.path.getsize(path) / 1024:.1f} KB"
-            table.add_row(name, mod_time, size)
-
-        rich.print(table)
-    def print_pipelines(self) -> None:
-        """
-        Print all available pipelines in a formatted table.
-
-        Returns:
-            None
-        """
-        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
-        if not pipeline_files:
-            rich.print("[yellow]No pipelines found[/yellow]")
-            return
-
-        table = rich.table.Table(title="Available Pipelines")
-        table.add_column("Pipeline Name", style="blue")
-        table.add_column("Last Modified", style="green")
-        table.add_column("Size", style="cyan")
-
-        for f in pipeline_files:
-            path = os.path.join(self._pipeline_dir, f)
-            name = os.path.splitext(f)[0]
-            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M:%S")
+            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
             size = f"{os.path.getsize(path) / 1024:.1f} KB"
             table.add_row(name, mod_time, size)
 
         rich.print(table)
 
-    def get_pipelines(self) -> list[str]:
+    def list_pipelines(self) -> list[str]:
         """
         List all available pipelines.
 
         Returns:
             list[str]: List of pipeline names.
         """
-        pipeline_files = [f for f in os.listdir(self._pipeline_dir) if f.endswith('.py')]
+        pipeline_files = [
+            f for f in os.listdir(self._pipeline_dir) if f.endswith(".py")
+        ]
         pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
-        #for name in pipeline_names:
-        #    rich.print(f"📦 [blue]{name}[/blue]")
         return pipeline_names
+
 
 class Pipeline(PipelineManager):
     def __init__(self, name: str, base_dir: str | None = None):
         super().__init__(base_dir)
         self.name = name
         self.load_module()
+        self.load_config(name)
 
     def run(
         self,

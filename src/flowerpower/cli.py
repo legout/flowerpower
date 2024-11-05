@@ -245,7 +245,7 @@ def schedule(
 
 
 @app.command()
-def new(
+def new_pipeline(
     name: str,
     base_dir: str = "",
     overwrite: bool = False,
@@ -297,6 +297,39 @@ def new(
 
 
 @app.command()
+def add_pipeline(
+    name: str,
+    base_dir: str = "",
+    overwrite: bool = False,
+    pipeline_params: str = "",
+    run_params: str = "",
+    schedule_params: str = "",
+    tracker_params: str = "",
+):
+    """
+    Create a new pipeline with the given parameters.
+
+    Args:
+        name (str): The name of the pipeline.
+        base_dir (str, optional): The base path for the pipeline. Defaults to "".
+        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        pipeline_params (str, optional): Additional parameters for the pipeline. Defaults to "".
+        run_params (str, optional): Additional parameters for the run. Defaults to "".
+        schedule_params (str, optional): Additional parameters for the schedule. Defaults to "".
+        tracker_params (str, optional): Additional parameters for the tracker. Defaults to "".
+    """
+    new_pipeline(
+        name=name,
+        base_dir=base_dir,
+        overwrite=overwrite,
+        pipeline_params=pipeline_params,
+        run_params=run_params,
+        schedule_params=schedule_params,
+        tracker_params=tracker_params,
+    )
+
+
+@app.command()
 def delete(name: str, base_dir: str = "", module: bool = False):
     """
     Delete a pipeline.
@@ -336,7 +369,7 @@ def start_worker(name: str, base_dir: str = ""):
 
 
 @app.command()
-def show(name: str, base_dir: str = ""):
+def show_pipeline(name: str, base_dir: str = ""):
     """
     Show the pipeline.
 

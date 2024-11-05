@@ -13,7 +13,7 @@ ALL_TRIGGER_KWARGS = {
         "month",
         "week",
         "day",
-        "days_of_week",
+        "day_of_week",
         "hour",
         "minute",
         "second",
@@ -50,13 +50,13 @@ ALL_TRIGGER_KWARGS = {
 class Trigger:
     def __init__(
         self,
-        type: str,
+        type_: str,
     ):
-        if type not in ALL_TRIGGER_TYPES:
+        if type_ not in ALL_TRIGGER_TYPES:
             raise ValueError(
-                f"Invalid trigger type: {type}. Valid trigger types are: {ALL_TRIGGER_TYPES}"
+                f"Invalid trigger type: {type_}. Valid trigger types are: {ALL_TRIGGER_TYPES}"
             )
-        self.trigger_type = type
+        self.trigger_type = type_
 
     def _check_kwargs(self, **kwargs):
         for k, v in kwargs.items():
@@ -73,15 +73,19 @@ class Trigger:
         }
 
     def get(self, **kwargs):
-        self._check_kwargs(**kwargs)
+        #
         kwargs = self._filter_kwargs(**kwargs)
         if self.trigger_type == "cron":
+            self._check_kwargs(**kwargs)
             return self._get_cron_trigger(**kwargs)
         elif self.trigger_type == "interval":
+            self._check_kwargs(**kwargs)
             return self._get_interval_trigger(**kwargs)
         elif self.trigger_type == "calendarinterval":
+            self._check_kwargs(**kwargs)
             return self._get_calendar_trigger(**kwargs)
         elif self.trigger_type == "date":
+            self._check_kwargs(**kwargs)
             return self._get_date_trigger(**kwargs)
 
     def _get_cron_trigger(
@@ -106,11 +110,11 @@ class Trigger:
                 month=kwargs.pop("month", None),
                 week=kwargs.pop("week", None),
                 day=kwargs.pop("day", None),
-                day_of_week=kwargs.pop("days_of_week", None),
+                day_of_week=kwargs.pop("day_of_week", None),
                 hour=kwargs.pop("hour", None),
                 minute=kwargs.pop("minute", None),
                 second=kwargs.pop("second", None),
-                start_time=start_time,
+                start_time=start_time or dt.datetime.now(),
                 end_time=end_time,
                 timezone=timezone,
             )
@@ -130,7 +134,7 @@ class Trigger:
             minutes=kwargs.pop("minutes", 0),
             seconds=kwargs.pop("seconds", 0),
             microseconds=kwargs.pop("microseconds", 0),
-            start_time=start_time,
+            start_time=start_time or dt.datetime.now(),
             end_time=end_time,
         )
 
@@ -149,7 +153,7 @@ class Trigger:
             hours=kwargs.pop("hours", 0),
             minutes=kwargs.pop("minutes", 0),
             seconds=kwargs.pop("seconds", 0),
-            start_time=start_time,
+            start_time=start_time or dt.datetime.now(),
             end_time=end_time,
             timezone=timezone,
         )
@@ -157,9 +161,9 @@ class Trigger:
     def _get_date_trigger(self, start_time: dt.datetime, **kwargs):
         from apscheduler.triggers.date import DateTrigger
 
-        return DateTrigger(run_time=start_time)
+        return DateTrigger(run_time=start_time or dt.datetime.now())
 
 
-def get_trigger(trigger_type: str, **kwargs):
-    trigger = Trigger(trigger_type)
+def get_trigger(type_: str, **kwargs):
+    trigger = Trigger(type_)
     return trigger.get(**kwargs)

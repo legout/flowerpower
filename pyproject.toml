@@ -82,3 +82,8 @@ exclude = [
     "docker",
     ".gitignore",
 ]
+
+[tool.uv]
+dev-dependencies = [
+    "prettytable>=3.12.0",
+]

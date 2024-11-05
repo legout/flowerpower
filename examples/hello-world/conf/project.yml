@@ -1,6 +1,8 @@
 scheduler:
   cleanup_interval: 900
-  data_store: {}
+  data_store:
+    type: sqlalchemy
+    uri: sqlite+aiosqlite:///scheduler.db
   event_broker: {}
   max_concurrent_jobs: 100
 tracker:

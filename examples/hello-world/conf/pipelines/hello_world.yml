@@ -18,9 +18,9 @@ run:
 schedule:
   run:
     coalesce: latest
-    conflict_poilcy: do_nothing
+    conflict_policy: do_nothing
     executor: null
-    id: null
+    id_: null
     max_jitter: null
     max_running_jobs: null
     misfire_grace_time: null
@@ -28,8 +28,11 @@ schedule:
   trigger:
     crontab: null
     day: null
+    day_of_week: null
     days: 0
     end_time: null
+    hour: null
+    hours: 0
     minute: null
     minutes: 0
     month: null
@@ -37,7 +40,7 @@ schedule:
     seconds: 0
     start_time: null
     timezone: null
-    type: null
+    type_: null
     week: null
     weeks: 0
     year: null
