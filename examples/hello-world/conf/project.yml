@@ -2,7 +2,8 @@ scheduler:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy
-    uri: sqlite+aiosqlite:///scheduler.db
+    #uri: sqlite+aiosqlite:///scheduler.db
+    uri: postgresql+asyncpg://postgres:postgres@localhost:5432/flowerpower
   event_broker:
     type: mqtt
     host: localhost
