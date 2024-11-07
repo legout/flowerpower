@@ -26,6 +26,10 @@ if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
 else:
     SchedulerManager = None
+if importlib.util.find_spec("paho"):
+    from .mqtt import MQTTClient
+else:
+    MQTTClient = None
 
 
 from .helpers.executor import get_executor
@@ -121,7 +125,7 @@ class PipelineManager:
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
         if reload or not hasattr(self, "_module"):
-            self.load_module()
+            self.load_module(name=name)
 
         if with_tracker:
             tracker_cfg = {
@@ -305,7 +309,7 @@ class PipelineManager:
                 ),
             )
 
-    def add_job(
+    def _add_job(
         self,
         name: str,
         inputs: dict | None = None,
@@ -356,6 +360,47 @@ class PipelineManager:
                 ),
                 result_expiration_time=result_expiration_time,
             )
+
+    def add_job(
+        self,
+        name: str,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        executor: str | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta = 0,
+        **kwargs,
+    ):
+        """
+        Add a job to run the pipeline with the given parameters to the scheduler data store.
+        Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store
+        for the given `result_expiration_time` and can be fetched using the job id (UUID).
+
+        Args:
+            name (str): The name of the job.
+            executor (str | None, optional): The executor for the job. Defaults to None.
+            inputs (dict | None, optional): The inputs for the job. Defaults to None.
+            final_vars (list | None, optional): The final variables for the job. Defaults to None.
+            with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            reload (bool, optional): Whether to reload the job. Defaults to False.
+            result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
+                Defaults to None.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            UUID: The UUID of the added job.
+        """
+        self._add_job(
+            name=name,
+            inputs=inputs,
+            final_vars=final_vars,
+            executor=executor,
+            with_tracker=with_tracker,
+            reload=reload,
+            result_expiration_time=result_expiration_time,
+            **kwargs,
+        )
 
     def schedule(
         self,
@@ -431,13 +476,6 @@ class PipelineManager:
         id_ = id_ or scheduler_cfg.run.id_
         schedule_kwargs.pop("executor", None)
         schedule_kwargs.pop("id_", None)
-
-        # kwargs.update(
-        #     {
-        #         k: eval(k)
-        #         for k in ["name", "inputs", "final_vars", "executor", "with_tracker"]
-        #     }
-        # )
 
         with SchedulerManager(
             name=name + "_scheduler", base_dir=self._base_dir, role="scheduler"
@@ -639,7 +677,97 @@ class PipelineManager:
             f for f in os.listdir(self._pipeline_dir) if f.endswith(".py")
         ]
         pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
+
         return pipeline_names
+
+    def on_mqtt_message(
+        self,
+        name: str,
+        topic: str | None = None,
+        host: str = "localhost",
+        port: int = 1883,
+        user: str | None = None,
+        pw: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        executor: str | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta = 0,
+        as_job: bool = False,
+        **kwargs,
+    ):
+        """
+        Run a pipeline when a message is received on a given topic.
+
+        Args:
+            name (str): The name of the pipeline.
+            topic (str | None, optional): The topic to subscribe to. Defaults to None.
+            host (str, optional): The host of the MQTT broker. Defaults to "localhost".
+            port (int, optional): The port of the MQTT broker. Defaults to 1883.
+            user (str | None, optional): The username for the MQTT broker. Defaults to None.
+            pw (str | None, optional): The password for the MQTT broker. Defaults to None.
+            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
+            with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+            result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
+            as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            None
+        """
+        if inputs is None:
+            inputs = {}
+
+        def on_message(client, userdata, msg):
+            logger.info("Message arrived")
+
+            inputs["payload"] = msg.payload
+
+            try:
+                if as_job:
+                    self._add_job(
+                        name=name,
+                        inputs=inputs,
+                        final_vars=final_vars,
+                        executor=executor,
+                        with_tracker=with_tracker,
+                        reload=reload,
+                        result_expiration_time=result_expiration_time,
+                        **kwargs,
+                    )
+                else:
+                    self._run(
+                        name=name,
+                        inputs=inputs,
+                        final_vars=final_vars,
+                        executor=executor,
+                        with_tracker=with_tracker,
+                        reload=reload,
+                        result_expiration_time=result_expiration_time,
+                        **kwargs,
+                    )
+                logger.success("Message processed successfully")
+                return
+            except Exception as e:
+                _ = e
+                logger.exception(e)
+
+            logger.warning("processing failed")
+
+        try:
+            mqtt = MQTTClient.from_event_broker(base_dir=self._base_dir)
+        except ValueError as e:
+            logger.exception(e)
+        else:
+            mqtt = MQTTClient(user=user, pw=pw, host=host, port=port)
+        if topic is None:
+            topic = name
+        mqtt.connect()
+        mqtt.run_until_break(on_message, topic)
 
 
 class Pipeline(PipelineManager):
@@ -753,6 +881,38 @@ class Pipeline(PipelineManager):
 
     def load_module(self):
         super().load_module(self.name)
+
+    def on_mqtt_message(
+        self,
+        topic: str | None = None,
+        host: str = "localhost",
+        port: int = 1883,
+        user: str | None = None,
+        pw: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        executor: str | None = None,
+        with_tracker: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta = 0,
+        **kwargs,
+    ):
+        name = self.name
+        return super().on_mqtt_message(
+            name=name,
+            topic=topic,
+            host=host,
+            port=port,
+            user=user,
+            pw=pw,
+            inputs=inputs,
+            final_vars=final_vars,
+            executor=executor,
+            with_tracker=with_tracker,
+            reload=reload,
+            result_expiration_time=result_expiration_time,
+            **kwargs,
+        )
 
 
 def add(

@@ -3,7 +3,10 @@ scheduler:
   data_store:
     type: sqlalchemy
     uri: sqlite+aiosqlite:///scheduler.db
-  event_broker: {}
+  event_broker:
+    type: mqtt
+    host: localhost
+    port: 1883
   max_concurrent_jobs: 100
 tracker:
   api_key: null
