@@ -25,7 +25,7 @@ def init(
     os.makedirs(os.path.join(base_dir, name, "conf/pipelines"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, name, "pipelines"), exist_ok=True)
 
-    cfg = Config.load(base_dir=os.path.join(base_dir, name))
+    cfg = Config.load(base_dir=os.path.join(base_dir, name), name=name)
 
     with open(os.path.join(base_dir, name, "README.md"), "w") as f:
         f.write(

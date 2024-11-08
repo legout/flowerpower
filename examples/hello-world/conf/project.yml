@@ -1,13 +1,16 @@
+name: hello-world
+open_telemetry:
+  host: localhost
+  port: 6381
 scheduler:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy
-    #uri: sqlite+aiosqlite:///scheduler.db
     uri: postgresql+asyncpg://postgres:postgres@localhost:5432/flowerpower
   event_broker:
-    type: mqtt
     host: localhost
     port: 1883
+    type: mqtt
   max_concurrent_jobs: 100
 tracker:
   api_key: null

@@ -32,6 +32,7 @@ class PipelineRunConfig(BaseConfig):
     inputs: dict | Munch = field(default_factory=dict)
     executor: str | None = None
     with_tracker: bool = False
+    with_opentelemetry: bool = False
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
@@ -86,9 +87,11 @@ class PipelineScheduleConfig(BaseConfig):
             **self.run if isinstance(self.run, dict | Munch) else self.run.to_dict()
         )
         self.trigger = PipelineScheduleTriggerConfig(
-            **self.trigger
-            if isinstance(self.trigger, dict | Munch)
-            else self.trigger.to_dict()
+            **(
+                self.trigger
+                if isinstance(self.trigger, dict | Munch)
+                else self.trigger.to_dict()
+            )
         )
 
 
@@ -117,14 +120,18 @@ class PipelineConfig(BaseConfig):
             **self.run if isinstance(self.run, dict | Munch) else self.run.to_dict()
         )
         self.schedule = PipelineScheduleConfig(
-            **self.schedule
-            if isinstance(self.schedule, dict | Munch)
-            else self.schedule.to_dict()
+            **(
+                self.schedule
+                if isinstance(self.schedule, dict | Munch)
+                else self.schedule.to_dict()
+            )
         )
         self.tracker = PipelineTrackerConfig(
-            **self.tracker
-            if isinstance(self.tracker, dict | Munch)
-            else self.tracker.to_dict()
+            **(
+                self.tracker
+                if isinstance(self.tracker, dict | Munch)
+                else self.tracker.to_dict()
+            )
         )
         if isinstance(self.func, dict):
             self.hamilton_func_params = munchify(self.f_args_to_ht_params(self.func))
@@ -204,20 +211,41 @@ class ProjectTrackerConfig(BaseConfig):
 
 
 @dataclass
+class ProjectOpenTelemetryConfig(BaseConfig):
+    host: str = "localhost"
+    port: int = 6831
+
+
+@dataclass
 class ProjectConfig(BaseConfig):
+    name: str | None = None
     scheduler: ProjectSchedulerConfig = field(default_factory=ProjectSchedulerConfig)
     tracker: ProjectTrackerConfig = field(default_factory=ProjectTrackerConfig)
+    open_telemetry: ProjectOpenTelemetryConfig = field(
+        default_factory=ProjectOpenTelemetryConfig
+    )
 
     def __post_init__(self):
         self.scheduler = ProjectSchedulerConfig(
-            **self.scheduler
-            if isinstance(self.scheduler, dict | Munch)
-            else self.scheduler.to_dict()
+            **(
+                self.scheduler
+                if isinstance(self.scheduler, dict | Munch)
+                else self.scheduler.to_dict()
+            )
         )
         self.tracker = ProjectTrackerConfig(
-            **self.tracker
-            if isinstance(self.tracker, dict | Munch)
-            else self.tracker.to_dict()
+            **(
+                self.tracker
+                if isinstance(self.tracker, dict | Munch)
+                else self.tracker.to_dict()
+            )
+        )
+        self.open_telemetry = ProjectOpenTelemetryConfig(
+            **(
+                self.open_telemetry
+                if isinstance(self.open_telemetry, dict | Munch)
+                else self.open_telemetry.to_dict()
+            )
         )
 
 
@@ -229,24 +257,30 @@ class Config(BaseConfig):
 
     def __post_init__(self):
         self.pipeline = PipelineConfig(
-            **self.pipeline
-            if isinstance(self.pipeline, dict | Munch)
-            else self.pipeline.to_dict()
+            **(
+                self.pipeline
+                if isinstance(self.pipeline, dict | Munch)
+                else self.pipeline.to_dict()
+            )
         )
         self.project = ProjectConfig(
-            **self.project
-            if isinstance(self.project, dict | Munch)
-            else self.project.to_dict()
+            **(
+                self.project
+                if isinstance(self.project, dict | Munch)
+                else self.project.to_dict()
+            )
         )
 
     @classmethod
-    def load(cls, base_dir: str, pipeline_name: str | None = None):
+    def load(
+        cls, base_dir: str, name: str | None = None, pipeline_name: str | None = None
+    ):
         if os.path.exists(os.path.join(base_dir, "conf/project.yml")):
             project = ProjectConfig.from_yaml(
                 path=os.path.join(base_dir, "conf/project.yml")
             )
         else:
-            project = ProjectConfig()
+            project = ProjectConfig(name=name)
 
         if pipeline_name is not None:
             if os.path.exists(
@@ -276,8 +310,8 @@ class Config(BaseConfig):
         self.project.to_yaml(os.path.join(self.base_dir, "conf/project.yml"))
 
 
-def load(base_dir: str, pipeline_name: str | None = None):
-    return Config.load(base_dir, pipeline_name)
+def load(base_dir: str, name: str | None = None, pipeline_name: str | None = None):
+    return Config.load(base_dir=base_dir, name=name, pipeline_name=pipeline_name)
 
 
 def save(config: Config):

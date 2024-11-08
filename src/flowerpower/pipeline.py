@@ -10,10 +10,13 @@ from typing import Any, Callable
 from uuid import UUID
 
 from hamilton import driver
-from hamilton_sdk import adapters
+from hamilton_sdk.adapters import HamiltonTracker
+from hamilton.plugins import h_opentelemetry
 from loguru import logger
-from munch import unmunchify
+
+# from munch import unmunchify
 from .helpers.templates import PIPELINE_PY_TEMPLATE
+from .helpers.open_telemetry import init_tracer
 from .cfg import (
     Config,
     PipelineConfig,
@@ -90,6 +93,7 @@ class PipelineManager:
         name: str,
         executor: str | None = None,
         with_tracker: bool = False,
+        with_opentelemetry: bool = False,
         reload: bool = False,
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
@@ -100,6 +104,7 @@ class PipelineManager:
             name (str): The name of the pipeline.
             executor (str | None, optional): The executor to use. Defaults to None.
             with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+            with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
             reload (bool, optional): Whether to reload the module. Defaults to False.
             **kwargs: Additional keyword arguments.
 
@@ -127,6 +132,7 @@ class PipelineManager:
         if reload or not hasattr(self, "_module"):
             self.load_module(name=name)
 
+        adapters = []
         if with_tracker:
             tracker_cfg = {
                 **self.cfg.pipeline.tracker.to_dict(),
@@ -144,14 +150,25 @@ class PipelineManager:
                     "Please provide a project_id if you want to use the tracker"
                 )
 
-            tracker = adapters.HamiltonTracker(**tracker_kwargs)
-            tracker = adapters.HamiltonTracker(**tracker_kwargs)
+            tracker = HamiltonTracker(**tracker_kwargs)
+            adapters.append(tracker)
+
+        if with_opentelemetry:
+            trace = init_tracer(
+                host=kwargs.pop("host", "localhost"),
+                port=kwargs.pop("port", 6831),
+                name=f"{self.cfg.project.name}.{name}",
+            )
+            tracer = trace.get_tracer(__name__)
+            adapters.append(h_opentelemetry.OpenTelemetryTracer(tracer=tracer))
+        if len(adapters):
+            print("adapters len:", len(adapters))
 
             dr = (
                 driver.Builder()
                 .with_modules(self._module)
                 .enable_dynamic_execution(allow_experimental_mode=True)
-                .with_adapters(tracker)
+                .with_adapters(adapters[0])
                 .with_remote_executor(executor_)
                 .build()
             )
@@ -173,6 +190,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         **kwargs,
     ) -> Any:
@@ -185,6 +203,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
             **kwargs: Additional keyword arguments.
 
@@ -194,7 +213,9 @@ class PipelineManager:
         if not self.cfg.pipeline.name == name:
             self.load_config(name=name)
 
-        logger.info(f"Starting pipeline {name}")  # in environment {environment}")
+        logger.info(
+            f"Starting pipeline {self.cfg.project.name}.{name}"
+        )  # in environment {environment}")
 
         run_params = self.cfg.pipeline.run
 
@@ -207,7 +228,7 @@ class PipelineManager:
         kwargs.update(
             {
                 arg: eval(arg) or getattr(run_params, arg)
-                for arg in ["executor", "with_tracker"]
+                for arg in ["executor", "with_tracker", "with_opentelemetry"]
             }
         )
 
@@ -218,7 +239,7 @@ class PipelineManager:
 
         res = dr.execute(final_vars=final_vars, inputs=inputs)
 
-        logger.success(f"Finished pipeline {name}")
+        logger.success(f"Finished pipeline {self.cfg.project.name}.{name}")
 
         if shutdown is not None:
             shutdown()
@@ -232,6 +253,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool = False,
+        with_opentelemetry: bool = False,
         reload: bool = False,
         **kwargs,
     ) -> Any:
@@ -244,6 +266,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             with_tracker (bool, optional): Whether to use a tracker. Defaults to False.
+            with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
             **kwargs: Additional keyword arguments.
         Returns:
@@ -255,6 +278,7 @@ class PipelineManager:
             final_vars=final_vars,
             executor=executor,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             **kwargs,
         )
@@ -266,6 +290,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         **kwargs,
     ) -> Any:
@@ -279,6 +304,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
             **kwargs: Additional keyword arguments.
 
@@ -287,20 +313,37 @@ class PipelineManager:
         """
 
         with SchedulerManager(
-            name=name, base_dir=self._base_dir, role="scheduler"
+            name=f"{self.cfg.project.name}.{name}",
+            base_dir=self._base_dir,
+            role="scheduler",
         ) as sm:
             # if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
             #    sm.configure_task(func_or_task_id="run-pipeline", func=self._run)
+            kwargs.update(
+                {
+                    arg: eval(arg)
+                    for arg in [
+                        "name",
+                        "inputs",
+                        "final_vars",
+                        "executor",
+                        "with_tracker",
+                        "with_opentelemetry",
+                        "reload",
+                    ]
+                }
+            )
             return sm.run_job(
                 self._run,
-                args=(
-                    name,
-                    inputs,
-                    final_vars,
-                    executor,
-                    with_tracker,
-                    reload,
-                ),
+                # args=(
+                #     name,
+                #     inputs,
+                #     final_vars,
+                #     executor,
+                #     with_tracker,
+                #     with_opentelemetry,
+                #     reload,
+                # ),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -316,6 +359,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
@@ -331,6 +375,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
             result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
                 Defaults to None.
@@ -340,18 +385,35 @@ class PipelineManager:
             UUID: The UUID of the added job.
         """
         with SchedulerManager(
-            name=name, base_dir=self._base_dir, role="scheduler"
+            name=f"{self.cfg.project.name}.{name}",
+            base_dir=self._base_dir,
+            role="scheduler",
         ) as sm:
+            kwargs.update(
+                {
+                    arg: eval(arg)
+                    for arg in [
+                        "name",
+                        "inputs",
+                        "final_vars",
+                        "executor",
+                        "with_tracker",
+                        "with_opentelemetry",
+                        "reload",
+                    ]
+                }
+            )
             return sm.add_job(
                 self._run,
-                args=(
-                    name,
-                    inputs,
-                    final_vars,
-                    executor,
-                    with_tracker,
-                    reload,
-                ),
+                # args=(
+                #     name,
+                #     inputs,
+                #     final_vars,
+                #     executor,
+                #     with_tracker,
+                #     with_opentelemetry,
+                #     reload,
+                # ),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -368,6 +430,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
@@ -383,6 +446,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
             result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
                 Defaults to None.
@@ -397,6 +461,7 @@ class PipelineManager:
             final_vars=final_vars,
             executor=executor,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             result_expiration_time=result_expiration_time,
             **kwargs,
@@ -409,6 +474,7 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         trigger_type: str | None = None,
         id_: str | None = None,
         paused: bool = False,
@@ -430,6 +496,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline. Defaults to None.
             id_ (str | None, optional): The ID of the scheduled pipeline. Defaults to None.
             paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
             coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
@@ -478,7 +545,9 @@ class PipelineManager:
         schedule_kwargs.pop("id_", None)
 
         with SchedulerManager(
-            name=name + "_scheduler", base_dir=self._base_dir, role="scheduler"
+            name=f"{self.cfg.project.name}.{name}",
+            base_dir=self._base_dir,
+            role="scheduler",
         ) as sm:
             trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
 
@@ -496,7 +565,7 @@ class PipelineManager:
                 **schedule_kwargs,
             )
             rich.print(
-                f"✅ Successfully added schedule for [blue]{name}[/blue] with ID [green]{id_}[/green]"
+                f"✅ Successfully added schedule for [blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
             )
             return id_
 
@@ -558,7 +627,7 @@ class PipelineManager:
 
         if os.path.exists(f"{self._pipeline_dir}/{name}.py") and not overwrite:
             raise ValueError(
-                f"Pipeline {name} already exists. Use `overwrite=True` to overwrite."
+                f"Pipeline {self.cfg.project.name}.{name} already exists. Use `overwrite=True` to overwrite."
             )
 
         # os.makedirs(self._pipeline_dir, exist_ok=True)
@@ -586,7 +655,9 @@ class PipelineManager:
         self.cfg.save()
         # rich.print(f"   Added config file [italic green]conf/pipelines/{name}.yml[/italic green]")
 
-        rich.print(f"🔧 Created new pipeline [bold blue]{name}[/bold blue]")
+        rich.print(
+            f"🔧 Created new pipeline [bold blue]{self.cfg.project.name}.{name}[/bold blue]"
+        )
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
@@ -606,7 +677,9 @@ class PipelineManager:
         if module:
             if os.path.exists(f"{self._pipeline_dir}/{name}.py"):
                 os.remove(f"{self._pipeline_dir}/{name}.py")
-                rich.print(f"🗑️ Deleted pipeline config for {name}")
+                rich.print(
+                    f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
+                )
 
     def show_dag(
         self, name: str, format: str = "png", view: bool = False, reload: bool = False
@@ -692,9 +765,11 @@ class PipelineManager:
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         as_job: bool = False,
+        background: bool = False,
         **kwargs,
     ):
         """
@@ -711,9 +786,11 @@ class PipelineManager:
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
             result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
             as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+            background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -735,6 +812,7 @@ class PipelineManager:
                         final_vars=final_vars,
                         executor=executor,
                         with_tracker=with_tracker,
+                        with_opentelemetry=with_opentelemetry,
                         reload=reload,
                         result_expiration_time=result_expiration_time,
                         **kwargs,
@@ -746,6 +824,7 @@ class PipelineManager:
                         final_vars=final_vars,
                         executor=executor,
                         with_tracker=with_tracker,
+                        with_opentelemetry=with_opentelemetry,
                         reload=reload,
                         result_expiration_time=result_expiration_time,
                         **kwargs,
@@ -767,7 +846,10 @@ class PipelineManager:
         if topic is None:
             topic = name
         mqtt.connect()
-        mqtt.run_until_break(on_message, topic)
+        if background:
+            mqtt.start_in_background(on_message, topic)
+        else:
+            mqtt.run_until_break(on_message, topic)
 
 
 class Pipeline(PipelineManager):
@@ -783,6 +865,7 @@ class Pipeline(PipelineManager):
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool = False,
+        with_opentelemetry: bool = False,
         reload: bool = False,
         **kwargs,
     ) -> Any:
@@ -793,6 +876,7 @@ class Pipeline(PipelineManager):
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             **kwargs,
         )
@@ -803,6 +887,7 @@ class Pipeline(PipelineManager):
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         **kwargs,
     ) -> Any:
@@ -813,6 +898,7 @@ class Pipeline(PipelineManager):
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             **kwargs,
         )
@@ -823,6 +909,7 @@ class Pipeline(PipelineManager):
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
@@ -834,6 +921,7 @@ class Pipeline(PipelineManager):
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             result_expiration_time=result_expiration_time,
             **kwargs,
@@ -846,6 +934,7 @@ class Pipeline(PipelineManager):
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool = False,
+        with_opentelemetry: bool = False,
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
@@ -863,6 +952,7 @@ class Pipeline(PipelineManager):
             inputs=inputs,
             final_vars=final_vars,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
@@ -893,8 +983,10 @@ class Pipeline(PipelineManager):
         final_vars: list | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
+        background: bool = False,
         **kwargs,
     ):
         name = self.name
@@ -909,8 +1001,10 @@ class Pipeline(PipelineManager):
             final_vars=final_vars,
             executor=executor,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
             result_expiration_time=result_expiration_time,
+            background=background,
             **kwargs,
         )
 
@@ -983,6 +1077,7 @@ def run(
     final_vars: list | None = None,
     executor: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
     base_dir: str | None = None,
     reload: bool = False,
     **kwargs,
@@ -996,6 +1091,7 @@ def run(
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
         with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+        with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
         **kwargs: Additional keyword arguments.
@@ -1008,6 +1104,7 @@ def run(
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
         reload=reload,
         **kwargs,
     )
@@ -1019,6 +1116,7 @@ def run_job(
     final_vars: list | None = None,
     executor: str | None = None,
     with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
     base_dir: str | None = None,
     reload: bool = False,
     **kwargs,
@@ -1033,6 +1131,7 @@ def run_job(
         inputs (dict | None, optional): The inputs for the job. Defaults to None.
         final_vars (list | None, optional): The final variables for the job. Defaults to None.
         with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
         base_dir (str | None, optional): The base path for the job. Defaults to None.
         reload (bool, optional): Whether to reload the job. Defaults to False.
         **kwargs: Additional keyword arguments.
@@ -1047,6 +1146,7 @@ def run_job(
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
         reload=reload,
         **kwargs,
     )
@@ -1058,6 +1158,7 @@ def add_job(
     final_vars: list | None = None,
     executor: str | None = None,
     with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
     base_dir: str | None = None,
     reload: bool = False,
     result_expiration_time: float | dt.timedelta = 0,
@@ -1074,6 +1175,7 @@ def add_job(
         inputs (dict | None, optional): The inputs for the job. Defaults to None.
         final_vars (list | None, optional): The final variables for the job. Defaults to None.
         with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
         base_dir (str | None, optional): The base path for the job. Defaults to None.
         reload (bool, optional): Whether to reload the job. Defaults to False.
         result_expiration_time (float | dt.timedelta | None, optional): The expiration time for the job result.
@@ -1089,6 +1191,7 @@ def add_job(
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
         reload=reload,
         result_expiration_time=result_expiration_time,
         **kwargs,
@@ -1102,6 +1205,7 @@ def schedule(
     final_vars: list | None = None,
     executor: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
     misfire_grace_time: float | dt.timedelta | None = None,
@@ -1124,6 +1228,7 @@ def schedule(
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the pipeline. Defaults to False.
+        with_opentelemetry (bool, optional): Whether to use OpenTelemetry for the pipeline. Defaults to False.
         paused (bool, optional): Whether to start the pipeline in a paused state. Defaults to False.
         coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
         misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs. Defaults to None.
@@ -1146,6 +1251,7 @@ def schedule(
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
         paused=paused,
         coalesce=coalesce,
         misfire_grace_time=misfire_grace_time,
@@ -1189,3 +1295,89 @@ def delete(name: str, base_dir: str | None = None, module: bool = False):
     """
     p = Pipeline(name=name, base_dir=base_dir)
     p.delete(module=module)
+
+
+def list_pipelines(base_dir: str | None = None) -> list[str]:
+    """
+    List all available pipelines.
+
+    Args:
+        base_dir (str | None, optional): The base path of the pipelines. Defaults to None.
+
+    Returns:
+        list[str]: List of pipeline names.
+    """
+    pm = PipelineManager(base_dir=base_dir)
+    return pm.list_pipelines()
+
+
+def all_pipelines(base_dir: str | None = None):
+    """
+    Print all available pipelines in a formatted table.
+
+    Args:
+        base_dir (str | None, optional): The base path of the pipelines. Defaults to None.
+    """
+    pm = PipelineManager(base_dir=base_dir)
+    pm.all_pipelines()
+
+
+def on_mqtt_message(
+    name: str,
+    topic: str | None = None,
+    host: str = "localhost",
+    port: int = 1883,
+    user: str | None = None,
+    pw: str | None = None,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    executor: str | None = None,
+    with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
+    base_dir: str | None = None,
+    reload: bool = False,
+    result_expiration_time: float | dt.timedelta = 0,
+    as_job: bool = False,
+    background: bool = False,
+    **kwargs,
+):
+    """
+    Run a pipeline when a message is received on a given topic.
+
+    Args:
+        name (str): The name of the pipeline.
+        topic (str | None, optional): The topic to subscribe to. Defaults to None.
+        host (str, optional): The host of the MQTT broker. Defaults to "localhost".
+        port (int, optional): The port of the MQTT broker. Defaults to 1883.
+        user (str | None, optional): The username for the MQTT broker. Defaults to None.
+        pw (str | None, optional): The password for the MQTT broker. Defaults to None.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
+        with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
+        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+        result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
+        as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+        background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
+        **kwargs: Additional keyword arguments.
+    """
+    p = Pipeline(name=name, base_dir=base_dir)
+    p.on_mqtt_message(
+        topic=topic,
+        host=host,
+        port=port,
+        user=user,
+        pw=pw,
+        inputs=inputs,
+        final_vars=final_vars,
+        executor=executor,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        reload=reload,
+        result_expiration_time=result_expiration_time,
+        as_job=as_job,
+        background=background,
+        **kwargs,
+    )
