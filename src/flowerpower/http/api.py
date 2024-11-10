@@ -1,30 +1,57 @@
-from sanic import Sanic,
+from sanic import Blueprint
 from orjson import dumps, loads
-from sanic.response import json as json_response
-import argparse
-from flowerpower.pipeline import Pipeline
+from sanic.response import json
+from ..pipeline import run, run_job, add_job, schedule
 from flowerpower.scheduler import SchedulerManager
 
 # import asyncio
 
-app = Sanic("pipeline_server", dumps=dumps, loads=loads)
-scheduler = None
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--base-dir", required=True, help="Base directory for pipelines")
-args = parser.parse_args()
+bp = Blueprint("flowerpower_api", url_prefix="api")
 
 
-@app.listener("before_server_start")
-def init_scheduler(app, loop):
-    app.ctx.scheduler = SchedulerManager(base_dir=args.base_dir)
-    app.ctx.scheduler.start_worker(background=True)
+@bp.post("/run/<name>")
+async def run_pipeline(request, name: str,)->json:
+    
+    try:
+        base_dir = request.json.pop("base_dir", None) or request.app.config.BASE_DIR
+        
+        result = run(name, base_dir=base_dir, **request.json)
+        return json({"status": "success", "result": result})
+    except Exception as e:
+        return json({"status": "error", "message": str(e)})
 
 
-@app.listener("before_server_stop")
-def cleanup_scheduler(app, loop):
-    if hasattr(app.ctx, "scheduler"):
-        app.ctx.scheduler.stop_worker()
+@bp.post("/run-job/<pipeline_name>")
+async def run_job(request, pipeline_name):
+    try:
+        job_data = request.json
+        pipeline = Pipeline(pipeline_name, base_dir=request.app.config.BASE_DIR)
+        result = pipeline.run_job(job_data)
+        return json({"status": "success", "result": result})
+    except Exception as e:
+        return json({"status": "error", "message": str(e)})
+
+
+@bp.post("/add-job/<pipeline_name>")
+async def add_job(request, pipeline_name):
+    try:
+        job_config = request.json
+        pipeline = Pipeline(pipeline_name, base_dir=request.app.config.BASE_DIR)
+        result = pipeline.add_job(job_config)
+        return json({"status": "success", "job_id": result})
+    except Exception as e:
+        return json({"status": "error", "message": str(e)})
+
+
+@bp.post("/schedule/<pipeline_name>")
+async def schedule_pipeline(request, pipeline_name):
+    try:
+        schedule_config = request.json
+        pipeline = Pipeline(pipeline_name, base_dir=request.app.config.BASE_DIR)
+        result = pipeline.schedule(schedule_config)
+        return json({"status": "success", "schedule_id": result})
+    except Exception as e:
+        return json({"status": "error", "message": str(e)})
 
 
 # @app.post("/run-pipeline/<pipeline_name>")
