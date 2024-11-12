@@ -12,14 +12,20 @@
 --index-url https://pypi.org/simple/
 
 -e file:.
+aiobotocore==2.15.2
+    # via s3fs
 aiofiles==24.1.0
     # via sanic
     # via sf-hamilton-ui
 aiohappyeyeballs==2.4.3
     # via aiohttp
 aiohttp==3.10.10
+    # via aiobotocore
+    # via s3fs
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
+aioitertools==0.12.0
+    # via aiobotocore
 aiosignal==1.3.1
     # via aiohttp
     # via ray
@@ -44,9 +50,13 @@ attrs==24.2.0
     # via referencing
 backoff==2.2.1
     # via posthog
+botocore==1.35.36
+    # via aiobotocore
 cbor2==5.6.5
 certifi==2024.8.30
     # via requests
+cffi==1.17.1
+    # via pygit2
 charset-normalizer==3.4.0
     # via requests
 click==8.1.7
@@ -74,6 +84,7 @@ django-ninja==1.3.0
     # via sf-hamilton-ui
 dnspython==2.7.0
     # via pymongo
+duckdb==1.1.3
 executing==2.1.0
     # via stack-data
 filelock==3.16.1
@@ -84,6 +95,7 @@ frozenlist==1.5.0
     # via ray
 fsspec==2024.10.0
     # via flowerpower
+    # via s3fs
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
@@ -94,7 +106,6 @@ graphviz==0.20.3
     # via sf-hamilton
 greenlet==3.1.1
     # via flowerpower
-    # via sqlalchemy
 grpcio==1.67.1
     # via opentelemetry-exporter-jaeger-proto-grpc
 html5tagger==1.3.0
@@ -114,6 +125,8 @@ jedi==0.19.1
     # via ipython
 jinja2==3.1.4
     # via sf-hamilton-sdk
+jmespath==1.0.1
+    # via botocore
 jsonschema==4.23.0
     # via ray
 jsonschema-specifications==2024.10.1
@@ -188,6 +201,7 @@ pexpect==4.9.0
 pillow==11.0.0
 platformdirs==4.3.6
     # via textual
+polars==1.12.0
 posthog==3.7.0
     # via sf-hamilton-sdk
 prompt-toolkit==3.0.48
@@ -203,16 +217,20 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
     # via stack-data
+pycparser==2.22
+    # via cffi
 pydantic==2.9.2
     # via django-ninja
 pydantic-core==2.23.4
     # via pydantic
+pygit2==1.16.0
 pygments==2.18.0
     # via ipython
     # via rich
 pymongo==4.10.1
     # via flowerpower
 python-dateutil==2.9.0.post0
+    # via botocore
     # via pandas
     # via posthog
 python-dotenv==1.0.1
@@ -242,6 +260,7 @@ rpds-py==0.21.0
     # via jsonschema
     # via referencing
 ruff==0.7.3
+s3fs==2024.10.0
 sanic==24.6.0
     # via flowerpower
 sanic-routing==23.12.0
@@ -310,6 +329,7 @@ uc-micro-py==1.0.3
 ujson==5.10.0
     # via sanic
 urllib3==2.2.3
+    # via botocore
     # via requests
 uvloop==0.21.0
     # via sanic
@@ -318,6 +338,7 @@ wcwidth==0.2.13
 websockets==14.0
     # via sanic
 wrapt==1.16.0
+    # via aiobotocore
     # via deprecated
 yarl==1.17.1
     # via aiohttp

@@ -1,19 +1,23 @@
 import datetime as dt
-import os
 from dataclasses import asdict, dataclass, field
 
 import yaml
+from fsspec.spec import AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify, unmunchify
+
+from .helpers.filesystem import get_filesystem
 
 
 @dataclass
 class BaseConfig:
+    # fs: AbstractFileSystem | None = None
+
     def to_dict(self):
         return unmunchify(asdict(self))  # .__dict__)
 
-    def to_yaml(self, path: str):
-        with open(path, "w") as f:
+    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
+        with fs.open(path, "w") as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False)
 
     @classmethod
@@ -21,9 +25,15 @@ class BaseConfig:
         return cls(**d)
 
     @classmethod
-    def from_yaml(cls, path: str):
-        with open(path) as f:
+    def from_yaml(cls, path: str, fs: AbstractFileSystem | None = None):
+        if fs is None:
+            fs = get_filesystem()
+        with fs.open(path) as f:
             return cls.from_dict(yaml.full_load(f))
+
+    # def __post_init__(self):
+    #     if self.fs is None:
+    #         self.fs = get_filesystem()
 
 
 @dataclass
@@ -142,8 +152,8 @@ class PipelineConfig(BaseConfig):
         # d.pop("name")
         return unmunchify(d)
 
-    def to_yaml(self, path: str):
-        with open(path, "w") as f:
+    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
+        with fs.open(path, "w") as f:
             d = self.to_dict()
             d.pop("name")
             yaml.dump(d, f, default_flow_style=False)
@@ -154,8 +164,8 @@ class PipelineConfig(BaseConfig):
         return cls(**d)
 
     @classmethod
-    def from_yaml(cls, name: str, path: str):
-        with open(path) as f:
+    def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem | None = None):
+        with fs.open(path) as f:
             return cls.from_dict(name, yaml.full_load(f))
 
     @staticmethod
@@ -189,7 +199,7 @@ class PipelineConfig(BaseConfig):
 
 
 @dataclass
-class ProjectSchedulerConfig(BaseConfig):
+class ProjectWorkerConfig(BaseConfig):
     data_store: dict | Munch = field(default_factory=dict)
     event_broker: dict | Munch = field(default_factory=dict)
     cleanup_interval: int | float | dt.timedelta = 900  # int in secods
@@ -219,18 +229,18 @@ class ProjectOpenTelemetryConfig(BaseConfig):
 @dataclass
 class ProjectConfig(BaseConfig):
     name: str | None = None
-    scheduler: ProjectSchedulerConfig = field(default_factory=ProjectSchedulerConfig)
+    worker: ProjectWorkerConfig = field(default_factory=ProjectWorkerConfig)
     tracker: ProjectTrackerConfig = field(default_factory=ProjectTrackerConfig)
     open_telemetry: ProjectOpenTelemetryConfig = field(
         default_factory=ProjectOpenTelemetryConfig
     )
 
     def __post_init__(self):
-        self.scheduler = ProjectSchedulerConfig(
+        self.worker = ProjectWorkerConfig(
             **(
-                self.scheduler
-                if isinstance(self.scheduler, dict | Munch)
-                else self.scheduler.to_dict()
+                self.worker
+                if isinstance(self.worker, dict | Munch)
+                else self.worker.to_dict()
             )
         )
         self.tracker = ProjectTrackerConfig(
@@ -251,9 +261,11 @@ class ProjectConfig(BaseConfig):
 
 @dataclass
 class Config(BaseConfig):
-    base_dir: str | None = None
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     project: ProjectConfig = field(default_factory=ProjectConfig)
+    fs: AbstractFileSystem | None = None
+    base_dir: str | None = None
+    storage_options: dict | Munch = field(default_factory=Munch)
 
     def __post_init__(self):
         self.pipeline = PipelineConfig(
@@ -273,45 +285,63 @@ class Config(BaseConfig):
 
     @classmethod
     def load(
-        cls, base_dir: str, name: str | None = None, pipeline_name: str | None = None
+        cls,
+        base_dir: str = "",
+        name: str | None = None,
+        pipeline_name: str | None = None,
+        fs: AbstractFileSystem | None = None,
+        storage_options: dict | Munch = Munch(),
     ):
-        if os.path.exists(os.path.join(base_dir, "conf/project.yml")):
-            project = ProjectConfig.from_yaml(
-                path=os.path.join(base_dir, "conf/project.yml")
-            )
+        if fs is None:
+            fs = get_filesystem(base_dir, **storage_options)
+        if fs.exists("conf/project.yml"):
+            project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
             project = ProjectConfig(name=name)
 
         if pipeline_name is not None:
-            if os.path.exists(
-                os.path.join(base_dir, "conf", f"pipelines/{pipeline_name}.yml")
-            ):
+            if fs.exists(f"conf/pipelines/{pipeline_name}.yml"):
                 pipeline = PipelineConfig.from_yaml(
                     name=pipeline_name,
-                    path=os.path.join(
-                        base_dir, "conf", f"pipelines/{pipeline_name}.yml"
-                    ),
+                    path=f"conf/pipelines/{pipeline_name}.yml",
+                    fs=fs,
                 )
             else:
                 pipeline = PipelineConfig(name=pipeline_name)
         else:
             pipeline = PipelineConfig(name=pipeline_name)
 
-        return cls(base_dir=base_dir, pipeline=pipeline, project=project)
+        return cls(
+            base_dir=base_dir,
+            pipeline=pipeline,
+            project=project,
+            fs=fs,
+            storage_options=storage_options,
+        )
 
     def save(self):
-        if not os.path.exists(os.path.join(self.base_dir, "conf")):
-            os.makedirs(os.path.join(self.base_dir, "conf"))
+        if not self.fs.exists("conf"):
+            self.fs.makedirs("conf")
 
         if self.pipeline.name is not None:
-            self.pipeline.to_yaml(
-                os.path.join(self.base_dir, f"conf/pipelines/{self.pipeline.name}.yml")
-            )
-        self.project.to_yaml(os.path.join(self.base_dir, "conf/project.yml"))
+            self.pipeline.to_yaml(f"conf/pipelines/{self.pipeline.name}.yml", self.fs)
+        self.project.to_yaml("conf/project.yml", self.fs)
 
 
-def load(base_dir: str, name: str | None = None, pipeline_name: str | None = None):
-    return Config.load(base_dir=base_dir, name=name, pipeline_name=pipeline_name)
+def load(
+    base_dir: str,
+    name: str | None = None,
+    pipeline_name: str | None = None,
+    storage_options: dict | Munch = Munch(),
+    fs: AbstractFileSystem | None = None,
+):
+    return Config.load(
+        name=name,
+        pipeline_name=pipeline_name,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        fs=fs,
+    )
 
 
 def save(config: Config):

@@ -2,9 +2,9 @@
 # setup the container locally and use the following code
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider, Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.trace import Resource, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 
 def init_tracer(

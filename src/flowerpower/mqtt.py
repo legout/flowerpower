@@ -1,9 +1,10 @@
-from paho.mqtt.client import Client, CallbackAPIVersion
-from loguru import logger
+import random
 import time
 from typing import Callable
-import random
+
+from loguru import logger
 from munch import Munch
+from paho.mqtt.client import CallbackAPIVersion, Client
 
 from .cfg import Config
 
@@ -37,9 +38,7 @@ class MQTTClient:
         self._client = None
 
     def connect(self) -> Client:
-
         def on_connect(client, userdata, flags, rc, properties):
-
             if rc == 0:
                 logger.info(f"Connected to MQTT Broker {userdata.host}!")
             else:
@@ -107,9 +106,7 @@ class MQTTClient:
         on_message: Callable,
         topic: str | None = None,
     ) -> Client:
-
         if self._client is None:
-
             self.connect()
 
         if topic:
@@ -135,7 +132,6 @@ class MQTTClient:
     def stop(
         self,
     ):
-
         self._client.loop_stop()
         logger.info("Client stopped.")
 

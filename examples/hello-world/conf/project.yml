@@ -2,7 +2,7 @@ name: hello-world
 open_telemetry:
   host: localhost
   port: 6381
-scheduler:
+worker:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy

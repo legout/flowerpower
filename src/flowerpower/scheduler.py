@@ -1,4 +1,3 @@
-import datetime as dt
 import importlib.util
 import sys
 
@@ -28,6 +27,8 @@ from .cfg import Config
 from .helpers.datastore import setup_data_store
 from .helpers.eventbroker import setup_event_broker
 from .helpers.scheduler import display_schedules
+from fsspec.spec import AbstractFileSystem
+from .helpers.filesystem import get_filesystem
 
 
 class SchedulerManager(Scheduler):
@@ -35,6 +36,8 @@ class SchedulerManager(Scheduler):
         self,
         name: str | None = None,
         base_dir: str | None = None,
+        storage_options: dict = {},
+        fs: AbstractFileSystem | None = None,
         **kwargs,
     ):
         """
@@ -47,18 +50,17 @@ class SchedulerManager(Scheduler):
 
         """
         self.name = name or ""
+        self._base_dir = base_dir or ""
+        self._storage_options = storage_options
+        if fs is None:
+            fs = get_filesystem(self._base_dir, **self._storage_options)
+        self._fs = fs
 
-        if base_dir is None:
-            base_dir = os.getcwd()
+        self._conf_path = "conf"
+        self._pipelines_path = "pipelines"  # or pipelines_path
 
-        self._base_dir = base_dir
-        self._conf_dir = os.path.join(base_dir, "conf")  # or conf_dir
-        self._pipelines_path = os.path.join(base_dir, "pipelines")  # or pipelines_path
-
-        self.cfg = Config.load(self._base_dir)
-        # self._data_store = None
-        # self._event_broker = None
-        # self._sqla_engine = None
+        self._sync_fs()
+        self.load_config()
 
         self._setup_data_store()
         self._setup_event_broker()
@@ -70,12 +72,36 @@ class SchedulerManager(Scheduler):
             job_executors=self._job_executors,
             identity=self.name,
             logger=logger,
-            cleanup_interval=self.cfg.project.scheduler.cleanup_interval,
-            max_concurrent_jobs=self.cfg.project.scheduler.max_concurrent_jobs,
+            cleanup_interval=self.cfg.project.worker.cleanup_interval,
+            max_concurrent_jobs=self.cfg.project.worker.max_concurrent_jobs,
             **kwargs,
         )
 
         sys.path.append(self._pipelines_path)
+
+    def _sync_fs(self):
+        """
+        Sync the filesystem.
+
+        Returns:
+            None
+        """
+        if self._fs.is_cache_fs:
+            self._fs.sync()
+
+        modules_path = os.path.join(self._fs.path, self._pipelines_path)
+        if modules_path not in sys.path:
+            sys.path.append(modules_path)
+
+    def load_config(self):
+        """
+        Load the configuration file.
+
+        This method loads the configuration file specified by the `_conf_dir` attribute and
+        assigns it to the `cfg` attribute.
+
+        """
+        self.cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
 
     def _setup_data_store(self):
         """
@@ -91,8 +117,8 @@ class SchedulerManager(Scheduler):
         """
 
         self._data_store, self._sqla_engine = setup_data_store(
-            type=self.cfg.project.scheduler.data_store.get("type", "memory"),
-            engine_or_uri=self.cfg.project.scheduler.data_store.get("uri", None),
+            type=self.cfg.project.worker.data_store.get("type", "memory"),
+            engine_or_uri=self.cfg.project.worker.data_store.get("uri", None),
         )
 
     def _setup_event_broker(self):
@@ -111,13 +137,13 @@ class SchedulerManager(Scheduler):
             None
         """
         self._event_broker = setup_event_broker(
-            type=self.cfg.project.scheduler.event_broker.get("type", "memory"),
-            uri=self.cfg.project.scheduler.event_broker.get("uri", None),
+            type=self.cfg.project.worker.event_broker.get("type", "memory"),
+            uri=self.cfg.project.worker.event_broker.get("uri", None),
             sqla_engine=self._sqla_engine,
-            host=self.cfg.project.scheduler.event_broker.get("host", None),
-            port=self.cfg.project.scheduler.event_broker.get("port", 0),
-            username=self.cfg.project.scheduler.event_broker.get("username", None),
-            password=self.cfg.project.scheduler.event_broker.get("password", None),
+            host=self.cfg.project.worker.event_broker.get("host", None),
+            port=self.cfg.project.worker.event_broker.get("port", 0),
+            username=self.cfg.project.worker.event_broker.get("username", None),
+            password=self.cfg.project.worker.event_broker.get("password", None),
         )
 
     def _setup_job_executors(self):
@@ -256,11 +282,7 @@ def start_worker(
     """
     # manager = get_schedule_manager(name, base_dir, role="worker", *args, **kwargs)
     with SchedulerManager(name, base_dir, *args, **kwargs) as manager:
-        manager.start_worker(background)
-
-
-# def get_current_scheduler() -> Scheduler | None:
-#     return SchedulerManager.get_current_scheduler()
+        manager.start_worker(background=background)
 
 
 def remove_all_schedules(
@@ -447,3 +469,22 @@ def get_job_result(
     with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
         result = manager.get_job_result(job_id)
     return result
+
+
+def show_schedules(
+    name: str | None = None,
+    base_dir: str | None = None,
+    *args,
+    **kwargs,
+):
+    """
+    Show all schedules in the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+    """
+    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+        manager.show_schedules()

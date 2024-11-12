@@ -1,22 +1,19 @@
 import datetime as dt
-import importlib.util
 import importlib
+import importlib.util
 import os
-import rich
-from rich.table import Table
-
 import sys
 from typing import Any, Callable
 from uuid import UUID
+from fsspec.spec import AbstractFileSystem
 
+import rich
 from hamilton import driver
-from hamilton_sdk.adapters import HamiltonTracker
 from hamilton.plugins import h_opentelemetry
+from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
+from rich.table import Table
 
-# from munch import unmunchify
-from .helpers.templates import PIPELINE_PY_TEMPLATE
-from .helpers.open_telemetry import init_tracer
 from .cfg import (
     Config,
     PipelineConfig,
@@ -24,6 +21,11 @@ from .cfg import (
     PipelineScheduleConfig,
     PipelineTrackerConfig,
 )
+from .helpers.open_telemetry import init_tracer
+from .helpers.filesystem import get_filesystem
+
+# from munch import unmunchify
+from .helpers.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -40,23 +42,48 @@ from .helpers.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
 
 
 class PipelineManager:
-    def __init__(self, base_dir: str | None = None):
+    def __init__(
+        self,
+        base_dir: str | None = None,
+        storage_options: dict = {},
+        fs: AbstractFileSystem | None = None,
+    ):
         """
         Initializes the Pipeline object.
 
         Args:
             base_dir (str | None): The flowerpower base path. Defaults to None.
+            storage_options (dict, optional): The storage options. Defaults to {}.
+            fs (AbstractFileSystem | None, optional): The filesystem to use. Defaults to None.
 
         Returns:
             None
         """
         self._base_dir = base_dir or ""
-        self._conf_dir = os.path.join(self._base_dir, "conf")
-        self._pipeline_dir = os.path.join(self._base_dir, "pipelines")
+        self._storage_options = storage_options
+        if fs is None:
+            fs = get_filesystem(self._base_dir, **self._storage_options)
+        self._fs = fs
 
-        sys.path.append(self._pipeline_dir)
+        self._conf_dir = "conf"
+        self._pipeline_dir = "pipelines"
 
+        self._sync_fs()
         self.load_config()
+
+    def _sync_fs(self):
+        """
+        Sync the filesystem.
+
+        Returns:
+            None
+        """
+        if self._fs.is_cache_fs:
+            self._fs.sync()
+
+        modules_path = os.path.join(self._fs.path, self._pipeline_dir)
+        if modules_path not in sys.path:
+            sys.path.append(modules_path)
 
     def load_module(self, name: str):
         """
@@ -68,6 +95,8 @@ class PipelineManager:
         Returns:
             None
         """
+        sys.path.append(os.path.join(self._fs.path, self._pipeline_dir))
+
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
         else:
@@ -80,13 +109,13 @@ class PipelineManager:
         This method loads the configuration file specified by the `_conf_dir` attribute and
         assigns it to the `cfg` attribute.
 
-        Parameters:
-        - None
+        Args:
+            name (str | None, optional): The name of the pipeline. Defaults to None.
 
         Returns:
-        - None
+            None
         """
-        self.cfg = Config.load(base_dir=self._base_dir, pipeline_name=name)
+        self.cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
 
     def _get_driver(
         self,
@@ -295,7 +324,7 @@ class PipelineManager:
         **kwargs,
     ) -> Any:
         """
-        Add a job to run the pipeline with the given parameters to the scheduler.
+        Add a job to run the pipeline with the given parameters to the worker.
         Executes the job immediatly and returns the result of the execution.
 
         Args:
@@ -365,7 +394,7 @@ class PipelineManager:
         **kwargs,
     ) -> UUID:
         """
-        Add a job to run the pipeline with the given parameters to the scheduler data store.
+        Add a job to run the pipeline with the given parameters to the worker data store.
         Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store
         for the given `result_expiration_time` and can be fetched using the job id (UUID).
 
@@ -436,7 +465,7 @@ class PipelineManager:
         **kwargs,
     ):
         """
-        Add a job to run the pipeline with the given parameters to the scheduler data store.
+        Add a job to run the pipeline with the given parameters to the worker data store.
         Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store
         for the given `result_expiration_time` and can be fetched using the job id (UUID).
 
@@ -455,7 +484,7 @@ class PipelineManager:
         Returns:
             UUID: The UUID of the added job.
         """
-        self._add_job(
+        return self._add_job(
             name=name,
             inputs=inputs,
             final_vars=final_vars,
@@ -496,7 +525,8 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline. Defaults to None.
+            with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
+                Defaults to None.
             id_ (str | None, optional): The ID of the scheduled pipeline. Defaults to None.
             paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
             coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
@@ -522,25 +552,25 @@ class PipelineManager:
             raise ValueError("APScheduler4 not installed. Please install it first.")
 
         # if "pipeline" in self.cfg.scheduler:
-        scheduler_cfg = self.cfg.pipeline.schedule  # .copy()
+        schedule_cfg = self.cfg.pipeline.schedule  # .copy()
         run_cfg = self.cfg.pipeline.run
 
         kwargs.update(
             {arg: eval(arg) or getattr(run_cfg, arg) for arg in run_cfg.to_dict()}
         )
         trigger_kwargs = {
-            key: kwargs.pop(key, None) or getattr(scheduler_cfg.trigger, key)
-            for key in scheduler_cfg.trigger.to_dict()
+            key: kwargs.pop(key, None) or getattr(schedule_cfg.trigger, key)
+            for key in schedule_cfg.trigger.to_dict()
         }
-        trigger_type = trigger_type or scheduler_cfg.trigger.type_
+        trigger_type = trigger_type or schedule_cfg.trigger.type_
         trigger_kwargs.pop("type_", None)
 
         schedule_kwargs = {
-            arg: eval(arg) or getattr(scheduler_cfg.run, arg)
-            for arg in scheduler_cfg.run.to_dict()
+            arg: eval(arg) or getattr(schedule_cfg.run, arg)
+            for arg in schedule_cfg.run.to_dict()
         }
-        executor = executor or scheduler_cfg.run.executor
-        id_ = id_ or scheduler_cfg.run.id_
+        executor = executor or schedule_cfg.run.executor
+        id_ = id_ or schedule_cfg.run.id_
         schedule_kwargs.pop("executor", None)
         schedule_kwargs.pop("id_", None)
 
@@ -565,7 +595,8 @@ class PipelineManager:
                 **schedule_kwargs,
             )
             rich.print(
-                f"✅ Successfully added schedule for [blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
+                f"✅ Successfully added schedule for "
+                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
             )
             return id_
 
@@ -588,8 +619,10 @@ class PipelineManager:
             pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
             func (dict, optional): The function configuration for the pipeline. Defaults to {}.
             run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
-            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline. Defaults to {}.
-            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline. Defaults to {}.
+            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
+                Defaults to {}.
+            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline.
+                Defaults to {}.
         """
         self.add(name, overwrite, pipeline_config, func, run, schedule, tracker)
 
@@ -612,25 +645,26 @@ class PipelineManager:
             pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
             func (dict, optional): The function configuration for the pipeline. Defaults to {}.
             run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
-            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline. Defaults to {}.
-            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline. Defaults to {}.
+            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
+                Defaults to {}.
+            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline.
+                Defaults to {}.
         """
 
-        if not os.path.exists(self._conf_dir):
+        if not self._fs.exists(self._conf_dir):
             raise ValueError(
                 f"Configuration path {self._conf_dir} does not exist. Please run flowerpower init first."
             )
-        if not os.path.exists(self._pipeline_dir):
+        if not self._fs.exists(self._pipeline_dir):
             raise ValueError(
                 f"Pipeline path {self._pipeline_dir} does not exist. Please run flowerpower init first."
             )
 
-        if os.path.exists(f"{self._pipeline_dir}/{name}.py") and not overwrite:
+        if self._fs.exists(f"{self._pipeline_dir}/{name}.py") and not overwrite:
             raise ValueError(
                 f"Pipeline {self.cfg.project.name}.{name} already exists. Use `overwrite=True` to overwrite."
             )
 
-        # os.makedirs(self._pipeline_dir, exist_ok=True)
         with open(f"{self._pipeline_dir}/{name}.py", "w") as f:
             f.write(
                 PIPELINE_PY_TEMPLATE.format(
@@ -670,13 +704,13 @@ class PipelineManager:
         """
 
         if cfg:
-            if os.path.exists(f"{self._conf_dir}/pipelines/{name}.yml"):
-                os.remove(f"{self._conf_dir}/pipelines/{name}.yml")
+            if self._fs.exists(f"{self._conf_dir}/pipelines/{name}.yml"):
+                self._fs.rm(f"{self._conf_dir}/pipelines/{name}.yml")
                 rich.print(f"🗑️ Deleted pipeline config for {name}")
 
         if module:
-            if os.path.exists(f"{self._pipeline_dir}/{name}.py"):
-                os.remove(f"{self._pipeline_dir}/{name}.py")
+            if self._fs.exists(f"{self._pipeline_dir}/{name}.py"):
+                self._fs.rm(f"{self._pipeline_dir}/{name}.py")
                 rich.print(
                     f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
                 )
@@ -696,13 +730,12 @@ class PipelineManager:
         Returns:
             graph: The generated graph object.
         """
-        os.makedirs(os.path.join(self._base_dir, "graphs"), exist_ok=True)
+        self._fs.makedirs("graphs", exist_ok=True)
         dr, _ = self._get_driver(
             name=name, executor=None, with_tracker=False, reload=reload
         )
-        graph = dr.display_all_functions(
-            os.path.join(self._base_dir, "graphs", f"{name}.{format}")
-        )
+        graph = dr.display_all_functions(f"graphs/{name}.{format}")
+
         if view:
             graph.view()
         return graph
@@ -716,7 +749,7 @@ class PipelineManager:
         """
 
         pipeline_files = [
-            f for f in os.listdir(self._pipeline_dir) if f.endswith(".py")
+            f for f in self._fs.ls(self._pipeline_dir) if f.endswith(".py")
         ]
 
         if not pipeline_files:
@@ -731,10 +764,10 @@ class PipelineManager:
         for f in pipeline_files:
             path = os.path.join(self._pipeline_dir, f)
             name = os.path.splitext(f)[0]
-            mod_time = dt.datetime.fromtimestamp(os.path.getmtime(path)).strftime(
+            mod_time = dt.datetime.fromtimestamp(self._fs.modified(path)).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
-            size = f"{os.path.getsize(path) / 1024:.1f} KB"
+            size = f"{self._fs.size(path) / 1024:.1f} KB"
             table.add_row(name, mod_time, size)
 
         rich.print(table)
@@ -747,7 +780,7 @@ class PipelineManager:
             list[str]: List of pipeline names.
         """
         pipeline_files = [
-            f for f in os.listdir(self._pipeline_dir) if f.endswith(".py")
+            f for f in self._fs.ls(self._pipeline_dir) if f.endswith(".py")
         ]
         pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
 
@@ -788,7 +821,8 @@ class PipelineManager:
             with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
-            result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
+            result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job.
+                Defaults to 0.
             as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
             background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
             **kwargs: Additional keyword arguments.
@@ -853,8 +887,27 @@ class PipelineManager:
 
 
 class Pipeline(PipelineManager):
-    def __init__(self, name: str, base_dir: str | None = None):
-        super().__init__(base_dir)
+
+    def __init__(
+        self,
+        name: str,
+        base_dir: str | None = None,
+        storage_options: dict = {},
+        fs: AbstractFileSystem | None = None,
+    ):
+        """
+        Initializes the Pipeline object.
+
+        Args:
+            name (str): The name of the pipeline.
+            base_dir (str | None): The flowerpower base path. Defaults to None.
+            storage_options (dict, optional): The storage options. Defaults to {}.
+            fs (AbstractFileSystem | None, optional): The filesystem to use. Defaults to None.
+
+        Returns:
+            None
+        """
+        super().__init__(base_dir=base_dir, storage_options=storage_options, fs=fs)
         self.name = name
         self.load_module()
         self.load_config(name)
@@ -1122,7 +1175,7 @@ def run_job(
     **kwargs,
 ) -> Any:
     """
-    Add a job to run the pipeline with the given parameters to the scheduler.
+    Add a job to run the pipeline with the given parameters to the worker.
     Executes the job immediatly and returns the job result.
 
     Args:
@@ -1165,7 +1218,7 @@ def add_job(
     **kwargs,
 ) -> UUID:
     """
-    Add a job to run the pipeline with the given parameters to the scheduler data store.
+    Add a job to run the pipeline with the given parameters to the worker data store.
     Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store for the
     given `result_expiration_time` and can be fetched using the job id (UUID).
 

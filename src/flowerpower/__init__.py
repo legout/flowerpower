@@ -1,1 +1,1 @@
-from .flowerpower import init, find_pipelines
+from .flowerpower import init

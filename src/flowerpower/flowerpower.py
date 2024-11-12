@@ -4,9 +4,8 @@ from pathlib import Path
 
 
 from .cfg import Config
-from .pipeline import Pipeline, PipelineManager
-from .scheduler import SchedulerManager
 import rich
+from .helpers.filesystem import get_filesystem
 
 
 def init(
@@ -14,16 +13,19 @@ def init(
     base_dir: str | None = None,
     conf_path: str = "conf",
     pipelines_path: str = "pipelines",
+    storage_options: dict = {},
 ):
     if name is None:
-        name = Path.cwd().name
-        base_dir = Path.cwd().parent
+        name = str(Path.cwd().name)
+        base_dir = str(Path.cwd().parent)
 
     if base_dir is None:
-        base_dir = Path.cwd()
+        base_dir = str(Path.cwd())
 
-    os.makedirs(os.path.join(base_dir, name, "conf/pipelines"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, name, "pipelines"), exist_ok=True)
+    fs = get_filesystem(os.path.join(base_dir, name), **storage_options)
+
+    fs.makedirs("conf/pipelines", exist_ok=True)
+    fs.makedirs("pipelines", exist_ok=True)
 
     cfg = Config.load(base_dir=os.path.join(base_dir, name), name=name)
 
@@ -55,49 +57,46 @@ def init(
     )
 
 
-def find_pipelines(cls):
-    """Find all pipeline modules in the project's pipelines directory."""
-    pipeline_path = Path("pipelines")
-    if not pipeline_path.exists():
-        return []
+# def find_pipelines(cls):
+#     """Find all pipeline modules in the project's pipelines directory."""
+#     pipeline_path = Path("pipelines")
+#     if not pipeline_path.exists():
+#         return []
 
-    pipelines = []
-    for file in pipeline_path.glob("*.py"):
-        if file.name.startswith("_"):
-            continue
+#     pipelines = []
+#     for file in pipeline_path.glob("*.py"):
+#         if file.name.startswith("_"):
+#             continue
 
-        module_name = file.stem
-        try:
-            pipeline = Pipeline(module_name)
-            pipelines.append(pipeline)
-        except Exception as e:
-            rich.print(f"[red]Error loading pipeline {module_name}: {str(e)}[/red]")
+#         module_name = file.stem
+#         try:
+#             pipeline = Pipeline(module_name)
+#             pipelines.append(pipeline)
+#         except Exception as e:
+#             rich.print(f"[red]Error loading pipeline {module_name}: {str(e)}[/red]")
 
-    return pipelines
-
-
-Pipeline.find_pipelines = classmethod(find_pipelines)
+#     return pipelines
 
 
-def list_pipelines():
-    pipelines = Pipeline.find_pipelines()
-    if not pipelines:
-        rich.print("\n📭 [yellow]No pipelines found in this project[/yellow]\n")
-        return
+# def list_pipelines():
+#     pipelines = Pipeline.find_pipelines()
+#     if not pipelines:
+#         rich.print("\n📭 [yellow]No pipelines found in this project[/yellow]\n")
+#         return
 
-    rich.print("\n🌸 [bold magenta]Available Pipelines:[/bold magenta]\n")
-    table = rich.table.Table(show_header=True, header_style="bold cyan")
-    table.add_column("Name")
-    table.add_column("Description")
-    table.add_column("Status")
+#     rich.print("\n🌸 [bold magenta]Available Pipelines:[/bold magenta]\n")
+#     table = rich.table.Table(show_header=True, header_style="bold cyan")
+#     table.add_column("Name")
+#     table.add_column("Description")
+#     table.add_column("Status")
 
-    for pipeline in pipelines:
-        status = (
-            "[green]Active[/green]" if pipeline.is_active() else "[red]Inactive[/red]"
-        )
-        table.add_row(
-            pipeline.name, pipeline.description or "[dim]No description[/dim]", status
-        )
+#     for pipeline in pipelines:
+#         status = (
+#             "[green]Active[/green]" if pipeline.is_active() else "[red]Inactive[/red]"
+#         )
+#         table.add_row(
+#             pipeline.name, pipeline.description or "[dim]No description[/dim]", status
+#         )
 
-    rich.print(table)
-    rich.print()
+#     rich.print(table)
+#     rich.print()
