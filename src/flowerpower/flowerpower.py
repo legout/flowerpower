@@ -6,14 +6,14 @@ from pathlib import Path
 from .cfg import Config
 import rich
 from .helpers.filesystem import get_filesystem
+from fsspec.spec import AbstractFileSystem
 
 
 def init(
     name: str | None = None,
     base_dir: str | None = None,
-    conf_path: str = "conf",
-    pipelines_path: str = "pipelines",
     storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
 ):
     if name is None:
         name = str(Path.cwd().name)

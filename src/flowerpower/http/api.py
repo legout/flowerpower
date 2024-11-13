@@ -1,8 +1,6 @@
-from orjson import dumps, loads
 from sanic import Blueprint
 from sanic.response import json
 
-from flowerpower.scheduler import SchedulerManager
 
 from ..pipeline import add_job, run, run_job, schedule
 
@@ -53,13 +51,13 @@ async def add_job_(
         return json({"status": "error", "message": str(e)})
 
 
-@bp.post("/schedule/<pipeline_name>")
-async def schedule_pipeline(request, pipeline_name):
+@bp.post("/schedule/<name>")
+async def schedule_pipeline(request, name):
     try:
-        schedule_config = request.json
-        pipeline = Pipeline(pipeline_name, base_dir=request.app.config.BASE_DIR)
-        result = pipeline.schedule(schedule_config)
-        return json({"status": "success", "schedule_id": result})
+        base_dir = request.json.pop("base_dir", None) or request.app.config.BASE_DIR
+
+        id_ = schedule(name, base_dir=base_dir, **request.json)
+        return json({"status": "success", "schedule_id": str(id_)})
     except Exception as e:
         return json({"status": "error", "message": str(e)})
 
