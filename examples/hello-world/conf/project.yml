@@ -6,8 +6,8 @@ worker:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy
-    uri: sqlite+aiosqlite:///flowerpower.db
-    #uri: postgresql+asyncpg://postgres:postgres@localhost:5432/flowerpower
+    #suri: sqlite+aiosqlite:///flowerpower.db
+    uri: postgresql+asyncpg://postgres:postgres@localhost:5432/flowerpower
   event_broker:
     host: localhost
     port: 1883

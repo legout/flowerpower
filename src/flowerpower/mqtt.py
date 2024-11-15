@@ -101,7 +101,35 @@ class MQTTClient:
 
         self._client = client
 
-    def start_in_background(
+    def disconnect(self):
+        self._max_reconnect_count = 0
+        self._client._userdata.max_reconnect_count = 0
+        self._client.disconnect()
+
+    def reconnect(self):
+        self._client.reconnect()
+
+    def publish(self, topic, payload):
+        if self._client is None:
+            self.connect()
+        elif self._client.is_connected() is False:
+            self.reconnect()
+        self._client.publish(topic, payload)
+
+    def subscribe(self, topic: str | None = None):
+        if topic is not None:
+            self.topic = topic
+        self._client.subscribe(self.topic)
+
+    def unsubscribe(self, topic: str | None = None):
+        if topic is not None:
+            self.topic = topic
+        self._client.unsubscribe(self.topic)
+
+    def register_on_message(self, on_message: Callable):
+        self._client.on_message = on_message
+
+    def run_in_background(
         self,
         on_message: Callable,
         topic: str | None = None,
@@ -129,36 +157,23 @@ class MQTTClient:
         self._client.on_message = on_message
         self._client.loop_forever()
 
-    def stop(
+    def start_listener(
+        self, on_message: Callable, topic: str | None = None, background: bool = False
+    ):
+        if background:
+            self.run_in_background(on_message, topic)
+        else:
+            self.run_until_break(on_message, topic)
+
+    def stop_listener(
         self,
     ):
         self._client.loop_stop()
         logger.info("Client stopped.")
 
-    def disconnect(self):
-        self._max_reconnect_count = 0
-        self._client._userdata.max_reconnect_count = 0
-        self._client.disconnect()
-
-    def reconnect(self):
-        self._client.reconnect()
-
-    def publish(self, topic, payload):
-        self._client.publish(topic, payload)
-
-    def subscribe(self, topic: str | None = None):
-        if topic is not None:
-            self.topic = topic
-        self._client.subscribe(self.topic)
-
-    def unsubscribe(self, topic: str | None = None):
-        if topic is not None:
-            self.topic = topic
-        self._client.unsubscribe(self.topic)
-
     @classmethod
     def from_event_broker(cls, base_dir: str):
-        event_broker_cfg = Config.load(base_dir=base_dir).project.scheduler.event_broker
+        event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":
                 return cls(

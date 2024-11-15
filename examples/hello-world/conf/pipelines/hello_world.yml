@@ -1,4 +1,4 @@
-func:
+params:
   avg_x_wk_spend:
     rolling: 3
   spend_zero_mean:

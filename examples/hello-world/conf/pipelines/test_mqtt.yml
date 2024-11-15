@@ -1,4 +1,4 @@
-func: {}
+params: {}
 run:
   executor: null
   final_vars: [df, print_df]

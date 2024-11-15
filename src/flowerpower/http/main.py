@@ -1,7 +1,7 @@
 from orjson import dumps, loads
 from sanic import Sanic
+from sanic.response import json
 
-from ..scheduler import SchedulerManager
 from .setup import setup
 
 
@@ -10,9 +10,12 @@ def create_app(args):
     # started using sanic build-in server. e.g.
     # sanic src.flowerpower.http.main:create_app -factory --base-dir /path/to/base_dir
     # app = setup(args.base_dir)
+    base_dir = args.base_dir if hasattr(args, "base_dir") else None
+    storage_options = args.storage_options if hasattr(args, "storage_options") else {}
+
     print(args)
     app = Sanic("flowerpower", dumps=dumps, loads=loads)
-    setup(app, args.base_dir)
+    setup(app=app, base_dir=base_dir, storage_options=storage_options)
 
     @app.get("/")
     async def index(request):

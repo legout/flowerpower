@@ -1,16 +1,24 @@
 from sanic import Sanic
 
 from ..scheduler import SchedulerManager
-from .api import bp
+from ..pipeline import PipelineManager
+from .api.pipeline import bp as bp_api_pipeline
+from .api.scheduler import bp as bp_api_scheduler
 
 
-def setup(app: Sanic, base_dir: str):
-    # app = Sanic("flowerpower")
+def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None = None):
+
     app.config.BASE_DIR = base_dir
+    app.config.STORAGE_OPTIONS = storage_options
 
     @app.listener("before_server_start")
     def init_scheduler(app, loop):
-        app.ctx.scheduler = SchedulerManager(base_dir=base_dir)
+        app.ctx.pipeline_manager = PipelineManager(
+            base_dir=base_dir, storage_options=storage_options
+        )
+        app.ctx.scheduler = SchedulerManager(
+            base_dir=base_dir, storage_options=storage_options
+        )
         app.ctx.scheduler.start_worker(background=True)
 
     @app.listener("before_server_stop")
@@ -18,6 +26,7 @@ def setup(app: Sanic, base_dir: str):
         if hasattr(app.ctx, "scheduler"):
             app.ctx.scheduler.stop_worker()
 
-    app.blueprint(bp)
+    app.blueprint(bp_api_pipeline)
+    app.blueprint(bp_api_scheduler)
 
     return app

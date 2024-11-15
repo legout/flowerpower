@@ -122,7 +122,7 @@ class PipelineConfig(BaseConfig):
     name: str | None = None
     run: PipelineRunConfig = field(default_factory=PipelineRunConfig)
     schedule: PipelineScheduleConfig = field(default_factory=PipelineScheduleConfig)
-    func: dict | Munch = field(default_factory=dict)
+    params: dict | Munch = field(default_factory=dict)
     tracker: PipelineTrackerConfig = field(default_factory=PipelineTrackerConfig)
 
     def __post_init__(self):
@@ -143,9 +143,9 @@ class PipelineConfig(BaseConfig):
                 else self.tracker.to_dict()
             )
         )
-        if isinstance(self.func, dict):
-            self.hamilton_func_params = munchify(self.f_args_to_ht_params(self.func))
-            self.func = munchify(self.func)
+        if isinstance(self.params, dict):
+            self.hamilton_func_params = munchify(self.f_args_to_ht_params(self.params))
+            self.params = munchify(self.params)
 
     def to_dict(self):
         d = asdict(self)

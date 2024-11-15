@@ -227,7 +227,10 @@ class GitLabFileSystem(AbstractFileSystem):
             response.raise_for_status()
 
 
-fsspec.register_implementation("gitlab", GitLabFileSystem)
+try:
+    fsspec.register_implementation("gitlab", GitLabFileSystem)
+except:
+    pass
 
 
 def get_filesystem(path: str | None = None, **storage_options) -> DirFileSystem:

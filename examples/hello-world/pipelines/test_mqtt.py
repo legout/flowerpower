@@ -13,6 +13,7 @@ PARAMS = Config.load(
 ).pipeline.hamilton_func_params
 
 
+
 def df(payload: bytes) -> pd.DataFrame:
     data = json.loads(payload)
     return pd.DataFrame(data)
@@ -20,3 +21,6 @@ def df(payload: bytes) -> pd.DataFrame:
 
 def print_df(df: pd.DataFrame) -> None:
     print(df)
+
+def to_lodl(df:pd.DataFrame, path:str, storage_options:dict)->None:
+    write_deltalake(df, storage_options)

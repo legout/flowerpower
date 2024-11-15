@@ -289,7 +289,7 @@ def new_pipeline(
         name=name,
         base_dir=base_dir,
         overwrite=overwrite,
-        func=pipeline_params,
+        params=pipeline_params,
         run=run_params,
         schedule=schedule_params,
         tracker=tracker_params,
@@ -339,7 +339,7 @@ def delete(name: str, base_dir: str = "", module: bool = False):
         base_dir (str): The base path of the pipeline. Defaults to None.
         module (bool, optional): Whether to delete the pipeline module. Defaults to False.
     """
-    delete_(name=name, base_dir=base_dir, module=module)
+    delete_(name=name, base_dir=base_dir, remove_module=module)
 
 
 @app.command()

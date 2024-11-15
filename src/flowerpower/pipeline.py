@@ -53,8 +53,8 @@ class PipelineManager:
 
         Args:
             base_dir (str | None): The flowerpower base path. Defaults to None.
-            storage_options (dict, optional): The storage options. Defaults to {}.
-            fs (AbstractFileSystem | None, optional): The filesystem to use. Defaults to None.
+            storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+            fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
 
         Returns:
             None
@@ -70,6 +70,14 @@ class PipelineManager:
 
         self._sync_fs()
         self.load_config()
+
+    def _get_schedules(self):
+        with SchedulerManager(
+            # name=f"{self.cfg.project.name}.{self.name}",
+            fs=self._fs,
+            role="scheduler",
+        ) as sm:
+            return sm.get_schedules()
 
     def _sync_fs(self):
         """
@@ -343,7 +351,7 @@ class PipelineManager:
 
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
-            base_dir=self._base_dir,
+            fs=self._fs,
             role="scheduler",
         ) as sm:
             # if not any([task.id == "run-pipeline" for task in sm.get_tasks()]):
@@ -415,7 +423,7 @@ class PipelineManager:
         """
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
-            base_dir=self._base_dir,
+            fs=self._fs,
             role="scheduler",
         ) as sm:
             kwargs.update(
@@ -432,7 +440,7 @@ class PipelineManager:
                     ]
                 }
             )
-            return sm.add_job(
+            id_ = sm.add_job(
                 self._run,
                 # args=(
                 #     name,
@@ -451,6 +459,11 @@ class PipelineManager:
                 ),
                 result_expiration_time=result_expiration_time,
             )
+            rich.print(
+                f"✅ Successfully added job for "
+                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
+            )
+            return id_
 
     def add_job(
         self,
@@ -513,6 +526,7 @@ class PipelineManager:
         max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
         # job_result_expiration_time: float | dt.timedelta = 0,
+        overwrite: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -539,6 +553,7 @@ class PipelineManager:
             conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
             job_result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
                 Defaults to None.
+            overwrite (bool, optional): Whether to overwrite an existing schedule with the same name. Defaults to False.
             **kwargs: Additional keyword arguments for the trigger.
 
         Returns:
@@ -570,13 +585,29 @@ class PipelineManager:
             for arg in schedule_cfg.run.to_dict()
         }
         executor = executor or schedule_cfg.run.executor
-        id_ = id_ or schedule_cfg.run.id_
+        # id_ = id_ or schedule_cfg.run.id_
+
+        def _get_id() -> str:
+            if id_:
+                return id_
+
+            if overwrite:
+                return f"{name}-1"
+
+            ids = [schedule.id for schedule in self._get_schedules()]
+            if any([name in id_ for id_ in ids]):
+                id_num = sorted([id_ for id_ in ids if name in id_])[-1].split("-")[-1]
+                return f"{name}-{int(id_num)+1}"
+            return f"{name}-1"
+
+        id_ = _get_id()
+
         schedule_kwargs.pop("executor", None)
         schedule_kwargs.pop("id_", None)
 
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
-            base_dir=self._base_dir,
+            fs=self._fs,
             role="scheduler",
         ) as sm:
             trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
@@ -585,7 +616,7 @@ class PipelineManager:
                 func_or_task_id=self._run,
                 trigger=trigger,
                 id=id_,
-                # args=(name, inputs, final_vars, executor, with_tracker),
+                args=(name,),  # inputs, final_vars, executor, with_tracker),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -605,7 +636,7 @@ class PipelineManager:
         name: str,
         overwrite: bool = False,
         pipeline_config: dict | PipelineConfig = {},
-        func: dict = {},
+        params: dict = {},
         run: dict | PipelineRunConfig = {},
         schedule: dict | PipelineScheduleConfig = {},
         tracker: dict | PipelineTrackerConfig = {},
@@ -617,21 +648,22 @@ class PipelineManager:
             name (str): The name of the pipeline.
             overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
             pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
-            func (dict, optional): The function configuration for the pipeline. Defaults to {}.
+            params (dict, optional): The function configuration for the pipeline. Defaults to {}.
             run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
             schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
                 Defaults to {}.
             tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline.
                 Defaults to {}.
         """
-        self.add(name, overwrite, pipeline_config, func, run, schedule, tracker)
+        self.add(name, overwrite, pipeline_config, params, run, schedule, tracker)
 
     def add(
         self,
         name: str,
         overwrite: bool = False,
+        pipeline_file: str | None = None,
         pipeline_config: dict | PipelineConfig = {},
-        func: dict = {},
+        params: dict = {},
         run: dict | PipelineRunConfig = {},
         schedule: dict | PipelineScheduleConfig = {},
         tracker: dict | PipelineTrackerConfig = {},
@@ -642,8 +674,9 @@ class PipelineManager:
         Args:
             name (str): The name of the pipeline.
             overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+            pipeline_file (str | None, optional): The path to the pipeline file. Defaults to None.
             pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
-            func (dict, optional): The function configuration for the pipeline. Defaults to {}.
+            params (dict, optional): The function configuration for the pipeline. Defaults to {}.
             run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
             schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
                 Defaults to {}.
@@ -664,14 +697,20 @@ class PipelineManager:
             raise ValueError(
                 f"Pipeline {self.cfg.project.name}.{name} already exists. Use `overwrite=True` to overwrite."
             )
-
-        with open(f"{self._pipeline_dir}/{name}.py", "w") as f:
-            f.write(
-                PIPELINE_PY_TEMPLATE.format(
-                    name=name, date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                )
-            )
-            # rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
+        try:
+            if pipeline_file:
+                self._fs.put_file(pipeline_file, f"{self._pipeline_dir}/{name}.py")
+            else:
+                with self._fs.open(f"{self._pipeline_dir}/{name}.py", "w") as f:
+                    f.write(
+                        PIPELINE_PY_TEMPLATE.format(
+                            name=name,
+                            date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        )
+                    )
+                    # rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
+        except NotImplementedError:
+            raise NotImplementedError("The filesystem does not support writing files.")
 
         if pipeline_config:
             self.cfg.pipeline = (
@@ -683,7 +722,7 @@ class PipelineManager:
                 self.cfg.pipeline.name = name
         else:
             self.cfg.pipeline = PipelineConfig(
-                name=name, run=run, schedule=schedule, tracker=tracker, func=func
+                name=name, run=run, schedule=schedule, tracker=tracker, params=params
             )
 
         self.cfg.save()
@@ -693,14 +732,14 @@ class PipelineManager:
             f"🔧 Created new pipeline [bold blue]{self.cfg.project.name}.{name}[/bold blue]"
         )
 
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
+    def delete(self, name: str, cfg: bool = True, remove_module_file: bool = False):
         """
         Delete a pipeline.
 
         Args:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
-            module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
+            remove_module_file (bool, optional): Whether to delete the pipeline module file. Defaults to False.
         """
 
         if cfg:
@@ -708,7 +747,7 @@ class PipelineManager:
                 self._fs.rm(f"{self._conf_dir}/pipelines/{name}.yml")
                 rich.print(f"🗑️ Deleted pipeline config for {name}")
 
-        if module:
+        if remove_module_file:
             if self._fs.exists(f"{self._pipeline_dir}/{name}.py"):
                 self._fs.rm(f"{self._pipeline_dir}/{name}.py")
                 rich.print(
@@ -716,7 +755,13 @@ class PipelineManager:
                 )
 
     def show_dag(
-        self, name: str, format: str = "png", view: bool = False, reload: bool = False
+        self,
+        name: str,
+        format: str = "png",
+        show: bool = False,
+        reload: bool = False,
+        save: bool = False,
+        **kwargs,
     ):
         """
         Display the graph of functions for a given name.
@@ -724,8 +769,9 @@ class PipelineManager:
         Args:
             name (str): The name of the graph.
             format (str, optional): The format of the graph file. Defaults to "png".
-            view (bool, optional): Whether to open the graph file after generating it. Defaults to False.
+            show (bool, optional): Whether to open the graph file after generating it. Defaults to False.
             reload (bool, optional): Whether to reload the graph data. Defaults to False.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             graph: The generated graph object.
@@ -734,16 +780,73 @@ class PipelineManager:
         dr, _ = self._get_driver(
             name=name, executor=None, with_tracker=False, reload=reload
         )
-        graph = dr.display_all_functions(f"graphs/{name}.{format}")
+        if save:
+            path = f"graphs/{name}.{format}"
+        else:
+            path = None
+        graph = dr.display_all_functions(path, **kwargs)
 
-        if view:
+        if show:
             graph.view()
         return graph
 
-    def all_pipelines(self) -> None:
+    def _get_files(self) -> list[str]:
+        """
+        Get the pipeline files.
+
+        Returns:
+            list[str]: A list of pipeline files.
+        """
+        return [f for f in self._fs.ls(self._pipeline_dir) if f.endswith(".py")]
+
+    def _get_names(self) -> list[str]:
+        """
+        Get the pipeline names.
+
+        Returns:
+            list[str]: A list of pipeline names.
+        """
+        return [os.path.splitext(os.path.basename(f))[0] for f in self._get_files()]
+
+    def get_summary(self, name: str | None = None) -> dict:
+        """
+        Get a summary of the pipelines.
+
+        Args:
+            name (str | None, optional): The name of the pipeline. Defaults to None.
+        Returns:
+            dict: A dictionary containing the pipeline summary.
+        """
+        if name:
+            pipeline_names = [name]
+        else:
+            pipeline_names = self._get_names()
+
+        pipeline_summary = {}
+        for name in pipeline_names:
+            pipeline_summary[name] = {
+                "config": self.cfg.pipeline.to_dict(),
+                "module": self._fs.cat(f"{self._pipeline_dir}/{name}.py").decode(),
+            }
+
+        return pipeline_summary
+
+    @property
+    def summary(self) -> dict:
+        """
+        Get a summary of the pipelines.
+
+        Returns:
+            dict: A dictionary containing the pipeline summary.
+        """
+        return self.get_summary()
+
+    def all_pipelines(self, show: bool = True) -> None:
         """
         Print all available pipelines in a formatted table.
 
+        Args:
+            show (bool, optional): Whether to print the table. Defaults to True.
         Returns:
             None
         """
@@ -751,42 +854,41 @@ class PipelineManager:
         pipeline_files = [
             f for f in self._fs.ls(self._pipeline_dir) if f.endswith(".py")
         ]
+        pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
 
         if not pipeline_files:
             rich.print("[yellow]No pipelines found[/yellow]")
             return
 
-        table = Table(title="Available Pipelines")
-        table.add_column("Pipeline Name", style="blue")
-        table.add_column("Last Modified", style="green")
-        table.add_column("Size", style="cyan")
+        pipeline_info = []
 
-        for f in pipeline_files:
-            path = os.path.join(self._pipeline_dir, f)
-            name = os.path.splitext(f)[0]
-            mod_time = dt.datetime.fromtimestamp(self._fs.modified(path)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+        for path, name in zip(pipeline_files, pipeline_names):
+            # path = os.path.join( f)
+            try:
+                mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
+            except NotImplementedError:
+                mod_time = "N/A"
             size = f"{self._fs.size(path) / 1024:.1f} KB"
-            table.add_row(name, mod_time, size)
+            pipeline_info.append(
+                {"name": name, "path": path, "mod_time": mod_time, "size": size}
+            )
 
-        rich.print(table)
+        if show:
+            table = Table(title="Available Pipelines")
+            table.add_column("Pipeline Name", style="blue")
+            table.add_column("Path", style="magenta")
+            table.add_column("Last Modified", style="green")
+            table.add_column("Size", style="cyan")
 
-    def list_pipelines(self) -> list[str]:
-        """
-        List all available pipelines.
+            for info in pipeline_info:
+                table.add_row(
+                    info["name"], info["path"], info["mod_time"], info["size"]
+                )
+            rich.print(table)
+        else:
+            return pipeline_info
 
-        Returns:
-            list[str]: List of pipeline names.
-        """
-        pipeline_files = [
-            f for f in self._fs.ls(self._pipeline_dir) if f.endswith(".py")
-        ]
-        pipeline_names = [os.path.splitext(f)[0] for f in pipeline_files]
-
-        return pipeline_names
-
-    def on_mqtt_message(
+    def start_mqtt_listener(
         self,
         name: str,
         topic: str | None = None,
@@ -871,19 +973,29 @@ class PipelineManager:
 
             logger.warning("processing failed")
 
+        if not hasattr(self, "mqtt_client"):
+            self.mqtt_client = {}
         try:
-            mqtt = MQTTClient.from_event_broker(base_dir=self._base_dir)
+
+            self.mqtt[name] = MQTTClient.from_event_broker(base_dir=self._base_dir)
         except ValueError as e:
             logger.exception(e)
         else:
-            mqtt = MQTTClient(user=user, pw=pw, host=host, port=port)
+            self.mqtt[name] = MQTTClient(user=user, pw=pw, host=host, port=port)
         if topic is None:
             topic = name
-        mqtt.connect()
-        if background:
-            mqtt.start_in_background(on_message, topic)
-        else:
-            mqtt.run_until_break(on_message, topic)
+        self.mqtt[name].connect()
+        self.mqtt[name].start_listener(on_message, topic, background=background)
+
+    def stop_mqtt_listener(self, name: str):
+        """
+        Stop the MQTT listener.
+
+        Returns:
+            None
+        """
+        self.mqtt[name].stop_listener()
+        self.mqtt[name].disconnect()
 
 
 class Pipeline(PipelineManager):
@@ -901,8 +1013,8 @@ class Pipeline(PipelineManager):
         Args:
             name (str): The name of the pipeline.
             base_dir (str | None): The flowerpower base path. Defaults to None.
-            storage_options (dict, optional): The storage options. Defaults to {}.
-            fs (AbstractFileSystem | None, optional): The filesystem to use. Defaults to None.
+            storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+            fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
 
         Returns:
             None
@@ -1016,16 +1128,24 @@ class Pipeline(PipelineManager):
             **kwargs,
         )
 
-    def show(self, format: str = "png", view: bool = False, reload: bool = False):
-        return super().show_dag(self.name, format=format, view=view, reload=reload)
+    def show_dag(
+        self,
+        format: str = "png",
+        show: bool = False,
+        save: bool = False,
+        reload: bool = False,
+    ):
+        return super().show_dag(
+            self.name, format=format, show=show, save=save, reload=reload
+        )
 
-    def delete(self, cfg: bool = True, module: bool = False):
-        return super().delete(self.name, cfg, module)
+    def delete(self, cfg: bool = True, remove_module_file: bool = False):
+        return super().delete(self.name, cfg, remove_module_file)
 
     def load_module(self):
         super().load_module(self.name)
 
-    def on_mqtt_message(
+    def start_mqtt_listener(
         self,
         topic: str | None = None,
         host: str = "localhost",
@@ -1043,7 +1163,7 @@ class Pipeline(PipelineManager):
         **kwargs,
     ):
         name = self.name
-        return super().on_mqtt_message(
+        return super().start_mqtt_listener(
             name=name,
             topic=topic,
             host=host,
@@ -1061,16 +1181,32 @@ class Pipeline(PipelineManager):
             **kwargs,
         )
 
+    def stop_mqtt_listener(self):
+        return super().stop_mqtt_listener(self.name)
 
-def add(
+    def get_summary(self):
+        return super().get_summary(self.name)[self.name]
+
+    @property
+    def summary(self):
+        return self.get_summary()
+
+
+## methods for the pipeline module
+
+
+def add_pipeline(
     name: str,
     overwrite: bool = False,
     pipeline_config: dict | PipelineConfig = {},
-    func: dict = {},
+    pipeline_file: str | None = None,
+    params: dict = {},
     run: dict | PipelineRunConfig = {},
     schedule: dict | PipelineScheduleConfig = {},
     tracker: dict | PipelineTrackerConfig = {},
     base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
 ):
     """
     Add a new pipeline.
@@ -1078,92 +1214,30 @@ def add(
     Args:
         name (str): The name of the pipeline.
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        pipeline_file (str | None, optional): The path to the pipeline file. Defaults to None.
         pipeline_config (dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
-        func (dict, optional): The function configuration. Defaults to {}.
+        params (dict, optional): The function configuration. Defaults to {}.
         run (dict | PipelineRunConfig, optional): The run configuration. Defaults to {}.
         schedule (dict | PipelineScheduleConfig, optional): The schedule configuration. Defaults to {}.
         tracker (dict | PipelineTrackerConfig, optional): The tracker configuration. Defaults to {}.
         base_dir (str | None, optional): The base directory of the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    pm = PipelineManager(base_dir=base_dir)
-    pm.add(name, overwrite, pipeline_config, func, run, schedule, tracker)
-
-
-def new(
-    name: str,
-    overwrite: bool = False,
-    pipeline_config: dict | PipelineConfig = {},
-    func: dict = {},
-    run: dict | PipelineRunConfig = {},
-    schedule: dict | PipelineScheduleConfig = {},
-    tracker: dict | PipelineTrackerConfig = {},
-    base_dir: str | None = None,
-):
-    """
-    Add a new pipeline.
-
-    Args:
-        name (str): The name of the pipeline.
-        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-        pipeline_config (dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
-        func (dict, optional): The function configuration. Defaults to {}.
-        run (dict | PipelineRunConfig, optional): The run configuration. Defaults to {}.
-        schedule (dict | PipelineScheduleConfig, optional): The schedule configuration. Defaults to {}.
-        tracker (dict | PipelineTrackerConfig, optional): The tracker configuration. Defaults to {}.
-        base_dir (str | None, optional): The base directory of the pipeline. Defaults to None.
-    """
-    add(
+    pm = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
+    pm.add(
         name=name,
         overwrite=overwrite,
+        pipeline_file=pipeline_file,
         pipeline_config=pipeline_config,
-        func=func,
+        params=params,
         run=run,
         schedule=schedule,
         tracker=tracker,
-        base_dir=base_dir,
     )
 
 
-def run(
-    name: str,
-    inputs: dict | None = None,
-    final_vars: list | None = None,
-    executor: str | None = None,
-    with_tracker: bool = False,
-    with_opentelemetry: bool = False,
-    base_dir: str | None = None,
-    reload: bool = False,
-    **kwargs,
-) -> Any:
-    """
-    Run the pipeline with the given parameters.
-
-    Args:
-        name (str): The name of the pipeline.
-        executor (str | None, optional): The executor to use. Defaults to None.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
-        with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
-        base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
-        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
-        **kwargs: Additional keyword arguments.
-    Returns:
-        Any: The result of running the pipeline.
-    """
-    p = Pipeline(name=name, base_dir=base_dir)
-    return p.run(
-        executor=executor,
-        inputs=inputs,
-        final_vars=final_vars,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        **kwargs,
-    )
-
-
-def run_job(
+def add_pipeline_job(
     name: str,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -1171,48 +1245,8 @@ def run_job(
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
     base_dir: str | None = None,
-    reload: bool = False,
-    **kwargs,
-) -> Any:
-    """
-    Add a job to run the pipeline with the given parameters to the worker.
-    Executes the job immediatly and returns the job result.
-
-    Args:
-        name (str): The name of the job.
-        executor (str | None, optional): The executor to use for the job. Defaults to None.
-        inputs (dict | None, optional): The inputs for the job. Defaults to None.
-        final_vars (list | None, optional): The final variables for the job. Defaults to None.
-        with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
-        base_dir (str | None, optional): The base path for the job. Defaults to None.
-        reload (bool, optional): Whether to reload the job. Defaults to False.
-        **kwargs: Additional keyword arguments.
-
-    Returns:
-        Any: The result of running the job.
-    """
-
-    p = Pipeline(name=name, base_dir=base_dir)
-    return p.run_job(
-        executor=executor,
-        inputs=inputs,
-        final_vars=final_vars,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        **kwargs,
-    )
-
-
-def add_job(
-    name: str,
-    inputs: dict | None = None,
-    final_vars: list | None = None,
-    executor: str | None = None,
-    with_tracker: bool | None = None,
-    with_opentelemetry: bool | None = None,
-    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     reload: bool = False,
     result_expiration_time: float | dt.timedelta = 0,
     **kwargs,
@@ -1230,6 +1264,8 @@ def add_job(
         with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
         base_dir (str | None, optional): The base path for the job. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         reload (bool, optional): Whether to reload the job. Defaults to False.
         result_expiration_time (float | dt.timedelta | None, optional): The expiration time for the job result.
             Defaults to None.
@@ -1238,7 +1274,7 @@ def add_job(
     Returns:
         UUID: The UUID of the added job.
     """
-    p = Pipeline(name=name, base_dir=base_dir)
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
     return p.add_job(
         executor=executor,
         inputs=inputs,
@@ -1251,7 +1287,264 @@ def add_job(
     )
 
 
-def schedule(
+def all_pipelines(
+    base_dir: str | None = None,
+    show: bool = True,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    """
+    Print all available pipelines in a formatted table.
+
+    Args:
+        base_dir (str | None, optional): The base path of the pipelines. Defaults to None.
+        show (bool, optional): Whether to print the table. Defaults to True.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+    """
+    pm = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
+    return pm.all_pipelines(show=show)
+
+
+def delete_pipeline(
+    name: str,
+    base_dir: str | None = None,
+    remove_module_file: bool = False,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    """
+    Delete a pipeline.
+
+    Args:
+        name (str): The name of the pipeline to delete.
+        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        remove_module_file (bool, optional): Whether to delete the pipeline module. Defaults to False.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+    """
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    p.delete(remove_module_file=remove_module_file)
+
+
+def get_pipeline_summary(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    """
+    Get a summary of the pipelines.
+
+    Args:
+        name (str): The name of the pipeline.
+        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+    Returns:
+        dict: A dictionary containing the pipeline summary.
+    """
+    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
+    return p.get_summary(name=name)
+
+
+def new_pipeline(
+    name: str,
+    overwrite: bool = False,
+    pipeline_config: dict | PipelineConfig = {},
+    params: dict = {},
+    run: dict | PipelineRunConfig = {},
+    schedule: dict | PipelineScheduleConfig = {},
+    tracker: dict | PipelineTrackerConfig = {},
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    """
+    Add a new pipeline.
+
+    Args:
+        name (str): The name of the pipeline.
+        overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        pipeline_config (dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
+        params (dict, optional): The function configuration. Defaults to {}.
+        run (dict | PipelineRunConfig, optional): The run configuration. Defaults to {}.
+        schedule (dict | PipelineScheduleConfig, optional): The schedule configuration. Defaults to {}.
+        tracker (dict | PipelineTrackerConfig, optional): The tracker configuration. Defaults to {}.
+        base_dir (str | None, optional): The base directory of the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+    """
+    add_pipeline(
+        name=name,
+        overwrite=overwrite,
+        pipeline_config=pipeline_config,
+        params=params,
+        run=run,
+        schedule=schedule,
+        tracker=tracker,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        fs=fs,
+    )
+
+
+def run_pipeline(
+    name: str,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    executor: str | None = None,
+    with_tracker: bool = False,
+    with_opentelemetry: bool = False,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    reload: bool = False,
+    **kwargs,
+) -> Any:
+    """
+    Run the pipeline with the given parameters.
+
+    Args:
+        name (str): The name of the pipeline.
+        executor (str | None, optional): The executor to use. Defaults to None.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+        with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
+        base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+        **kwargs: Additional keyword arguments.
+    Returns:
+        Any: The result of running the pipeline.
+    """
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    return p.run(
+        executor=executor,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        reload=reload,
+        **kwargs,
+    )
+
+
+def run_pipeline_job(
+    name: str,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    executor: str | None = None,
+    with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    reload: bool = False,
+    **kwargs,
+) -> Any:
+    """
+    Add a job to run the pipeline with the given parameters to the worker.
+    Executes the job immediatly and returns the job result.
+
+    Args:
+        name (str): The name of the job.
+        executor (str | None, optional): The executor to use for the job. Defaults to None.
+        inputs (dict | None, optional): The inputs for the job. Defaults to None.
+        final_vars (list | None, optional): The final variables for the job. Defaults to None.
+        with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
+        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
+        base_dir (str | None, optional): The base path for the job. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+        reload (bool, optional): Whether to reload the job. Defaults to False.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        Any: The result of running the job.
+    """
+
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    return p.run_job(
+        executor=executor,
+        inputs=inputs,
+        final_vars=final_vars,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        reload=reload,
+        **kwargs,
+    )
+
+
+def start_mqtt_listener(
+    name: str,
+    topic: str | None = None,
+    host: str = "localhost",
+    port: int = 1883,
+    user: str | None = None,
+    pw: str | None = None,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    executor: str | None = None,
+    with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    reload: bool = False,
+    result_expiration_time: float | dt.timedelta = 0,
+    as_job: bool = False,
+    background: bool = False,
+    **kwargs,
+) -> MQTTClient:
+    """
+    Run a pipeline when a message is received on a given topic.
+
+    Args:
+        name (str): The name of the pipeline.
+        topic (str | None, optional): The topic to subscribe to. Defaults to None.
+        host (str, optional): The host of the MQTT broker. Defaults to "localhost".
+        port (int, optional): The port of the MQTT broker. Defaults to 1883.
+        user (str | None, optional): The username for the MQTT broker. Defaults to None.
+        pw (str | None, optional): The password for the MQTT broker. Defaults to None.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
+        with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
+        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+        result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
+        as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+        background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
+        **kwargs: Additional keyword arguments.
+    """
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    p.start_mqtt_listener(
+        topic=topic,
+        host=host,
+        port=port,
+        user=user,
+        pw=pw,
+        inputs=inputs,
+        final_vars=final_vars,
+        executor=executor,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        reload=reload,
+        result_expiration_time=result_expiration_time,
+        as_job=as_job,
+        background=background,
+        **kwargs,
+    )
+    return p.mqtt_client[name]
+
+
+def schedule_pipeline(
     name: str,
     trigger_type: str = "cron",
     inputs: dict | None = None,
@@ -1267,6 +1560,8 @@ def schedule(
     conflict_policy: str = "do_nothing",
     # job_result_expiration_time: float | dt.timedelta = 0,
     base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> str:
     """
@@ -1292,12 +1587,14 @@ def schedule(
         job_result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
                 Defaults to None.
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         str: The ID of the scheduled pipeline.
     """
-    p = Pipeline(name=name, base_dir=base_dir)
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
     return p.schedule(
         executor=executor,
         tigger_type=trigger_type,
@@ -1316,11 +1613,14 @@ def schedule(
     )
 
 
-def show(
+def show_pipeline_dag(
     name: str,
     format: str = "png",
-    view: bool = False,
+    show: bool = False,
+    save: bool = False,
     base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     reload: bool = False,
 ):
     """
@@ -1331,106 +1631,9 @@ def show(
         format (str, optional): The format of the displayed pipeline. Defaults to "png".
         view (bool, optional): Whether to display the pipeline. Defaults to False.
         base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
     """
-    p = Pipeline(name=name, base_dir=base_dir)
-    p.show(format=format, view=view, reload=reload)
-
-
-def delete(name: str, base_dir: str | None = None, module: bool = False):
-    """
-    Delete a pipeline.
-
-    Args:
-        name (str): The name of the pipeline to delete.
-        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
-        module (bool, optional): Whether to delete the pipeline module. Defaults to False.
-    """
-    p = Pipeline(name=name, base_dir=base_dir)
-    p.delete(module=module)
-
-
-def list_pipelines(base_dir: str | None = None) -> list[str]:
-    """
-    List all available pipelines.
-
-    Args:
-        base_dir (str | None, optional): The base path of the pipelines. Defaults to None.
-
-    Returns:
-        list[str]: List of pipeline names.
-    """
-    pm = PipelineManager(base_dir=base_dir)
-    return pm.list_pipelines()
-
-
-def all_pipelines(base_dir: str | None = None):
-    """
-    Print all available pipelines in a formatted table.
-
-    Args:
-        base_dir (str | None, optional): The base path of the pipelines. Defaults to None.
-    """
-    pm = PipelineManager(base_dir=base_dir)
-    pm.all_pipelines()
-
-
-def on_mqtt_message(
-    name: str,
-    topic: str | None = None,
-    host: str = "localhost",
-    port: int = 1883,
-    user: str | None = None,
-    pw: str | None = None,
-    inputs: dict | None = None,
-    final_vars: list | None = None,
-    executor: str | None = None,
-    with_tracker: bool | None = None,
-    with_opentelemetry: bool | None = None,
-    base_dir: str | None = None,
-    reload: bool = False,
-    result_expiration_time: float | dt.timedelta = 0,
-    as_job: bool = False,
-    background: bool = False,
-    **kwargs,
-):
-    """
-    Run a pipeline when a message is received on a given topic.
-
-    Args:
-        name (str): The name of the pipeline.
-        topic (str | None, optional): The topic to subscribe to. Defaults to None.
-        host (str, optional): The host of the MQTT broker. Defaults to "localhost".
-        port (int, optional): The port of the MQTT broker. Defaults to 1883.
-        user (str | None, optional): The username for the MQTT broker. Defaults to None.
-        pw (str | None, optional): The password for the MQTT broker. Defaults to None.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
-        with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
-        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
-        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
-        result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
-        as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
-        background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
-        **kwargs: Additional keyword arguments.
-    """
-    p = Pipeline(name=name, base_dir=base_dir)
-    p.on_mqtt_message(
-        topic=topic,
-        host=host,
-        port=port,
-        user=user,
-        pw=pw,
-        inputs=inputs,
-        final_vars=final_vars,
-        executor=executor,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        result_expiration_time=result_expiration_time,
-        as_job=as_job,
-        background=background,
-        **kwargs,
-    )
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    p.show(format=format, show=show, reload=reload, save=save)
