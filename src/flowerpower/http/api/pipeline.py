@@ -119,3 +119,14 @@ async def show(
 ) -> json:
     pipeline_dag = request.app.ctx.pipeline_manager.show_dag(name=name)
     return raw(pipeline_dag.pipe("svg"))
+
+
+@bp.post("/set-abc/<value>")
+async def set_abc(request, value):
+    request.app.ctx.abc = value
+    return json({"status": "success"})
+
+
+@bp.get("/get-abc")
+async def get_abc(request):
+    return json({"abc": request.app.ctx.abc})

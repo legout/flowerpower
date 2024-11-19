@@ -7,9 +7,9 @@ if importlib.util.find_spec("apscheduler"):
     from apscheduler.executors.subprocess import ProcessPoolJobExecutor
     from apscheduler.executors.thread import ThreadPoolJobExecutor
 
-    from .helpers import monkey
+    from .helpers.monkey import patch_pickle, Job, Task, Schedule
 
-    monkey.patch_pickle()
+    patch_pickle()
 
 else:
     raise ImportError(
@@ -193,6 +193,30 @@ class SchedulerManager(Scheduler):
         for sched in self.get_schedules():
             self.remove_schedule(sched.id)
 
+    def get_tasks(self, as_dict: bool = False):
+        tasks = super().get_tasks()
+        if as_dict:
+            return [task.to_dict() for task in tasks]
+        return super().get_tasks()
+
+    def get_schedules(self, as_dict: bool = False):
+        schedules = super().get_schedules()
+        if as_dict:
+            return [schedule.to_dict() for schedule in schedules]
+        return schedules
+
+    def get_schedule(self, id: str, as_dict: bool = False):
+        schedule = super().get_schedule(id)
+        if as_dict:
+            return schedule.to_dict()
+        return schedule
+
+    def get_jobs(self, as_dict: bool = False):
+        jobs = super().get_jobs()
+        if as_dict:
+            return [job.to_dict() for job in jobs]
+        return jobs
+
     def show_schedules(self):
         """
         Shows all schedules in the scheduler.
@@ -236,28 +260,6 @@ def get_current_scheduler_manager() -> SchedulerManager | None:
         The current scheduler manager if available, otherwise None.
     """
     return current_scheduler.get()
-
-
-# def get_scheduler(
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     *args,
-#     **kwargs,
-# ) -> SchedulerManager:
-#     """
-#     Get the scheduler object.
-
-#     Args:
-#         name (str | None, optional): The name of the scheduler. Defaults to None.
-#         base_dir (str | None, optional): The base path. Defaults to None.
-#         *args: Additional positional arguments.
-#         **kwargs: Additional keyword arguments.
-
-#     Returns:
-#         SchedulerManager: The initialized SchedulerManager instance.
-#     """
-#     manager = get_schedule_manager(name, base_dir, *args, **kwargs)
-#     return manager
 
 
 def start_worker(

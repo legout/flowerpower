@@ -3,24 +3,8 @@ from sanic.response import json, raw
 from sanic.exceptions import SanicException
 import uuid
 import dill
-import pickle
-import cloudpickle
 
 bp = Blueprint("api_flowerpower_scheduler", url_prefix="api/scheduler")
-
-
-# @bp.post("/start-worker")
-# async def start_worker(request) -> json:
-#    request.app.ctx.scheduler.start_worker(background=True)
-#    id_ = request.app.ctx.scheduler.identity
-#    return json({"status": f"worker {id_} started"})
-
-
-# @bp.post("/stop-worker")
-# async def stop_worker(request) -> json:
-#    request.app.ctx.scheduler.stop_worker()
-#    id_ = request.app.ctx.scheduler.identity
-#    return json({"status": f"worker {id_} stopped"})
 
 
 @bp.get("/status")
@@ -31,12 +15,62 @@ async def status(request) -> json:
 
 @bp.get("/jobs")
 async def jobs(request) -> json:
-    jobs = request.app.ctx.scheduler.get_jobs()
+    jobs = request.app.ctx.scheduler.get_jobs(as_dict=True)
     return json({"jobs": jobs})
 
 
 @bp.get("/job-result/<job_id>")
 async def job_result(request, job_id) -> json:
     job_id = uuid.UUID(job_id)
+    if job_id not in [job.id for job in request.app.ctx.scheduler.get_jobs()]:
+        raise SanicException("Job not found", status_code=404)
     job = request.app.ctx.scheduler.get_job_result(job_id)
     return raw(dill.dumps(job))
+
+
+@bp.get("/schedules")
+async def schedules(request) -> json:
+    schedules = request.app.ctx.scheduler.get_schedules(as_dict=True)
+    return json({"schedules": schedules})
+
+
+@bp.get("/schedule/<schedule_id>")
+async def schedule(request, schedule_id) -> json:
+    if schedule_id not in [
+        sched.id for sched in request.app.ctx.scheduler.get_schedules()
+    ]:
+        raise SanicException("Schedule not found", status_code=404)
+    schedule = request.app.ctx.scheduler.get_schedule(schedule_id, as_dict=True)
+    return json(schedule)
+
+
+@bp.delete("/schedule/<schedule_id>")
+async def remove_schedule(request, schedule_id) -> json:
+    if schedule_id not in [
+        sched.id for sched in request.app.ctx.scheduler.get_schedules()
+    ]:
+        raise SanicException("Schedule not found", status_code=404)
+    request.app.ctx.scheduler.remove_schedule(schedule_id)
+    return json({"status": "success"})
+
+
+@bp.delete("/schedules")
+async def remove_schedules(request) -> json:
+    request.app.ctx.scheduler.remove_all_schedules()
+    return json({"status": "success"})
+
+
+@bp.post("/pause-schedule/<schedule_id>")
+async def pause_schedule(request, schedule_id) -> json:
+    if schedule_id not in [
+        sched.id for sched in request.app.ctx.scheduler.get_schedules()
+    ]:
+        raise SanicException("Schedule not found", status_code=404)
+    request.app.ctx.scheduler.pause_schedule(schedule_id)
+    return json({"status": "success"})
+
+
+@bp.get("/tasks")
+async def tasks(request) -> json:
+    tasks = request.app.ctx.scheduler.get_tasks(as_dict=True)
+    return json({"tasks": tasks})

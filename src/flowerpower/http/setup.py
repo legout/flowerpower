@@ -19,7 +19,8 @@ def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None 
         app.ctx.scheduler = SchedulerManager(
             base_dir=base_dir, storage_options=storage_options
         )
-        app.ctx.scheduler.start_worker(background=True)
+        # app.ctx.scheduler.start_worker(background=True)
+        app.ctx.abc = 123
 
     @app.listener("before_server_stop")
     def cleanup_scheduler(app, loop):
