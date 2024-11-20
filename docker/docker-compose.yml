@@ -36,10 +36,11 @@ services:
   #   command: mosquitto -c /mosquitto/config/mosquitto.conf
   
   mqtt:
-    image: emqx/emqx
+    image: emqx/nanomq
     ports:
       - 1883:1883
-      - 18083:18083
+      - 8083:8083
+      - 8883:8883
 
   redis:
     image: valkey/valkey
@@ -76,7 +77,6 @@ services:
       - POSTGRES_PASSWORD=password
     ports:
       - 5432:5432
-
 
   backend:
     container_name: ui-backend

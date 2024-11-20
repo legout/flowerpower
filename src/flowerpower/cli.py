@@ -330,7 +330,7 @@ def add_pipeline(
 
 
 @app.command()
-def delete(name: str, base_dir: str = "", module: bool = False):
+def delete_pipeline(name: str, base_dir: str = "", module: bool = False):
     """
     Delete a pipeline.
 
