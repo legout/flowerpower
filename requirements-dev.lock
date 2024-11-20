@@ -90,12 +90,14 @@ colorlog==6.9.0
     # via sf-hamilton-ui
 comm==0.2.2
     # via ipykernel
+datafusion==42.0.0
 debugpy==1.8.8
     # via ipykernel
 decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+deltalake==0.21.0
 deprecated==1.2.14
     # via opentelemetry-api
     # via opentelemetry-semantic-conventions
@@ -331,6 +333,9 @@ ptyprocess==0.7.0
     # via terminado
 pure-eval==0.2.3
     # via stack-data
+pyarrow==18.0.0
+    # via datafusion
+    # via deltalake
 pycparser==2.22
     # via cffi
 pydantic==2.9.2
@@ -471,6 +476,7 @@ types-python-dateutil==2.9.0.20241003
     # via arrow
 typing-extensions==4.12.2
     # via aiosqlite
+    # via datafusion
     # via opentelemetry-sdk
     # via pydantic
     # via pydantic-core

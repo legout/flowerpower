@@ -68,6 +68,8 @@ dev-dependencies = [
     "pygit2>=1.16.0",
     "s3fs>=2024.10.0",
     "jupyterlab>=4.3.0",
+    "deltalake>=0.21.0",
+    "datafusion>=42.0.0",
 ]
 #[tool.rye.scripts]
 #flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}

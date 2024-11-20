@@ -229,11 +229,42 @@ class GitLabFileSystem(AbstractFileSystem):
 
 try:
     fsspec.register_implementation("gitlab", GitLabFileSystem)
-except:
-    pass
+except fsspec.core.ImplementationError as e:
+    _ = e
+
+
+def _s3_storage_options_to_kwargs(storage_options):
+    storage_options["client_kwargs"] = storage_options.get("client_kwargs", {})
+    storage_options["s3_additional_kwargs"] = storage_options.get(
+        "s3_additional_kwargs", {}
+    )
+    for key in storage_options:
+        if key.lower() in ["aws_access_key_id", "access_key"]:
+            storage_options["key"] = storage_options.pop(key)
+        if key.lower() in ["aws_secret_access_key", "secret_access_key"]:
+            storage_options["secret"] = storage_options.pop(key)
+        if key.lower() in ["aws_region", "region_name", "region", "aws_default_region"]:
+            storage_options["client_kwargs"].update(
+                {"region": storage_options.pop(key)}
+            )
+        if key.lower() in ["aws_session_token", "session_token"]:
+            storage_options["token"] = storage_options.pop(key)
+        if key.lower() in ["aws_endpoint_url", "endpoint", "aws_endpoint"]:
+            storage_options["endpoint_url"] = storage_options.pop(key)
+        if key.lower() in ["allow_invalid_certificates"]:
+            storage_options["client_kwargs"]["verify"] = (
+                storage_options.pop(key) != "true"
+            )
+        if key.lower() in ["aws_allow_http", "allow_http"]:
+            storage_options["client_kwargs"]["use_ssl"] = (
+                storage_options.pop(key) != "true"
+            )
+
+    return storage_options
 
 
 def get_filesystem(path: str | None = None, **storage_options) -> DirFileSystem:
+    storage_options = _s3_storage_options_to_kwargs(storage_options)
     if path is None:
         path = "file://."
     fs, path = url_to_fs(path, **storage_options)

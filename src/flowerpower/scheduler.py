@@ -194,24 +194,61 @@ class SchedulerManager(Scheduler):
             self.remove_schedule(sched.id)
 
     def get_tasks(self, as_dict: bool = False):
+        """
+        Get all tasks from the scheduler.
+
+        Args:
+            as_dict (bool, optional): Whether to return the tasks as a list of dictionaries. Defaults to False.
+
+        Returns:
+            list: A list of tasks.
+        """
         tasks = super().get_tasks()
         if as_dict:
             return [task.to_dict() for task in tasks]
         return super().get_tasks()
 
     def get_schedules(self, as_dict: bool = False):
+        """
+        Get all schedules from the scheduler.
+
+        Args:
+            as_dict (bool, optional): Whether to return the schedules as a list of dictionaries. Defaults to False.
+
+        Returns:
+            list: A list of schedules.
+        """
         schedules = super().get_schedules()
         if as_dict:
             return [schedule.to_dict() for schedule in schedules]
         return schedules
 
     def get_schedule(self, id: str, as_dict: bool = False):
+        """
+        Get a schedule by ID.
+
+        Args:
+            id (str): The ID of the schedule.
+            as_dict (bool, optional): Whether to return the schedule as a dictionary. Defaults to False.
+
+        Returns:
+            Schedule: The schedule object.
+        """
         schedule = super().get_schedule(id)
         if as_dict:
             return schedule.to_dict()
         return schedule
 
     def get_jobs(self, as_dict: bool = False):
+        """
+        Get all jobs from the scheduler.
+
+        Args:
+            as_dict (bool, optional): Whether to return the jobs as a list of dictionaries. Defaults to False.
+
+        Returns:
+            list: A list of jobs.
+        """
         jobs = super().get_jobs()
         if as_dict:
             return [job.to_dict() for job in jobs]
