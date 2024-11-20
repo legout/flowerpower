@@ -4,6 +4,7 @@ from ..scheduler import SchedulerManager
 from ..pipeline import PipelineManager
 from .api.pipeline import bp as bp_api_pipeline
 from .api.scheduler import bp as bp_api_scheduler
+from .api.cfg import bp as bp_api_cfg
 
 
 def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None = None):
@@ -19,8 +20,7 @@ def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None 
         app.ctx.scheduler = SchedulerManager(
             base_dir=base_dir, storage_options=storage_options
         )
-        # app.ctx.scheduler.start_worker(background=True)
-        app.ctx.abc = 123
+        app.ctx.scheduler.start_worker(background=True)
 
     @app.listener("before_server_stop")
     def cleanup_scheduler(app, loop):
@@ -29,5 +29,6 @@ def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None 
 
     app.blueprint(bp_api_pipeline)
     app.blueprint(bp_api_scheduler)
+    app.blueprint(bp_api_cfg)
 
     return app
