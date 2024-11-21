@@ -6,7 +6,7 @@ from loguru import logger
 from munch import Munch
 from paho.mqtt.client import CallbackAPIVersion, Client
 
-from .cfg import Config
+from ..cfg import Config
 
 
 class MQTTClient:

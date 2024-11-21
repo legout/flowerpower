@@ -1,8 +1,7 @@
+import importlib
 import sys
 
 from dill import dumps, loads
-
-import importlib
 
 
 def patch_pickle():
@@ -23,7 +22,6 @@ def patch_pickle():
 
 
 if importlib.util.find_spec("apscheduler"):
-
     from apscheduler._structures import Job, Schedule, Task
 
     def job_to_dict(job):

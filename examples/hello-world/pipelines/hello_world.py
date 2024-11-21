@@ -12,7 +12,7 @@ from flowerpower.cfg import Config
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
-).pipeline.hamilton_func_params
+).pipeline.h_params
 
 # PARAMS = Munch(
 #     {

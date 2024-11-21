@@ -1,2 +1,1 @@
 from dataclasses import dataclass
-

@@ -5,9 +5,9 @@ import os
 import sys
 from typing import Any, Callable
 from uuid import UUID
-from fsspec.spec import AbstractFileSystem
 
 import rich
+from fsspec.spec import AbstractFileSystem
 from hamilton import driver
 from hamilton.plugins import h_opentelemetry
 from hamilton_sdk.adapters import HamiltonTracker
@@ -21,8 +21,8 @@ from .cfg import (
     PipelineScheduleConfig,
     PipelineTrackerConfig,
 )
-from .helpers.open_telemetry import init_tracer
 from .helpers.filesystem import get_filesystem
+from .helpers.open_telemetry import init_tracer
 
 # from munch import unmunchify
 from .helpers.templates import PIPELINE_PY_TEMPLATE
@@ -32,7 +32,7 @@ if importlib.util.find_spec("apscheduler"):
 else:
     SchedulerManager = None
 if importlib.util.find_spec("paho"):
-    from .mqtt import MQTTClient
+    from .helpers.mqtt import MQTTClient
 else:
     MQTTClient = None
 
@@ -597,7 +597,7 @@ class PipelineManager:
             ids = [schedule.id for schedule in self._get_schedules()]
             if any([name in id_ for id_ in ids]):
                 id_num = sorted([id_ for id_ in ids if name in id_])[-1].split("-")[-1]
-                return f"{name}-{int(id_num)+1}"
+                return f"{name}-{int(id_num) + 1}"
             return f"{name}-1"
 
         id_ = _get_id()
@@ -710,7 +710,11 @@ class PipelineManager:
                     )
                     # rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
         except NotImplementedError:
-            raise NotImplementedError("The filesystem does not support writing files.")
+            raise NotImplementedError(
+                "The filesystem "
+                f"{self.fs.fs.protocol[0] if isinstance(self.fs.fs.protocol, tuple) else self.fs.fs.protocol} "
+                "does not support writing files."
+            )
 
         if pipeline_config:
             self.cfg.pipeline = (
@@ -976,7 +980,6 @@ class PipelineManager:
         if not hasattr(self, "mqtt_client"):
             self.mqtt_client = {}
         try:
-
             self.mqtt[name] = MQTTClient.from_event_broker(base_dir=self._base_dir)
         except ValueError as e:
             logger.exception(e)
@@ -999,7 +1002,6 @@ class PipelineManager:
 
 
 class Pipeline(PipelineManager):
-
     def __init__(
         self,
         name: str,
@@ -1190,9 +1192,6 @@ class Pipeline(PipelineManager):
     @property
     def summary(self):
         return self.get_summary()
-
-
-## methods for the pipeline module
 
 
 def add_pipeline(

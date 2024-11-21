@@ -3,6 +3,7 @@ import inspect
 import os
 import urllib
 from pathlib import Path
+
 import fsspec
 import requests
 from fsspec import url_to_fs
@@ -229,7 +230,7 @@ class GitLabFileSystem(AbstractFileSystem):
 
 try:
     fsspec.register_implementation("gitlab", GitLabFileSystem)
-except fsspec.core.ImplementationError as e:
+except ValueError as e:
     _ = e
 
 

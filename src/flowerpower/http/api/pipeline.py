@@ -1,7 +1,6 @@
 from sanic import Blueprint
 from sanic.response import json, raw
 
-
 bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 
 

@@ -1,15 +1,16 @@
-from dataclasses import dataclass
-from hamilton.io.data_adapters import DataLoader, DataSaver
-from hamilton.io import utils
 import pathlib
-from typing import Collection, Type, Any, Iterable
-from deltalake import DeltaTable, write_deltalake_table, ArrowStreamExportable
+from dataclasses import dataclass
+from typing import Any, Collection, Iterable, Type
+
+import datafusion as df
+import duckdb as ddb
 import pandas as pd
+import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-import polars as pl
-import duckdb as ddb
-import datafusion as df
+from deltalake import ArrowStreamExportable, DeltaTable, write_deltalake_table
+from hamilton.io import utils
+from hamilton.io.data_adapters import DataLoader, DataSaver
 
 
 def load_delta_table(

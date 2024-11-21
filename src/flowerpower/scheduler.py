@@ -7,7 +7,7 @@ if importlib.util.find_spec("apscheduler"):
     from apscheduler.executors.subprocess import ProcessPoolJobExecutor
     from apscheduler.executors.thread import ThreadPoolJobExecutor
 
-    from .helpers.monkey import patch_pickle, Job, Task, Schedule
+    from .helpers.monkey import Job, Schedule, Task, patch_pickle
 
     patch_pickle()
 
@@ -21,14 +21,14 @@ import os
 import uuid
 from typing import Any
 
+from fsspec.spec import AbstractFileSystem
 from loguru import logger
 
 from .cfg import Config
 from .helpers.datastore import setup_data_store
 from .helpers.eventbroker import setup_event_broker
-from .helpers.scheduler import display_schedules
-from fsspec.spec import AbstractFileSystem
 from .helpers.filesystem import get_filesystem
+from .helpers.scheduler import display_schedules
 
 
 class SchedulerManager(Scheduler):

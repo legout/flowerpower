@@ -8,4 +8,4 @@ from pathlib import Path
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="test_123"
-).pipeline.hamilton_func_params
+).pipeline.h_params

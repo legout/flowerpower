@@ -1,27 +1,37 @@
 import datetime as dt
-from dataclasses import asdict, dataclass, field
+from typing import Any
 
 import yaml
 from fsspec.spec import AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify, unmunchify
 
+# from dataclasses import asdict, dataclass, field
+from pydantic import BaseModel, ConfigDict, Field
+
 from .helpers.filesystem import get_filesystem
 
 
-@dataclass
-class BaseConfig:
-    # fs: AbstractFileSystem | None = None
+class BaseConfig(BaseModel):
+    # fs: Optional[AbstractFileSystem] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def to_dict(self):
-        return unmunchify(asdict(self))  # .__dict__)
+    def to_dict(self) -> dict[str, Any]:
+        return unmunchify(self.model_dump())
 
-    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
-        with fs.open(path, "w") as f:
-            yaml.dump(self.to_dict(), f, default_flow_style=False)
+    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None) -> None:
+        try:
+            with fs.open(path, "w") as f:
+                yaml.dump(self.to_dict(), f, default_flow_style=False)
+        except NotImplementedError:
+            raise NotImplementedError(
+                "The filesystem "
+                f"{self.fs.fs.protocol[0] if isinstance(self.fs.fs.protocol, tuple) else self.fs.fs.protocol} "
+                "does not support writing files."
+            )
 
     @classmethod
-    def from_dict(cls, d: dict | Munch):
+    def from_dict(cls, d: dict[str, Any] | Munch) -> "BaseConfig":
         return cls(**d)
 
     @classmethod
@@ -31,132 +41,99 @@ class BaseConfig:
         with fs.open(path) as f:
             return cls.from_dict(yaml.full_load(f))
 
-    # def __post_init__(self):
-    #     if self.fs is None:
-    #         self.fs = get_filesystem()
+    def update(self, d: dict[str, Any] | Munch) -> None:
+        for k, v in d.items():
+            setattr(self, k, v)
 
 
-@dataclass
 class PipelineRunConfig(BaseConfig):
-    final_vars: list[str] = field(default_factory=list)
-    inputs: dict | Munch = field(default_factory=dict)
-    executor: str | None = None
-    with_tracker: bool = False
-    with_opentelemetry: bool = False
+    final_vars: list[str] = Field(default_factory=list)
+    inputs: dict | Munch = Field(default_factory=dict)
+    executor: str | None = Field(default=None)
+    with_tracker: bool = Field(default=False)
+    with_opentelemetry: bool = Field(default=False)
 
-    def __post_init__(self):
+    def model_post_init(self, __context):
         if isinstance(self.inputs, dict):
             self.inputs = munchify(self.inputs)
 
 
-@dataclass
 class PipelineScheduleTriggerConfig(BaseConfig):
-    type_: str | None = None
-    crontab: str | None = None
-    year: str | int | None = None
-    month: str | int | None = None
-    weeks: int | float = 0
-    week: str | int | None = None
-    days: int | float = 0
-    day: str | int | None = None
-    day_of_week: str | int | None = None
-    hours: int | float = 0
-    hour: str | int | None = None
-    minutes: int | float = 0
-    minute: str | int | None = None
-    seconds: int | float = 0
-    second: str | int | None = None
-    start_time: dt.datetime | None = None
-    end_time: dt.datetime | None = None
-    timezone: str | None = None
+    type_: str | None = Field(default=None)
+    crontab: str | None = Field(default=None)
+    year: str | int | None = Field(default=None)
+    month: str | int | None = Field(default=None)
+    weeks: int | float = Field(default=0)
+    week: str | int | None = Field(default=None)
+    days: int | float = Field(default=0)
+    day: str | int | None = Field(default=None)
+    day_of_week: str | int | None = Field(default=None)
+    hours: int | float = Field(default=0)
+    hour: str | int | None = Field(default=None)
+    minutes: int | float = Field(default=0)
+    minute: str | int | None = Field(default=None)
+    seconds: int | float = Field(default=0)
+    second: str | int | None = Field(default=None)
+    start_time: dt.datetime | None = Field(default=None)
+    end_time: dt.datetime | None = Field(default=None)
+    timezone: str | None = Field(default=None)
 
 
-@dataclass
 class PipelineScheduleRunConfig(BaseConfig):
-    id_: str | None = None
-    executor: str | None = None
-    paused: bool = False
-    coalesce: str = "latest"  # other options are "all" and "earliest"
-    misfire_grace_time: int | float | dt.timedelta | None = None
-    max_jitter: int | float | dt.timedelta | None = None
-    max_running_jobs: int | None = None
-    conflict_policy: str | None = (
-        "do_nothing"  # other options are "replace" and "exception"
-    )
+    id_: str | None = Field(default=None)
+    executor: str | None = Field(default=None)
+    paused: bool = Field(default=False)
+    coalesce: str = Field(default="latest")  # other options are "all" and "earliest"
+    misfire_grace_time: int | float | dt.timedelta | None = Field(default=None)
+    max_jitter: int | float | dt.timedelta | None = Field(default=None)
+    max_running_jobs: int | None = Field(default=None)
+    conflict_policy: str | None = Field(
+        default="do_nothing"
+    )  # other options are "replace" and "exception"
 
 
-@dataclass
 class PipelineScheduleConfig(BaseConfig):
-    run: PipelineScheduleRunConfig = field(default_factory=PipelineScheduleRunConfig)
-    trigger: PipelineScheduleTriggerConfig = field(
+    run: PipelineScheduleRunConfig = Field(default_factory=PipelineScheduleRunConfig)
+    trigger: PipelineScheduleTriggerConfig = Field(
         default_factory=PipelineScheduleTriggerConfig
     )
 
-    def __post_init__(self):
-        self.run = PipelineScheduleRunConfig(
-            **self.run if isinstance(self.run, dict | Munch) else self.run.to_dict()
-        )
-        self.trigger = PipelineScheduleTriggerConfig(
-            **(
-                self.trigger
-                if isinstance(self.trigger, dict | Munch)
-                else self.trigger.to_dict()
-            )
-        )
 
-
-@dataclass
 class PipelineTrackerConfig(BaseConfig):
-    project_id: int | None = None
-    version: str | None = None
-    dag_name: str | None = None
-    tags: dict | Munch = field(default_factory=dict)
+    project_id: int | None = Field(default=None)
+    version: str | None = Field(default=None)
+    dag_name: str | None = Field(default=None)
+    tags: dict | Munch = Field(default_factory=dict)
 
-    def __post_init__(self):
-        if isinstance(self.tags, dict):
-            self.tags = munchify(self.tags)
+    def model_post_init(self, __context):
+        self.tags = munchify(self.tags)
 
 
-@dataclass
 class PipelineConfig(BaseConfig):
-    name: str | None = None
-    run: PipelineRunConfig = field(default_factory=PipelineRunConfig)
-    schedule: PipelineScheduleConfig = field(default_factory=PipelineScheduleConfig)
-    params: dict | Munch = field(default_factory=dict)
-    tracker: PipelineTrackerConfig = field(default_factory=PipelineTrackerConfig)
+    name: str | None = Field(default=None)
+    run: PipelineRunConfig = Field(default_factory=PipelineRunConfig)
+    schedule: PipelineScheduleConfig = Field(default_factory=PipelineScheduleConfig)
+    params: dict | Munch = Field(default_factory=dict)
+    tracker: PipelineTrackerConfig = Field(default_factory=PipelineTrackerConfig)
+    h_params: dict | Munch = Field(default_factory=dict)
 
-    def __post_init__(self):
-        self.run = PipelineRunConfig(
-            **self.run if isinstance(self.run, dict | Munch) else self.run.to_dict()
-        )
-        self.schedule = PipelineScheduleConfig(
-            **(
-                self.schedule
-                if isinstance(self.schedule, dict | Munch)
-                else self.schedule.to_dict()
-            )
-        )
-        self.tracker = PipelineTrackerConfig(
-            **(
-                self.tracker
-                if isinstance(self.tracker, dict | Munch)
-                else self.tracker.to_dict()
-            )
-        )
+    def model_post_init(self, __context):
         if isinstance(self.params, dict):
-            self.hamilton_func_params = munchify(self.f_args_to_ht_params(self.params))
+            self.h_params = munchify(self.to_h_params(self.params))
             self.params = munchify(self.params)
 
-    def to_dict(self):
-        d = asdict(self)
-        # d.pop("name")
-        return unmunchify(d)
-
     def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
-        with fs.open(path, "w") as f:
-            d = self.to_dict()
-            d.pop("name")
-            yaml.dump(d, f, default_flow_style=False)
+        try:
+            with fs.open(path, "w") as f:
+                d = self.to_dict()
+                d.pop("name")
+                yaml.dump(d, f, default_flow_style=False)
+        except NotImplementedError:
+            raise NotImplementedError(
+                "The filesystem "
+                f"{self.fs.fs.protocol[0] if isinstance(self.fs.fs.protocol, tuple) else self.fs.fs.protocol} "
+                "does not support writing files."
+            )
 
     @classmethod
     def from_dict(cls, name: str, d: dict | Munch):
@@ -168,8 +145,19 @@ class PipelineConfig(BaseConfig):
         with fs.open(path) as f:
             return cls.from_dict(name, yaml.full_load(f))
 
+    def update(self, d: dict | Munch):
+        for k, v in d.items():
+            eval(f"self.{k}.update({v})")
+            if k == "params":
+                self.params.update(munchify(v))
+                self.h_params = munchify(self.to_h_params(self.params))
+                # self.params = munchify(self.params)
+        if "params" in d:
+            self.h_params = munchify(self.to_h_params(self.params))
+            self.params = munchify(self.params)
+
     @staticmethod
-    def f_args_to_ht_params(d: dict) -> dict:
+    def to_h_params(d: dict) -> dict:
         """Coverts a dictionary of function arguments to Hamilton function parameters"""
 
         def transform_recursive(val, original_dict):
@@ -185,12 +173,6 @@ class PipelineConfig(BaseConfig):
             else:
                 return value(val)
 
-        # result = {}
-        # for key, val in d.items():
-        #     result[key] = {
-        #         key: val
-        #     }
-
         # Step 1: Replace each value with a dictionary containing key and value
         result = {k: {k: d[k]} for k in d}
 
@@ -198,90 +180,46 @@ class PipelineConfig(BaseConfig):
         return {k: transform_recursive(v, d) for k, v in result.items()}
 
 
-@dataclass
 class ProjectWorkerConfig(BaseConfig):
-    data_store: dict | Munch = field(default_factory=dict)
-    event_broker: dict | Munch = field(default_factory=dict)
-    cleanup_interval: int | float | dt.timedelta = 900  # int in secods
-    max_concurrent_jobs: int = 100
+    data_store: dict | Munch = Field(default_factory=dict)
+    event_broker: dict | Munch = Field(default_factory=dict)
+    cleanup_interval: int | float | dt.timedelta = Field(default=900)  # int in secods
+    max_concurrent_jobs: int = Field(default=100)
 
-    def __post_init__(self):
+    def model_post_init(self, __context):
         if isinstance(self.data_store, dict):
             self.data_store = munchify(self.data_store)
         if isinstance(self.event_broker, dict):
             self.event_broker = munchify(self.event_broker)
 
 
-@dataclass
 class ProjectTrackerConfig(BaseConfig):
-    username: str | None = None
+    username: str | None = Field(default=None)
     api_url: str = "http://localhost:8241"
     ui_url: str = "http://localhost:8242"
-    api_key: str | None = None
+    api_key: str | None = Field(default=None)
 
 
-@dataclass
 class ProjectOpenTelemetryConfig(BaseConfig):
-    host: str = "localhost"
-    port: int = 6831
+    host: str = Field(default="localhost")
+    port: int = Field(default=6831)
 
 
-@dataclass
 class ProjectConfig(BaseConfig):
-    name: str | None = None
-    worker: ProjectWorkerConfig = field(default_factory=ProjectWorkerConfig)
-    tracker: ProjectTrackerConfig = field(default_factory=ProjectTrackerConfig)
-    open_telemetry: ProjectOpenTelemetryConfig = field(
+    name: str | None = Field(default=None)
+    worker: ProjectWorkerConfig = Field(default_factory=ProjectWorkerConfig)
+    tracker: ProjectTrackerConfig = Field(default_factory=ProjectTrackerConfig)
+    open_telemetry: ProjectOpenTelemetryConfig = Field(
         default_factory=ProjectOpenTelemetryConfig
     )
 
-    def __post_init__(self):
-        self.worker = ProjectWorkerConfig(
-            **(
-                self.worker
-                if isinstance(self.worker, dict | Munch)
-                else self.worker.to_dict()
-            )
-        )
-        self.tracker = ProjectTrackerConfig(
-            **(
-                self.tracker
-                if isinstance(self.tracker, dict | Munch)
-                else self.tracker.to_dict()
-            )
-        )
-        self.open_telemetry = ProjectOpenTelemetryConfig(
-            **(
-                self.open_telemetry
-                if isinstance(self.open_telemetry, dict | Munch)
-                else self.open_telemetry.to_dict()
-            )
-        )
 
-
-@dataclass
 class Config(BaseConfig):
-    pipeline: PipelineConfig = field(default_factory=PipelineConfig)
-    project: ProjectConfig = field(default_factory=ProjectConfig)
-    fs: AbstractFileSystem | None = None
-    base_dir: str | None = None
-    storage_options: dict | Munch = field(default_factory=Munch)
-
-    def __post_init__(self):
-        self.pipeline = PipelineConfig(
-            **(
-                self.pipeline
-                if isinstance(self.pipeline, dict | Munch)
-                else self.pipeline.to_dict()
-            )
-        )
-        self.project = ProjectConfig(
-            **(
-                self.project
-                if isinstance(self.project, dict | Munch)
-                else self.project.to_dict()
-            )
-        )
+    pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
+    project: ProjectConfig = Field(default_factory=ProjectConfig)
+    fs: AbstractFileSystem | None = Field(default=None)
+    base_dir: str | None = Field(default=None)
+    storage_options: dict | Munch = Field(default_factory=Munch)
 
     @classmethod
     def load(

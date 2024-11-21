@@ -2,11 +2,11 @@ import datetime as dt
 import os
 from pathlib import Path
 
+import rich
+from fsspec.spec import AbstractFileSystem
 
 from .cfg import Config
-import rich
 from .helpers.filesystem import get_filesystem
-from fsspec.spec import AbstractFileSystem
 
 
 def init(

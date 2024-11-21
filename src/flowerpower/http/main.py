@@ -11,9 +11,9 @@ def create_app(args):
     # sanic src.flowerpower.http.main:create_app -factory --base-dir /path/to/base_dir
     # app = setup(args.base_dir)
     base_dir = args.base_dir if hasattr(args, "base_dir") else None
-    storage_options = args.storage_options if hasattr(args, "storage_options") else {}
-
-    print(args)
+    storage_options = (
+        eval(args.storage_options) if hasattr(args, "storage_options") else {}
+    )
     app = Sanic("flowerpower", dumps=dumps, loads=loads)
     setup(app=app, base_dir=base_dir, storage_options=storage_options)
 

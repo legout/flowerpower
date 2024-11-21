@@ -151,5 +151,5 @@ from pathlib import Path
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="{name}"
-).pipeline.hamilton_func_params
+).pipeline.h_params
 """
