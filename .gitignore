@@ -16,3 +16,5 @@ dev/simple
 dev/
 flowerpower.db
 **/.ipynb_checkpoints/
+Digraph.gv
+Digraph.gv.pdf

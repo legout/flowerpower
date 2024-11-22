@@ -12,7 +12,12 @@ from hamilton import driver
 from hamilton.plugins import h_opentelemetry
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
+from rich.panel import Panel
 from rich.table import Table
+from rich.console import Console
+from rich.syntax import Syntax
+from rich.tree import Tree
+from rich.columns import Columns
 
 from .cfg import (
     Config,
@@ -631,56 +636,22 @@ class PipelineManager:
             )
             return id_
 
-    def new(
-        self,
-        name: str,
-        overwrite: bool = False,
-        pipeline_config: dict | PipelineConfig = {},
-        params: dict = {},
-        run: dict | PipelineRunConfig = {},
-        schedule: dict | PipelineScheduleConfig = {},
-        tracker: dict | PipelineTrackerConfig = {},
-    ):
-        """
-        Adds a new pipeline with the given name.
-
-        Args:
-            name (str): The name of the pipeline.
-            overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-            pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
-            params (dict, optional): The function configuration for the pipeline. Defaults to {}.
-            run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
-            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
-                Defaults to {}.
-            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline.
-                Defaults to {}.
-        """
-        self.add(name, overwrite, pipeline_config, params, run, schedule, tracker)
-
     def add(
         self,
-        name: str,
+        name: str | None = None,
         overwrite: bool = False,
         pipeline_file: str | None = None,
-        pipeline_config: dict | PipelineConfig = {},
-        params: dict = {},
-        run: dict | PipelineRunConfig = {},
-        schedule: dict | PipelineScheduleConfig = {},
-        tracker: dict | PipelineTrackerConfig = {},
+        pipeline_config: str | dict | PipelineConfig = {},
     ):
         """
-        Adds a new pipeline with the given name.
+        Adds a pipeline with the given name.
 
         Args:
             name (str): The name of the pipeline.
             overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-            pipeline_file (str | None, optional): The path to the pipeline file. Defaults to None.
-            pipeline_config (dict | PipelineConfig, optional): The configuration for the pipeline. Defaults to {}.
-            params (dict, optional): The function configuration for the pipeline. Defaults to {}.
-            run (dict | PipelineRunConfig, optional): The run configuration for the pipeline. Defaults to {}.
-            schedule (dict | PipelineScheduleConfig, optional): The schedule configuration for the pipeline.
-                Defaults to {}.
-            tracker (dict | PipelineTrackerConfig, optional): The tracker configuration for the pipeline.
+            pipeline_file (str | None, optional): The path to the pipeline file or the pipeline file content.
+                Defaults to None.
+            pipeline_config (str | dict | PipelineConfig, optional): The configuration for the pipeline or the pipeline config content.
                 Defaults to {}.
         """
 
@@ -697,9 +668,18 @@ class PipelineManager:
             raise ValueError(
                 f"Pipeline {self.cfg.project.name}.{name} already exists. Use `overwrite=True` to overwrite."
             )
+        if name is None:
+            if not pipeline_file:
+                raise ValueError("Please provide a name for the pipeline.")
+            name = os.path.splitext(os.path.basename(pipeline_file))[0]
         try:
             if pipeline_file:
-                self._fs.put_file(pipeline_file, f"{self._pipeline_dir}/{name}.py")
+                if ".py" not in pipeline_file:
+                    self._fs.put_file(pipeline_file, f"{self._pipeline_dir}/{name}.py")
+                else:
+                    self._fs.write_text(
+                        f"{self._pipeline_dir}/{name}.py", pipeline_file
+                    )
             else:
                 with self._fs.open(f"{self._pipeline_dir}/{name}.py", "w") as f:
                     f.write(
@@ -708,7 +688,6 @@ class PipelineManager:
                             date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         )
                     )
-                    # rich.print(f"    Added pipeline file [italic green]pipelines/{name}.py[/italic green]")
         except NotImplementedError:
             raise NotImplementedError(
                 "The filesystem "
@@ -717,24 +696,45 @@ class PipelineManager:
             )
 
         if pipeline_config:
-            self.cfg.pipeline = (
-                pipeline_config
-                if isinstance(pipeline_config, PipelineConfig)
-                else PipelineConfig.from_dict(name, pipeline_config)
-            )
-            if not self.cfg.pipeline.name:
-                self.cfg.pipeline.name = name
+            if isinstance(pipeline_config, str):
+                if ".yml" in pipeline_config or ".yaml" in pipeline_config:
+                    self._fs.put_file(
+                        pipeline_config, f"{self._conf_dir}/pipelines/{name}.yml"
+                    )
+                else:
+                    self._fs.write_text(
+                        f"{self._conf_dir}/pipelines/{name}.yml", pipeline_config
+                    )
+            else:
+                self.cfg.pipeline = (
+                    pipeline_config
+                    if isinstance(pipeline_config, PipelineConfig)
+                    else PipelineConfig.from_dict(name, pipeline_config)
+                )
+                if not self.cfg.pipeline.name:
+                    self.cfg.pipeline.name = name
         else:
-            self.cfg.pipeline = PipelineConfig(
-                name=name, run=run, schedule=schedule, tracker=tracker, params=params
-            )
+            self.cfg.pipeline = PipelineConfig(name=name)
 
         self.cfg.save()
-        # rich.print(f"   Added config file [italic green]conf/pipelines/{name}.yml[/italic green]")
 
         rich.print(
             f"🔧 Created new pipeline [bold blue]{self.cfg.project.name}.{name}[/bold blue]"
         )
+
+    def new(
+        self,
+        name: str,
+        overwrite: bool = False,
+    ):
+        """
+        Adds a new pipeline with the given name.
+
+        Args:
+            name (str): The name of the pipeline.
+            overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
+        """
+        self.add(name, overwrite)
 
     def delete(self, name: str, cfg: bool = True, remove_module_file: bool = False):
         """
@@ -812,7 +812,7 @@ class PipelineManager:
         """
         return [os.path.splitext(os.path.basename(f))[0] for f in self._get_files()]
 
-    def get_summary(self, name: str | None = None) -> dict:
+    def get_summary(self, name: str | None = None, show: bool = True) -> dict:
         """
         Get a summary of the pipelines.
 
@@ -828,10 +828,79 @@ class PipelineManager:
 
         pipeline_summary = {}
         for name in pipeline_names:
+            self.load_config(name)
             pipeline_summary[name] = {
                 "config": self.cfg.pipeline.to_dict(),
                 "module": self._fs.cat(f"{self._pipeline_dir}/{name}.py").decode(),
             }
+
+        def add_dict_to_tree(tree, dict_data, style="green"):
+            for key, value in dict_data.items():
+                if isinstance(value, dict):
+                    branch = tree.add(f"[cyan]{key}:", style="bold cyan")
+                    add_dict_to_tree(branch, value, style)
+                else:
+                    tree.add(f"[cyan]{key}:[/] [green]{value}[/]")
+
+        if show:
+            console = Console()
+            for pipeline, info in pipeline_summary.items():
+                # Create tree for config
+                config_tree = Tree("📋 Configuration", style="bold magenta")
+                add_dict_to_tree(config_tree, info["config"])
+
+                # Create syntax-highlighted code view
+                code_view = Syntax(
+                    info["module"],
+                    "python",
+                    # theme="github",
+                    line_numbers=True,
+                    word_wrap=True,
+                    code_width=80,
+                )
+
+                console.print(
+                    Columns(
+                        [
+                            Panel(
+                                config_tree,
+                                title=f"🔄 Pipeline: {pipeline}",
+                                subtitle="Configuration",
+                                border_style="blue",
+                                padding=(2, 2),
+                            ),
+                            Panel(
+                                code_view,
+                                title=f"🔄 Pipeline: {pipeline}",
+                                subtitle="Module",
+                                border_style="blue",
+                                padding=(2, 2),
+                            ),
+                        ]
+                    )
+                )
+                console.print("\n")
+                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
+                # console.print("\n")
+                # console.print(
+                #     Panel(
+                #         config_tree,
+                #         title=f"🔄 Pipeline: {pipeline}",
+                #         subtitle="Configuration",
+                #         border_style="blue",
+                #         padding=(2, 2),
+                #     )
+                # )
+                # console.print("\n")
+                # console.print(
+                #     Panel(
+                #         code_view,
+                #         title=f"🔄 Pipeline: {pipeline}",
+                #         subtitle="Configuration",
+                #         border_style="green",
+                #         padding=(2, 2),
+                #     )
+                # )
 
         return pipeline_summary
 
@@ -1186,8 +1255,8 @@ class Pipeline(PipelineManager):
     def stop_mqtt_listener(self):
         return super().stop_mqtt_listener(self.name)
 
-    def get_summary(self):
-        return super().get_summary(self.name)[self.name]
+    def get_summary(self, show: bool = True):
+        return super().get_summary(self.name, show=show)[self.name]
 
     @property
     def summary(self):
@@ -1197,12 +1266,8 @@ class Pipeline(PipelineManager):
 def add_pipeline(
     name: str,
     overwrite: bool = False,
-    pipeline_config: dict | PipelineConfig = {},
     pipeline_file: str | None = None,
-    params: dict = {},
-    run: dict | PipelineRunConfig = {},
-    schedule: dict | PipelineScheduleConfig = {},
-    tracker: dict | PipelineTrackerConfig = {},
+    pipeline_config: str | dict | PipelineConfig = {},
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
@@ -1214,11 +1279,7 @@ def add_pipeline(
         name (str): The name of the pipeline.
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
         pipeline_file (str | None, optional): The path to the pipeline file. Defaults to None.
-        pipeline_config (dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
-        params (dict, optional): The function configuration. Defaults to {}.
-        run (dict | PipelineRunConfig, optional): The run configuration. Defaults to {}.
-        schedule (dict | PipelineScheduleConfig, optional): The schedule configuration. Defaults to {}.
-        tracker (dict | PipelineTrackerConfig, optional): The tracker configuration. Defaults to {}.
+        pipeline_config (str | dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
         base_dir (str | None, optional): The base directory of the pipeline. Defaults to None.
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
@@ -1229,10 +1290,6 @@ def add_pipeline(
         overwrite=overwrite,
         pipeline_file=pipeline_file,
         pipeline_config=pipeline_config,
-        params=params,
-        run=run,
-        schedule=schedule,
-        tracker=tracker,
     )
 
 
@@ -1329,6 +1386,7 @@ def delete_pipeline(
 def get_pipeline_summary(
     name: str | None = None,
     base_dir: str | None = None,
+    show: bool = False,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
 ):
@@ -1338,13 +1396,16 @@ def get_pipeline_summary(
     Args:
         name (str): The name of the pipeline.
         base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        show (bool, optional): Whether to print the summary. Defaults to False.
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     Returns:
         dict: A dictionary containing the pipeline summary.
     """
     p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    return p.get_summary(name=name)
+    summary = p.get_summary(name=name, show=show)
+
+    return summary
 
 
 def new_pipeline(
@@ -1635,4 +1696,4 @@ def show_pipeline_dag(
         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
     """
     p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.show(format=format, show=show, reload=reload, save=save)
+    p.show_dag(format=format, show=show, reload=reload, save=save)

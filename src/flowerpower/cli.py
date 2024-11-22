@@ -3,13 +3,17 @@ import importlib.util
 from loguru import logger
 from typer import Typer
 
-from .pipeline import add as add_
-from .pipeline import add_job as add_job_
-from .pipeline import delete as delete_
-from .pipeline import run as run_
-from .pipeline import run_job as run_job_
-from .pipeline import schedule as schedule_
-from .pipeline import show as show_
+from .pipeline import add_pipeline as add_pipeline_
+from .pipeline import add_pipeline_job as add_pipeline_job_
+from .pipeline import delete_pipeline as delete_pipeline_
+from .pipeline import new_pipeline as new_pipeline_
+from .pipeline import run_pipeline as run_pipeline_
+from .pipeline import run_pipeline_job as run_pipeline_job_
+from .pipeline import schedule_pipeline as schedule_pipeline_
+from .pipeline import show_pipeline_dag as show_pipeline_dag_
+from .pipeline import all_pipelines as all_pipelines_
+from .pipeline import get_pipeline_summary as get_pipeline_summary_
+from .pipeline import start_mqtt_listener as start_mqtt_listener_
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import get_schedule_manager
@@ -24,50 +28,55 @@ app = Typer()
 
 
 @app.command()
-def run(
-    name: str,
+def run_pipeline(
+    pipeline_name: str,
     executor: str = "local",
-    base_dir: str = "",
-    inputs: str = "",
-    final_vars: str = "",
+    base_dir: str = None,
+    inputs: str = None,
+    final_vars: str = None,
     with_tracker: bool = False,
     reload: bool = False,
+    storage_options: str = None,
 ):
     """
     Run the specified task.
     Args:
-        name (str): The name of the task.
+        pipeline_name (str): The name of the task.
         executor (str, optional): The executor to use for running the task. Defaults to "local".
-        base_dir (str, optional): The base path for the task. Defaults to "".
-        inputs (str, optional): The inputs for the task. Defaults to "".
-        final_vars (str, optional): The final variables for the task. Defaults to "".
+        base_dir (str, optional): The base path for the task. Defaults to None.
+        inputs (str, optional): The inputs for the task. Defaults to None.
+        final_vars (str, optional): The final variables for the task. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the task. Defaults to False.
         reload (bool, optional): Whether to reload the task. Defaults to False.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None.
     """
-    inputs = eval(inputs) if len(inputs) else None
-    final_vars = eval(final_vars) if len(final_vars) else None
+    inputs = eval(inputs) if inputs is not None else None
+    final_vars = eval(final_vars) if final_vars is not None else None
     with_tracker = with_tracker if with_tracker is not None else None
+    storage_options = eval(storage_options) if storage_options is not None else {}
 
-    _ = run_(
-        name=name,
+    _ = run_pipeline_(
+        name=pipeline_name,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
         reload=reload,
+        storage_options=storage_options,
     )
 
 
 @app.command()
-def run_job(
-    name: str,
+def run_pipeline_job(
+    pipeline_name: str,
     executor: str = "local",
-    base_dir: str = "",
-    inputs: str = "",
-    final_vars: str = "",
+    base_dir: str = None,
+    inputs: str = None,
+    final_vars: str = None,
     with_tracker: bool = False,
     reload: bool = False,
+    storage_options: str = None,
 ):
     """
     Add a job to run the pipeline with the given parameters to the scheduler.
@@ -81,32 +90,36 @@ def run_job(
         with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
         base_dir (str, optional): The base path for the job. Defaults to None.
         reload (bool): Whether to reload the job. Defaults to False.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None.
     """
 
     inputs = eval(inputs) if len(inputs) else None
-    final_vars = eval(final_vars) if len(final_vars) else None
+    final_vars = eval(final_vars) if final_vars is not None else None
     with_tracker = with_tracker if with_tracker is not None else None
+    storage_options = eval(storage_options) if storage_options is not None else {}
 
-    _ = run_job_(
-        name=name,
+    _ = run_pipeline_job_(
+        name=pipeline_name,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
         reload=reload,
+        storage_options=storage_options,
     )
 
 
 @app.command()
-def add_job(
-    name: str,
+def add_pipeline_job(
+    pipeline_name: str,
     executor: str = "local",
-    base_dir: str = "",
-    inputs: str = "",
-    final_vars: str = "",
+    base_dir: str = None,
+    inputs: str = None,
+    final_vars: str = None,
     with_tracker: bool = False,
     reload: bool = False,
+    storage_options: str = None,
 ):
     """
     Add a job to run the pipeline with the given parameters to the scheduler data store.
@@ -114,39 +127,42 @@ def add_job(
     given `result_expiration_time` and can be fetched using the job id (UUID).
 
     Args:
-        name (str): The name of the job.
+        pipeline_name (str): The name of the job.
         executor (str, optional): The executor to use for the job. Defaults to None.
         inputs (str, optional): The inputs for the job. Defaults to None.
         final_vars (str, optional): The final variables for the job. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to None.
         base_dir (str, optional): The base path for the job. Defaults to None.
         reload (bool): Whether to reload the job. Defaults to False.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None.
     """
 
     inputs = eval(inputs) if len(inputs) else None
-    final_vars = eval(final_vars) if len(final_vars) else None
+    final_vars = eval(final_vars) if final_vars is not None else None
     with_tracker = with_tracker if with_tracker is not None else None
+    storage_options = eval(storage_options) if storage_options is not None else {}
 
-    id_ = add_job_(
-        name=name,
+    id_ = add_pipeline_job_(
+        name=pipeline_name,
         executor=executor,
         base_dir=base_dir,
         inputs=inputs,
         final_vars=final_vars,
         with_tracker=with_tracker,
         reload=reload,
+        storage_options=storage_options,
     )
     logger.info(f"Job {id_} added to the scheduler.")
 
 
 @app.command()
-def schedule(
-    name: str,
+def schedule_pipeline(
+    pipeline_name: str,
     executor: str = "local",
-    base_dir: str = "",
+    base_dir: str = None,
     type: str = "cron",
-    inputs: str = "",
-    final_vars: str = "",
+    inputs: str = None,
+    final_vars: str = None,
     with_tracker: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
@@ -154,22 +170,23 @@ def schedule(
     max_jitter: float = None,
     max_running_jobs: int = None,
     conflict_policy: str = "do_nothing",
-    crontab: str = "",
-    cron_params: str = "",
-    interval_params: str = "",
-    calendarinterval_params: str = "",
-    date_params: str = "",
+    crontab: str = None,
+    cron_params: str = None,
+    interval_params: str = None,
+    calendarinterval_params: str = None,
+    date_params: str = None,
+    storage_options: str = None,
 ):
     """
     Schedule a job with the given parameters.
 
     Args:
-        name (str): The name of the job.
+        pipeline_name (str): The name of the job.
         executor (str, optional): The executor to use for running the job. Defaults to "local".
-        base_dir (str, optional): The base path for the job. Defaults to "".
+        base_dir (str, optional): The base path for the job. Defaults to None.
         type (str, optional): The type of the job. Defaults to "cron".
-        inputs (str, optional): The inputs for the job. Defaults to "".
-        final_vars (str, optional): The final variables for the job. Defaults to "".
+        inputs (str, optional): The inputs for the job. Defaults to None.
+        final_vars (str, optional): The final variables for the job. Defaults to None.
         with_tracker (bool, optional): Whether to use a tracker for the job. Defaults to False.
         paused (bool, optional): Whether the job should be initially paused. Defaults to False.
         coalesce (str, optional): The coalesce strategy for the job. Defaults to "latest".
@@ -177,18 +194,20 @@ def schedule(
         max_jitter (float, optional): The maximum jitter for the job. Defaults to None.
         max_running_jobs (int, optional): The maximum number of running jobs. Defaults to None.
         conflict_policy (str, optional): The conflict policy for the job. Defaults to "do_nothing".
-        crontab (str, optional): The crontab expression for the job. Defaults to "".
-        cron_params (str, optional): Additional parameters for the cron job. Defaults to "".
-        interval_params (str, optional): Additional parameters for the interval job. Defaults to "".
-        calendarinterval_params (str, optional): Additional parameters for the calendar interval job. Defaults to "".
-        date_params (str, optional): Additional parameters for the date job. Defaults to "".
+        crontab (str, optional): The crontab expression for the job. Defaults to None.
+        cron_params (str, optional): Additional parameters for the cron job. Defaults to None.
+        interval_params (str, optional): Additional parameters for the interval job. Defaults to None.
+        calendarinterval_params (str, optional): Additional parameters for the calendar interval job. Defaults to None.
+        date_params (str, optional): Additional parameters for the date job. Defaults to None.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None.
     """
     if get_schedule_manager is None:
         raise ValueError("APScheduler not installed. Please install it first.")
 
     inputs = eval(inputs) if len(inputs) else None
-    final_vars = eval(final_vars) if len(final_vars) else None
+    final_vars = eval(final_vars) if final_vars is not None else None
     with_tracker = with_tracker if with_tracker is not None else None
+    storage_options = eval(storage_options) if storage_options is not None else {}
 
     crontab = crontab or None
     cron_params = (
@@ -225,8 +244,8 @@ def schedule(
     if crontab is not None:
         kwargs["crontab"] = crontab
 
-    id_ = schedule_(
-        name=name,
+    id_ = schedule_pipeline_(
+        name=pipeline_name,
         executor=executor,
         base_dir=base_dir,
         type=type,
@@ -239,6 +258,7 @@ def schedule(
         max_jitter=max_jitter,
         max_running_jobs=max_running_jobs,
         conflict_policy=conflict_policy,
+        storage_options=storage_options,
         **kwargs,
     )
     logger.info(f"Job {id_} scheduled.")
@@ -246,138 +266,263 @@ def schedule(
 
 @app.command()
 def new_pipeline(
-    name: str,
-    base_dir: str = "",
+    pipeline_name: str,
+    base_dir: str = None,
     overwrite: bool = False,
-    pipeline_params: str = "",
-    run_params: str = "",
-    schedule_params: str = "",
-    tracker_params: str = "",
+    storage_options: str = None,
 ):
     """
     Create a new pipeline with the given parameters.
 
     Args:
-        name (str): The name of the pipeline.
-        base_dir (str, optional): The base path for the pipeline. Defaults to "".
+        pipeline_name (str): The name of the pipeline.
+        base_dir (str, optional): The base path for the pipeline. Defaults to None.
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-        pipeline_params (str, optional): Additional parameters for the pipeline. Defaults to "".
-        run_params (str, optional): Additional parameters for the run. Defaults to "".
-        schedule_params (str, optional): Additional parameters for the schedule. Defaults to "".
-        tracker_params (str, optional): Additional parameters for the tracker. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
-    pipeline_params = (
-        dict([kw.split("=") for kw in pipeline_params.split(",")])
-        if pipeline_params
-        else {}
-    )
-    run_params = (
-        dict([kw.split("=") for kw in run_params.split(",")]) if run_params else {}
-    )
-    schedule_params = (
-        dict([kw.split("=") for kw in schedule_params.split(",")])
-        if schedule_params
-        else {}
-    )
-    tracker_params = (
-        dict([kw.split("=") for kw in tracker_params.split(",")])
-        if tracker_params
-        else {}
-    )
 
-    add_(
-        name=name,
+    storage_options = eval(storage_options) if storage_options is not None else {}
+
+    new_pipeline_(
+        name=pipeline_name,
         base_dir=base_dir,
         overwrite=overwrite,
-        params=pipeline_params,
-        run=run_params,
-        schedule=schedule_params,
-        tracker=tracker_params,
+        storage_options=storage_options,
     )
 
 
 @app.command()
 def add_pipeline(
-    name: str,
-    base_dir: str = "",
+    pipeline_name: str,
+    base_dir: str = None,
     overwrite: bool = False,
-    pipeline_params: str = "",
-    run_params: str = "",
-    schedule_params: str = "",
-    tracker_params: str = "",
+    pipeline_file: str = "",
+    pipeline_config: str = "",
+    storage_options: str = None,
 ):
     """
     Create a new pipeline with the given parameters.
 
     Args:
-        name (str): The name of the pipeline.
-        base_dir (str, optional): The base path for the pipeline. Defaults to "".
+        pipeline_name (str): The name of the pipeline.
+        base_dir (str, optional): The base path for the pipeline. Defaults to None.
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-        pipeline_params (str, optional): Additional parameters for the pipeline. Defaults to "".
-        run_params (str, optional): Additional parameters for the run. Defaults to "".
-        schedule_params (str, optional): Additional parameters for the schedule. Defaults to "".
-        tracker_params (str, optional): Additional parameters for the tracker. Defaults to "".
+        pipeline_file (str, optional): The path to the pipeline file. Defaults to "".
+        pipeline_config (str, optional): The path to the pipeline configuration. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
-    new_pipeline(
-        name=name,
+
+    storage_options = eval(storage_options) if storage_options is not None else {}
+
+    add_pipeline_(
+        name=pipeline_name,
         base_dir=base_dir,
         overwrite=overwrite,
-        pipeline_params=pipeline_params,
-        run_params=run_params,
-        schedule_params=schedule_params,
-        tracker_params=tracker_params,
+        pipeline_config=pipeline_config,
+        pipeline_file=pipeline_file,
+        storage_options=storage_options,
     )
 
 
 @app.command()
-def delete_pipeline(name: str, base_dir: str = "", module: bool = False):
+def delete_pipeline(
+    pipeline_name: str,
+    base_dir: str = None,
+    module: bool = False,
+    storage_options: str = "{}",
+):
     """
     Delete a pipeline.
 
     Args:
-        name (str): The name of the pipeline to delete.
+        pipeline_name (str): The name of the pipeline to delete.
         base_dir (str): The base path of the pipeline. Defaults to None.
         module (bool, optional): Whether to delete the pipeline module. Defaults to False.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
-    delete_(name=name, base_dir=base_dir, remove_module=module)
+
+    storage_options = eval(storage_options) if storage_options is not None else {}
+
+    delete_pipeline_(
+        name=pipeline_name,
+        base_dir=base_dir,
+        remove_module=module,
+        storage_options=storage_options,
+    )
 
 
 @app.command()
-def init(name: str, base_dir: str = "", conf_path: str = "", pipelines_path: str = ""):
+def init(
+    project_name: str,
+    base_dir: str = None,
+    conf_path: str = None,
+    pipelines_path: str = None,
+    storage_options: str = None,
+):
     """
     Initialize the FlowerPower application.
 
     Args:
         name (str): The name of the application.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
+    storage_options = eval(storage_options) if storage_options is not None else {}
+
     init_(
-        name=name, base_dir=base_dir, conf_path=conf_path, pipelines_path=pipelines_path
+        name=project_name,
+        base_dir=base_dir,
+        conf_path=conf_path,
+        pipelines_path=pipelines_path,
+        storage_options=storage_options,
     )
 
 
 @app.command()
-def start_worker(name: str, base_dir: str = ""):
+def start_worker(worker_name: str, base_dir: str = None, storage_options: str = "{}"):
     """
     Start a worker.
 
     Args:
         name (str): The name of the worker.
         base_dir (str, optional): The base path. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
+    storage_options = eval(storage_options) if storage_options is not None else {}
 
-    start_worker_(name=name, base_dir=base_dir, background=False)
+    start_worker_(
+        name=worker_name,
+        base_dir=base_dir,
+        background=False,
+        storage_options=storage_options,
+    )
 
 
 @app.command()
-def show_pipeline(name: str, base_dir: str = ""):
+def show_pipeline_dag(
+    pipeline_name: str,
+    base_dir: str = None,
+    format: str = "png",
+    storage_options: str = "{}",
+):
     """
     Show the pipeline.
 
     Args:
-        name (str): The name of the pipeline.
+        pipeline_name (str): The name of the pipeline.
         base_dir (str, optional): The base path of the pipeline. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
-    show_(name=name, base_dir=base_dir, view=True)
+    storage_options = eval(storage_options) if storage_options is not None else {}
+    show_pipeline_dag_(
+        name=pipeline_name,
+        base_dir=base_dir,
+        show=True,
+        format=format,
+        storage_options=storage_options,
+    )
+
+
+@app.command()
+def all_pipelines(base_dir: str = None, storage_options: str = "{}"):
+    """
+    List all pipelines.
+
+    Args:
+        base_dir (str, optional): The base path of the pipelines. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
+    """
+    storage_options = eval(storage_options) if storage_options is not None else {}
+    all_pipelines_(base_dir=base_dir, storage_options=storage_options)
+
+
+@app.command()
+def show_pipeline_summary(
+    pipeline_name: str = None,
+    show: bool = True,
+    base_dir: str = None,
+    storage_options: str = "{}",
+):
+    """
+    Get a summary of the pipeline.
+
+    Args:
+        pipeline_name (str, optional): The name of the pipeline.
+        show (bool, optional): Whether to show the summary. Defaults to True.
+        base_dir (str, optional): The base path of the pipeline. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
+    """
+    storage_options = eval(storage_options) if storage_options is not None else {}
+    summary = get_pipeline_summary_(
+        name=pipeline_name,
+        show=show,
+        base_dir=base_dir,
+        storage_options=storage_options,
+    )
+    return summary
+
+
+@app.command()
+def start_mqtt_listener(
+    pipeline_name: str,
+    topic: str = "#",
+    host: str = "localhost",
+    port: int = 1883,
+    user: str = None,
+    pw: str = None,
+    inputs: str = None,
+    final_vars: str = None,
+    executor: str = None,
+    with_tracker: bool = False,
+    with_opentelemetry: bool = False,
+    base_dir: str = None,
+    storage_options: str = None,
+    reload: bool = False,
+    result_expiration_time: float = 0.0,
+    as_job: bool = False,
+    background: bool = False,
+):
+    """
+    Start the MQTT listener.
+
+    Args:
+        pipeline_name (str): The name of the pipeline to run.
+        topic (str, optional): The MQTT topic to listen to. Defaults to "#".
+        host (str, optional): The MQTT host. Defaults to "localhost".
+        port (int, optional): The MQTT port. Defaults to 1883.
+        user (str, optional): The MQTT username. Defaults to None.
+        pw (str, optional): The MQTT password. Defaults to None.
+        inputs (str, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list, optional): The final variables for the pipeline. Defaults to None.
+        executor (str, optional): The executor to use for the pipeline. Defaults to None.
+        with_tracker (bool, optional): Whether to use a tracker for the pipeline. Defaults to False.
+        with_opentelemetry (bool, optional): Whether to use OpenTelemetry for the pipeline. Defaults to False.
+        base_dir (str, optional): The base path for the pipeline. Defaults to None.
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None.
+        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+        result_expiration_time (float, optional): The result expiration time for the pipeline. Defaults to 0.0.
+        as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+        background (bool, optional): Whether to run the listener in the background. Defaults to e.
+    """
+    storage_options = eval(storage_options) if storage_options is not None else {}
+    start_mqtt_listener_(
+        name=pipeline_name,
+        topic=topic,
+        host=host,
+        port=port,
+        user=user,
+        pw=pw,
+        inputs=inputs,
+        final_vars=final_vars,
+        executor=executor,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        reload=reload,
+        result_expiration_time=result_expiration_time,
+        as_job=as_job,
+        background=background,
+    )
 
 
 @app.command()
