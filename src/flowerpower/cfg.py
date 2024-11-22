@@ -10,7 +10,7 @@ from munch import Munch, munchify, unmunchify
 from pydantic import BaseModel, ConfigDict, Field
 
 from .helpers.filesystem import get_filesystem
-
+import pathlib
 
 class BaseConfig(BaseModel):
     # fs: Optional[AbstractFileSystem] = None
@@ -218,7 +218,7 @@ class Config(BaseConfig):
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     project: ProjectConfig = Field(default_factory=ProjectConfig)
     fs: AbstractFileSystem | None = Field(default=None)
-    base_dir: str | None = Field(default=None)
+    base_dir: str | pathlib.Path | None = Field(default=None)
     storage_options: dict | Munch = Field(default_factory=Munch)
 
     @classmethod

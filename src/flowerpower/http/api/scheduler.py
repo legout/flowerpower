@@ -4,6 +4,7 @@ import dill
 from sanic import Blueprint
 from sanic.exceptions import SanicException
 from sanic.response import json, raw
+from apscheduler.serializer.pickle import PickleSerializer
 
 bp = Blueprint("api_flowerpower_scheduler", url_prefix="api/scheduler")
 
@@ -26,7 +27,7 @@ async def job_result(request, job_id) -> json:
     if job_id not in [job.id for job in request.app.ctx.scheduler.get_jobs()]:
         raise SanicException("Job not found", status_code=404)
     job = request.app.ctx.scheduler.get_job_result(job_id)
-    return raw(dill.dumps(job))
+    return json(job.marshall())
 
 
 @bp.get("/schedules")
