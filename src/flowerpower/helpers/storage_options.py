@@ -29,6 +29,9 @@ class BaseStorageOptions(BaseModel):
     def to_filesystem(self) -> AbstractFileSystem:
         return filesystem(**self.to_dict())
 
+    def update(self, **kwargs):
+        self = self.model_copy(update=kwargs)
+
 
 class AzureStorageOptions(BaseStorageOptions):
     pass
@@ -40,8 +43,8 @@ class GcsStorageOptions(BaseStorageOptions):
 
 class AwsStorageOptions(BaseStorageOptions):
     protocol: str = "s3"
-    access_key_id: str
-    secret_access_key: str
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
     session_token: str | None = None
     endpoint_url: str | None = None
     region: str | None = None
@@ -83,19 +86,18 @@ class AwsStorageOptions(BaseStorageOptions):
     @classmethod
     def from_env(cls) -> "AwsStorageOptions":
         return cls(
-            access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-            secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-            session_token=os.environ.get("AWS_SESSION_TOKEN"),
-            endpoint_url=os.environ.get("AWS_ENDPOINT_URL"),
-            region=os.environ.get("AWS_DEFAULT_REGION"),
-            allow_invalid_certificates=bool(
-                os.environ.get("ALLOW_INVALID_CERTIFICATES", False)
-            ),
-            allow_http=bool(os.environ.get("AWS_ALLOW_HTTP", True)),
+            access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            session_token=os.getenv("AWS_SESSION_TOKEN"),
+            endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
+            region=os.getenv("AWS_DEFAULT_REGION"),
+            allow_invalid_certificates="true"
+            == (os.getenv("ALLOW_INVALID_CERTIFICATES", "False").lower()),
+            allow_http="true" == (os.getenv("AWS_ALLOW_HTTP", "False").lower()),
         )
 
     def to_fsspec_kwargs(self) -> dict:
-        storage_options = {
+        fsspec_kwargs = {
             "key": self.access_key_id,
             "secret": self.secret_access_key,
             "token": self.session_token,
@@ -110,27 +112,30 @@ class AwsStorageOptions(BaseStorageOptions):
                 "use_ssl": not self.allow_http if self.allow_http is not None else None,
             },
         }
-        return {k: v for k, v in storage_options.items() if v is not None}
+        return {k: v for k, v in fsspec_kwargs.items() if v is not None}
 
-    def to_object_store_kwargs(self) -> dict:
-        return {
+    def to_object_store_kwargs(self, conditional_put="") -> dict:
+        object_store_kwargs = {
             k: str(v)
             for k, v in self.to_dict().items()
             if v is not None and k != "protocol"
         }
+        if len(conditional_put):
+            object_store_kwargs["conditional_put"] = conditional_put
+        return object_store_kwargs
 
     def to_env(self) -> None:
-        os.environ.update(
-            {
-                "AWS_ACCESS_KEY_ID": self.access_key_id,
-                "AWS_SECRET_ACCESS_KEY": self.secret_access_key,
-                "AWS_SESSION_TOKEN": self.session_token,
-                "AWS_ENDPOINT_URL": self.endpoint_url,
-                "AWS_DEFAULT_REGION": self.region,
-                "ALLOW_INVALID_CERTIFICATES": str(self.allow_invalid_certificates),
-                "AWS_ALLOW_HTTP": str(self.allow_http),
-            }
-        )
+        env = {
+            "AWS_ACCESS_KEY_ID": self.access_key_id,
+            "AWS_SECRET_ACCESS_KEY": self.secret_access_key,
+            "AWS_SESSION_TOKEN": self.session_token,
+            "AWS_ENDPOINT_URL": self.endpoint_url,
+            "AWS_DEFAULT_REGION": self.region,
+            "ALLOW_INVALID_CERTIFICATES": str(self.allow_invalid_certificates),
+            "AWS_ALLOW_HTTP": str(self.allow_http),
+        }
+        env = {k: v for k, v in env.items() if v is not None}
+        os.environ.update(env)
 
     def to_filesystem(self):
         return filesystem(self.protocol, **self.to_fsspec_kwargs())
@@ -138,17 +143,17 @@ class AwsStorageOptions(BaseStorageOptions):
 
 class GitHubStorageOptions(BaseModel):
     protocol: str = "github"
-    org: str
-    repo: str
+    org: str | None = None
+    repo: str | None = None
     sha: str | None = None
 
     @classmethod
     def from_env(cls) -> "GitHubStorageOptions":
         return cls(
             protocol="github",
-            org=os.environ["GITHUB_ORG"],
-            repo=os.environ["GITHUB_REPO"],
-            sha=os.environ.get("GITHUB_SHA"),
+            org=os.getenv("GITHUB_ORG"),
+            repo=os.getenv("GITHUB_REPO"),
+            sha=os.getenv("GITHUB_SHA"),
         )
 
     def to_env(self) -> None:
@@ -168,10 +173,10 @@ class GitLabStorageOptions(BaseModel):
     def from_env(cls) -> "GitLabStorageOptions":
         return cls(
             protocol="gitlab",
-            base_url=os.environ["GITLAB_BASE_URL"],
-            access_token=os.environ["GITLAB_ACCESS_TOKEN"],
-            project_id=os.environ.get("GITLAB_PROJECT_ID"),
-            project_name=os.environ.get("GITLAB_PROJECT_NAME"),
+            base_url=os.getenv("GITLAB_BASE_URL"),
+            access_token=os.getenv("GITLAB_ACCESS_TOKEN"),
+            project_id=os.getenv("GITLAB_PROJECT_ID"),
+            project_name=os.getenv("GITLAB_PROJECT_NAME"),
         )
 
     def model_post_init(self, __context):

@@ -1,110 +1,98 @@
 import orjson
 
-import datafusion as dtf
+import datafusion
+
 import duckdb
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from hamilton.function_modifiers import dataloader
-import datetime as dt
+import pyarrow.dataset as pds
 from typing import Any
-from ..utils import get_dataframe_metadata
+from ...helpers.sql import sql2polars_filter
+from pydantic import BaseModel
 
 
-@dataloader()
-def load_pandas_dataframe_from_mqtt(
-    payload: bytes | dict[str, Any], topic: str | None = None
-) -> tuple[pd.DataFrame, dict]:
-    if isinstance(payload, bytes):
-        payload = orjson.loads(payload)
+class MQTTLoader(BaseModel):
+    payload: bytes | dict[str, Any]
+    topic: str | None = None
+    conn: duckdb.DuckDBPyConnection | None = None
+    ctx: datafusion.SessionContext | None = None
 
-    df = pd.DataFrame.from_dict(payload)
-    metadata = get_dataframe_metadata(df, path=None, topic=topic, format="mqtt")
-    return df, metadata
+    def model_post_init(self, __context):
+        if isinstance(self.payload, bytes):
+            self.payload = orjson.loads(self.payload)
 
+    def to_pyarrow_table(self) -> pa.Table:
+        return pa.Table.from_pydict(self.payload)
 
-@dataloader()
-def load_polars_dataframe_from_mqtt(
-    payload: bytes | dict[str, Any], topic: str | None = None
-) -> tuple[pl.DataFrame, dict]:
-    if isinstance(payload, bytes):
-        payload = orjson.loads(payload)
+    def to_pandas(self) -> pd.DataFrame:
+        return pd.DataFrame.from_dict(self.payload)
 
-    df = pl.DataFrame(payload)
-    metadata = get_dataframe_metadata(df, path=None, topic=topic, format="mqtt")
+    def _to_polars_dataframe(self) -> pl.DataFrame:
+        return pl.DataFrame(self.payload)
 
-    return df, metadata
+    def _to_polars_lazyframe(self) -> pl.LazyFrame:
+        return pl.LazyFrame(self.payload)
 
+    def to_poars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
+        if lazy:
+            return self._to_polars_lazyframe()
+        else:
+            return self._to_polars_dataframe()
 
-@dataloader()
-def load_polars_lazyframe_from_mqtt(
-    payload: bytes | dict[str, Any], topic: str | None = None
-) -> tuple[pl.LazyFrame, dict]:
-    if isinstance(payload, bytes):
-        payload = orjson.loads(payload)
+    def to_duckdb(self, conn: duckdb.DuckDBPyConnection | None = None):
+        if self.conn is None:
+            if conn is None:
+                conn = duckdb.connect()
+            self.conn = conn
+        return self.conn.from_arrow(self.to_pyarrow_table())
 
-    df = pl.LazyFrame(payload)
-    metadata = get_dataframe_metadata(df, path=None, topic=topic, format="mqtt")
+    def to_dataset(self, **kwargs) -> pds.Dataset:
+        return pds.dataset(self.to_pyarrow_table(), **kwargs)
 
-    return df, metadata
+    def register_in_duckdb(
+        self,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        name: str | None = None,
+    ):
+        if name is None:
+            name = f"mqtt:{self.topic}"
 
+        if self.conn is None:
+            if conn is None:
+                conn = duckdb.connect()
+            self.conn = conn
 
-@dataloader()
-def load_pyarrow_table_from_mqtt(
-    payload: bytes | dict[str, Any], topic: str | None = None
-) -> tuple[pa.Table, dict]:
-    if isinstance(payload, bytes):
-        payload = orjson.loads(payload)
+        self.conn.register(name, self.to_pyarrow_table())
 
-    table = pa.Table.from_pydict(payload)
-    metadata = get_dataframe_metadata(table, path=None, topic=topic, format="mqtt")
-    return table, metadata
+    def register_in_datafusion(
+        self,
+        ctx: datafusion.SessionContext | None = None,
+        name: str | None = None,
+    ) -> None:
+        if name is None:
+            name = f"mqtt:{self.topic}"
 
+        if self.ctx is None:
+            if ctx is None:
+                ctx = datafusion.SessionContext()
+            self.ctx = ctx
 
-@dataloader()
-def load_duckdb_relation_from_mqtt(
-    payload: bytes | dict[str, Any],
-    topic: str | None = None,
-    name: str | None = None,
-    conn: duckdb.DuckDBPyConnection | None = None,
-) -> tuple[duckdb.DuckDBPyRelation, dict]:
-    table, metadata = load_pyarrow_table_from_mqtt(payload, topic=topic)
-    if conn is None:
-        conn = duckdb.connect()
-    relation = conn.from_arrow(table)
-    if name is not None:
-        conn.register(name, relation)
-    return relation, metadata
+        ctx.register(name, [self.to_pyarrow_table()])
 
+        return ctx
 
-@dataloader()
-def register_mqtt_in_duckdb(
-    payload: bytes | dict[str, Any],
-    topic: str | None = None,
-    name: str | None = None,
-    conn: duckdb.DuckDBPyConnection | None = None,
-) -> tuple[duckdb.DuckDBPyConnection, dict]:
-    table, metadata = load_pyarrow_table_from_mqtt(
-        payload, topic=topic, name=name, conn=conn
-    )
-    if conn is None:
-        conn = duckdb.connect()
+    def filter(self, filter_expr: str | pl.Expr) -> pl.DataFrame | pl.LazyFrame:
+        self._data = self.to_poars()
 
-    conn.register(name, table)
-    return conn, metadata
-
-
-@dataloader()
-def register_mqtt_in_datafusion(
-    payload: bytes | dict[str, Any],
-    topic: str | None = None,
-    name: str | None = None,
-    conn: dtf.DataFrame | None = None,
-) -> tuple[dtf.DataFrame, dict]:
-    table, metadata = load_pyarrow_table_from_mqtt(
-        payload, topic=topic, name=name, conn=conn
-    )
-    if conn is None:
-        conn = dtf.DataFrame()
-    conn.register(name, table)
-    return conn, metadata
+        pl_schema = (
+            self._data.schema
+            if isinstance(self._data, pl.DataFrame)
+            else self._data.collect_schema()
+        )
+        filter_expr = (
+            sql2polars_filter(filter_expr, pl_schema)
+            if isinstance(filter_expr, str)
+            else filter_expr
+        )
+        return self._data.filter(filter_expr)
