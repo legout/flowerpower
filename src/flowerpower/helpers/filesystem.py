@@ -1,6 +1,7 @@
 import base64
 import inspect
 import os
+import orjson
 import urllib
 from pathlib import Path
 
@@ -13,6 +14,23 @@ from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.memory import MemoryFile
 from fsspec.spec import AbstractFileSystem
 from loguru import logger
+
+from .storage_options import (
+    AwsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+    GcsStorageOptions,
+    AzureStorageOptions,
+)
+from .misc import run_parallel
+from .polars import pl
+from .misc import convert_large_types_to_standard
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyarrow.dataset as pds
+import datetime as dt
+import pandas as pd
+import uuid
 
 
 class FileNameCacheMapper(AbstractCacheMapper):
@@ -146,40 +164,29 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
             return super().__getattribute__(item)
 
 
-# Original ls Methode speichern
-dirfs_ls_o = DirFileSystem.ls
-mscf_ls_o = MonitoredSimpleCacheFileSystem.ls
-
-
-# Neue ls Methode definieren
-def dir_ls_p(self, path, detail=False, **kwargs):
-    return dirfs_ls_o(self, path, detail=detail, **kwargs)
-
-
-def mscf_ls_p(self, path, detail=False, **kwargs):
-    return mscf_ls_o(self, path, detail=detail, **kwargs)
-
-
-# patchen
-DirFileSystem.ls = dir_ls_p
-MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
-
-
 class GitLabFileSystem(AbstractFileSystem):
     def __init__(
         self,
-        project_name,
-        access_token,
-        branch="main",
-        base_url="https://gitlab.com",
+        project_name: str | None = None,
+        project_id: str | None = None,
+        access_token: str | None = None,
+        branch: str = "main",
+        base_url: str = "https://gitlab.com",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.project_name = project_name
+        self.project_id = project_id
         self.access_token = access_token
         self.branch = branch
         self.base_url = base_url.rstrip("/")
-        self.project_id = self._get_project_id()
+        self._validate_init()
+        if not self.project_id:
+            self.project_id = self._get_project_id()
+
+    def _validate_init(self):
+        if not self.project_id and not self.project_name:
+            raise ValueError("Either 'project_id' or 'project_name' must be provided")
 
     def _get_project_id(self):
         url = f"{self.base_url}/api/v4/projects"
@@ -234,52 +241,589 @@ except ValueError as e:
     _ = e
 
 
-def _s3_storage_options_to_kwargs(storage_options):
-    storage_options["client_kwargs"] = storage_options.get("client_kwargs", {})
-    storage_options["s3_additional_kwargs"] = storage_options.get(
-        "s3_additional_kwargs", {}
+# Original ls Methode speichern
+dirfs_ls_o = DirFileSystem.ls
+mscf_ls_o = MonitoredSimpleCacheFileSystem.ls
+
+
+# Neue ls Methode definieren
+def dir_ls_p(self, path, detail=False, **kwargs):
+    return dirfs_ls_o(self, path, detail=detail, **kwargs)
+
+
+def mscf_ls_p(self, path, detail=False, **kwargs):
+    return mscf_ls_o(self, path, detail=detail, **kwargs)
+
+
+def _read_json(
+    path, self, include_file_path: bool = False, jsonlines: bool = False
+) -> dict | list[dict]:
+    with self.open(path) as f:
+        if jsonlines:
+            data = [orjson.loads(line) for line in f.readlines()]
+        else:
+            data = orjson.loads(f.read())
+    if include_file_path:
+        return {path: data}
+    return data
+
+
+def read_json(
+    self,
+    path: str | list[str],
+    include_file_path: bool = False,
+    use_threads: bool = True,
+    jsonlines: bool = False,
+    **kwargs,
+) -> dict | list[dict]:
+    """
+    Read a JSON file or a list of JSON files.
+
+    Args:
+        path: (str | list[str]) Path to the JSON file(s).
+        include_file_path: (bool, optional) If True, return a dictionary with the file path as key.
+            Defaults to False.
+        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
+        jsonlines: (bool, optional) If True, read JSON lines. Defaults to False.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (dict | list[dict]): JSON data or list of JSON data.
+    """
+    if isinstance(path, str):
+        if "*" in path:
+            path = self.glob(path)
+        else:
+            if ".json" not in os.path.basename(path):
+                path = os.path.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
+                path = self.glob(path)
+
+    if isinstance(path, list):
+        if use_threads:
+            return run_parallel(
+                _read_json,
+                path,
+                self=self,
+                include_file_path=include_file_path,
+                jsonlines=jsonlines,
+                n_jobs=-1,
+                backend="threading",
+                **kwargs,
+            )
+        return [
+            _read_json(
+                path=p,
+                self=self,
+                include_file_path=include_file_path,
+                jsonlines=jsonlines,
+            )
+            for p in path
+        ]
+    return _read_json(
+        path=path, self=self, include_file_path=include_file_path, jsonlines=jsonlines
     )
-    for key in storage_options:
-        if key.lower() in ["aws_access_key_id", "access_key"]:
-            storage_options["key"] = storage_options.pop(key)
-        if key.lower() in ["aws_secret_access_key", "secret_access_key"]:
-            storage_options["secret"] = storage_options.pop(key)
-        if key.lower() in ["aws_region", "region_name", "region", "aws_default_region"]:
-            storage_options["client_kwargs"].update(
-                {"region": storage_options.pop(key)}
-            )
-        if key.lower() in ["aws_session_token", "session_token"]:
-            storage_options["token"] = storage_options.pop(key)
-        if key.lower() in ["aws_endpoint_url", "endpoint", "aws_endpoint"]:
-            storage_options["endpoint_url"] = storage_options.pop(key)
-        if key.lower() in ["allow_invalid_certificates"]:
-            storage_options["client_kwargs"]["verify"] = (
-                storage_options.pop(key) != "true"
-            )
-        if key.lower() in ["aws_allow_http", "allow_http"]:
-            storage_options["client_kwargs"]["use_ssl"] = (
-                storage_options.pop(key) != "true"
-            )
-
-    return storage_options
 
 
-def get_filesystem(path: str | None = None, **storage_options) -> DirFileSystem:
-    storage_options = _s3_storage_options_to_kwargs(storage_options)
+def read_json_dataset(
+    self,
+    path: str | list[str],
+    include_file_path: bool = False,
+    jsonlines: bool = False,
+    concat: bool = True,
+    use_threads: bool = True,
+    **kwargs,
+) -> list[pl.DataFrame] | pl.DataFrame:
+    """
+    Read a JSON file or a list of JSON files into a polars DataFrame.
+
+    Args:
+        path: (str | list[str]) Path to the JSON file(s).
+        include_file_path: (bool, optional) If True, return a dictionary with the file path as key.
+            Defaults to False.
+        jsonlines: (bool, optional) If True, read JSON lines. Defaults to False.
+        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
+        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (pl.DataFrame | list[pl.DataFrame]): Polars DataFrame or list of DataFrames.
+    """
+    data = read_json(
+        self=self,
+        path=path,
+        include_file_path=include_file_path,
+        jsonlines=jsonlines,
+        use_threads=use_threads,
+        **kwargs,
+    )
+    if not include_file_path:
+        data = [pl.DataFrame(d) for d in data]
+    else:
+        data = [
+            pl.DataFrame(list(d.values())[0]).with_columns(
+                pl.lit(list(d.keys())[0]).alias("file_path")
+            )
+            for d in data
+        ]
+    if concat:
+        return pl.concat(data, how="diagonal_relaxed")
+    return data
+
+
+def _read_csv(path, self, include_file_path: bool = False, **kwargs) -> pl.DataFrame:
+    with self.open(path) as f:
+        df = pl.read_csv(f, **kwargs)
+    if include_file_path:
+        return df.with_columns(pl.lit(path).alias("file_path"))
+    return df
+
+
+def read_csv(
+    self,
+    path: str | list[str],
+    include_file_path: bool = False,
+    use_threads: bool = True,
+    concat: bool = True,
+    **kwargs,
+) -> pl.DataFrame | list[pl.DataFrame]:
+    """
+    Read a CSV file or a list of CSV files into a polars DataFrame.
+
+    Args:
+        path: (str | list[str]) Path to the CSV file(s).
+        include_file_path: (bool, optional) If True, return a DataFrame with a 'file_path' column.
+            Defaults to False.
+        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
+        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (pl.DataFrame | list[pl.DataFrame]): Polars DataFrame or list of DataFrames.
+    """
+    if isinstance(path, str):
+        if "*" in path:
+            path = self.glob(path)
+        else:
+            if ".csv" not in os.path.basename(path):
+                path = os.path.join(path, "**/*.csv")
+                path = self.glob(path)
+
+    if isinstance(path, list):
+        if use_threads:
+            dfs = run_parallel(
+                _read_csv,
+                path,
+                self=self,
+                include_file_path=include_file_path,
+                n_jobs=-1,
+                backend="threading",
+                **kwargs,
+            )
+        dfs = [
+            _read_csv(p, self=self, include_file_path=include_file_path, **kwargs)
+            for p in path
+        ]
+    dfs = _read_csv(path=path, self=self, include_file_path=include_file_path, **kwargs)
+    if concat:
+        return pl.concat(dfs, how="diagonal_relaxed")
+    return dfs
+
+
+def _read_parquet(path, self, include_file_path: bool = False, **kwargs) -> pa.Table:
+    table = pq.read_table(path, filesystem=self, **kwargs)
+    if include_file_path:
+        return table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
+    return table
+
+
+def read_parquet(
+    self,
+    path,
+    include_file_path: bool = False,
+    use_threads: bool = True,
+    concat: bool = True,
+    **kwargs,
+) -> pa.Table | list[pa.Table]:
+    """
+    Read a Parquet file or a list of Parquet files into a pyarrow Table.
+
+    Args:
+        path: (str | list[str]) Path to the Parquet file(s).
+        include_file_path: (bool, optional) If True, return a Table with a 'file_path' column.
+            Defaults to False.
+        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
+        concat: (bool, optional) If True, concatenate the Tables. Defaults to True.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
+    """
+    if not include_file_path and concat:
+        return pq.read_table(path, filesystem=self, **kwargs)
+    else:
+        if isinstance(path, str):
+            if "*" in path:
+                path = self.glob(path)
+            else:
+                if ".parquet" not in os.path.basename(path):
+                    path = os.path.join(path, "**/*.parquet")
+                    path = self.glob(path)
+
+        if isinstance(path, list):
+            if use_threads:
+                table = run_parallel(
+                    _read_parquet,
+                    path,
+                    self=self,
+                    include_file_path=include_file_path,
+                    n_jobs=-1,
+                    backend="threading",
+                    **kwargs,
+                )
+            table = [
+                _read_parquet(
+                    p, self=self, include_file_path=include_file_path, **kwargs
+                )
+                for p in path
+            ]
+
+    table = _read_parquet(
+        path=path, self=self, include_file_path=include_file_path, **kwargs
+    )
+    if concat:
+        return pa.concat_tables(table, promote_options="permissive")
+    return table
+
+
+def pyarrow_dataset(
+    self,
+    path: str,
+    format="parquet",
+    schema: pa.Schema | None = None,
+    partitioning: str | list[str] | pds.Partitioning = None,
+    **kwargs,
+) -> pds.Dataset:
+    """
+    Create a pyarrow dataset.
+
+    Args:
+        path: (str) Path to the dataset.
+        format: (str, optional) Format of the dataset. Defaults to 'parquet'.
+        schema: (pa.Schema, optional) Schema of the dataset. Defaults to None.
+        partitioning: (str | list[str] | pds.Partitioning, optional) Partitioning of the dataset.
+            Defaults to None.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (pds.Dataset): Pyarrow dataset.
+    """
+    return pds.dataset(
+        path,
+        filesystem=self,
+        partitioning=partitioning,
+        schema=schema,
+        format=format,
+        **kwargs,
+    )
+
+
+def pyarrow_parquet_dataset(
+    self,
+    path: str,
+    schema: pa.Schema | None = None,
+    partitioning: str | list[str] | pds.Partitioning = None,
+    **kwargs,
+) -> pds.Dataset:
+    """
+    Create a pyarrow dataset from a parquet_metadata file.
+
+    Args:
+        path: (str) Path to the dataset.
+        schema: (pa.Schema, optional) Schema of the dataset. Defaults to None.
+        partitioning: (str | list[str] | pds.Partitioning, optional) Partitioning of the dataset.
+            Defaults to None.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        (pds.Dataset): Pyarrow dataset.
+    """
+    if not self.is_file(path):
+        path = os.path.join(path, "_metadata")
+    return pds.dataset(
+        path,
+        filesystem=self,
+        partitioning=partitioning,
+        schema=schema,
+        **kwargs,
+    )
+
+
+def write_parquet(
+    self,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    path: str,
+    schema: pa.Schema | None = None,
+    **kwargs,
+) -> pq.FileMetaData:
+    """
+    Write a DataFrame to a Parquet file.
+
+    Args:
+        data: (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
+        path: (str) Path to write the data.
+        schema: (pa.Schema, optional) Schema of the data. Defaults to None.
+        **kwargs: Additional keyword arguments for `pq.write_table`.
+
+    Returns:
+        (pq.FileMetaData): Parquet file metadata.
+    """
+    if isinstance(data, pl.LazyFrame):
+        data = data.collect()
+    if isinstance(data, pl.DataFrame):
+        data = data.to_arrow()
+        data = data.cast(convert_large_types_to_standard(data.schema))
+    elif isinstance(data, pd.DataFrame):
+        data = pa.Table.from_pandas(data, preserve_index=False)
+
+    if schema is not None:
+        data = data.cast(schema)
+    metadata = []
+    pq.write_table(data, path, filesystem=self, metadata_collector=metadata, **kwargs)
+    metadata = metadata[0]
+    metadata.set_file_path(path)
+    return metadata
+
+
+def write_json(
+    self,
+    data: dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    path: str,
+    append: bool = False,
+) -> None:
+    """
+    Write a dictionary, DataFrame or Table to a JSON file.
+
+    Args:
+        data: (dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
+        path: (str) Path to write the data.
+        append: (bool, optional) If True, append to the file. Defaults to False.
+
+    Returns:
+        None
+    """
+    if isinstance(data, pl.LazyFrame):
+        data = data.collect()
+    if isinstance(data, pl.DataFrame):
+        data = data.to_arrow()
+        data = data.cast(convert_large_types_to_standard(data.schema)).to_pydict()
+    elif isinstance(data, pd.DataFrame):
+        data = pa.Table.from_pandas(data, preserve_index=False).to_pydict()
+    if append:
+        with self.open(path, "ab") as f:
+            f.write(orjson.dumps(data))
+            f.write(b"\n")
+    else:
+        with self.open(path, "wb") as f:
+            f.write(orjson.dumps(data))
+
+
+def write_csv(
+    self,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    path: str,
+    **kwargs,
+) -> None:
+    """
+    Write a DataFrame to a CSV file.
+
+    Args:
+        data: (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
+        path: (str) Path to write the data.
+        **kwargs: Additional keyword arguments for `pl.DataFrame.write_csv`.
+
+    Returns:
+        None
+    """
+    if isinstance(data, pl.LazyFrame):
+        data = data.collect()
+    if isinstance(data, pa.Table):
+        data = pl.from_arrow(data)
+    elif isinstance(data, pd.DataFrame):
+        data = pl.from_pandas(data)
+
+    with self.open(path, "w") as f:
+        data.write_csv(f, **kwargs)
+
+
+def write_pyarrow_dataset(
+    self,
+    data: (
+        pl.DataFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | list[pl.DataFrame]
+        | list[pa.Table]
+        | list[pa.RecordBatch]
+        | list[pa.RecordBatchReader]
+        | list[pd.DataFrame]
+    ),
+    path: str,
+    basename: str | None = None,
+    schema: pa.Schema | None = None,
+    partition_by: str | list[str] | pds.Partitioning | None = None,
+    partitioning_flavor: str = "hive",
+    mode: str = "append",
+    format: str | None = "parquet",
+    compression: str = "zstd",
+    **kwargs,
+) -> list[pq.FileMetaData] | None:
+    """
+    Write a tabluar data to a PyArrow dataset.
+
+    Args:
+        data: (pl.DataFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader |
+            pd.DataFrame | list[pl.DataFrame] | list[pa.Table] | list[pa.RecordBatch] |
+            list[pa.RecordBatchReader] | list[pd.DataFrame]) Data to write.
+        path: (str) Path to write the data.
+        basename: (str, optional) Basename of the files. Defaults to None.
+        schema: (pa.Schema, optional) Schema of the data. Defaults to None.
+        partition_by: (str | list[str] | pds.Partitioning, optional) Partitioning of the data.
+            Defaults to None.
+        partitioning_flavor: (str, optional) Partitioning flavor. Defaults to 'hive'.
+        mode: (str, optional) Write mode. Defaults to 'append'.
+        format: (str, optional) Format of the data. Defaults to 'parquet'.
+        compression: (str, optional) Compression algorithm. Defaults to 'zstd'.
+        **kwargs: Additional keyword arguments for `pds.write_dataset`.
+
+    Returns:
+        (list[pq.FileMetaData] | None): List of Parquet file metadata or None.
+    """
+    if not isinstance(data, list):
+        data = [data]
+
+    if isinstance(data[0], pl.DataFrame):
+        data = [dd.to_arrow() for dd in data]
+        data = [dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data]
+
+    elif isinstance(data[0], pd.DataFrame):
+        data = [pa.Table.from_pandas(dd, preserve_index=False) for dd in data]
+
+    if mode == "delete_matching":
+        existing_data_behavior = "delete_matching"
+    elif mode == "append":
+        existing_data_behavior = "overwrite_or_ignore"
+    elif mode == "overwrite":
+        self.rm(path, recursive=True)
+        existing_data_behavior = "overwrite_or_ignore"
+    else:
+        existing_data_behavior = mode
+
+    if basename is None:
+        basename_template = (
+            "data-"
+            f"{dt.datetime.now().strftime('%Y%m%d_%H%M%S%f')[:-3]}-{uuid.uuid4().hex[:16]}-{{i}}.parquet"
+        )
+    else:
+        basename_template = f"{basename}-{{i}}.parquet"
+
+    file_options = pds.ParquetFileFormat().make_write_options(compression=compression)
+
+    create_dir: bool = (False,)
+
+    if hasattr(self._filesystem, "fs"):
+        if "local" in self._filesystem.fs.protocol:
+            create_dir = True
+    else:
+        if "local" in self._filesystem.protocol:
+            create_dir = True
+
+    if format == "parquet":
+        metadata = []
+
+        def file_visitor(written_file):
+            file_metadata = written_file.metadata
+            file_metadata.set_file_path(written_file.path)
+            metadata.append(file_metadata)
+
+    pds.write_dataset(
+        data=data,
+        base_dir=path,
+        basename_template=basename_template,
+        partitioning=partition_by,
+        partitioning_flavor=partitioning_flavor,
+        filesystem=self,
+        existing_data_behavior=existing_data_behavior,
+        schema=schema,
+        format=format,
+        create_dir=create_dir,
+        file_options=file_options,
+        file_visitor=file_visitor if format == "parquet" else None,
+        **kwargs,
+    )
+    if format == "parquet":
+        return metadata
+
+
+# patchen
+DirFileSystem.ls = dir_ls_p
+MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
+AbstractFileSystem.read_json = read_json
+AbstractFileSystem.read_json_dataset = read_json_dataset
+AbstractFileSystem.read_csv = read_csv
+AbstractFileSystem.read_parquet = read_parquet
+AbstractFileSystem.pyarrow_dataset = pyarrow_dataset
+AbstractFileSystem.pyarrow_parquet_dataset = pyarrow_parquet_dataset
+AbstractFileSystem.write_parquet = write_parquet
+AbstractFileSystem.write_json = write_json
+AbstractFileSystem.write_csv = write_csv
+AbstractFileSystem.write_pyarrow_dataset = write_pyarrow_dataset
+
+
+def get_filesystem(
+    path: str | None = None,
+    cached: bool = True,
+    cache_storage: str | None = None,
+    storage_options: (
+        AwsStorageOptions
+        | GitHubStorageOptions
+        | GitLabStorageOptions
+        | GcsStorageOptions
+        | AzureStorageOptions
+        | dict[str, str]
+        | None
+    ) = None,
+    **storage_options_kwargs,
+) -> DirFileSystem:
+    if storage_options is None:
+        if storage_options_kwargs:
+            storage_options = storage_options_kwargs
+        else:
+            storage_options = {}
+    else:
+        if hasattr(storage_options, "to_fsspec_kwargs"):
+            storage_options = storage_options.to_fsspec_kwargs()
+        else:
+            storage_options = storage_options.to_dict()
+
     if path is None:
         path = "file://."
     fs, path = url_to_fs(path, **storage_options)
 
     if fs.protocol[0] == "file" or fs.protocol[0] == "local":
         fs = DirFileSystem(path=path, fs=fs)
-        # fs.temp_dir = None
         fs.is_cache_fs = False
         return fs
 
     # temp_dir = tempfile.TemporaryDirectory()
-    fs = MonitoredSimpleCacheFileSystem(
-        fs=DirFileSystem(path=path, fs=fs), cache_storage=(Path.cwd() / path).as_posix()
-    )  # , cache_storage=
-    # fs.temp_dir = temp_dir
-    fs.is_cache_fs = True
+    fs = DirFileSystem(path=path, fs=fs)
+
+    if cached:
+        if cache_storage is None:
+            cache_storage = (Path.cwd() / path).as_posix()
+        fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
+        fs.is_cache_fs = True
+    else:
+        fs.is_cache_fs = False
     return fs

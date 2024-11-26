@@ -13,6 +13,7 @@ from .pipeline import schedule_pipeline as schedule_pipeline_
 from .pipeline import show_pipeline_dag as show_pipeline_dag_
 from .pipeline import all_pipelines as all_pipelines_
 from .pipeline import get_pipeline_summary as get_pipeline_summary_
+from .pipeline import show_pipeline_summary as show_pipeline_summary_
 from .pipeline import start_mqtt_listener as start_mqtt_listener_
 
 if importlib.util.find_spec("apscheduler"):
@@ -436,9 +437,10 @@ def all_pipelines(base_dir: str = None, storage_options: str = "{}"):
 
 
 @app.command()
-def show_pipeline_summary(
+def get_pipeline_summary(
     pipeline_name: str = None,
-    show: bool = True,
+    config: bool = True,
+    module: bool = True,
     base_dir: str = None,
     storage_options: str = "{}",
 ):
@@ -454,7 +456,36 @@ def show_pipeline_summary(
     storage_options = eval(storage_options) if storage_options is not None else {}
     summary = get_pipeline_summary_(
         name=pipeline_name,
-        show=show,
+        config=config,
+        module=module,
+        base_dir=base_dir,
+        storage_options=storage_options,
+    )
+    return summary
+
+
+@app.command()
+def show_pipeline_summary(
+    pipeline_name: str = None,
+    config: bool = True,
+    module: bool = True,
+    base_dir: str = None,
+    storage_options: str = "{}",
+):
+    """
+    Get a summary of the pipeline.
+
+    Args:
+        pipeline_name (str, optional): The name of the pipeline.
+        show (bool, optional): Whether to show the summary. Defaults to True.
+        base_dir (str, optional): The base path of the pipeline. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
+    """
+    storage_options = eval(storage_options) if storage_options is not None else {}
+    summary = show_pipeline_summary_(
+        name=pipeline_name,
+        config=config,
+        module=module,
         base_dir=base_dir,
         storage_options=storage_options,
     )

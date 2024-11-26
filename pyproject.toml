@@ -1,18 +1,20 @@
 [project]
 authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
 dependencies = [
-  "sf-hamilton[visualization]>=1.69.0",
-  "python-dotenv>=1.0.1",
-  "fsspec>=2024.5.0",
-  "pyyaml>=6.0.1",
-  "typer>=0.12.3",
-  "rich>=13.9.3",
-  "munch>=4.0.0",
-  "sf-hamilton-sdk>=0.5.2",
-  "dill>=0.3.8",
-  "opentelemetry-sdk>=1.28.0",
-  "opentelemetry-exporter-jaeger>=1.21.0",
-  "sanic-ext>=23.12.0",
+    "sf-hamilton[visualization]>=1.69.0",
+    "python-dotenv>=1.0.1",
+    "fsspec>=2024.5.0",
+    "pyyaml>=6.0.1",
+    "typer>=0.12.3",
+    "rich>=13.9.3",
+    "munch>=4.0.0",
+    "sf-hamilton-sdk>=0.5.2",
+    "dill>=0.3.8",
+    "opentelemetry-sdk>=1.28.0",
+    "opentelemetry-exporter-jaeger>=1.21.0",
+    "sanic-ext>=23.12.0",
+    "pendulum>=3.0.0",
+    "tqdm>=4.67.1",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 keywords = [
@@ -72,6 +74,7 @@ dev-dependencies = [
   "deltalake>=0.21.0",
   "datafusion>=42.0.0",
   "joblib>=1.4.2",
+  "toml>=0.10.2",
 ]
 #[tool.rye.scripts]
 #flowerpower = {cmd = ["python", "-m", "flowerpower.cli"]}

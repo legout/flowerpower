@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.tree import Tree
 from rich.columns import Columns
+from rich.layout import Layout
 
 from .cfg import (
     Config,
@@ -812,12 +813,16 @@ class PipelineManager:
         """
         return [os.path.splitext(os.path.basename(f))[0] for f in self._get_files()]
 
-    def get_summary(self, name: str | None = None, show: bool = True) -> dict:
+    def get_summary(
+        self, name: str | None = None, config: bool = True, module: bool = True
+    ) -> dict:
         """
         Get a summary of the pipelines.
 
         Args:
             name (str | None, optional): The name of the pipeline. Defaults to None.
+            config (bool, optional): Whether to show the configuration. Defaults to True.
+            module (bool, optional): Whether to show the module. Defaults to True.
         Returns:
             dict: A dictionary containing the pipeline summary.
         """
@@ -829,10 +834,31 @@ class PipelineManager:
         pipeline_summary = {}
         for name in pipeline_names:
             self.load_config(name)
-            pipeline_summary[name] = {
-                "config": self.cfg.pipeline.to_dict(),
-                "module": self._fs.cat(f"{self._pipeline_dir}/{name}.py").decode(),
-            }
+            if config:
+                pipeline_summary[name] = {"config": self.cfg.pipeline.to_dict()}
+            if module:
+                pipeline_summary[name].update(
+                    {
+                        "module": self._fs.cat(
+                            f"{self._pipeline_dir}/{name}.py"
+                        ).decode(),
+                    }
+                )
+        return pipeline_summary
+
+    def show_summary(
+        self, name: str | None = None, config: bool = True, module: bool = True
+    ) -> dict:
+        """
+        Show a summary of the pipelines.
+
+        Args:
+            name (str | None, optional): The name of the pipeline. Defaults to None.
+            config (bool, optional): Whether to show the configuration. Defaults to True.
+            module (bool, optional): Whether to show the module. Defaults to True.
+        """
+
+        pipeline_summary = self.get_summary(name=name, config=config, module=module)
 
         def add_dict_to_tree(tree, dict_data, style="green"):
             for key, value in dict_data.items():
@@ -842,67 +868,72 @@ class PipelineManager:
                 else:
                     tree.add(f"[cyan]{key}:[/] [green]{value}[/]")
 
-        if show:
-            console = Console()
-            for pipeline, info in pipeline_summary.items():
-                # Create tree for config
-                config_tree = Tree("📋 Configuration", style="bold magenta")
-                add_dict_to_tree(config_tree, info["config"])
+        console = Console()
+        for pipeline, info in pipeline_summary.items():
+            # Create tree for config
+            config_tree = Tree("📋 Configuration", style="bold magenta")
+            add_dict_to_tree(config_tree, info["config"])
 
-                # Create syntax-highlighted code view
-                code_view = Syntax(
-                    info["module"],
-                    "python",
-                    # theme="github",
-                    line_numbers=True,
-                    word_wrap=True,
-                    code_width=80,
-                )
+            # Create syntax-highlighted code view
+            code_view = Syntax(
+                info["module"],
+                "python",
+                theme="default",
+                line_numbers=False,
+                word_wrap=True,
+                code_width=80,
+                padding=2,
+            )
 
+            # console.print(
+            #     Columns(
+            #         [
+            #             Panel(
+            #                 config_tree,
+            #                 title=f"🔄 Pipeline: {pipeline}",
+            #                 subtitle="Configuration",
+            #                 border_style="blue",
+            #                 padding=(2, 2),
+            #             ),
+            #             Panel(
+            #                 code_view,
+            #                 title=f"🔄 Pipeline: {pipeline}",
+            #                 subtitle="Module",
+            #                 border_style="blue",
+            #                 padding=(2, 2),
+            #             ),
+            #         ],
+            #         # column_first=True,
+            #         equal=True,
+            #         expand=True,
+            #     )
+            # )
+            # console.print("\n")
+            if config:
+                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
                 console.print(
-                    Columns(
-                        [
-                            Panel(
-                                config_tree,
-                                title=f"🔄 Pipeline: {pipeline}",
-                                subtitle="Configuration",
-                                border_style="blue",
-                                padding=(2, 2),
-                            ),
-                            Panel(
-                                code_view,
-                                title=f"🔄 Pipeline: {pipeline}",
-                                subtitle="Module",
-                                border_style="blue",
-                                padding=(2, 2),
-                            ),
-                        ]
+                    Panel(
+                        config_tree,
+                        title=f"🔄 Pipeline: {pipeline}",
+                        subtitle="Configuration",
+                        border_style="blue",
+                        padding=(2, 2),
                     )
                 )
                 console.print("\n")
-                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
-                # console.print("\n")
-                # console.print(
-                #     Panel(
-                #         config_tree,
-                #         title=f"🔄 Pipeline: {pipeline}",
-                #         subtitle="Configuration",
-                #         border_style="blue",
-                #         padding=(2, 2),
-                #     )
-                # )
-                # console.print("\n")
-                # console.print(
-                #     Panel(
-                #         code_view,
-                #         title=f"🔄 Pipeline: {pipeline}",
-                #         subtitle="Configuration",
-                #         border_style="green",
-                #         padding=(2, 2),
-                #     )
-                # )
 
-        return pipeline_summary
+            if module:
+                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
+                console.print(
+                    Panel(
+                        code_view,
+                        title=f"🔄 Pipeline: {pipeline}",
+                        subtitle="Module",
+                        border_style="blue",
+                        padding=(2, 2),
+                    )
+                )
+                console.print("\n")
 
     @property
     def summary(self) -> dict:
@@ -1255,8 +1286,11 @@ class Pipeline(PipelineManager):
     def stop_mqtt_listener(self):
         return super().stop_mqtt_listener(self.name)
 
-    def get_summary(self, show: bool = True):
-        return super().get_summary(self.name, show=show)[self.name]
+    def get_summary(self, config: bool = True, module: bool = True):
+        return super().get_summary(self.name, config=config, module=module)[self.name]
+
+    def show_summary(self, config: bool = True, module: bool = True):
+        return super().show_summary(self.name, config=config, module=module)
 
     @property
     def summary(self):
@@ -1386,7 +1420,8 @@ def delete_pipeline(
 def get_pipeline_summary(
     name: str | None = None,
     base_dir: str | None = None,
-    show: bool = False,
+    config: bool = True,
+    module: bool = True,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
 ):
@@ -1396,14 +1431,15 @@ def get_pipeline_summary(
     Args:
         name (str): The name of the pipeline.
         base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
-        show (bool, optional): Whether to print the summary. Defaults to False.
+        config (bool, optional): Whether to show the configuration. Defaults to True.
+        module (bool, optional): Whether to show the module. Defaults to True.
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     Returns:
         dict: A dictionary containing the pipeline summary.
     """
     p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    summary = p.get_summary(name=name, show=show)
+    summary = p.get_summary(name=name, config=config, module=module)
 
     return summary
 
@@ -1697,3 +1733,26 @@ def show_pipeline_dag(
     """
     p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
     p.show_dag(format=format, show=show, reload=reload, save=save)
+
+
+def show_pipeline_summary(
+    name: str | None = None,
+    base_dir: str | None = None,
+    config: bool = True,
+    module: bool = True,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    """
+    Show a summary of the pipelines.
+
+    Args:
+        name (str): The name of the pipeline.
+        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+        config (bool, optional): Whether to show the configuration. Defaults to True.
+        module (bool, optional): Whether to show the module. Defaults to True.
+        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+    """
+    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
+    p.show_summary(name=name, config=config, module=module)

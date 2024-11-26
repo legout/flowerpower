@@ -97,7 +97,7 @@ decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
-deltalake==0.21.0
+deltalake==0.22.0
 deprecated==1.2.15
     # via opentelemetry-api
     # via opentelemetry-semantic-conventions
@@ -286,7 +286,7 @@ opentelemetry-sdk==1.28.2
     # via opentelemetry-exporter-jaeger-thrift
 opentelemetry-semantic-conventions==0.49b2
     # via opentelemetry-sdk
-orjson==3.10.11
+orjson==3.10.12
     # via flowerpower
 overrides==7.7.0
     # via jupyter-server
@@ -307,14 +307,16 @@ parso==0.8.4
     # via jedi
 passlib==1.7.4
     # via sf-hamilton-ui
+pendulum==3.0.0
+    # via flowerpower
 pexpect==4.9.0
     # via ipython
 pillow==11.0.0
 platformdirs==4.3.6
     # via jupyter-core
     # via textual
-polars==1.14.0
-posthog==3.7.2
+polars==1.15.0
+posthog==3.7.3
     # via sf-hamilton-sdk
 prometheus-client==0.21.0
     # via jupyter-server
@@ -335,7 +337,7 @@ ptyprocess==0.7.0
     # via terminado
 pure-eval==0.2.3
     # via stack-data
-pyarrow==18.0.0
+pyarrow==18.1.0
     # via datafusion
     # via deltalake
 pycparser==2.22
@@ -356,7 +358,9 @@ python-dateutil==2.9.0.post0
     # via botocore
     # via jupyter-client
     # via pandas
+    # via pendulum
     # via posthog
+    # via time-machine
 python-dotenv==1.0.1
     # via flowerpower
 python-json-logger==2.0.7
@@ -412,7 +416,7 @@ send2trash==1.8.3
 setuptools==75.6.0
     # via jupyterlab
     # via sanic
-sf-hamilton==1.83.1
+sf-hamilton==1.83.3
     # via flowerpower
     # via sf-hamilton-sdk
 sf-hamilton-sdk==0.8.0
@@ -436,7 +440,7 @@ soupsieve==2.6
     # via beautifulsoup4
 sqlalchemy==2.0.36
     # via flowerpower
-sqlglot==25.31.4
+sqlglot==25.32.0
     # via sf-hamilton-sdk
 sqlparse==0.5.2
     # via django
@@ -447,18 +451,23 @@ tenacity==8.5.0
 terminado==0.18.1
     # via jupyter-server
     # via jupyter-server-terminals
-textual==0.86.3
+textual==0.87.1
     # via flowerpower
 thrift==0.21.0
     # via opentelemetry-exporter-jaeger-thrift
+time-machine==2.16.0
+    # via pendulum
 tinycss2==1.4.0
     # via nbconvert
+toml==0.10.2
 tornado==6.4.2
     # via ipykernel
     # via jupyter-client
     # via jupyter-server
     # via jupyterlab
     # via terminado
+tqdm==4.67.1
+    # via flowerpower
 tracerite==1.1.1
     # via sanic
 traitlets==5.14.3
@@ -495,6 +504,7 @@ typing-inspect==0.9.0
     # via sf-hamilton
 tzdata==2024.2
     # via pandas
+    # via pendulum
 tzlocal==5.2
     # via apscheduler
 uc-micro-py==1.0.3
