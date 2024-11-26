@@ -141,7 +141,7 @@ class AwsStorageOptions(BaseStorageOptions):
         return filesystem(self.protocol, **self.to_fsspec_kwargs())
 
 
-class GitHubStorageOptions(BaseModel):
+class GitHubStorageOptions(BaseStorageOptions):
     protocol: str = "github"
     org: str | None = None
     repo: str | None = None
@@ -162,7 +162,7 @@ class GitHubStorageOptions(BaseModel):
         )
 
 
-class GitLabStorageOptions(BaseModel):
+class GitLabStorageOptions(BaseStorageOptions):
     protocol: str = "gitlab"
     base_url: str = "https://gitlab.com"
     access_token: str | None = None
@@ -184,23 +184,37 @@ class GitLabStorageOptions(BaseModel):
             raise ValueError("Either 'project_id' or 'project_name' must be provided")
 
 
-class StorageOptions(BaseModel):
-    aws: AwsStorageOptions | None = None
-    azure: AzureStorageOptions | None = None
-    gcs: GcsStorageOptions | None = None
-    github: GitHubStorageOptions | None = None
-    gitlab: GitLabStorageOptions | None = None
+# class StorageOptions(BaseModel):
+#     aws: AwsStorageOptions | None = None
+#     azure: AzureStorageOptions | None = None
+#     gcs: GcsStorageOptions | None = None
+#     github: GitHubStorageOptions | None = None
+#     gitlab: GitLabStorageOptions | None = None
 
-    @classmethod
-    def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
-        with fs.open(path, "r") as f:
-            data = yaml.safe_load(f)
-        return cls(**data)
+#     @classmethod
+#     def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
+#         with fs.open(path, "r") as f:
+#             data = yaml.safe_load(f)
+#         return cls(**data)
 
-    @classmethod
-    def from_env(cls) -> "StorageOptions":
-        return cls(
-            aws=AwsStorageOptions.from_env(),
-            github=GitHubStorageOptions.from_env(),
-            gitlab=GitLabStorageOptions.from_env(),
-        )
+#     @classmethod
+#     def from_env(cls) -> "StorageOptions":
+#         return cls(
+#             aws=AwsStorageOptions.from_env(),
+#             github=GitHubStorageOptions.from_env(),
+#             gitlab=GitLabStorageOptions.from_env(),
+#         )
+
+def get_storage_options(protocol:str, **storage_options)->AwsStorageOptions|AzureStorageOptions|GcsStorageOptions|GitHubStorageOptions|GitLabStorageOptions:
+    if protocol == "s3":
+        return AwsStorageOptions(**storage_options)
+    elif protocol == "az" or protocol == "abfs" or protocol == "adl":
+        return AzureStorageOptions(**storage_options)
+    elif protocol == "gs" or protocol == "gcs":
+        return GcsStorageOptions(**storage_options)
+    elif protocol == "github":
+        return GitHubStorageOptions(**storage_options)
+    elif protocol == "gitlab":
+        return GitLabStorageOptions(**storage_options)
+    else:
+        raise ValueError(f"Unsupported protocol: {protocol}")

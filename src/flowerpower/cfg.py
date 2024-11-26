@@ -13,7 +13,6 @@ from .helpers.filesystem import get_filesystem
 import pathlib
 
 class BaseConfig(BaseModel):
-    # fs: Optional[AbstractFileSystem] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def to_dict(self) -> dict[str, Any]:
@@ -35,9 +34,9 @@ class BaseConfig(BaseModel):
         return cls(**d)
 
     @classmethod
-    def from_yaml(cls, path: str, fs: AbstractFileSystem | None = None):
-        if fs is None:
-            fs = get_filesystem()
+    def from_yaml(cls, path: str, fs: AbstractFileSystem):
+        #if fs is None:
+        #    fs = get_filesystem(".", cached=True)
         with fs.open(path) as f:
             return cls.from_dict(yaml.full_load(f))
 
@@ -122,7 +121,7 @@ class PipelineConfig(BaseConfig):
             self.h_params = munchify(self.to_h_params(self.params))
             self.params = munchify(self.params)
 
-    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
+    def to_yaml(self, path: str, fs: AbstractFileSystem):
         try:
             with fs.open(path, "w") as f:
                 d = self.to_dict()
@@ -141,7 +140,7 @@ class PipelineConfig(BaseConfig):
         return cls(**d)
 
     @classmethod
-    def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem | None = None):
+    def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem):
         with fs.open(path) as f:
             return cls.from_dict(name, yaml.full_load(f))
 
@@ -231,7 +230,7 @@ class Config(BaseConfig):
         storage_options: dict | Munch = Munch(),
     ):
         if fs is None:
-            fs = get_filesystem(base_dir, **storage_options)
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
         if fs.exists("conf/project.yml"):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:

@@ -125,7 +125,3 @@ async def set_abc(request, value):
     request.app.ctx.abc = value
     return json({"status": "success"})
 
-
-@bp.get("/get-abc")
-async def get_abc(request):
-    return json({"abc": request.app.ctx.abc})

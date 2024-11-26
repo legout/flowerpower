@@ -37,8 +37,6 @@ anyio==4.6.2.post1
     # via apscheduler
     # via httpx
     # via jupyter-server
-appnope==0.1.4
-    # via ipykernel
 apscheduler==4.0.0a5
     # via flowerpower
 argon2-cffi==23.1.0
@@ -139,6 +137,7 @@ graphviz==0.20.3
     # via sf-hamilton
 greenlet==3.1.1
     # via flowerpower
+    # via sqlalchemy
 grpcio==1.68.0
     # via opentelemetry-exporter-jaeger-proto-grpc
 h11==0.14.0
@@ -178,7 +177,7 @@ jinja2==3.1.4
 jmespath==1.0.1
     # via botocore
 joblib==1.4.2
-json5==0.9.28
+json5==0.10.0
     # via jupyterlab-server
 jsonpointer==3.0.0
     # via jsonschema
@@ -342,7 +341,7 @@ pyarrow==18.1.0
     # via deltalake
 pycparser==2.22
     # via cffi
-pydantic==2.10.1
+pydantic==2.10.2
     # via django-ninja
 pydantic-core==2.27.1
     # via pydantic

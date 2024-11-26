@@ -84,7 +84,7 @@ class BaseFileIO(BaseModel):
         self._update_fs()
 
     def _update_fs(self):
-        self.fs = get_filesystem(self.path, self.storage_options)
+        self.fs = get_filesystem(self.path if isinstanve(self.path, str) else self.path[0], self.storage_options, dirfs=False)
 
     def _glob_path(self):
         if isinstance(self.path, list):

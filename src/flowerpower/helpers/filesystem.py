@@ -8,12 +8,13 @@ from typing import Generator
 
 import fsspec
 import requests
-from fsspec import url_to_fs
+from fsspec.utils import infer_storage_options
 from fsspec.implementations.cache_mapper import AbstractCacheMapper
 from fsspec.implementations.cached import SimpleCacheFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.memory import MemoryFile
 from fsspec.spec import AbstractFileSystem
+from fsspec import filesystem
 from loguru import logger
 
 from .storage_options import (
@@ -22,6 +23,7 @@ from .storage_options import (
     GitLabStorageOptions,
     GcsStorageOptions,
     AzureStorageOptions,
+    get_storage_options,
 )
 from .misc import run_parallel
 from .polars import pl
@@ -1308,8 +1310,6 @@ AbstractFileSystem.write_pyarrow_dataset = write_pyarrow_dataset
 
 def get_filesystem(
     path: str | None = None,
-    cached: bool = False,
-    cache_storage: str | None = None,
     storage_options: (
         AwsStorageOptions
         | GitHubStorageOptions
@@ -1319,37 +1319,49 @@ def get_filesystem(
         | dict[str, str]
         | None
     ) = None,
+    dirfs: bool = True,
+    cached: bool = False,
+    cache_storage: str | None = None,
     **storage_options_kwargs,
-) -> DirFileSystem:
-    if storage_options is None:
-        if storage_options_kwargs:
-            storage_options = storage_options_kwargs
-        else:
-            storage_options = {}
-    else:
-        if hasattr(storage_options, "to_fsspec_kwargs"):
-            storage_options = storage_options.to_fsspec_kwargs()
-        else:
-            storage_options = storage_options.to_dict()
-    print(storage_options)
+) -> AbstractFileSystem:
+    """
+    Get a filesystem based on the given path.
+    
+    Args:
+        path: (str, optional) Path to the filesystem. Defaults to None.
+        storage_options: (AwsStorageOptions | GitHubStorageOptions | GitLabStorageOptions | 
+            GcsStorageOptions | AzureStorageOptions | dict[str, str], optional) Storage options. 
+            Defaults to None.
+        dirfs: (bool, optional) If True, return a DirFileSystem. Defaults to True.
+        cached: (bool, optional) If True, use a cached filesystem. Defaults to False.
+        cache_storage: (str, optional) Path to the cache storage. Defaults to None.
+        **storage_options_kwargs: Additional keyword arguments for the storage options.
 
-    if path is None:
-        path = "file://."
-    fs, path = url_to_fs(path, **storage_options)
+    """
+    pp = infer_storage_options(path)
+    protocol = pp["protocol"]
+    path = pp["host"] + pp["path"]
 
-    if fs.protocol[0] == "file" or fs.protocol[0] == "local":
-        fs = DirFileSystem(path=path, fs=fs)
+    if protocol == "file" or protocol == "local":
+        fs = filesystem(protocol)
         fs.is_cache_fs = False
+        if dirfs:
+            fs = DirFileSystem(path=path, fs=fs)
+            fs.is_cache_fs = False
         return fs
 
-    # temp_dir = tempfile.TemporaryDirectory()
-    fs = DirFileSystem(path=path, fs=fs)
-
+    if storage_options is None:
+        storage_options = get_storage_options(protocol, **storage_options_kwargs)
+    
+    fs = storage_options.to_filesystem()
+    fs.is_cache_fs = False
+    if dirfs:
+        fs = DirFileSystem(path=path, fs=fs)
+        fs.is_cache_fs = False
     if cached:
         if cache_storage is None:
             cache_storage = (Path.cwd() / path).as_posix()
         fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
         fs.is_cache_fs = True
-    else:
-        fs.is_cache_fs = False
+
     return fs
