@@ -25,14 +25,9 @@ from loguru import logger
 
 from .misc import convert_large_types_to_standard, run_parallel
 from .polars import pl
-from .storage_options import (
-    AwsStorageOptions,
-    AzureStorageOptions,
-    GcsStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-    get_storage_options,
-)
+from .storage_options import (AwsStorageOptions, AzureStorageOptions,
+                              GcsStorageOptions, GitHubStorageOptions,
+                              GitLabStorageOptions, get_storage_options)
 
 
 class FileNameCacheMapper(AbstractCacheMapper):
