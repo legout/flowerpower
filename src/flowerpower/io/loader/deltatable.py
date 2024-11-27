@@ -1,13 +1,15 @@
+import datetime as dt
+
 import datafusion as dtf
 import duckdb
 import pandas as pd
-from ...helpers.polars import pl
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from hamilton.function_modifiers import dataloader
-import datetime as dt
-from ..utils import get_delta_metadata, get_dataframe_metadata
+
+from ...helpers.polars import pl
+from ..utils import get_dataframe_metadata, get_delta_metadata
 
 
 @dataloader()
@@ -139,7 +141,6 @@ def register_delta_in_datafusion(
         ctx = dtf.SessionContext()
 
     if not lazy:
-
         ctx.register_record_batches(name, [table.to_batches()])
     else:
         ctx.register_dataset(name, table)

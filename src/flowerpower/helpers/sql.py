@@ -1,17 +1,14 @@
+import datetime as dt
 import re
+from functools import lru_cache
 from typing import Any
 
+import pendulum as pdl
 import pyarrow as pa
 import pyarrow.compute as pc
-
+from sqlglot import exp, parse_one
 
 from .polars import pl
-
-from sqlglot import exp, parse_one
-from functools import lru_cache
-import datetime as dt
-
-import pendulum as pdl
 
 
 @lru_cache(maxsize=128)

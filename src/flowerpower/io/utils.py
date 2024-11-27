@@ -1,11 +1,12 @@
+import datetime as dt
+
+import duckdb
 import pandas as pd
 import polars as pl
-import duckdb
 import pyarrow as pa
 import pyarrow.dataset as pds
-import datetime as dt
-from fsspec import AbstractFileSystem
 from deltalake import DeltaTable
+from fsspec import AbstractFileSystem
 
 
 def get_serializable_schema(
@@ -148,7 +149,6 @@ def get_pyarrow_dataset_metadata(
     format: str,
     **kwargs,
 ) -> dict:
-
     schema = get_serializable_schema(ds.schema)
     metadata = {
         "path": path,

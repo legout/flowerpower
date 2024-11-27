@@ -12,24 +12,18 @@ from hamilton import driver
 from hamilton.plugins import h_opentelemetry
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
-from rich.panel import Panel
-from rich.table import Table
-from rich.console import Console
-from rich.syntax import Syntax
-from rich.tree import Tree
 from rich.columns import Columns
+from rich.console import Console
 from rich.layout import Layout
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.tree import Tree
 
-from .cfg import (
-    Config,
-    PipelineConfig,
-    PipelineRunConfig,
-    PipelineScheduleConfig,
-    PipelineTrackerConfig,
-)
+from .cfg import (Config, PipelineConfig, PipelineRunConfig,
+                  PipelineScheduleConfig, PipelineTrackerConfig)
 from .helpers.filesystem import get_filesystem
 from .helpers.open_telemetry import init_tracer
-
 # from munch import unmunchify
 from .helpers.templates import PIPELINE_PY_TEMPLATE
 

@@ -124,4 +124,3 @@ async def show(
 async def set_abc(request, value):
     request.app.ctx.abc = value
     return json({"status": "success"})
-

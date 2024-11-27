@@ -1,8 +1,9 @@
-import os
 import configparser
-from pydantic import BaseModel
+import os
+
 import yaml
 from fsspec import AbstractFileSystem, filesystem
+from pydantic import BaseModel
 
 
 class BaseStorageOptions(BaseModel):
@@ -205,7 +206,16 @@ class GitLabStorageOptions(BaseStorageOptions):
 #             gitlab=GitLabStorageOptions.from_env(),
 #         )
 
-def get_storage_options(protocol:str, **storage_options)->AwsStorageOptions|AzureStorageOptions|GcsStorageOptions|GitHubStorageOptions|GitLabStorageOptions:
+
+def get_storage_options(
+    protocol: str, **storage_options
+) -> (
+    AwsStorageOptions
+    | AzureStorageOptions
+    | GcsStorageOptions
+    | GitHubStorageOptions
+    | GitLabStorageOptions
+):
     if protocol == "s3":
         return AwsStorageOptions(**storage_options)
     elif protocol == "az" or protocol == "abfs" or protocol == "adl":

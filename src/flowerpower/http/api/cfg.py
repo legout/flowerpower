@@ -3,7 +3,7 @@ import os
 from sanic import Blueprint
 from sanic.exceptions import SanicException
 from sanic.response import json
-from sanic_ext import validate, openapi
+from sanic_ext import openapi, validate
 
 from ...cfg import PipelineConfig
 

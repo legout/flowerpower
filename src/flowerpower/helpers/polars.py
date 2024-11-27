@@ -1,13 +1,12 @@
+import re
 from functools import partial
 
 import pandas as pd
 import polars as pl
 import polars.selectors as cs
-import re
 
 
 def get_timestamp_column(df: pl.DataFrame | pl.LazyFrame) -> str | list[str]:
-
     return df.select(cs.datetime() | cs.date()).collect_schema().names()
 
 
@@ -63,7 +62,6 @@ def unnest_with_prefix(
     all_columns = df.columns if isinstance(df, pl.DataFrame) else df.collect_schema()
 
     def _unnest_with_prefix(columns):
-
         return df.with_columns(
             [
                 pl.col(col).struct.rename_fields(
@@ -471,7 +469,6 @@ def partition_by(
         drop_columns += timedelta_columns
 
     if columns_:
-
         datetime_columns = [
             col.lower()
             for col in columns_

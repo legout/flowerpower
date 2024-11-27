@@ -1,39 +1,33 @@
 import base64
+import datetime as dt
 import inspect
 import os
-import orjson
 import urllib
+import uuid
 from pathlib import Path
 from typing import Generator
 
 import fsspec
+import orjson
+import pandas as pd
+import pyarrow as pa
+import pyarrow.dataset as pds
+import pyarrow.parquet as pq
 import requests
-from fsspec.utils import infer_storage_options
+from fsspec import filesystem
 from fsspec.implementations.cache_mapper import AbstractCacheMapper
 from fsspec.implementations.cached import SimpleCacheFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.memory import MemoryFile
 from fsspec.spec import AbstractFileSystem
-from fsspec import filesystem
+from fsspec.utils import infer_storage_options
 from loguru import logger
 
-from .storage_options import (
-    AwsStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-    GcsStorageOptions,
-    AzureStorageOptions,
-    get_storage_options,
-)
-from .misc import run_parallel
+from .misc import convert_large_types_to_standard, run_parallel
 from .polars import pl
-from .misc import convert_large_types_to_standard
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyarrow.dataset as pds
-import datetime as dt
-import pandas as pd
-import uuid
+from .storage_options import (AwsStorageOptions, AzureStorageOptions,
+                              GcsStorageOptions, GitHubStorageOptions,
+                              GitLabStorageOptions, get_storage_options)
 
 
 class FileNameCacheMapper(AbstractCacheMapper):
@@ -1326,11 +1320,11 @@ def get_filesystem(
 ) -> AbstractFileSystem:
     """
     Get a filesystem based on the given path.
-    
+
     Args:
         path: (str, optional) Path to the filesystem. Defaults to None.
-        storage_options: (AwsStorageOptions | GitHubStorageOptions | GitLabStorageOptions | 
-            GcsStorageOptions | AzureStorageOptions | dict[str, str], optional) Storage options. 
+        storage_options: (AwsStorageOptions | GitHubStorageOptions | GitLabStorageOptions |
+            GcsStorageOptions | AzureStorageOptions | dict[str, str], optional) Storage options.
             Defaults to None.
         dirfs: (bool, optional) If True, return a DirFileSystem. Defaults to True.
         cached: (bool, optional) If True, use a cached filesystem. Defaults to False.
@@ -1352,7 +1346,7 @@ def get_filesystem(
 
     if storage_options is None:
         storage_options = get_storage_options(protocol, **storage_options_kwargs)
-    
+
     fs = storage_options.to_filesystem()
     fs.is_cache_fs = False
     if dirfs:

@@ -1,15 +1,13 @@
-import duckdb
-
-from hamilton.function_modifiers import dataloader
 import datetime as dt
-
-from pydantic import BaseModel
 import os
 
+import duckdb
 import pandas as pd
-import pyarrow as pa
 import polars as pl
+import pyarrow as pa
 import pyarrow.dataset as pds
+from hamilton.function_modifiers import dataloader
+from pydantic import BaseModel
 
 
 class DuckDBLoader(BaseModel):

@@ -1,23 +1,25 @@
 import os
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+import datafusion
+import duckdb
+import pandas as pd
+import pyarrow as pa
+import pyarrow.dataset as pds
 from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
-from ..helpers.storage_options import (
-    AwsStorageOptions,
-    GcsStorageOptions,
-    AzureStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-)
+from pydantic import BaseModel, ConfigDict, Field
+
 from ..helpers.filesystem import get_filesystem
 from ..helpers.polars import pl
 from ..helpers.sql import sql2polars_filter, sql2pyarrow_filter
-from typing import Any
-import pandas as pd
-import pyarrow.dataset as pds
-import pyarrow as pa
-import duckdb
-import datafusion
+from ..helpers.storage_options import (
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+)
 
 
 class BaseFileIO(BaseModel):
@@ -36,7 +38,6 @@ class BaseFileIO(BaseModel):
     format: str | None = None
 
     def model_post_init(self, __context):
-
         # self._update_storage_options_from_env()
         if isinstance(self.path, str):
             self.path = (
@@ -84,7 +85,11 @@ class BaseFileIO(BaseModel):
         self._update_fs()
 
     def _update_fs(self):
-        self.fs = get_filesystem(self.path if isinstanve(self.path, str) else self.path[0], self.storage_options, dirfs=False)
+        self.fs = get_filesystem(
+            self.path if isinstance(self.path, str) else self.path[0],
+            self.storage_options,
+            dirfs=False,
+        )
 
     def _glob_path(self):
         if isinstance(self.path, list):
@@ -198,7 +203,6 @@ class BaseFileLoader(BaseFileIO):
     def to_duckdb_relation(
         self, conn: duckdb.DuckDBPyConnection | None = None, **kwargs
     ) -> duckdb.DuckDBPyRelation:
-
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()

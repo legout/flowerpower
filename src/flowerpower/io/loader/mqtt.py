@@ -1,15 +1,15 @@
-import orjson
+from typing import Any
 
 import datafusion
-
 import duckdb
+import orjson
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-from typing import Any
-from ...helpers.sql import sql2polars_filter
 from pydantic import BaseModel
+
+from ...helpers.sql import sql2polars_filter
 
 
 class MQTTLoader(BaseModel):

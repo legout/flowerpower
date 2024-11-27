@@ -5,23 +5,13 @@
 from pathlib import Path
 
 import pandas as pd
-from hamilton.function_modifiers import parameterize, value, source
-from munch import Munch
+from hamilton.function_modifiers import parameterize
 
 from flowerpower.cfg import Config
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
-
-# PARAMS = Munch(
-#     {
-#         "avg_x_wk_spend": {"avg_x_wk_spend": {"rolling": value(3)}},
-#         "spend_zero_mean": {
-#             "spend_zero_mean": {"spend1": source("spend"), "offset": value(0)}
-#         },
-#     }
-# )
 
 
 def spend() -> pd.Series:
