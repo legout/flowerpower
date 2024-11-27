@@ -302,7 +302,7 @@ class BaseFileLoader(BaseFileIO):
 
 
 class BaseDatasetLoader(BaseFileLoader):
-    schema: pa.Schema | None = None
+    _schema: pa.Schema | None = None
     partitioning: str | list[str] | pds.Partitioning | None = None
 
     def to_pyarrow_dataset(
@@ -313,7 +313,7 @@ class BaseDatasetLoader(BaseFileLoader):
             self._dataset = self.fs.pyarrow_dataset(
                 self.path,
                 format=self.format,
-                schema=self.schema,
+                schema=self._schema,
                 partitioning=self.partitioning,
                 **kwargs,
             )
@@ -321,7 +321,7 @@ class BaseDatasetLoader(BaseFileLoader):
             if self.fs.exists(os.path.join(self.path, "_metadata")):
                 self._dataset = self.fs.parquet_dataset(
                     self.path,
-                    schema=self.schema,
+                    schema=self._schema,
                     partitioning=self.partitioning,
                     **kwargs,
                 )
@@ -329,13 +329,13 @@ class BaseDatasetLoader(BaseFileLoader):
                 self._dataset = self.fs.pyarrow_dataset(
                     self.path,
                     format=self.format,
-                    schema=self.schema,
+                    schema=self._schema,
                     partitioning=self.partitioning,
                     **kwargs,
                 )
         else:
             self._dataset = pds.dataset(
-                self.to_pyarrow_table(**kwargs), schema=self.schema
+                self.to_pyarrow_table(**kwargs), schema=self._schema
             )
 
     def to_pandas(self, **kwargs) -> pd.DataFrame:
