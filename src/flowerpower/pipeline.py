@@ -28,9 +28,9 @@ from rich.tree import Tree
 from .cfg import (
     Config,
     PipelineConfig,
-    PipelineRunConfig,
-    PipelineScheduleConfig,
-    PipelineTrackerConfig,
+    # PipelineRunConfig,
+    # PipelineScheduleConfig,
+    # PipelineTrackerConfig,
 )
 from .helpers.filesystem import get_filesystem
 from .helpers.templates import PIPELINE_PY_TEMPLATE
@@ -1449,11 +1449,6 @@ def get_summary(
 def new(
     name: str,
     overwrite: bool = False,
-    pipeline_config: dict | PipelineConfig = {},
-    params: dict = {},
-    run: dict | PipelineRunConfig = {},
-    schedule: dict | PipelineScheduleConfig = {},
-    tracker: dict | PipelineTrackerConfig = {},
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
@@ -1464,27 +1459,24 @@ def new(
     Args:
         name (str): The name of the pipeline.
         overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-        pipeline_config (dict | PipelineConfig, optional): The pipeline configuration. Defaults to {}.
-        params (dict, optional): The function configuration. Defaults to {}.
-        run (dict | PipelineRunConfig, optional): The run configuration. Defaults to {}.
-        schedule (dict | PipelineScheduleConfig, optional): The schedule configuration. Defaults to {}.
-        tracker (dict | PipelineTrackerConfig, optional): The tracker configuration. Defaults to {}.
         base_dir (str | None, optional): The base directory of the pipeline. Defaults to None.
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    add(
-        name=name,
-        overwrite=overwrite,
-        pipeline_config=pipeline_config,
-        params=params,
-        run=run,
-        schedule=schedule,
-        tracker=tracker,
-        base_dir=base_dir,
-        storage_options=storage_options,
-        fs=fs,
-    )
+    # add(
+    #     name=name,
+    #     overwrite=overwrite,
+    #     pipeline_config=pipeline_config,
+    #     params=params,
+    #     run=run,
+    #     schedule=schedule,
+    #     tracker=tracker,
+    #     base_dir=base_dir,
+    #     storage_options=storage_options,
+    #     fs=fs,
+    # )
+    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
+    p.new(name=name, overwrite=overwrite)
 
 
 def run(
