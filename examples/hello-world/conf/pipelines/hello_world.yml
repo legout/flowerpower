@@ -27,7 +27,7 @@ schedule:
     misfire_grace_time: null
     paused: false
   trigger:
-    crontab: null
+    crontab: 1 * * * *
     day: null
     day_of_week: null
     days: 0
@@ -41,7 +41,7 @@ schedule:
     seconds: 0
     start_time: null
     timezone: null
-    type_: null
+    type_: cron
     week: null
     weeks: 0
     year: null
