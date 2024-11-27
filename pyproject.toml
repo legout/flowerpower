@@ -10,9 +10,6 @@ dependencies = [
   "munch>=4.0.0",
   "sf-hamilton-sdk>=0.5.2",
   "dill>=0.3.8",
-  "opentelemetry-sdk>=1.28.0",
-  "opentelemetry-exporter-jaeger>=1.21.0",
-  "sanic-ext>=23.12.0",
   "pendulum>=3.0.0",
   "tqdm>=4.67.1",
 ]
@@ -29,7 +26,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.8.0"
+version = "0.8.1"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -38,6 +35,7 @@ flowerpower = "flowerpower.cli:app"
 # dask = ["dask[complete]>=2024.7.1"]
 mongodb = ["pymongo>=4.7.2"]
 mqtt = ["paho-mqtt>=2.1.0", "orjson>=3.10.11"]
+opentelemetry = ["opentelemetry-api>=1.5.0", "opentelemetry-sdk>=1.5.0"]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
 scheduler = [
@@ -49,7 +47,11 @@ scheduler = [
 ]
 tui = ["textual>=0.85.2"]
 ui = ["sf-hamilton-ui>=0.0.11"]
-webserver = ["sanic>=24.6.0", "orjson>=3.10.11"]
+webserver = [
+  "sanic>=24.6.0",
+  "sanic-ext>=23.12.0",
+  "orjson>=3.10.11",
+]
 
 [build-system]
 build-backend = "hatchling.build"
