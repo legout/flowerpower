@@ -1198,7 +1198,7 @@ class Pipeline(PipelineManager):
 
     def schedule(
         self,
-        trigger_type: str = "cron",
+        trigger_type: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
         executor: str | None = None,
@@ -1636,7 +1636,7 @@ def start_mqtt_listener(
 
 def schedule(
     name: str,
-    trigger_type: str = "cron",
+    trigger_type: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
     executor: str | None = None,
