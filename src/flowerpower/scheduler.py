@@ -7,7 +7,7 @@ if importlib.util.find_spec("apscheduler"):
     from apscheduler.executors.subprocess import ProcessPoolJobExecutor
     from apscheduler.executors.thread import ThreadPoolJobExecutor
 
-    from .helpers.monkey import Job, Schedule, Task, patch_pickle
+    from .helpers.monkey import patch_pickle
 
     patch_pickle()
 
@@ -19,6 +19,7 @@ else:
 
 import os
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fsspec.spec import AbstractFileSystem
@@ -50,7 +51,7 @@ class SchedulerManager(Scheduler):
 
         """
         self.name = name or ""
-        self._base_dir = base_dir or ""
+        self._base_dir = base_dir or str(Path.cwd())
         self._storage_options = storage_options
         if fs is None:
             fs = get_filesystem(self._base_dir, **self._storage_options)

@@ -146,8 +146,7 @@ class Trigger:
         timezone: str | None = None,
         **kwargs,
     ):
-        from apscheduler.triggers.calendarinterval import \
-            CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
         return CalendarIntervalTrigger(
             weeks=kwargs.pop("weeks", 0),

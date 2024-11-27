@@ -13,9 +13,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..helpers.filesystem import get_filesystem
 from ..helpers.polars import pl
 from ..helpers.sql import sql2polars_filter, sql2pyarrow_filter
-from ..helpers.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                       GcsStorageOptions, GitHubStorageOptions,
-                                       GitLabStorageOptions)
+from ..helpers.storage_options import (
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+)
 
 
 class BaseFileIO(BaseModel):

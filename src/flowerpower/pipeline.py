@@ -12,6 +12,7 @@ from hamilton import driver
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
+
     from .helpers.open_telemetry import init_tracer
 
 else:
@@ -25,12 +26,9 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from .cfg import (
+from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
     Config,
     PipelineConfig,
-    # PipelineRunConfig,
-    # PipelineScheduleConfig,
-    # PipelineTrackerConfig,
 )
 from .helpers.filesystem import get_filesystem
 from .helpers.templates import PIPELINE_PY_TEMPLATE
@@ -44,6 +42,8 @@ if importlib.util.find_spec("paho"):
 else:
     MQTTClient = None
 
+
+from pathlib import Path
 
 from .helpers.executor import get_executor
 from .helpers.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
@@ -67,7 +67,7 @@ class PipelineManager:
         Returns:
             None
         """
-        self._base_dir = base_dir or ""
+        self._base_dir = base_dir or str(Path.cwd())
         self._storage_options = storage_options
         if fs is None:
             fs = get_filesystem(self._base_dir, **self._storage_options)
