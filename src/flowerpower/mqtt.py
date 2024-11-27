@@ -1,12 +1,15 @@
 import random
 import time
 from typing import Callable
-
+import datetime as dt
 from loguru import logger
 from munch import Munch
+from fsspec import AbstractFileSystem
+from types import TracebackType
 from paho.mqtt.client import CallbackAPIVersion, Client
+from .pipeline import Pipeline
 
-from ..cfg import Config
+from .cfg import Config
 
 
 class MQTTClient:
@@ -36,6 +39,18 @@ class MQTTClient:
         self._transport = transport
 
         self._client = None
+
+    def __enter__(self) -> "MQTTClient":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        # Add any cleanup code here if needed
+        pass
 
     def connect(self) -> Client:
         def on_connect(client, userdata, flags, rc, properties):
@@ -72,7 +87,7 @@ class MQTTClient:
 
         client = Client(
             CallbackAPIVersion.VERSION2,
-            client_id=f"ie-databus-{random.randint(0, 10000)}",
+            client_id=f"flowerpower-{random.randint(0, 10000)}",
             transport=self._transport,
             userdata=Munch(
                 user=self._user,
@@ -133,7 +148,17 @@ class MQTTClient:
         self,
         on_message: Callable,
         topic: str | None = None,
-    ) -> Client:
+    ) -> None:
+        """
+        Run the MQTT client in the background.
+
+        Args:
+            on_message: Callback function to run when a message is received
+            topic: MQTT topic to listen to
+
+        Returns:
+            None
+        """
         if self._client is None or not self._client.is_connected():
             self.connect()
 
@@ -148,6 +173,16 @@ class MQTTClient:
         on_message: Callable,
         topic: str | None = None,
     ):
+        """
+        Run the MQTT client until a break signal is received.
+
+        Args:
+            on_message: Callback function to run when a message is received
+            topic: MQTT topic to listen to
+
+        Returns:
+            None
+        """
         if self._client is None or not self._client.is_connected():
             self.connect()
 
@@ -159,7 +194,18 @@ class MQTTClient:
 
     def start_listener(
         self, on_message: Callable, topic: str | None = None, background: bool = False
-    ):
+    ) -> None:
+        """
+        Start the MQTT listener.
+
+        Args:
+            on_message: Callback function to run when a message is received
+            topic: MQTT topic to listen to
+            background: Run the listener in the background
+
+        Returns:
+            None
+        """
         if background:
             self.run_in_background(on_message, topic)
         else:
@@ -167,7 +213,13 @@ class MQTTClient:
 
     def stop_listener(
         self,
-    ):
+    ) -> None:
+        """
+        Stop the MQTT listener.
+
+        Returns:
+            None
+        """
         self._client.loop_stop()
         logger.info("Client stopped.")
 
@@ -196,3 +248,86 @@ class MQTTClient:
             port=cfg.get("port", 1883),
             transport=cfg.get("transport", "tcp"),
         )
+
+    def start_pipeline_listener(
+        self,
+        name: str,
+        topic: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        executor: str | None = None,
+        with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
+        reload: bool = False,
+        result_expiration_time: float | dt.timedelta = 0,
+        as_job: bool = False,
+        base_dir: str | None = None,
+        storage_options: dict = {},
+        fs: AbstractFileSystem | None = None,
+        background: bool = False,
+        **kwargs,
+    ):
+        """
+        Start a pipeline listener that listens to a topic and processes the message using a pipeline.
+
+        Args:
+            name: Name of the pipeline
+            topic: MQTT topic to listen to
+            inputs: Inputs for the pipeline
+            final_vars: Final variables for the pipeline
+            executor: Executor to use for the pipeline
+            with_tracker: Use tracker for the pipeline
+            with_opentelemetry: Use OpenTelemetry for the pipeline
+            reload: Reload the pipeline
+            result_expiration_time: Result expiration time for the pipeline
+            as_job: Run the pipeline as a job
+            base_dir: Base directory for the pipeline
+            storage_options: Storage options for the pipeline
+            fs: File system for the pipeline
+            background: Run the listener in the background
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            MQTTClient: MQTT client
+        """
+
+        def on_message(client, userdata, msg):
+            logger.info("Message arrived")
+
+            inputs["payload"] = msg.payload
+
+            with Pipeline(
+                name=name, storage_options=storage_options, fs=fs
+            ) as pipeline:
+                try:
+                    if as_job:
+                        pipeline.add_job(
+                            inputs=inputs,
+                            final_vars=final_vars,
+                            executor=executor,
+                            with_tracker=with_tracker,
+                            with_opentelemetry=with_opentelemetry,
+                            reload=reload,
+                            result_expiration_time=result_expiration_time,
+                            **kwargs,
+                        )
+                    else:
+                        pipeline.run(
+                            inputs=inputs,
+                            final_vars=final_vars,
+                            executor=executor,
+                            with_tracker=with_tracker,
+                            with_opentelemetry=with_opentelemetry,
+                            reload=reload,
+                            result_expiration_time=result_expiration_time,
+                            **kwargs,
+                        )
+                    logger.success("Message processed successfully")
+                    return
+                except Exception as e:
+                    _ = e
+                    logger.exception(e)
+
+                logger.warning("processing failed")
+
+        self.start_listener(on_message=on_message, topic=topic, background=background)

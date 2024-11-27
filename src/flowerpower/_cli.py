@@ -11,6 +11,7 @@ from .pipeline import get_summary as get_pipeline_summary_
 from .pipeline import new as new_pipeline_
 from .pipeline import run as run_pipeline_
 from .pipeline import run_job as run_pipeline_job_
+from .pipeline import save_dag as save_pipeline_dag_
 from .pipeline import schedule as schedule_pipeline_
 from .pipeline import show_dag as show_pipeline_dag_
 from .pipeline import show_summary as show_pipeline_summary_
@@ -396,7 +397,7 @@ def start_worker(worker_name: str, base_dir: str = None, storage_options: str = 
 
 
 @app.command()
-def show_pipeline_dag(
+def save_pipeline_dag(
     pipeline_name: str,
     base_dir: str = None,
     format: str = "png",
@@ -411,11 +412,32 @@ def show_pipeline_dag(
         storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
     storage_options = eval(storage_options) if storage_options is not None else {}
+    save_pipeline_dag_(
+        name=pipeline_name,
+        base_dir=base_dir,
+        format=format,
+        storage_options=storage_options,
+    )
+
+
+@app.command()
+def show_pipeline_dag(
+    pipeline_name: str,
+    base_dir: str = None,
+    storage_options: str = "{}",
+):
+    """
+    Show the pipeline.
+
+    Args:
+        pipeline_name (str): The name of the pipeline.
+        base_dir (str, optional): The base path of the pipeline. Defaults to "".
+        storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
+    """
+    storage_options = eval(storage_options) if storage_options is not None else {}
     show_pipeline_dag_(
         name=pipeline_name,
         base_dir=base_dir,
-        show=True,
-        format=format,
         storage_options=storage_options,
     )
 

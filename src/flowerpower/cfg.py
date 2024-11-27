@@ -10,7 +10,7 @@ from munch import Munch, munchify, unmunchify
 # from dataclasses import asdict, dataclass, field
 from pydantic import BaseModel, ConfigDict, Field
 
-from .helpers.filesystem import get_filesystem
+from .utils.filesystem import get_filesystem
 
 
 class BaseConfig(BaseModel):

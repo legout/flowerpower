@@ -13,7 +13,7 @@ from hamilton import driver
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
 
-    from .helpers.open_telemetry import init_tracer
+    from .utils.open_telemetry import init_tracer
 
 else:
     h_opentelemetry = None
@@ -30,23 +30,24 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
     Config,
     PipelineConfig,
 )
-from .helpers.filesystem import get_filesystem
-from .helpers.templates import PIPELINE_PY_TEMPLATE
+from .utils.filesystem import get_filesystem
+from .utils.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
 else:
     SchedulerManager = None
-if importlib.util.find_spec("paho"):
-    from .helpers.mqtt import MQTTClient
-else:
-    MQTTClient = None
+# if importlib.util.find_spec("paho"):
+#     from .mqtt import MQTTClient
+# else:
+#     MQTTClient = None
 
 
 from pathlib import Path
+from types import TracebackType
 
-from .helpers.executor import get_executor
-from .helpers.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
+from .utils.executor import get_executor
+from .utils.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
 
 
 class PipelineManager:
@@ -78,6 +79,18 @@ class PipelineManager:
 
         self._sync_fs()
         self.load_config()
+
+    def __enter__(self) -> "PipelineManager":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        # Add any cleanup code here if needed
+        pass
 
     def _get_schedules(self):
         with SchedulerManager(
@@ -380,15 +393,6 @@ class PipelineManager:
             )
             return sm.run_job(
                 self._run,
-                # args=(
-                #     name,
-                #     inputs,
-                #     final_vars,
-                #     executor,
-                #     with_tracker,
-                #     with_opentelemetry,
-                #     reload,
-                # ),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -450,15 +454,6 @@ class PipelineManager:
             )
             id_ = sm.add_job(
                 self._run,
-                # args=(
-                #     name,
-                #     inputs,
-                #     final_vars,
-                #     executor,
-                #     with_tracker,
-                #     with_opentelemetry,
-                #     reload,
-                # ),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -761,13 +756,35 @@ class PipelineManager:
                     f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
                 )
 
-    def show_dag(
+    def _display_all_function(self, name: str, reload: bool = True):
+        dr, _ = self._get_driver(
+            name=name, executor=None, with_tracker=False, reload=reload
+        )
+        return dr.display_all_functions()
+
+    def save_dag(
         self,
         name: str,
         format: str = "png",
-        show: bool = False,
-        reload: bool = False,
-        save: bool = False,
+    ):
+        """
+        Save the graph of functions for a given name.
+
+        Args:
+            name (str): The name of the graph.
+            format (str, optional): The format of the graph file. Defaults to "png".
+
+        Returns:
+            str: The path to the saved graph file.
+        """
+        dag = self._display_all_function(name)
+
+        self._fs.makedirs("graphs", exist_ok=True)
+        dag.save(os.path.join(self._base_dir, f"graphs/{name}.{format}"))
+
+    def show_dag(
+        self,
+        name: str,
         **kwargs,
     ):
         """
@@ -783,19 +800,8 @@ class PipelineManager:
         Returns:
             graph: The generated graph object.
         """
-        self._fs.makedirs("graphs", exist_ok=True)
-        dr, _ = self._get_driver(
-            name=name, executor=None, with_tracker=False, reload=reload
-        )
-        if save:
-            path = f"graphs/{name}.{format}"
-        else:
-            path = None
-        graph = dr.display_all_functions(path, **kwargs)
-
-        if show:
-            graph.view()
-        return graph
+        dag = self._display_all_function(name)
+        return dag.show()
 
     def _get_files(self) -> list[str]:
         """
@@ -887,30 +893,6 @@ class PipelineManager:
                 padding=2,
             )
 
-            # console.print(
-            #     Columns(
-            #         [
-            #             Panel(
-            #                 config_tree,
-            #                 title=f"🔄 Pipeline: {pipeline}",
-            #                 subtitle="Configuration",
-            #                 border_style="blue",
-            #                 padding=(2, 2),
-            #             ),
-            #             Panel(
-            #                 code_view,
-            #                 title=f"🔄 Pipeline: {pipeline}",
-            #                 subtitle="Module",
-            #                 border_style="blue",
-            #                 padding=(2, 2),
-            #             ),
-            #         ],
-            #         # column_first=True,
-            #         equal=True,
-            #         expand=True,
-            #     )
-            # )
-            # console.print("\n")
             if config:
                 # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
                 console.print(
@@ -994,113 +976,114 @@ class PipelineManager:
         else:
             return pipeline_info
 
-    def start_mqtt_listener(
-        self,
-        name: str,
-        topic: str | None = None,
-        host: str = "localhost",
-        port: int = 1883,
-        user: str | None = None,
-        pw: str | None = None,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        reload: bool = False,
-        result_expiration_time: float | dt.timedelta = 0,
-        as_job: bool = False,
-        background: bool = False,
-        **kwargs,
-    ):
-        """
-        Run a pipeline when a message is received on a given topic.
+    # def start_mqtt_listener(
+    #     self,
+    #     name: str,
+    #     topic: str | None = None,
+    #     host: str = "localhost",
+    #     port: int = 1883,
+    #     user: str | None = None,
+    #     pw: str | None = None,
+    #     inputs: dict | None = None,
+    #     final_vars: list | None = None,
+    #     executor: str | None = None,
+    #     with_tracker: bool | None = None,
+    #     with_opentelemetry: bool | None = None,
+    #     reload: bool = False,
+    #     result_expiration_time: float | dt.timedelta = 0,
+    #     as_job: bool = False,
+    #     background: bool = False,
+    #     **kwargs,
+    # ):
+    #     """
+    #     Run a pipeline when a message is received on a given topic.
 
-        Args:
-            name (str): The name of the pipeline.
-            topic (str | None, optional): The topic to subscribe to. Defaults to None.
-            host (str, optional): The host of the MQTT broker. Defaults to "localhost".
-            port (int, optional): The port of the MQTT broker. Defaults to 1883.
-            user (str | None, optional): The username for the MQTT broker. Defaults to None.
-            pw (str | None, optional): The password for the MQTT broker. Defaults to None.
-            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-            executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
-            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
-            result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job.
-                Defaults to 0.
-            as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
-            background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
-            **kwargs: Additional keyword arguments.
+    #     Args:
+    #         name (str): The name of the pipeline.
+    #         topic (str | None, optional): The topic to subscribe to. Defaults to None.
+    #         host (str, optional): The host of the MQTT broker. Defaults to "localhost".
+    #         port (int, optional): The port of the MQTT broker. Defaults to 1883.
+    #         user (str | None, optional): The username for the MQTT broker. Defaults to None.
+    #         pw (str | None, optional): The password for the MQTT broker. Defaults to None.
+    #         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+    #         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+    #         executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
+    #         with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+    #         with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline.
+    #               Defaults to None.
+    #         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+    #         result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job.
+    #             Defaults to 0.
+    #         as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+    #         background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
+    #         **kwargs: Additional keyword arguments.
 
-        Returns:
-            None
-        """
-        if inputs is None:
-            inputs = {}
+    #     Returns:
+    #         None
+    #     """
+    #     if inputs is None:
+    #         inputs = {}
 
-        def on_message(client, userdata, msg):
-            logger.info("Message arrived")
+    #     def on_message(client, userdata, msg):
+    #         logger.info("Message arrived")
 
-            inputs["payload"] = msg.payload
+    #         inputs["payload"] = msg.payload
 
-            try:
-                if as_job:
-                    self._add_job(
-                        name=name,
-                        inputs=inputs,
-                        final_vars=final_vars,
-                        executor=executor,
-                        with_tracker=with_tracker,
-                        with_opentelemetry=with_opentelemetry,
-                        reload=reload,
-                        result_expiration_time=result_expiration_time,
-                        **kwargs,
-                    )
-                else:
-                    self._run(
-                        name=name,
-                        inputs=inputs,
-                        final_vars=final_vars,
-                        executor=executor,
-                        with_tracker=with_tracker,
-                        with_opentelemetry=with_opentelemetry,
-                        reload=reload,
-                        result_expiration_time=result_expiration_time,
-                        **kwargs,
-                    )
-                logger.success("Message processed successfully")
-                return
-            except Exception as e:
-                _ = e
-                logger.exception(e)
+    #         try:
+    #             if as_job:
+    #                 self._add_job(
+    #                     name=name,
+    #                     inputs=inputs,
+    #                     final_vars=final_vars,
+    #                     executor=executor,
+    #                     with_tracker=with_tracker,
+    #                     with_opentelemetry=with_opentelemetry,
+    #                     reload=reload,
+    #                     result_expiration_time=result_expiration_time,
+    #                     **kwargs,
+    #                 )
+    #             else:
+    #                 self._run(
+    #                     name=name,
+    #                     inputs=inputs,
+    #                     final_vars=final_vars,
+    #                     executor=executor,
+    #                     with_tracker=with_tracker,
+    #                     with_opentelemetry=with_opentelemetry,
+    #                     reload=reload,
+    #                     result_expiration_time=result_expiration_time,
+    #                     **kwargs,
+    #                 )
+    #             logger.success("Message processed successfully")
+    #             return
+    #         except Exception as e:
+    #             _ = e
+    #             logger.exception(e)
 
-            logger.warning("processing failed")
+    #         logger.warning("processing failed")
 
-        if not hasattr(self, "mqtt_client"):
-            self.mqtt_client = {}
-        try:
-            self.mqtt[name] = MQTTClient.from_event_broker(base_dir=self._base_dir)
-        except ValueError as e:
-            logger.exception(e)
-        else:
-            self.mqtt[name] = MQTTClient(user=user, pw=pw, host=host, port=port)
-        if topic is None:
-            topic = name
-        self.mqtt[name].connect()
-        self.mqtt[name].start_listener(on_message, topic, background=background)
+    #     if not hasattr(self, "mqtt_client"):
+    #         self.mqtt_client = {}
+    #     try:
+    #         self.mqtt[name] = MQTTClient.from_event_broker(base_dir=self._base_dir)
+    #     except ValueError as e:
+    #         logger.exception(e)
+    #     else:
+    #         self.mqtt[name] = MQTTClient(user=user, pw=pw, host=host, port=port)
+    #     if topic is None:
+    #         topic = name
+    #     self.mqtt[name].connect()
+    #     self.mqtt[name].start_listener(on_message, topic, background=background)
 
-    def stop_mqtt_listener(self, name: str):
-        """
-        Stop the MQTT listener.
+    # def stop_mqtt_listener(self, name: str):
+    #     """
+    #     Stop the MQTT listener.
 
-        Returns:
-            None
-        """
-        self.mqtt[name].stop_listener()
-        self.mqtt[name].disconnect()
+    #     Returns:
+    #         None
+    #     """
+    #     self.mqtt[name].stop_listener()
+    #     self.mqtt[name].disconnect()
 
 
 class Pipeline(PipelineManager):
@@ -1232,15 +1215,14 @@ class Pipeline(PipelineManager):
             **kwargs,
         )
 
+    def save_dag(self, name, format="png"):
+        return super().save_dag(name, format)
+
     def show_dag(
         self,
-        format: str = "png",
-        show: bool = False,
-        save: bool = False,
-        reload: bool = False,
     ):
         return super().show_dag(
-            self.name, format=format, show=show, save=save, reload=reload
+            self.name,
         )
 
     def delete(self, cfg: bool = True, remove_module_file: bool = False):
@@ -1249,44 +1231,44 @@ class Pipeline(PipelineManager):
     def load_module(self):
         super().load_module(self.name)
 
-    def start_mqtt_listener(
-        self,
-        topic: str | None = None,
-        host: str = "localhost",
-        port: int = 1883,
-        user: str | None = None,
-        pw: str | None = None,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        reload: bool = False,
-        result_expiration_time: float | dt.timedelta = 0,
-        background: bool = False,
-        **kwargs,
-    ):
-        name = self.name
-        return super().start_mqtt_listener(
-            name=name,
-            topic=topic,
-            host=host,
-            port=port,
-            user=user,
-            pw=pw,
-            inputs=inputs,
-            final_vars=final_vars,
-            executor=executor,
-            with_tracker=with_tracker,
-            with_opentelemetry=with_opentelemetry,
-            reload=reload,
-            result_expiration_time=result_expiration_time,
-            background=background,
-            **kwargs,
-        )
+    # def start_mqtt_listener(
+    #     self,
+    #     topic: str | None = None,
+    #     host: str = "localhost",
+    #     port: int = 1883,
+    #     user: str | None = None,
+    #     pw: str | None = None,
+    #     inputs: dict | None = None,
+    #     final_vars: list | None = None,
+    #     executor: str | None = None,
+    #     with_tracker: bool | None = None,
+    #     with_opentelemetry: bool | None = None,
+    #     reload: bool = False,
+    #     result_expiration_time: float | dt.timedelta = 0,
+    #     background: bool = False,
+    #     **kwargs,
+    # ):
+    #     name = self.name
+    #     return super().start_mqtt_listener(
+    #         name=name,
+    #         topic=topic,
+    #         host=host,
+    #         port=port,
+    #         user=user,
+    #         pw=pw,
+    #         inputs=inputs,
+    #         final_vars=final_vars,
+    #         executor=executor,
+    #         with_tracker=with_tracker,
+    #         with_opentelemetry=with_opentelemetry,
+    #         reload=reload,
+    #         result_expiration_time=result_expiration_time,
+    #         background=background,
+    #         **kwargs,
+    #     )
 
-    def stop_mqtt_listener(self):
-        return super().stop_mqtt_listener(self.name)
+    # def stop_mqtt_listener(self):
+    #     return super().stop_mqtt_listener(self.name)
 
     def get_summary(self, config: bool = True, module: bool = True):
         return super().get_summary(self.name, config=config, module=module)[self.name]
@@ -1394,8 +1376,10 @@ def all_pipelines(
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    pm = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    return pm.all_pipelines(show=show)
+    with PipelineManager(
+        base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as pm:
+        return pm.all_pipelines(show=show)
 
 
 def delete(
@@ -1415,8 +1399,10 @@ def delete(
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.delete(remove_module_file=remove_module_file)
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        p.delete(remove_module_file=remove_module_file)
 
 
 def get_summary(
@@ -1440,10 +1426,10 @@ def get_summary(
     Returns:
         dict: A dictionary containing the pipeline summary.
     """
-    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    summary = p.get_summary(name=name, config=config, module=module)
-
-    return summary
+    with PipelineManager(
+        base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        return p.get_summary(name=name, config=config, module=module)
 
 
 def new(
@@ -1463,20 +1449,11 @@ def new(
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    # add(
-    #     name=name,
-    #     overwrite=overwrite,
-    #     pipeline_config=pipeline_config,
-    #     params=params,
-    #     run=run,
-    #     schedule=schedule,
-    #     tracker=tracker,
-    #     base_dir=base_dir,
-    #     storage_options=storage_options,
-    #     fs=fs,
-    # )
-    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.new(name=name, overwrite=overwrite)
+
+    with PipelineManager(
+        base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as pm:
+        pm.new(name=name, overwrite=overwrite)
 
 
 def run(
@@ -1510,16 +1487,18 @@ def run(
     Returns:
         Any: The result of running the pipeline.
     """
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    return p.run(
-        executor=executor,
-        inputs=inputs,
-        final_vars=final_vars,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        **kwargs,
-    )
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        return p.run(
+            executor=executor,
+            inputs=inputs,
+            final_vars=final_vars,
+            with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
+            reload=reload,
+            **kwargs,
+        )
 
 
 def run_job(
@@ -1556,82 +1535,87 @@ def run_job(
         Any: The result of running the job.
     """
 
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    return p.run_job(
-        executor=executor,
-        inputs=inputs,
-        final_vars=final_vars,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        **kwargs,
-    )
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        return p.run_job(
+            executor=executor,
+            inputs=inputs,
+            final_vars=final_vars,
+            with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
+            reload=reload,
+            **kwargs,
+        )
 
 
-def start_mqtt_listener(
-    name: str,
-    topic: str | None = None,
-    host: str = "localhost",
-    port: int = 1883,
-    user: str | None = None,
-    pw: str | None = None,
-    inputs: dict | None = None,
-    final_vars: list | None = None,
-    executor: str | None = None,
-    with_tracker: bool | None = None,
-    with_opentelemetry: bool | None = None,
-    base_dir: str | None = None,
-    storage_options: dict = {},
-    fs: AbstractFileSystem | None = None,
-    reload: bool = False,
-    result_expiration_time: float | dt.timedelta = 0,
-    as_job: bool = False,
-    background: bool = False,
-    **kwargs,
-) -> "MQTTClient":
-    """
-    Run a pipeline when a message is received on a given topic.
+# def start_mqtt_listener(
+#     name: str,
+#     topic: str | None = None,
+#     host: str = "localhost",
+#     port: int = 1883,
+#     user: str | None = None,
+#     pw: str | None = None,
+#     inputs: dict | None = None,
+#     final_vars: list | None = None,
+#     executor: str | None = None,
+#     with_tracker: bool | None = None,
+#     with_opentelemetry: bool | None = None,
+#     base_dir: str | None = None,
+#     storage_options: dict = {},
+#     fs: AbstractFileSystem | None = None,
+#     reload: bool = False,
+#     result_expiration_time: float | dt.timedelta = 0,
+#     as_job: bool = False,
+#     background: bool = False,
+#     **kwargs,
+# ) -> "MQTTClient":
+#     """
+#     Run a pipeline when a message is received on a given topic.
 
-    Args:
-        name (str): The name of the pipeline.
-        topic (str | None, optional): The topic to subscribe to. Defaults to None.
-        host (str, optional): The host of the MQTT broker. Defaults to "localhost".
-        port (int, optional): The port of the MQTT broker. Defaults to 1883.
-        user (str | None, optional): The username for the MQTT broker. Defaults to None.
-        pw (str | None, optional): The password for the MQTT broker. Defaults to None.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
-        with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
-        base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
-        storage_options (dict, optional): The fsspec storage options. Defaults to {}.
-        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
-        reload (bool, optional): Whether to reload the pipeline. Defaults to False.
-        result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job. Defaults to 0.
-        as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
-        background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
-        **kwargs: Additional keyword arguments.
-    """
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.start_mqtt_listener(
-        topic=topic,
-        host=host,
-        port=port,
-        user=user,
-        pw=pw,
-        inputs=inputs,
-        final_vars=final_vars,
-        executor=executor,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        reload=reload,
-        result_expiration_time=result_expiration_time,
-        as_job=as_job,
-        background=background,
-        **kwargs,
-    )
-    return p.mqtt_client[name]
+#     Args:
+#         name (str): The name of the pipeline.
+#         topic (str | None, optional): The topic to subscribe to. Defaults to None.
+#         host (str, optional): The host of the MQTT broker. Defaults to "localhost".
+#         port (int, optional): The port of the MQTT broker. Defaults to 1883.
+#         user (str | None, optional): The username for the MQTT broker. Defaults to None.
+#         pw (str | None, optional): The password for the MQTT broker. Defaults to None.
+#         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+#         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+#         executor (str | None, optional): The executor to use for the pipeline. Defaults to None.
+#         with_tracker (bool | None, optional): Whether to use a tracker for the pipeline. Defaults to None.
+#         with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the pipeline. Defaults to None.
+#         base_dir (str | None, optional): The base path of the pipeline. Defaults to None.
+#         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
+#         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+#         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
+#         result_expiration_time (float | dt.timedelta, optional): The result expiration time for the job.
+#               Defaults to 0.
+#         as_job (bool, optional): Whether to run the pipeline as a job. Defaults to False.
+#         background (bool, optional): Whether to run the pipeline in the background. Defaults to False.
+#         **kwargs: Additional keyword arguments.
+#     """
+#     with Pipeline(
+#         name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+#     ) as p:
+#         p.start_mqtt_listener(
+#             topic=topic,
+#             host=host,
+#             port=port,
+#             user=user,
+#             pw=pw,
+#             inputs=inputs,
+#             final_vars=final_vars,
+#             executor=executor,
+#             with_tracker=with_tracker,
+#             with_opentelemetry=with_opentelemetry,
+#             reload=reload,
+#             result_expiration_time=result_expiration_time,
+#             as_job=as_job,
+#             background=background,
+#             **kwargs,
+#         )
+#         return p.mqtt_client[name]
 
 
 def schedule(
@@ -1648,7 +1632,6 @@ def schedule(
     max_jitter: float | dt.timedelta | None = None,
     max_running_jobs: int | None = None,
     conflict_policy: str = "do_nothing",
-    # job_result_expiration_time: float | dt.timedelta = 0,
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
@@ -1684,30 +1667,41 @@ def schedule(
     Returns:
         str: The ID of the scheduled pipeline.
     """
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    return p.schedule(
-        executor=executor,
-        tigger_type=trigger_type,
-        inputs=inputs,
-        final_vars=final_vars,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        paused=paused,
-        coalesce=coalesce,
-        misfire_grace_time=misfire_grace_time,
-        max_jitter=max_jitter,
-        max_running_jobs=max_running_jobs,
-        # job_result_expiration_time=job_result_expiration_time,
-        conflict_policy=conflict_policy,
-        **kwargs,
-    )
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        return p.schedule(
+            executor=executor,
+            tigger_type=trigger_type,
+            inputs=inputs,
+            final_vars=final_vars,
+            with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
+            paused=paused,
+            coalesce=coalesce,
+            misfire_grace_time=misfire_grace_time,
+            max_jitter=max_jitter,
+            max_running_jobs=max_running_jobs,
+            conflict_policy=conflict_policy,
+            **kwargs,
+        )
+
+
+def save_dag(
+    name: str,
+    format="png",
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+):
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        p.save_dag(name, format)
 
 
 def show_dag(
     name: str,
-    format: str = "png",
-    show: bool = False,
-    save: bool = False,
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
@@ -1725,8 +1719,10 @@ def show_dag(
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         reload (bool, optional): Whether to reload the pipeline. Defaults to False.
     """
-    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.show_dag(format=format, show=show, reload=reload, save=save)
+    with Pipeline(
+        name=name, base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as p:
+        p.show_dag()
 
 
 def show_summary(
@@ -1748,5 +1744,7 @@ def show_summary(
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    p = PipelineManager(base_dir=base_dir, storage_options=storage_options, fs=fs)
-    p.show_summary(name=name, config=config, module=module)
+    with PipelineManager(
+        base_dir=base_dir, storage_options=storage_options, fs=fs
+    ) as pm:
+        pm.show_summary(name=name, config=config, module=module)

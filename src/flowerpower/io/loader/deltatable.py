@@ -8,7 +8,7 @@ import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from hamilton.function_modifiers import dataloader
 
-from ...helpers.polars import pl
+from ...utils.polars import pl
 from ..utils import get_dataframe_metadata, get_delta_metadata
 
 

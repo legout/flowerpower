@@ -76,9 +76,7 @@ def humanize_crontab(minute, hour, day, month, day_of_week):
             return (
                 "every day at midnight"
                 if hour == "0"
-                else "every day at noon"
-                if hour == "12"
-                else f"every day at {hour}:00"
+                else "every day at noon" if hour == "12" else f"every day at {hour}:00"
             )
 
         if (
@@ -219,18 +217,93 @@ def display_schedules(schedules: List):
             schedule.id,
             schedule.task_id.split(":")[-1],
             format_trigger(schedule.trigger),
-            str(schedule.args[1])
-            if schedule.args and len(schedule.args) > 1
-            else "None",
+            (
+                str(schedule.args[1])
+                if schedule.args and len(schedule.args) > 1
+                else "None"
+            ),
             "\n".join(f"{k}: {v}" for k, v in (schedule.kwargs or {}).items())
             or "None",
-            schedule.next_fire_time.strftime("%Y-%m-%d %H:%M:%S")
-            if schedule.next_fire_time
-            else "Never",
-            schedule.last_fire_time.strftime("%Y-%m-%d %H:%M:%S")
-            if schedule.last_fire_time
-            else "Never",
+            (
+                schedule.next_fire_time.strftime("%Y-%m-%d %H:%M:%S")
+                if schedule.next_fire_time
+                else "Never"
+            ),
+            (
+                schedule.last_fire_time.strftime("%Y-%m-%d %H:%M:%S")
+                if schedule.last_fire_time
+                else "Never"
+            ),
             "✓" if schedule.paused else "✗",
+        )
+
+    console.print(table)
+
+
+def display_tasks(tasks):
+    console = Console()
+    table = Table(title="Tasks")
+
+    widths = {"id": 50, "executor": 15, "max_jobs": 15, "misfire": 20}
+
+    for col, style, width in [
+        ("ID", "cyan", widths["id"]),
+        ("Job Executor", "blue", widths["executor"]),
+        ("Max Running Jobs", "yellow", widths["max_jobs"]),
+        ("Misfire Grace Time", "green", widths["misfire"]),
+    ]:
+        table.add_column(col, style=style, width=width)
+
+    for task in sorted(tasks, key=attrgetter("id")):
+        table.add_row(
+            task.id,
+            str(task.job_executor),
+            str(task.max_running_jobs or "None"),
+            str(task.misfire_grace_time or "None"),
+        )
+
+    console.print(table)
+
+
+def display_jobs(jobs):
+    console = Console()
+    table = Table(title="Jobs")
+
+    widths = {
+        "id": 10,
+        "task_id": 40,
+        "args": 20,
+        "kwargs": 20,
+        "schedule": 15,
+        "created": 25,
+        "status": 15,
+    }
+
+    for col, style, width in [
+        ("ID", "cyan", widths["id"]),
+        ("Task ID", "blue", widths["task_id"]),
+        ("Args", "yellow", widths["args"]),
+        ("Kwargs", "yellow", widths["kwargs"]),
+        ("Schedule ID", "green", widths["schedule"]),
+        ("Created At", "magenta", widths["created"]),
+        ("Status", "red", widths["status"]),
+    ]:
+        table.add_column(col, style=style, width=width)
+
+    for job in sorted(jobs, key=attrgetter("id")):
+        status = "Running" if job.acquired_by else "Pending"
+        table.add_row(
+            str(job.id),
+            job.task_id,
+            str(job.args if job.args else "None"),
+            (
+                "\n".join(f"{k}: {v}" for k, v in job.kwargs.items())
+                if job.kwargs
+                else "None"
+            ),
+            str(job.schedule_id or "None"),
+            job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            status,
         )
 
     console.print(table)

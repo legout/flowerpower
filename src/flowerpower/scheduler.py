@@ -7,7 +7,7 @@ if importlib.util.find_spec("apscheduler"):
     from apscheduler.executors.subprocess import ProcessPoolJobExecutor
     from apscheduler.executors.thread import ThreadPoolJobExecutor
 
-    from .helpers.monkey import patch_pickle
+    from .utils.monkey import patch_pickle
 
     patch_pickle()
 
@@ -26,10 +26,10 @@ from fsspec.spec import AbstractFileSystem
 from loguru import logger
 
 from .cfg import Config
-from .helpers.datastore import setup_data_store
-from .helpers.eventbroker import setup_event_broker
-from .helpers.filesystem import get_filesystem
-from .helpers.scheduler import display_schedules
+from .utils.datastore import setup_data_store
+from .utils.eventbroker import setup_event_broker
+from .utils.filesystem import get_filesystem
+from .utils.scheduler import display_schedules, display_jobs, display_tasks
 
 
 class SchedulerManager(Scheduler):
@@ -266,12 +266,35 @@ class SchedulerManager(Scheduler):
         """
         display_schedules(self.get_schedules())
 
+    def show_tasks(self):
+        """
+        Shows all tasks in the scheduler.
+
+        This method iterates over all tasks in the scheduler and prints their details.
+
+        Parameters:
+            None
+        """
+        display_tasks(self.get_tasks())
+
+    def show_jobs(self):
+        """
+        Shows all jobs in the scheduler.
+
+        This method iterates over all jobs in the scheduler and prints their details.
+
+        Parameters:
+            None
+        """
+        display_jobs(self.get_jobs())
+
 
 # Wrapper functions for backward compatibility
 def get_schedule_manager(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> SchedulerManager:
     """
@@ -280,13 +303,16 @@ def get_schedule_manager(
     Args:
         name (str | None, optional): The name of the scheduler manager. Defaults to None.
         base_dir (str | None, optional): The base path for the scheduler manager. Defaults to None.
-        *args: Additional positional arguments to be passed to the SchedulerManager constructor.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments to be passed to the SchedulerManager constructor.
 
     Returns:
         SchedulerManager: The initialized SchedulerManager instance.
     """
-    manager = SchedulerManager(name, base_dir, *args, **kwargs)
+    manager = SchedulerManager(
+        name, base_dir, storage_options=storage_options, fs=fs, **kwargs
+    )
     return manager
 
 
@@ -304,7 +330,8 @@ def start_worker(
     name: str | None = None,
     base_dir: str | None = None,
     background: bool = False,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> SchedulerManager:
     """
@@ -314,21 +341,25 @@ def start_worker(
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path for the scheduler. Defaults to None.
         background (bool, optional): Whether to start the scheduler in the background. Defaults to False.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         SchedulerManager: The scheduler instance.
     """
-    # manager = get_schedule_manager(name, base_dir, role="worker", *args, **kwargs)
-    with SchedulerManager(name, base_dir, *args, **kwargs) as manager:
+    # manager = get_schedule_manager(name, base_dir, role="worker", storage_options=storage_options, fs=fs, **kwargs)
+    with SchedulerManager(
+        name, base_dir, storage_options=storage_options, fs=fs, **kwargs
+    ) as manager:
         manager.start_worker(background=background)
 
 
 def remove_all_schedules(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ):
     """
@@ -337,17 +368,26 @@ def remove_all_schedules(
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         manager.remove_all_schedules()
 
 
 def add_schedule(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> str:
     """
@@ -356,21 +396,23 @@ def add_schedule(
     Args:
         name (str, optional): The name of the schedule. Defaults to None.
         base_dir (str, optional): The base path for the schedule. Defaults to None.
-        *args: Variable length argument list.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Arbitrary keyword arguments.
 
     Returns:
         str: The ID of the added schedule.
     """
     with SchedulerManager(name, base_dir, role="scheduler") as manager:
-        id_ = manager.add_schedule(*args, **kwargs)
+        id_ = manager.add_schedule(storage_options=storage_options, fs=fs, **kwargs)
     return id_
 
 
 def add_job(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> uuid.UUID:
     """
@@ -381,21 +423,23 @@ def add_job(
     Args:
         name (str | None): The name of the job. Defaults to None.
         base_dir (str | None): The base path for the job. Defaults to None.
-        *args: Variable length argument list.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Arbitrary keyword arguments.
 
     Returns:
         uuid.UUID: The ID of the added job.
     """
     with SchedulerManager(name, base_dir, role="scheduler") as manager:
-        id_ = manager.add_job(*args, **kwargs)
+        id_ = manager.add_job(storage_options=storage_options, fs=fs, **kwargs)
     return id_
 
 
 def run_job(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -404,7 +448,8 @@ def run_job(
     Args:
         name (str, optional): The name of the job. Defaults to None.
         base_dir (str, optional): The base path of the job. Defaults to None.
-        *args: Variable length argument list.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Arbitrary keyword arguments.
 
     Returns:
@@ -412,7 +457,7 @@ def run_job(
 
     """
     with SchedulerManager(name, base_dir, role="scheduler") as manager:
-        result = manager.run_job(*args, **kwargs)
+        result = manager.run_job(storage_options=storage_options, fs=fs, **kwargs)
 
     return result
 
@@ -420,7 +465,8 @@ def run_job(
 def get_schedules(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ):
     """
@@ -429,13 +475,21 @@ def get_schedules(
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         list: A list of schedules.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         schedules = manager.get_schedules()
     return schedules
 
@@ -443,7 +497,8 @@ def get_schedules(
 def get_tasks(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ):
     """
@@ -452,13 +507,21 @@ def get_tasks(
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         list: A list of tasks.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         tasks = manager.get_tasks()
     return tasks
 
@@ -466,7 +529,8 @@ def get_tasks(
 def get_jobs(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ):
     """
@@ -475,13 +539,21 @@ def get_jobs(
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         list: A list of jobs.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         jobs = manager.get_jobs()
     return jobs
 
@@ -490,7 +562,8 @@ def get_job_result(
     job_id: str,
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -500,13 +573,21 @@ def get_job_result(
         job_id (str): The ID of the job.
         name (str | None, optional): The name of the job. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults to None.
         **kwargs: Additional keyword arguments.
 
     Returns:
         Any: The result of the job.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         result = manager.get_job_result(job_id)
     return result
 
@@ -514,7 +595,8 @@ def get_job_result(
 def show_schedules(
     name: str | None = None,
     base_dir: str | None = None,
-    *args,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
     **kwargs,
 ):
     """
@@ -523,8 +605,72 @@ def show_schedules(
     Args:
         name (str | None, optional): The name of the scheduler. Defaults to None.
         base_dir (str | None, optional): The base path. Defaults to None.
-        *args: Additional positional arguments.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults
         **kwargs: Additional keyword arguments.
     """
-    with SchedulerManager(name, base_dir, role="scheduler", *args, **kwargs) as manager:
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
         manager.show_schedules()
+
+
+def show_tasks(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    **kwargs,
+):
+    """
+    Show all tasks in the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults
+        **kwargs: Additional keyword arguments.
+    """
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
+        manager.show_tasks()
+
+
+def show_jobs(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    **kwargs,
+):
+    """
+    Show all jobs in the scheduler.
+
+    Args:
+        name (str | None, optional): The name of the scheduler. Defaults to None.
+        base_dir (str | None, optional): The base path. Defaults to None.
+        storage_options (dict, optional): The storage options. Defaults to {}.
+        fs (AbstractFileSystem, optional): The filesystem. Defaults
+        **kwargs: Additional keyword arguments.
+    """
+    with SchedulerManager(
+        name,
+        base_dir,
+        role="scheduler",
+        storage_options=storage_options,
+        fs=fs,
+        **kwargs,
+    ) as manager:
+        manager.show_jobs()

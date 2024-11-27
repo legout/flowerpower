@@ -14,14 +14,9 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
-from ..storage_options import (
-    AwsStorageOptions,
-    AzureStorageOptions,
-    GcsStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-    get_storage_options,
-)
+from ..storage_options import (AwsStorageOptions, AzureStorageOptions,
+                               GcsStorageOptions, GitHubStorageOptions,
+                               GitLabStorageOptions, get_storage_options)
 from . import AbstractFileSystem
 
 
