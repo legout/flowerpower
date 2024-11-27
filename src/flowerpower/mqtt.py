@@ -331,3 +331,93 @@ class MQTTClient:
                 logger.warning("processing failed")
 
         self.start_listener(on_message=on_message, topic=topic, background=background)
+
+
+def start_listener(
+    on_message: Callable,
+    topic: str | None = None,
+    background: bool = False,
+    client_config: dict = {},
+    base_dir: str | None = None,
+) -> None:
+    """
+    Start the MQTT listener.
+
+    Args:
+        client: MQTT client
+        on_message: Callback function to run when a message is received
+        topic: MQTT topic to listen to
+        background: Run the listener in the background
+
+    Returns:
+        None
+    """
+    if client_config:
+        client = MQTTClient.from_config(client_config)
+    elif base_dir:
+        client = MQTTClient.from_event_broker(base_dir)
+    else:
+        raise ValueError(
+            "No client configuration found. Please provide a client configuration "
+            "or a FlowerPower project base directory, in which a event broker is "
+            "configured in the `config/project.yml` file."
+        )
+
+    client.start_listener(on_message=on_message, topic=topic, background=background)
+
+
+def start_pipeline_listener(
+    name: str,
+    topic: str | None = None,
+    inputs: dict | None = None,
+    final_vars: list | None = None,
+    executor: str | None = None,
+    with_tracker: bool | None = None,
+    with_opentelemetry: bool | None = None,
+    reload: bool = False,
+    result_expiration_time: float | dt.timedelta = 0,
+    as_job: bool = False,
+    base_dir: str | None = None,
+    storage_options: dict = {},
+    fs: AbstractFileSystem | None = None,
+    background: bool = False,
+    **kwargs,
+):
+    """
+    Start a pipeline listener that listens to a topic and processes the message using a pipeline.
+
+    Args:
+        name: Name of the pipeline
+        topic: MQTT topic to listen to
+        inputs: Inputs for the pipeline
+        final_vars: Final variables for the pipeline
+        executor: Executor to use for the pipeline
+        with_tracker: Use tracker for the pipeline
+        with_opentelemetry: Use OpenTelemetry for the pipeline
+        reload: Reload the pipeline
+        result_expiration_time: Result expiration time for the pipeline
+        as_job: Run the pipeline as a job
+        base_dir: Base directory for the pipeline
+        storage_options: Storage options for the pipeline
+        fs: File system for the pipeline
+        background: Run the listener in the background
+        **kwargs: Additional keyword arguments
+    """
+    client = MQTTClient.from_event_broker(base_dir=base_dir)
+    client.start_pipeline_listener(
+        name=name,
+        topic=topic,
+        inputs=inputs,
+        final_vars=final_vars,
+        executor=executor,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        reload=reload,
+        result_expiration_time=result_expiration_time,
+        as_job=as_job,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        fs=fs,
+        background=background,
+        **kwargs,
+    )
