@@ -253,7 +253,7 @@ MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
 
 
 def get_filesystem(
-    path: str | None = None,
+    path: str | Path | None = None,
     storage_options: (
         AwsStorageOptions
         | GitHubStorageOptions
@@ -282,7 +282,7 @@ def get_filesystem(
         **storage_options_kwargs: Additional keyword arguments for the storage options.
 
     """
-    pp = infer_storage_options(path)
+    pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = pp.get("protocol")
     path = pp.get("host", "") + pp.get("path", "")
 
