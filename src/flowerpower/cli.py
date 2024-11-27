@@ -205,7 +205,7 @@ def schedule_pipeline(
     if get_schedule_manager is None:
         raise ValueError("APScheduler not installed. Please install it first.")
 
-    inputs = eval(inputs) if len(inputs) else None
+    inputs = eval(inputs) if inputs else None
     final_vars = eval(final_vars) if final_vars is not None else None
     with_tracker = with_tracker if with_tracker is not None else None
     storage_options = eval(storage_options) if storage_options is not None else {}
