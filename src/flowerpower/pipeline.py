@@ -9,22 +9,30 @@ from uuid import UUID
 import rich
 from fsspec.spec import AbstractFileSystem
 from hamilton import driver
-from hamilton.plugins import h_opentelemetry
+
+if importlib.util.find_spec("opentelemetry"):
+    from hamilton.plugins import h_opentelemetry
+    from .helpers.open_telemetry import init_tracer
+
+else:
+    h_opentelemetry = None
+    init_tracer = None
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
-from rich.columns import Columns
 from rich.console import Console
-from rich.layout import Layout
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from .cfg import (Config, PipelineConfig, PipelineRunConfig,
-                  PipelineScheduleConfig, PipelineTrackerConfig)
+from .cfg import (
+    Config,
+    PipelineConfig,
+    PipelineRunConfig,
+    PipelineScheduleConfig,
+    PipelineTrackerConfig,
+)
 from .helpers.filesystem import get_filesystem
-from .helpers.open_telemetry import init_tracer
-# from munch import unmunchify
 from .helpers.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("apscheduler"):
@@ -190,7 +198,7 @@ class PipelineManager:
             tracker = HamiltonTracker(**tracker_kwargs)
             adapters.append(tracker)
 
-        if with_opentelemetry:
+        if with_opentelemetry and h_opentelemetry is not None:
             trace = init_tracer(
                 host=kwargs.pop("host", "localhost"),
                 port=kwargs.pop("port", 6831),
@@ -646,8 +654,8 @@ class PipelineManager:
             overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name. Defaults to False.
             pipeline_file (str | None, optional): The path to the pipeline file or the pipeline file content.
                 Defaults to None.
-            pipeline_config (str | dict | PipelineConfig, optional): The configuration for the pipeline or the pipeline config content.
-                Defaults to {}.
+            pipeline_config (str | dict | PipelineConfig, optional): The configuration for the pipeline or the pipeline
+                config content. Defaults to {}.
         """
 
         if not self._fs.exists(self._conf_dir):
@@ -1291,7 +1299,7 @@ class Pipeline(PipelineManager):
         return self.get_summary()
 
 
-def add_pipeline(
+def add(
     name: str,
     overwrite: bool = False,
     pipeline_file: str | None = None,
@@ -1321,7 +1329,7 @@ def add_pipeline(
     )
 
 
-def add_pipeline_job(
+def add_job(
     name: str,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -1390,7 +1398,7 @@ def all_pipelines(
     return pm.all_pipelines(show=show)
 
 
-def delete_pipeline(
+def delete(
     name: str,
     base_dir: str | None = None,
     remove_module_file: bool = False,
@@ -1411,7 +1419,7 @@ def delete_pipeline(
     p.delete(remove_module_file=remove_module_file)
 
 
-def get_pipeline_summary(
+def get_summary(
     name: str | None = None,
     base_dir: str | None = None,
     config: bool = True,
@@ -1438,7 +1446,7 @@ def get_pipeline_summary(
     return summary
 
 
-def new_pipeline(
+def new(
     name: str,
     overwrite: bool = False,
     pipeline_config: dict | PipelineConfig = {},
@@ -1465,7 +1473,7 @@ def new_pipeline(
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
     """
-    add_pipeline(
+    add(
         name=name,
         overwrite=overwrite,
         pipeline_config=pipeline_config,
@@ -1479,7 +1487,7 @@ def new_pipeline(
     )
 
 
-def run_pipeline(
+def run(
     name: str,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -1522,7 +1530,7 @@ def run_pipeline(
     )
 
 
-def run_pipeline_job(
+def run_job(
     name: str,
     inputs: dict | None = None,
     final_vars: list | None = None,
@@ -1588,7 +1596,7 @@ def start_mqtt_listener(
     as_job: bool = False,
     background: bool = False,
     **kwargs,
-) -> MQTTClient:
+) -> "MQTTClient":
     """
     Run a pipeline when a message is received on a given topic.
 
@@ -1634,7 +1642,7 @@ def start_mqtt_listener(
     return p.mqtt_client[name]
 
 
-def schedule_pipeline(
+def schedule(
     name: str,
     trigger_type: str = "cron",
     inputs: dict | None = None,
@@ -1703,7 +1711,7 @@ def schedule_pipeline(
     )
 
 
-def show_pipeline_dag(
+def show_dag(
     name: str,
     format: str = "png",
     show: bool = False,
@@ -1729,7 +1737,7 @@ def show_pipeline_dag(
     p.show_dag(format=format, show=show, reload=reload, save=save)
 
 
-def show_pipeline_summary(
+def show_summary(
     name: str | None = None,
     base_dir: str | None = None,
     config: bool = True,

@@ -27,7 +27,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.8.1.1"
+version = "0.8.1.2"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -40,7 +40,11 @@ filesystem-ext = [
 ]
 mongodb = ["pymongo>=4.7.2"]
 mqtt = ["paho-mqtt>=2.1.0", "orjson>=3.10.11"]
-opentelemetry = ["opentelemetry-api>=1.5.0", "opentelemetry-sdk>=1.5.0"]
+opentelemetry = [
+  "opentelemetry-api>=1.5.0",
+  "opentelemetry-sdk>=1.5.0",
+  "opentelemetry-exporter-jaeger>=1.21.0",
+]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
 scheduler = [

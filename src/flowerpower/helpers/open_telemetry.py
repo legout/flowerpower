@@ -6,6 +6,8 @@ from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.trace import Resource, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
+# Add more open telemetry exporters here
+
 
 def init_tracer(
     name: str,

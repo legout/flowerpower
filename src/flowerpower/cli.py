@@ -3,17 +3,17 @@ import importlib.util
 from loguru import logger
 from typer import Typer
 
-from .pipeline import add_pipeline as add_pipeline_
-from .pipeline import add_pipeline_job as add_pipeline_job_
+from .pipeline import add as add_pipeline_
+from .pipeline import add_job as add_pipeline_job_
 from .pipeline import all_pipelines as all_pipelines_
-from .pipeline import delete_pipeline as delete_pipeline_
-from .pipeline import get_pipeline_summary as get_pipeline_summary_
-from .pipeline import new_pipeline as new_pipeline_
-from .pipeline import run_pipeline as run_pipeline_
-from .pipeline import run_pipeline_job as run_pipeline_job_
-from .pipeline import schedule_pipeline as schedule_pipeline_
-from .pipeline import show_pipeline_dag as show_pipeline_dag_
-from .pipeline import show_pipeline_summary as show_pipeline_summary_
+from .pipeline import delete as delete_pipeline_
+from .pipeline import get_summary as get_pipeline_summary_
+from .pipeline import new as new_pipeline_
+from .pipeline import run as run_pipeline_
+from .pipeline import run_job as run_pipeline_job_
+from .pipeline import schedule as schedule_pipeline_
+from .pipeline import show_dag as show_pipeline_dag_
+from .pipeline import show_summary as show_pipeline_summary_
 from .pipeline import start_mqtt_listener as start_mqtt_listener_
 
 if importlib.util.find_spec("apscheduler"):
