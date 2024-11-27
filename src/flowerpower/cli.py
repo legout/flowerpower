@@ -354,10 +354,8 @@ def delete_pipeline(
 
 @app.command()
 def init(
-    project_name: str,
+    project_name: str = None,
     base_dir: str = None,
-    conf_path: str = None,
-    pipelines_path: str = None,
     storage_options: str = None,
 ):
     """
@@ -365,6 +363,7 @@ def init(
 
     Args:
         name (str): The name of the application.
+        base_dir (str, optional): The base path of the application. Defaults to "".
         storage_options (str, optional): The filesystem storage options for the task. Defaults to None".
     """
     storage_options = eval(storage_options) if storage_options is not None else {}
@@ -372,8 +371,6 @@ def init(
     init_(
         name=project_name,
         base_dir=base_dir,
-        conf_path=conf_path,
-        pipelines_path=pipelines_path,
         storage_options=storage_options,
     )
 
