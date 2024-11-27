@@ -27,7 +27,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.8.1.2"
+version = "0.8.1.3"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -44,6 +44,7 @@ opentelemetry = [
   "opentelemetry-api>=1.5.0",
   "opentelemetry-sdk>=1.5.0",
   "opentelemetry-exporter-jaeger>=1.21.0",
+  "sf-hamilton[opentelemetry]>=1.83.3",
 ]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
