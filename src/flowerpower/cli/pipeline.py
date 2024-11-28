@@ -24,8 +24,8 @@ from .utils import parse_dict_or_list_param, parse_param_dict
 
 # Optional imports
 if importlib.util.find_spec("apscheduler"):
-    from .scheduler import get_schedule_manager
-    from .scheduler import start_worker as start_worker_
+    from ..scheduler import get_schedule_manager
+    from ..scheduler import start_worker as start_worker_
 else:
     get_schedule_manager = None
     start_worker_ = None

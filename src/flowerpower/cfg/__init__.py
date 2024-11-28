@@ -1,112 +1,24 @@
-import datetime as dt
-import pathlib
-from typing import Any
-
+from pydantic import Field
+from munch import Munch, munchify
+from fsspec import AbstractFileSystem
 import yaml
-from fsspec.spec import AbstractFileSystem
 from hamilton.function_modifiers import source, value
-from munch import Munch, munchify, unmunchify
+from pathlib import Path
 
-# from dataclasses import asdict, dataclass, field
-from pydantic import BaseModel, ConfigDict, Field
+from ..utils.filesystem import get_filesystem
 
-from .utils.filesystem import get_filesystem
+from .base import BaseConfig
+from .pipeline.run import PipelineRunConfig
 
+from .pipeline.schedule import PipelineScheduleConfig
+from .pipeline.schedule import PipelineScheduleRunConfig
+from .pipeline.schedule import PipelineScheduleTriggerConfig
 
-class BaseConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+from .pipeline.tracker import PipelineTrackerConfig
 
-    def to_dict(self) -> dict[str, Any]:
-        return unmunchify(self.model_dump())
-
-    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None) -> None:
-        try:
-            with fs.open(path, "w") as f:
-                yaml.dump(self.to_dict(), f, default_flow_style=False)
-        except NotImplementedError:
-            raise NotImplementedError(
-                "The filesystem "
-                f"{self.fs.fs.protocol[0] if isinstance(self.fs.fs.protocol, tuple) else self.fs.fs.protocol} "
-                "does not support writing files."
-            )
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any] | Munch) -> "BaseConfig":
-        return cls(**d)
-
-    @classmethod
-    def from_yaml(cls, path: str, fs: AbstractFileSystem):
-        # if fs is None:
-        #    fs = get_filesystem(".", cached=True)
-        with fs.open(path) as f:
-            return cls.from_dict(yaml.full_load(f))
-
-    def update(self, d: dict[str, Any] | Munch) -> None:
-        for k, v in d.items():
-            setattr(self, k, v)
-
-
-class PipelineRunConfig(BaseConfig):
-    final_vars: list[str] = Field(default_factory=list)
-    inputs: dict | Munch = Field(default_factory=dict)
-    executor: str | None = Field(default=None)
-    with_tracker: bool = Field(default=False)
-    with_opentelemetry: bool = Field(default=False)
-
-    def model_post_init(self, __context):
-        if isinstance(self.inputs, dict):
-            self.inputs = munchify(self.inputs)
-
-
-class PipelineScheduleTriggerConfig(BaseConfig):
-    type_: str | None = Field(default=None)
-    crontab: str | None = Field(default=None)
-    year: str | int | None = Field(default=None)
-    month: str | int | None = Field(default=None)
-    weeks: int | float = Field(default=0)
-    week: str | int | None = Field(default=None)
-    days: int | float = Field(default=0)
-    day: str | int | None = Field(default=None)
-    day_of_week: str | int | None = Field(default=None)
-    hours: int | float = Field(default=0)
-    hour: str | int | None = Field(default=None)
-    minutes: int | float = Field(default=0)
-    minute: str | int | None = Field(default=None)
-    seconds: int | float = Field(default=0)
-    second: str | int | None = Field(default=None)
-    start_time: dt.datetime | None = Field(default=None)
-    end_time: dt.datetime | None = Field(default=None)
-    timezone: str | None = Field(default=None)
-
-
-class PipelineScheduleRunConfig(BaseConfig):
-    id_: str | None = Field(default=None)
-    executor: str | None = Field(default=None)
-    paused: bool = Field(default=False)
-    coalesce: str = Field(default="latest")  # other options are "all" and "earliest"
-    misfire_grace_time: int | float | dt.timedelta | None = Field(default=None)
-    max_jitter: int | float | dt.timedelta | None = Field(default=None)
-    max_running_jobs: int | None = Field(default=None)
-    conflict_policy: str | None = Field(
-        default="do_nothing"
-    )  # other options are "replace" and "exception"
-
-
-class PipelineScheduleConfig(BaseConfig):
-    run: PipelineScheduleRunConfig = Field(default_factory=PipelineScheduleRunConfig)
-    trigger: PipelineScheduleTriggerConfig = Field(
-        default_factory=PipelineScheduleTriggerConfig
-    )
-
-
-class PipelineTrackerConfig(BaseConfig):
-    project_id: int | None = Field(default=None)
-    version: str | None = Field(default=None)
-    dag_name: str | None = Field(default=None)
-    tags: dict | Munch = Field(default_factory=dict)
-
-    def model_post_init(self, __context):
-        self.tags = munchify(self.tags)
+from .project.worker import ProjectWorkerConfig
+from .project.tracker import ProjectTrackerConfig
+from .project.open_telemetry import ProjectOpenTelemetryConfig
 
 
 class PipelineConfig(BaseConfig):
@@ -180,31 +92,6 @@ class PipelineConfig(BaseConfig):
         return {k: transform_recursive(v, d) for k, v in result.items()}
 
 
-class ProjectWorkerConfig(BaseConfig):
-    data_store: dict | Munch = Field(default_factory=dict)
-    event_broker: dict | Munch = Field(default_factory=dict)
-    cleanup_interval: int | float | dt.timedelta = Field(default=900)  # int in secods
-    max_concurrent_jobs: int = Field(default=100)
-
-    def model_post_init(self, __context):
-        if isinstance(self.data_store, dict):
-            self.data_store = munchify(self.data_store)
-        if isinstance(self.event_broker, dict):
-            self.event_broker = munchify(self.event_broker)
-
-
-class ProjectTrackerConfig(BaseConfig):
-    username: str | None = Field(default=None)
-    api_url: str = "http://localhost:8241"
-    ui_url: str = "http://localhost:8242"
-    api_key: str | None = Field(default=None)
-
-
-class ProjectOpenTelemetryConfig(BaseConfig):
-    host: str = Field(default="localhost")
-    port: int = Field(default=6831)
-
-
 class ProjectConfig(BaseConfig):
     name: str | None = Field(default=None)
     worker: ProjectWorkerConfig = Field(default_factory=ProjectWorkerConfig)
@@ -218,7 +105,7 @@ class Config(BaseConfig):
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     project: ProjectConfig = Field(default_factory=ProjectConfig)
     fs: AbstractFileSystem | None = Field(default=None)
-    base_dir: str | pathlib.Path | None = Field(default=None)
+    base_dir: str | Path | None = Field(default=None)
     storage_options: dict | Munch = Field(default_factory=Munch)
 
     @classmethod
@@ -262,7 +149,9 @@ class Config(BaseConfig):
             self.fs.makedirs("conf")
 
         if self.pipeline.name is not None:
+            h_params = self.cfg.pipeline.params.pop("h_params")
             self.pipeline.to_yaml(f"conf/pipelines/{self.pipeline.name}.yml", self.fs)
+            self.cfg.pipeline.params["h_params"] = h_params
         self.project.to_yaml("conf/project.yml", self.fs)
 
 

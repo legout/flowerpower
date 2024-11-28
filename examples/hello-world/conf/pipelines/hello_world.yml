@@ -27,24 +27,41 @@ schedule:
     misfire_grace_time: null
     paused: false
   trigger:
-    crontab: 1 * * * *
-    day: null
-    day_of_week: null
-    days: 0
-    end_time: null
-    hour: null
-    hours: 0
-    minute: null
-    minutes: 0
-    month: null
-    second: null
-    seconds: 0
-    start_time: null
-    timezone: null
     type_: cron
-    week: null
-    weeks: 0
-    year: null
+    cron:
+      crontab: 1 * * * *
+      year: null
+      month: null
+      week: null
+      day_of_week: null
+      hour: null
+      minute: null
+      second: null
+      start_time: null
+      end_time: null
+      timezone: null
+    interval:
+      weeks: null
+      days: null
+      hours: null
+      minutes: null
+      seconds: null
+      microseconds: null
+      start_time: null
+      end_time: null
+    calendar:
+      years: null
+      months: null
+      weeks: null
+      days: null
+      hour: null
+      minute: null
+      second: null
+      start_date: null
+      end_date: null
+      timezone: null
+    date:
+      run_time: null
 tracker:
   dag_name: null
   project_id: null
