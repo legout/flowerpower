@@ -381,8 +381,8 @@ event_broker:
   type: mqtt
   host: localhost
   port: 1883
-  username: edge  # optional
-  password: edge  # optional
+  username: user  # optional if required
+  password: supersecret  # optional if required
 ```
 **Redis**
 ```yaml
