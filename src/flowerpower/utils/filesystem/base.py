@@ -14,9 +14,8 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
-from ..storage_options import (AwsStorageOptions, AzureStorageOptions,
-                               GcsStorageOptions, GitHubStorageOptions,
-                               GitLabStorageOptions, get_storage_options)
+from ..storage_options import BaseStorageOptions
+from ..storage_options import from_dict as storage_options_from_dict
 from . import AbstractFileSystem
 
 
@@ -249,18 +248,11 @@ MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
 
 def get_filesystem(
     path: str | Path | None = None,
-    storage_options: (
-        AwsStorageOptions
-        | GitHubStorageOptions
-        | GitLabStorageOptions
-        | GcsStorageOptions
-        | AzureStorageOptions
-        | dict[str, str]
-        | None
-    ) = None,
+    storage_options: (BaseStorageOptions | dict[str, str] | None) = None,
     dirfs: bool = True,
     cached: bool = False,
     cache_storage: str | None = None,
+    fs: AbstractFileSystem | None = None,
     **storage_options_kwargs,
 ) -> AbstractFileSystem:
     """
@@ -277,6 +269,17 @@ def get_filesystem(
         **storage_options_kwargs: Additional keyword arguments for the storage options.
 
     """
+    if fs is not None:
+        if cached:
+            if fs.is_cache_fs:
+                return fs
+            return MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
+
+        if dirfs:
+            if fs.protocol == "dir":
+                return fs
+            return DirFileSystem(path=path, fs=fs)
+
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = pp.get("protocol")
     path = pp.get("host", "") + pp.get("path", "")
@@ -290,11 +293,11 @@ def get_filesystem(
         return fs
 
     if storage_options is None:
-        storage_options = get_storage_options(protocol, **storage_options_kwargs)
+        storage_options = storage_options_from_dict(protocol, storage_options_kwargs)
 
     fs = storage_options.to_filesystem()
     fs.is_cache_fs = False
-    if dirfs:
+    if dirfs and len(path):
         fs = DirFileSystem(path=path, fs=fs)
         fs.is_cache_fs = False
     if cached:

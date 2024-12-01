@@ -1,5 +1,5 @@
-from pydantic import Field
 from munch import Munch, munchify
+from pydantic import Field
 
 from ..base import BaseConfig
 

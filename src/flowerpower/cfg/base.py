@@ -1,8 +1,9 @@
 from typing import Any
-from pydantic import BaseModel, ConfigDict
-from munch import Munch, unmunchify
-from fsspec import AbstractFileSystem
+
 import yaml
+from fsspec import AbstractFileSystem
+from munch import Munch, unmunchify
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseConfig(BaseModel):

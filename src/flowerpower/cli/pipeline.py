@@ -19,7 +19,7 @@ from loguru import logger
 #     show_summary as show_pipeline_summary_,
 #     # start_mqtt_listener as start_mqtt_listener_,
 # )
-from ..pipeline import PipelineManager
+from ..pipeline import Pipeline, PipelineManager
 from .utils import parse_dict_or_list_param, parse_param_dict
 
 # Optional imports
@@ -78,22 +78,12 @@ def run(
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
-    # run_pipeline_(
-    #     name=name,
-    #     executor=executor,
-    #     base_dir=base_dir,
-    #     inputs=parsed_inputs,
-    #     final_vars=parsed_final_vars,
-    #     with_tracker=with_tracker,
-    #     reload=reload,
-    #     storage_options=parsed_storage_options or {},
-    # )
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.run(
-            name=name,
+    ) as pipeline:
+        pipeline.run(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
@@ -146,12 +136,12 @@ def run_job(
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.run_job(
-            name=name,
+    ) as pipeline:
+        pipeline.run_job(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
@@ -204,12 +194,12 @@ def add_job(
 
     storage_options = (parsed_storage_options or {},)
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.add_job(
-            name=name,
+    ) as pipeline:
+        pipeline.add_job(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
@@ -278,12 +268,12 @@ def schedule(
             except ValueError:
                 logger.warning(f"Could not convert {key} to float: {kwargs[key]}")
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        id_ = manager.schedule(
-            name=name,
+    ) as pipeline:
+        id_ = pipeline.schedule(
             executor=executor,
             type=type,
             inputs=parsed_inputs,
@@ -330,56 +320,11 @@ def new(
 
 
 @app.command()
-def add(
-    name: str,
-    base_dir: str | None = None,
-    pipeline_config: str | None = None,
-    pipeline_file: str | None = None,
-    overwrite: bool = False,
-    storage_options: str | None = None,
-):
-    """
-    Add an existing pipeline.
-
-    Args:
-        name: Name of the pipeline to add
-        base_dir: Base directory for the pipeline
-        pipeline_config: Pipeline configuration as JSON, dict string, key=value pairs or path
-        pipeline_file: path to the Pipeline file to add
-        storage_options: Storage options as JSON, dict string, or key=value pairs
-
-    Examples:
-    pipeline add my_pipeline
-    """
-
-    parsed_pipeline_config = parse_dict_or_list_param(pipeline_config, "dict")
-    if pipeline_file is not None:
-        parsed_pipeline_config = pipeline_config
-    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
-
-    # add_pipeline_(
-    #     name=name,
-    #     base_dir=base_dir,
-    #     description=description,
-    #     storage_options=parsed_storage_options or {},
-    # )
-    with PipelineManager(
-        base_dir=base_dir,
-        storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.add(
-            name=name,
-            pipeline_config=parsed_pipeline_config,
-            pipeline_file=pipeline_file,
-            overwrite=overwrite,
-        )
-
-
-@app.command()
 def delete(
     name: str,
     base_dir: str | None = None,
-    remove_modules: bool = False,
+    cfg: bool = False,
+    module: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -388,7 +333,8 @@ def delete(
     Args:
         name: Name of the pipeline to delete
         base_dir: Base directory for the pipeline
-        remove_modules: Remove associated modules
+        cfg: Remove associated configuration
+        module: Remove associated module
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -396,11 +342,12 @@ def delete(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.delete(name=name, remove_modules=remove_modules)
+    ) as pipeline:
+        pipeline.delete(cfg=cfg,module=module)
 
 
 @app.command()
@@ -413,17 +360,19 @@ def show_dag(
     Args:
         name: Name of the pipeline to show
         base_dir: Base directory for the pipeline
+        storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
     pipeline show-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.show_dag(name=name)
+    ) as pipeline:
+        pipeline.show_dag()
 
 
 @app.command()
@@ -436,17 +385,19 @@ def save_dag(
     Args:
         name: Name of the pipeline to save
         base_dir: Base directory for the pipeline
+        storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
     pipeline save-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
-    with PipelineManager(
+    with Pipeline(
+        name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.save_dag(name=name)
+    ) as pipeline:
+        pipeline.save_dag()
 
 
 @app.command()
@@ -456,12 +407,12 @@ def show_pipelines(base_dir: str | None = None, storage_options: str | None = No
 
     Args:
         base_dir: Base directory for the pipelines
+        storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
     pipeline list-pipelines
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
-    # all_pipelines_(base_dir=base_dir, storage_options=parsed_storage_options or {})
     with PipelineManager(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
@@ -471,8 +422,8 @@ def show_pipelines(base_dir: str | None = None, storage_options: str | None = No
 
 @app.command()
 def show_summary(
-    name: str,
-    config: bool = True,
+    name: str | None = None,
+    cfg: bool = True,
     module: bool = True,
     base_dir: str | None = None,
     storage_options: str | None = None,
@@ -483,53 +434,44 @@ def show_summary(
     Args:
         name: Name of the pipeline to show
         base_dir: Base directory for the pipeline
+        cfg: Show configuration
+        module: Show module information
+        storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
     pipeline show-summary my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
-    # show_pipeline_summary_(
-    #     name=name,
-    #     config=config,
-    #     module=module,
-    #     base_dir=base_dir,
-    #     storage_options=parsed_storage_options or {},
-    # )
+
     with PipelineManager(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as manager:
-        manager.show_summary(name=name, config=config, module=module)
+        manager.show_summary(name=name, cfg=cfg, module=module)
 
 
-@app.command()
-def get_summary(
-    name: str,
-    config: bool = True,
-    module: bool = True,
-    base_dir: str | None = None,
-    storage_options: str | None = None,
-):
-    """
-    Get the summary of the specified pipeline.
+# @app.command()
+# def get_summary(
+#     name: str,
+#     config: bool = True,
+#     module: bool = True,
+#     base_dir: str | None = None,
+#     storage_options: str | None = None,
+# ):
+#     """
+#     Get the summary of the specified pipeline.
 
-    Args:
-        name: Name of the pipeline to get
-        base_dir: Base directory for the pipeline
+#     Args:
+#         name: Name of the pipeline to get
+#         base_dir: Base directory for the pipeline
 
-    Examples:
-    pipeline get-summary my_pipeline
-    """
-    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
-    # get_pipeline_summary_(
-    #     name=name,
-    #     config=config,
-    #     module=module,
-    #     base_dir=base_dir,
-    #     storage_options=parsed_storage_options or {},
-    # )
-    with PipelineManager(
-        base_dir=base_dir,
-        storage_options=parsed_storage_options or {},
-    ) as manager:
-        manager.get_summary(name=name)
+#     Examples:
+#     pipeline get-summary my_pipeline
+#     """
+#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+#     with PipelineManager(
+#         base_dir=base_dir,
+#         storage_options=parsed_storage_options or {},
+#     ) as manager:
+#         manager.get_summary(name=name)

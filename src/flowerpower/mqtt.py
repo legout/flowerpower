@@ -1,15 +1,16 @@
+import datetime as dt
 import random
 import time
+from types import TracebackType
 from typing import Callable
-import datetime as dt
+
+from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
-from fsspec import AbstractFileSystem
-from types import TracebackType
 from paho.mqtt.client import CallbackAPIVersion, Client
-from .pipeline import Pipeline
 
 from .cfg import Config
+from .pipeline import Pipeline
 
 
 class MQTTClient:

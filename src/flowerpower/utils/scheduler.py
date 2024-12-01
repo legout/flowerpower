@@ -76,7 +76,9 @@ def humanize_crontab(minute, hour, day, month, day_of_week):
             return (
                 "every day at midnight"
                 if hour == "0"
-                else "every day at noon" if hour == "12" else f"every day at {hour}:00"
+                else "every day at noon"
+                if hour == "12"
+                else f"every day at {hour}:00"
             )
 
         if (

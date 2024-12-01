@@ -1,24 +1,23 @@
-from pydantic import Field
-from munch import Munch, munchify
-from fsspec import AbstractFileSystem
-import yaml
-from hamilton.function_modifiers import source, value
 from pathlib import Path
 
-from ..utils.filesystem import get_filesystem
+import yaml
+from fsspec import AbstractFileSystem
+from hamilton.function_modifiers import source, value
+from munch import Munch, munchify
+from pydantic import Field
 
+from ..utils.filesystem import get_filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
-
-from .pipeline.schedule import PipelineScheduleConfig
-from .pipeline.schedule import PipelineScheduleRunConfig
-from .pipeline.schedule import PipelineScheduleTriggerConfig
-
+from .pipeline.schedule import (
+    PipelineScheduleConfig,
+    PipelineScheduleRunConfig,
+    PipelineScheduleTriggerConfig,
+)
 from .pipeline.tracker import PipelineTrackerConfig
-
-from .project.worker import ProjectWorkerConfig
-from .project.tracker import ProjectTrackerConfig
 from .project.open_telemetry import ProjectOpenTelemetryConfig
+from .project.tracker import ProjectTrackerConfig
+from .project.worker import ProjectWorkerConfig
 
 
 class PipelineConfig(BaseConfig):
@@ -36,9 +35,11 @@ class PipelineConfig(BaseConfig):
 
     def to_yaml(self, path: str, fs: AbstractFileSystem):
         try:
+            fs.makedirs(fs._parent(path), exist_ok=True)
             with fs.open(path, "w") as f:
                 d = self.to_dict()
                 d.pop("name")
+                d.pop("h_params")
                 yaml.dump(d, f, default_flow_style=False)
         except NotImplementedError:
             raise NotImplementedError(
@@ -149,9 +150,12 @@ class Config(BaseConfig):
             self.fs.makedirs("conf")
 
         if self.pipeline.name is not None:
-            h_params = self.cfg.pipeline.params.pop("h_params")
-            self.pipeline.to_yaml(f"conf/pipelines/{self.pipeline.name}.yml", self.fs)
-            self.cfg.pipeline.params["h_params"] = h_params
+            # h_params = self.pipeline.params.pop("h_params") if "h_params" in self.pipeline.params else None
+            self.pipeline.to_yaml(
+                f"conf/pipelines/{self.pipeline.name.replace(".","/")}.yml", self.fs
+            )
+            # if h_params is not None:
+            #    self.pipeline.params["h_params"] = h_params
         self.project.to_yaml("conf/project.yml", self.fs)
 
 

@@ -185,6 +185,10 @@ class GitLabStorageOptions(BaseStorageOptions):
             raise ValueError("Either 'project_id' or 'project_name' must be provided")
 
 
+class LocalStorageOptions(BaseStorageOptions):
+    protocol: str = "file"
+
+
 # class StorageOptions(BaseModel):
 #     aws: AwsStorageOptions | None = None
 #     azure: AzureStorageOptions | None = None
@@ -207,14 +211,15 @@ class GitLabStorageOptions(BaseStorageOptions):
 #         )
 
 
-def get_storage_options(
-    protocol: str, **storage_options
+def from_dict(
+    protocol: str, storage_options: dict
 ) -> (
     AwsStorageOptions
     | AzureStorageOptions
     | GcsStorageOptions
     | GitHubStorageOptions
     | GitLabStorageOptions
+    | LocalStorageOptions
 ):
     if protocol == "s3":
         return AwsStorageOptions(**storage_options)
@@ -226,5 +231,29 @@ def get_storage_options(
         return GitHubStorageOptions(**storage_options)
     elif protocol == "gitlab":
         return GitLabStorageOptions(**storage_options)
+    elif protocol == "file":
+        return LocalStorageOptions()
+    else:
+        raise ValueError(f"Unsupported protocol: {protocol}")
+
+
+def from_env(
+    protocol: str,
+) -> (
+    AwsStorageOptions
+    | AzureStorageOptions
+    | GcsStorageOptions
+    | GitHubStorageOptions
+    | GitLabStorageOptions
+    | LocalStorageOptions
+):
+    if protocol == "s3":
+        return AwsStorageOptions.from_env()
+    elif protocol == "github":
+        return GitHubStorageOptions.from_env()
+    elif protocol == "gitlab":
+        return GitLabStorageOptions.from_env()
+    elif protocol == "file":
+        return LocalStorageOptions()
     else:
         raise ValueError(f"Unsupported protocol: {protocol}")

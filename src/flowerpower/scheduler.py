@@ -29,7 +29,7 @@ from .cfg import Config
 from .utils.datastore import setup_data_store
 from .utils.eventbroker import setup_event_broker
 from .utils.filesystem import get_filesystem
-from .utils.scheduler import display_schedules, display_jobs, display_tasks
+from .utils.scheduler import display_jobs, display_schedules, display_tasks
 
 
 class SchedulerManager(Scheduler):

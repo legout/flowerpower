@@ -23,6 +23,36 @@ from ..utils.storage_options import (
 
 
 class BaseFileIO(BaseModel):
+    """
+    Base class for file I/O operations supporting various storage backends.
+    This class provides a foundation for file operations across different storage systems
+    including AWS S3, Google Cloud Storage, Azure Blob Storage, GitHub, and GitLab.
+
+    Args:
+        path (str | list[str]): Path or list of paths to file(s).
+        storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
+                             GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+            Storage-specific options for accessing remote filesystems.
+        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
+        format (str, optional): File format extension (without dot).
+
+    Notes:
+        ```python
+        file_io = BaseFileIO(
+            path="s3://bucket/path/to/files",
+            storage_options=AwsStorageOptions(
+                key="access_key",
+                secret="secret_key"
+        files = file_io.list_files()
+        ```
+    Notes:
+        - Supports multiple cloud storage backends through different storage options
+        - Automatically handles filesystem initialization based on path protocol
+        - Supports both single path and multiple path inputs
+        - Can read credentials from environment variables when using from_env() methods
+
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
     path: str | list[str]
     storage_options: (
@@ -115,6 +145,39 @@ class BaseFileIO(BaseModel):
 
 
 class BaseFileLoader(BaseFileIO):
+    """
+    Base class for file loading operations supporting various file formats.
+    This class provides a foundation for file loading operations across different file formats
+    including CSV, Parquet, JSON, Arrow, and IPC.
+
+    Args:
+        path (str | list[str]): Path or list of paths to file(s).
+        format (str, optional): File format extension (without dot).
+        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
+        include_file_path (bool, optional): Include file path in the output DataFrame.
+        concat (bool, optional): Concatenate multiple files into a single DataFrame.
+        conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+        ctx (datafusion.SessionContext, optional): DataFusion session context instance.
+
+    Examples:
+        ```python
+        file_loader = BaseFileLoader(
+            path="s3://bucket/path/to/files",
+            format="csv",
+            include_file_path=True,
+            concat=True,
+            conn=duckdb.connect(),
+            ctx=datafusion.SessionContext()
+        data = file_loader.to_polars()
+        ```
+    Notes:
+        - Supports multiple file formats including CSV, Parquet, JSON, Arrow, and IPC
+        - Automatically handles filesystem initialization based on path protocol
+        - Supports both single path and multiple path inputs
+        - Supports loading data into DuckDB and DataFusion for SQL operations
+
+    """
+
     include_file_path: bool = False
     concat: bool = True
     conn: duckdb.DuckDBPyConnection | None = None
@@ -154,12 +217,22 @@ class BaseFileLoader(BaseFileIO):
                 )
 
     def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
+        """Convert data to Pandas DataFrame(s).
+
+        Returns:
+            pd.DataFrame | list[pd.DataFrame]: Pandas DataFrame or list of DataFrames.
+        """
         self._load(**kwargs)
         if not self.concat:
             return [df.to_pandas() for df in self._data]
         return self._data.to_pandas()
 
     def _to_polars_dataframe(self, **kwargs) -> pl.DataFrame | list[pl.DataFrame]:
+        """Convert data to Polars DataFrame(s).
+
+        Returns:
+            pl.DataFrame | list[pl.DataFrame]: Polars DataFrame or list of DataFrames.
+        """
         self._load(self, **kwargs)
         if not self.concat:
             return [
@@ -173,6 +246,11 @@ class BaseFileLoader(BaseFileIO):
         )
 
     def _to_polars_lazyframe(self, **kwargs) -> pl.LazyFrame | list[pl.LazyFrame]:
+        """Convert data to Polars LazyFrame(s).
+
+        Returns:
+            pl.LazyFrame | list[pl.LazyFrame]: Polars LazyFrame or list of LazyFrames.
+        """
         self._load(**kwargs)
         if not self.concat:
             return [df.lazy() for df in self._to_polars_dataframe()]
@@ -183,11 +261,25 @@ class BaseFileLoader(BaseFileIO):
         lazy: bool = False,
         **kwargs,
     ) -> pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame]:
+        """Convert data to Polars DataFrame or LazyFrame.
+
+        Args:
+            lazy (bool, optional): Return a LazyFrame if True, else a DataFrame.
+
+        Returns:
+            pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame]: Polars DataFrame or LazyFrame.
+
+        """
         if lazy:
             return self._to_polars_lazyframe(**kwargs)
         return self._to_polars_dataframe(**kwargs)
 
     def to_pyarrow_table(self, **kwargs) -> pa.Table | list[pa.Table]:
+        """Convert data to PyArrow Table(s).
+
+        Returns:
+            pa.Table | list[pa.Table]: PyArrow Table or list of Tables.
+        """
         self._load(**kwargs)
         if not self.concat:
             return [
@@ -203,6 +295,15 @@ class BaseFileLoader(BaseFileIO):
     def to_duckdb_relation(
         self, conn: duckdb.DuckDBPyConnection | None = None, **kwargs
     ) -> duckdb.DuckDBPyRelation:
+        """Convert data to DuckDB relation.
+
+        Args:
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+
+        Returns:
+
+            duckdb.DuckDBPyRelation: DuckDB relation.
+        """
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()
@@ -217,6 +318,14 @@ class BaseFileLoader(BaseFileIO):
     def register_in_duckdb(
         self, conn: duckdb.DuckDBPyConnection, name: str | None = None, **kwargs
     ) -> None:
+        """Register data in DuckDB.
+
+        Args:
+            conn (duckdb.DuckDBPyConnection): DuckDB connection instance.
+
+        Returns:
+            None
+        """
         if name is None:
             name = f"{self.format}:{self.path}"
 
@@ -233,6 +342,14 @@ class BaseFileLoader(BaseFileIO):
     def register_in_datafusion(
         self, ctx: datafusion.SessionContext, name: str | None = None, **kwargs
     ) -> None:
+        """Register data in DataFusion.
+
+        Args:
+            ctx (datafusion.SessionContext): DataFusion session context instance.
+
+        Returns:
+            None
+        """
         if name is None:
             name = f"{self.format}:{self.path}"
 
@@ -256,6 +373,14 @@ class BaseFileLoader(BaseFileIO):
         | list[pl.LazyFrame]
         | list[pa.Table]
     ):
+        """Filter data based on a filter expression.
+
+        Args:
+            filter_expr (str | pl.Expr | pa.compute.Expression): Filter expression.
+
+        Returns:
+            pl.DataFrame | pl.LazyFrame | pa.Table | list[pl.DataFrame] | list[pl.LazyFrame] | list[pa.Table]: Filtered data.
+        """
         if isinstance(self._data, pl.DataFrame | pl.LazyFrame):
             pl_schema = (
                 self._data.schema
@@ -302,6 +427,48 @@ class BaseFileLoader(BaseFileIO):
 
 
 class BaseDatasetLoader(BaseFileLoader):
+    """
+    Base class for dataset loading operations supporting various file formats.
+    This class provides a foundation for dataset loading operations across different file formats
+    including CSV, Parquet, JSON, Arrow, and IPC.
+
+    Args:
+        path (str | list[str]): Path or list of paths to file(s).
+        format (str, optional): File format extension (without dot).
+        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
+        include_file_path (bool, optional): Include file path in the output DataFrame.
+        concat (bool, optional): Concatenate multiple files into a single DataFrame.
+        conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+        ctx (datafusion.SessionContext, optional): DataFusion session context instance.
+        schema (pa.Schema, optional): PyArrow schema for the dataset.
+        partitioning (str | list[str] | pds.Partitioning, optional): Dataset partitioning scheme.
+
+        Examples:
+        ```python
+        dataset_loader = BaseDatasetLoader(
+            path="s3://bucket/path/to/files",
+            format="csv",
+            include_file_path=True,
+            concat=True,
+            conn=duckdb.connect(),
+            ctx=datafusion.SessionContext(),
+            schema=pa.schema([
+                pa.field("column1", pa.int64()),
+                pa.field("column2", pa.string())
+            ]),
+            partitioning="column1"
+        )
+        data = dataset_loader.to_polars()
+        ```
+    Notes:
+        - Supports multiple file formats including CSV, Parquet, JSON, Arrow, and IPC
+        - Automatically handles filesystem initialization based on path protocol
+        - Supports both single path and multiple path inputs
+        - Supports loading data into DuckDB and DataFusion for SQL operations
+        - Supports custom schema and partitioning for datasets
+
+    """
+
     _schema: pa.Schema | None = None
     partitioning: str | list[str] | pds.Partitioning | None = None
 
@@ -309,6 +476,12 @@ class BaseDatasetLoader(BaseFileLoader):
         self,
         **kwargs,
     ) -> pds.Dataset:
+        """
+        Convert data to PyArrow Dataset.
+
+        Returns:
+            pds.Dataset: PyArrow Dataset.
+        """
         if self.format == ["csv", "arrow", "ipc"]:
             self._dataset = self.fs.pyarrow_dataset(
                 self.path,
@@ -339,6 +512,12 @@ class BaseDatasetLoader(BaseFileLoader):
             )
 
     def to_pandas(self, **kwargs) -> pd.DataFrame:
+        """
+        Convert data to Pandas DataFrame.
+
+        Returns:
+            pd.DataFrame: Pandas DataFrame.
+        """
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
         return self._dataset.to_table().to_pandas()
@@ -354,6 +533,15 @@ class BaseDatasetLoader(BaseFileLoader):
         return pl.scan_pyarrow_dataset(self._dataset)
 
     def to_polars(self, lazy: bool = True, **kwargs) -> pl.DataFrame | pl.LazyFrame:
+        """
+        Convert data to Polars DataFrame or LazyFrame.
+
+        Args:
+            lazy (bool, optional): Return a LazyFrame if True, else a DataFrame.
+
+        Returns:
+            pl.DataFrame | pl.LazyFrame: Polars DataFrame or LazyFrame.
+        """
         return (
             self._to_polars_lazyframe(**kwargs)
             if lazy
@@ -361,6 +549,11 @@ class BaseDatasetLoader(BaseFileLoader):
         )
 
     def to_pyarrow_table(self, **kwargs) -> pa.Table:
+        """Convert data to PyArrow Table.
+
+        Returns:
+            pa.Table: PyArrow Table.
+        """
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
         return self._dataset.to_table()
@@ -368,6 +561,14 @@ class BaseDatasetLoader(BaseFileLoader):
     def to_duckdb_relation(
         self, conn: duckdb.DuckDBPyConnection | None = None, **kwargs
     ) -> duckdb.DuckDBPyRelation:
+        """Convert data to DuckDB relation.
+
+        Args:
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+
+        Returns:
+            duckdb.DuckDBPyRelation: DuckDB relation.
+        """
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()
@@ -381,6 +582,14 @@ class BaseDatasetLoader(BaseFileLoader):
     def register_in_duckdb(
         self, conn: duckdb.DuckDBPyConnection, name: str | None = None, **kwargs
     ) -> None:
+        """Register data in DuckDB.
+
+        Args:
+            conn (duckdb.DuckDBPyConnection): DuckDB connection instance.
+
+        Returns:
+            None
+        """
         if name is None:
             name = f"{self.format}:{self.path}"
 
@@ -398,6 +607,14 @@ class BaseDatasetLoader(BaseFileLoader):
     def register_in_datafusion(
         self, ctx: datafusion.SessionContext, name: str | None = None, **kwargs
     ) -> None:
+        """Register data in DataFusion.
+
+        Args:
+            ctx (datafusion.SessionContext): DataFusion session context instance.
+
+        Returns:
+            None
+        """
         if name is None:
             name = f"{self.format}:{self.path}"
 

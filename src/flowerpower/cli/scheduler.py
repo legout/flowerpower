@@ -1,6 +1,5 @@
 import typer
 
-
 from ..scheduler import SchedulerManager  # Adjust import as needed
 from .utils import parse_dict_or_list_param  # Assuming you have this utility function
 

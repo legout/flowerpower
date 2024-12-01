@@ -1,6 +1,8 @@
-from pydantic import Field
-from ..base import BaseConfig
 import datetime as dt
+
+from pydantic import Field
+
+from ..base import BaseConfig
 
 
 class PipelineScheduleCronTriggerConfig(BaseConfig):
