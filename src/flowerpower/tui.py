@@ -2,7 +2,7 @@ from textual.app import App
 from textual.layouts.grid import GridLayout
 from textual.reactive import Reactive
 from textual.scroll_view import ScrollView
-from textual.widgets import Button, Footer, Header, Placeholder, Static
+from textual.widgets import Button, Footer, Header, Static
 
 from flowerpower.pipeline import PipelineManager
 
