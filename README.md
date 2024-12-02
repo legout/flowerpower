@@ -52,11 +52,13 @@ pip install flowerpower
 pip install "flowerpower[scheduler]"
 
 # Additional components
-pip install "flowerpower[scheduler,mqtt]"    # MQTT broker
-pip install "flowerpower[scheduler,redis]"   # Redis broker
-pip install "flowerpower[scheduler,mongodb]" # MongoDB store
-pip install "flowerpower[scheduler,ray]"     # Ray computing
-pip install "flowerpower[scheduler,dask]"    # Dask computing
+pip install "flowerpower[mqtt]"     # MQTT broker
+pip install "flowerpower[redis]"    # Redis broker
+pip install "flowerpower[mongodb]"  # MongoDB store
+pip install "flowerpower[ray]"      # Ray computing
+pip install "flowerpower[dask]"     # Dask computing
+pip install "flowerpower[ui]"       # Hamilton UI
+pip install "flowerpower[websever]" # Web server
 ```
 
 ---
