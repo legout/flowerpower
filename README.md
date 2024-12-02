@@ -106,8 +106,6 @@ uv init --app --no-readme --vcs git
 
 **Option 1: Command Line**
 ```bash
-flowerpower add my_flow
-# or
 flowerpower new my_flow
 ```
 
