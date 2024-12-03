@@ -1,17 +1,27 @@
 import typer
 from loguru import logger
-
+import importlib
 from ..flowerpower import init as init_
-from .mqtt import app as mqtt_app
+
+
 from .pipeline import app as pipeline_app
-from .scheduler import app as scheduler_app
+
+
 
 app = typer.Typer()
 
-app.add_typer(pipeline_app, name="pipeline")
-app.add_typer(scheduler_app, name="scheduler")
-app.add_typer(mqtt_app, name="mqtt")
 
+app.add_typer(pipeline_app, name="pipeline")
+
+if importlib.util.find_spec("apscheduler"):
+
+    from .scheduler import app as scheduler_app
+    app.add_typer(scheduler_app, name="scheduler")
+
+if importlib.util.find_spec("paho"):
+
+    from .mqtt import app as mqtt_app
+    app.add_typer(mqtt_app, name="mqtt")
 
 @app.command()
 def init(

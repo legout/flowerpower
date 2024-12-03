@@ -350,6 +350,9 @@ class PipelineManager:
             final_vars = pm.run_job("my_job")
             ```
         """
+        if SchedulerManager is None:
+            raise ValueError("APScheduler4 not installed. Please install it first. "
+            "Run `pip install 'flowerpower[scheduler]'`.")
 
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
@@ -418,6 +421,10 @@ class PipelineManager:
             job_id = pm.add_job("my_job")
             ```
         """
+        if SchedulerManager is None:
+            raise ValueError("APScheduler4 not installed. Please install it first. "
+            "Run `pip install 'flowerpower[scheduler]'`.")
+
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
             fs=self._fs,
@@ -512,7 +519,8 @@ class PipelineManager:
             ```
         """
         if SchedulerManager is None:
-            raise ValueError("APScheduler4 not installed. Please install it first.")
+            raise ValueError("APScheduler4 not installed. Please install it first. "
+            "Run `pip install 'flowerpower[scheduler]'`.")
 
         # if "pipeline" in self.cfg.scheduler:
         schedule_cfg = self.cfg.pipeline.schedule  # .copy()
