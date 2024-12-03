@@ -68,26 +68,53 @@ class PipelineConfig(BaseConfig):
             self.params = munchify(self.params)
 
     @staticmethod
-    def to_h_params(d: dict) -> dict:
-        """Coverts a dictionary of function arguments to Hamilton function parameters"""
+    # def to_h_params(d: dict) -> dict:
+    #     """Coverts a dictionary of function arguments to Hamilton function parameters"""
 
-        def transform_recursive(val, original_dict):
-            # If it's a dictionary, recursively transform its values
+    #     def transform_recursive(val, original_dict):
+    #         # If it's a dictionary, recursively transform its values
+    #         if isinstance(val, dict):
+    #             return {
+    #                 k: transform_recursive(v, original_dict) for k, v in val.items()
+    #             }
+    #         # If it's a string and matches a key in the original dictionary
+    #         elif isinstance(val, str) and val in original_dict:
+    #             return source(val)
+    #         # For all other values
+    #         else:
+    #             return value(val)
+
+    #     # Step 1: Replace each value with a dictionary containing key and value
+    #     result = {k: {k: d[k]} for k in d}
+
+    #     # Step 2 & 3: Transform all values recursively
+    #     return {k: transform_recursive(v, d) for k, v in result.items()}
+    def to_h_params(d: dict) -> dict:
+        """Converts a dictionary of function arguments to Hamilton function parameters"""
+
+        def transform_recursive(val, original_dict, depth=1):
             if isinstance(val, dict):
+                # If we're at depth 3, wrap the entire dictionary in value()
+                if depth == 3:
+                    return value(val)
+                # Otherwise, continue recursing
                 return {
-                    k: transform_recursive(v, original_dict) for k, v in val.items()
+                    k: transform_recursive(v, original_dict, depth + 1)
+                    for k, v in val.items()
                 }
             # If it's a string and matches a key in the original dictionary
             elif isinstance(val, str) and val in original_dict:
                 return source(val)
-            # For all other values
-            else:
+            # For non-dictionary values at depth 3
+            elif depth == 3:
                 return value(val)
+            # For all other values
+            return val
 
         # Step 1: Replace each value with a dictionary containing key and value
         result = {k: {k: d[k]} for k in d}
 
-        # Step 2 & 3: Transform all values recursively
+        # Step 2: Transform all values recursively
         return {k: transform_recursive(v, d) for k, v in result.items()}
 
 
