@@ -1,5 +1,5 @@
 from sanic import Sanic
-import os
+
 from ..scheduler import SchedulerManager
 from .api.cfg import bp as bp_api_cfg
 from .api.pipeline import bp as bp_api_pipeline
@@ -33,7 +33,7 @@ def setup(
             app.ctx.scheduler.stop_worker()
 
     app.blueprint(bp_api_pipeline)
-    # app.blueprint(bp_api_scheduler)
-    # app.blueprint(bp_api_cfg)
+    app.blueprint(bp_api_scheduler)
+    app.blueprint(bp_api_cfg)
 
     return app

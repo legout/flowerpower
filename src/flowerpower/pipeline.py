@@ -885,7 +885,8 @@ class PipelineManager:
                 fs.rm(os.path.join(pipelines_dir, name.replace(".", "/") + ".py"))
             else:
                 raise ValueError(
-                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    "Use `overwrite=True` to overwrite."
                 )
         if fs.exists(
             os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
@@ -896,7 +897,8 @@ class PipelineManager:
                 )
             else:
                 raise ValueError(
-                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    "Use `overwrite=True` to overwrite."
                 )
 
         fs.put_file(

@@ -16,7 +16,6 @@ from ..models.pipeline import (
     PipelineManagerSummary,
 )
 from ..utils import deserialize_and_validate
-from typing import Any, Dict
 
 bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 

@@ -70,7 +70,7 @@ class PipelineConfig(BaseConfig):
     @staticmethod
     # def to_h_params(d: dict) -> dict:
     #     """Coverts a dictionary of function arguments to Hamilton function parameters"""
-
+    #
     #     def transform_recursive(val, original_dict):
     #         # If it's a dictionary, recursively transform its values
     #         if isinstance(val, dict):
@@ -83,10 +83,10 @@ class PipelineConfig(BaseConfig):
     #         # For all other values
     #         else:
     #             return value(val)
-
+    #
     #     # Step 1: Replace each value with a dictionary containing key and value
     #     result = {k: {k: d[k]} for k in d}
-
+    #
     #     # Step 2 & 3: Transform all values recursively
     #     return {k: transform_recursive(v, d) for k, v in result.items()}
     def to_h_params(d: dict) -> dict:
