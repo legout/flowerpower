@@ -3,7 +3,8 @@ import os
 from dotenv import load_dotenv
 from orjson import dumps, loads
 from sanic import Sanic
-from sanic.response import json
+
+# from sanic.response import json
 
 from .setup import setup
 from .utils import parse_dict_or_list_param
@@ -35,29 +36,35 @@ def create_app(args):
     )
 
     app = Sanic("flowerpower", dumps=dumps, loads=loads)
-    setup(app=app, base_dir=base_dir, storage_options=storage_options)
+    setup(
+        app=app,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
+    )
 
-    @app.get("/")
-    async def t2(request):
-        print(request.args)
-        print(request.json)
-        return json({"status": "success", "message": "Welcome to FlowerPower"})
+    # @app.get("/")
+    # async def t2(request):
+    #     print(request.args)
+    #     print(request.json)
+    #     return json({"status": "success", "message": "Welcome to FlowerPower"})
 
-    @app.post("/")
-    async def t1(request):
-        print(request.args)
-        print(request.args.get("name"))
-        print(request.json)
-        return json({"status": "success", "message": "Welcome to FlowerPower"})
+    # @app.post("/")
+    # async def t1(request):
+    #     print(request.args)
+    #     print(request.args.get("name"))
+    #     print(request.json)
+    #     return json({"status": "success", "message": "Welcome to FlowerPower"})
 
-    # @app.get("/health")
-    # async def health(request):
-    #     return json({"status": "success", "message": "Healthy"})
+    # # @app.get("/health")
+    # # async def health(request):
+    # #     return json({"status": "success", "message": "Healthy"})
 
-    @app.get("/health/<name>")
-    async def health(request, name):
-        if name is None:
-            return json({"status": "success", "message": "Healthy"})
-        return json({"status": "success", "message": f"Healthy {name}"})
+    # @app.get("/health/<name>")
+    # async def health(request, name):
+    #     if name is None:
+    #         return json({"status": "success", "message": "Healthy"})
+    #     return json({"status": "success", "message": f"Healthy {name}"})
 
     return app

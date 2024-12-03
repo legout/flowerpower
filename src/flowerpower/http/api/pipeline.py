@@ -1,27 +1,50 @@
 import dill
 from sanic import Blueprint, SanicException
+from sanic_ext import openapi
+
+
 from sanic.response import json, raw, html
 
 from ...pipeline import Pipeline, PipelineManager
+from ..models.pipeline import (
+    PipelineRun,
+    PipelineAddJob,
+    PipelineSchedule,
+    PipelineManagerNew,
+    PipelineManagerImportExport,
+    PipelineDelete,
+    PipelineManagerSummary,
+)
+from ..utils import deserialize_and_validate
+from typing import Any, Dict
 
 bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 
 
 @bp.post("run/<name>")
+@openapi.body({"application/json": PipelineRun}, required=False)
+@openapi.summary("Run a pipeline")
+@openapi.description("Run a pipeline with the given parameters")
+# @openapi.response(
+#     200,
+# )
 async def run(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
+    # body: PipelineRun,
+):
+
+    body = await deserialize_and_validate(PipelineRun, body=request.json)
+
     try:
         with Pipeline(
             name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as pipeline:
-            final_vars = pipeline.run(**kwargs)
+            final_vars = pipeline.run(**body.model_dump())
 
         final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
         return json(final_vars)
@@ -30,20 +53,25 @@ async def run(
 
 
 @bp.post("run-job/<name>")
+@openapi.body({"application/json": PipelineRun}, required=False)
+@openapi.summary("Run a pipeline as a job")
+@openapi.description("Run a pipeline as a job with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, Any]})
 async def run_job(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
+    body: PipelineRun,
+):
+    body = await deserialize_and_validate(PipelineRun, body=request.json)
     try:
         with Pipeline(
             name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as pipeline:
-            final_vars = pipeline.run_job(**kwargs)
+            final_vars = pipeline.run_job(**body.model_dump())
             final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
         return json(final_vars)
     except Exception as e:
@@ -51,390 +79,330 @@ async def run_job(
 
 
 @bp.post("/add-job/<name>")
+@openapi.body({"application/json": PipelineAddJob}, required=False)
+@openapi.summary("Add a pipeline as a job")
+@openapi.description("Add a pipeline as a job with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def add_job(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
+):
+    body = await deserialize_and_validate(PipelineAddJob, body=request.json)
     try:
         with Pipeline(
             name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as pipeline:
-            id_ = pipeline.add_job(**kwargs)
+            id_ = pipeline.add_job(**body.model_dump())
         return json({"job_id": str(id_)})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("/schedule/<name>")
+@openapi.body({"application/json": PipelineSchedule}, required=False)
+@openapi.summary("Schedule a pipeline")
+@openapi.description("Schedule a pipeline with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def schedule(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
+):
+
+    body = await deserialize_and_validate(PipelineSchedule, body=request.json)
+
     try:
         with Pipeline(
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as manager:
-            id_ = manager.schedule(name, **kwargs)
+            id_ = manager.schedule(name, **body.model_dump())
         return json({"schedule_id": str(id_)})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.patch("/schedule/<name>")
-async def schedule(
+@openapi.body({"application/json": PipelineSchedule}, required=False)
+@openapi.summary("Update a pipeline schedule")
+@openapi.description("Update a pipeline schedule with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
+async def update_schedule(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
-    overwrite = kwargs.pop("overwrite", True) or request.args.get("overwrite", True)
+):
+    overwrite = request.json.pop("overwrite", True)
+    body = await deserialize_and_validate(PipelineSchedule, body=request.json)
+
     try:
         with Pipeline(
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as manager:
-            id_ = manager.schedule(name, overwrite=overwrite, **kwargs)
+            id_ = manager.schedule(name, overwrite=overwrite, **body.model_dump())
         return json({"schedule_id": str(id_)})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("new/<name>")
+@openapi.body({"application/json": PipelineManagerNew}, required=False)
+@openapi.summary("Create a new pipeline")
+@openapi.description("Create a new pipeline with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def new(
     request,
     name: str,
-) -> json:
-    kwargs = request.json or {}
+):
+
+    body = await deserialize_and_validate(PipelineManagerNew, body=request.json)
+
     try:
         with PipelineManager(
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as manager:
-            manager.new(name, **kwargs)
+            manager.new(name, **body.model_dump())
         return json({"status": f"Pipeline {name} created"})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("/import")
+@openapi.body({"application/json": PipelineManagerImportExport}, required=True)
+@openapi.summary("Import a pipeline")
+@openapi.description("Import a pipeline with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def import_pipeline(
     request,
-) -> json:
-    kwargs = request.json or {}
-    storage_options = kwargs.pop("storage_options", None)
-    path = kwargs.pop("path", None) or request.args.get("path")
-    name = kwargs.pop("name", None) or request.args.get("name")
-    names = kwargs.pop("names", None) or request.args.get("names") or request.args.getlist("name")
+):
+    name = request.json.pop("name", None)
+    names = request.json.pop("names", None)
+    path = request.json.pop("path", None)
+    body = await deserialize_and_validate(
+        PipelineManagerImportExport, body=request.json
+    )
+
     if isinstance(names, str):
         names = names.split(",")
     try:
-        if name:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.import_pipeline(
-                    name, path=path, storage_options=storage_options, **kwargs
+
+        with PipelineManager(
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
+        ) as manager:
+            if name:
+                manager.import_pipeline(name=name, path=path, **body.model_dump())
+                return json({"status": f"Pipeline {name} imported from {path}"})
+            elif names:
+                manager.import_many(names, path=path, **body.model_dump())
+                return json(
+                    {"status": f"Pipelines {', '.join(names)} imported from {path}"}
                 )
-            return json({"status": f"Pipeline {name} imported from {path}"})
-        elif names:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.import_many(
-                    names, path=path, storage_options=storage_options, **kwargs
-                )
-            return json(
-                {"status": f"Pipelines {', '.join(names)} imported from {path}"}
-            )
-        else:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.import_all(path=path, storage_options=storage_options, **kwargs)
-            return json({"status": f"All pipelines imported from {path}"})
+            else:
+                manager.import_all(path=path, **body.model_dump())
+                return json({"status": f"All pipelines imported from {path}"})
 
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("/export")
+@openapi.body({"application/json": PipelineManagerImportExport}, required=True)
+@openapi.summary("Export a pipeline")
+@openapi.description("Export a pipeline with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def export_pipeline(
     request,
-) -> json:
-    kwargs = request.json or {}
-    storage_options = kwargs.pop("storage_options", None)
-    path = kwargs.pop("path", None) or request.args.get("path")
-    name = kwargs.pop("name", None) or request.args.get("name")
-    names = kwargs.pop("names", None) or request.args.get("names") or request.args.getlist("name")
+):
+
+    path = request.json.pop("path", None)
+    name = request.json.pop("name", None)
+    names = request.json.pop("names", None)
+
+    body = await deserialize_and_validate(
+        PipelineManagerImportExport, body=request.json
+    )
+
     if isinstance(names, str):
         names = names.split(",")
     try:
-        if name:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.export_pipeline(
-                    name, path=path, storage_options=storage_options, **kwargs
+        with PipelineManager(
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
+        ) as manager:
+            if name:
+                manager.export_pipeline(name, path=path, **body.model_dump())
+                return json({"status": f"Pipeline {name} exported to {path}"})
+            elif names:
+
+                manager.export_many(names, path=path, **body.model_dump())
+                return json(
+                    {"status": f"Pipelines {', '.join(names)} exported to {path}"}
                 )
-            return json({"status": f"Pipeline {name} exported to {path}"})
-        elif names:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.export_many(
-                    names, path=path, storage_options=storage_options, **kwargs
-                )
-            return json({"status": f"Pipelines {', '.join(names)} exported to {path}"})
-        else:
-            with PipelineManager(
-                base_dir=app.conf.BASE_DIR,
-                storage_options=app.conf.STORAGE_OPTIONS,
-                cfg_dir=app.conf.CFG_DIR,
-                pipelines_dir=app.conf.PIPELINES_DIR,
-            ) as manager:
-                manager.export_all(path=path, storage_options=storage_options, **kwargs)
-            return json({"status": f"All pipelines exported to {path}"})
+            else:
+                manager.export_all(path=path, **body.model_dump())
+                return json({"status": f"All pipelines exported to {path}"})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.delete("/delete/<name>")
+@openapi.body({"application/json": PipelineDelete}, required=False)
+@openapi.summary("Delete a pipeline")
+@openapi.description("Delete a pipeline with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, str]})
 async def delete(
     request,
     name: str,
-) -> json:
-    cfg = request.json.get("cfg", True) or request.args.get("cfg", True)
-    module = request.json.get("module", True) or request.args.get("module", True)
+):
+    body = await deserialize_and_validate(PipelineDelete, body=request.json)
     try:
         with Pipeline(
             name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as pipeline:
-            pipeline.delete(cfg=cfg, module=module)
+            pipeline.delete(**body.model_dump())
         return json({"status": f"Pipeline {name} deleted"})
     except Exception as e:
         raise SanicException(str(e))
 
 
-@bp.get("/summary")
-async def summary(
-    request,
-) -> json:
-    kwargs = request.json or {}
-    name = request.args.get("name")
-    to_html = request.args.get("html", False)
-    to_svg = request.args.get("svg", False)
-    try:
-        with PipelineManager(
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
-        ) as manager:
-            if to_html:
-                summary = manager.show_summary(name=name, to_html=True, **kwargs)
-                return html(summary)
-            if to_svg:
-                summary = manager.show_summary(name=name, to_svg=True, **kwargs)
-                return raw(summary)
-
-            summary = manager.get_summary(name=name,**kwargs)
-
-        return json(summary)
-    except Exception as e:
-        raise SanicException(str(e))
-
-
 @bp.get("/summary/<name>")
+@openapi.body({"application/json": PipelineManagerSummary}, required=False)
+@openapi.summary("Show a pipeline summary")
+@openapi.description("Show a pipeline summary with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, Any]})
+# @openapi.response(200, {"text/html": str})
+# @openapi.response(200, {"image/svg": bytes})
 async def summary(
     request,
     name: str | None = None,
-) -> json:
-    kwargs = request.json or {}
-    to_html = request.args.get("html", False)
-    to_svg = request.args.get("svg", False)
-    try:
-        with Pipeline(
-            name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
-        ) as pipeline:
-            if to_html:
-                summary = pipeline.show_summary(to_html=True, **kwargs)
-                return html(summary)
-            if to_svg:
-                summary = pipeline.show_summary(to_svg=True, **kwargs)
-                return raw(summary)
-            summary = pipeline.get_summary(**kwargs)
+):
 
+    as_ = request.args.get("as", None)
+    if as_ == "html":
+        to_html = True
+        to_svg = False
+    if as_ == "svg":
+        to_svg = True
+        to_html = False
+    else:
+        to_html = False
+        to_svg = False
+
+    body = await deserialize_and_validate(PipelineManagerSummary, body=request.json)
+
+    try:
+        if name == "all":
+            with PipelineManager(
+                base_dir=request.app.conf.BASE_DIR,
+                storage_options=request.app.conf.STORAGE_OPTIONS,
+                cfg_dir=request.app.conf.CFG_DIR,
+                pipelines_dir=request.app.conf.PIPELINES_DIR,
+            ) as manager:
+                if to_html or to_svg:
+                    summary = manager.show_summary(
+                        to_html=to_html, to_svg=to_svg, **body.model_dump()
+                    )
+                summary = manager.get_summary(**body.model_dump())
+
+        else:
+            with Pipeline(
+                name=name,
+                base_dir=request.app.conf.BASE_DIR,
+                storage_options=request.app.conf.STORAGE_OPTIONS,
+                cfg_dir=request.app.conf.CFG_DIR,
+                pipelines_dir=request.app.conf.PIPELINES_DIR,
+            ) as pipeline:
+
+                summary = pipeline.get_summary(
+                    to_html=to_html, to_svg=to_svg, **body.model_dump()
+                )
+        if to_html:
+            return html(summary)
+        elif to_svg:
+            return raw(summary)
         return json(summary)
     except Exception as e:
         raise SanicException(str(e))
 
-@bp.get("/show/<name>")
-async def show(
-    request,
-    name: str,
-) -> json:
-    try:
-        with Pipeline(
-            name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
-        ) as pipeline:
-            pipeline_dag = pipeline.show_dag()
-        return raw(pipeline_dag.pipe("svg"))
-    except Exception as e:
-        raise SanicException(str(e))
 
 @bp.get("/show/<name>")
+# @openapi.parameter({"name": str})
+@openapi.summary("Show a pipeline graph")
+@openapi.description("Show a pipeline grap with the given parameters")
+# @openapi.response(200, {"image/png": bytes})
+# @openapi.response(200, {"image/svg": bytes})
 async def show(
     request,
     name: str,
-) -> json:
+):
+
+    format = request.args.get("format", "png")
+
     try:
         with Pipeline(
             name=name,
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as pipeline:
-            pipeline_dag = pipeline.show_dag()
-        return raw(pipeline_dag.pipe("svg"))
+            pipeline_dag = pipeline.show_dag(raw=True)
+        return raw(pipeline_dag.pipe(format))
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.get("/pipelines")
-async def all_pipelines(
+# @openapi.parameter({"show": bool})
+# @openapi.parameter({"format": str})
+@openapi.summary("List pipelines")
+@openapi.description("List pipelines with the given parameters")
+# @openapi.response(200, {"application/json": dict[str, Any]})
+# @openapi.response(200, {"text/html": str})
+# @openapi.response(200, {"image/svg": bytes})
+async def pipelines(
     request,
-) -> json:
+):
+    show = request.args.get("show", False)
+    format_ = request.args.get("format", "html")
+    to_html = format_.lower() == "html"
+    to_svg = format_.lower() == "svg"
     try:
         with PipelineManager(
-            base_dir=app.conf.BASE_DIR,
-            storage_options=app.conf.STORAGE_OPTIONS,
-            cfg_dir=app.conf.CFG_DIR,
-            pipelines_dir=app.conf.PIPELINES_DIR,
+            base_dir=request.app.conf.BASE_DIR,
+            storage_options=request.app.conf.STORAGE_OPTIONS,
+            cfg_dir=request.app.conf.CFG_DIR,
+            pipelines_dir=request.app.conf.PIPELINES_DIR,
         ) as manager:
-            pipelines = manager.list()
+            if show:
+                pipelines = manager._all_pipelines(
+                    show=True, to_html=to_html, to_svg=to_svg
+                )
+            else:
+                pipelines = manager.list_pipelines()
+        if to_html:
+            return html(pipelines)
+        elif to_svg:
+            return raw(pipelines)
         return json(pipelines)
     except Exception as e:
         raise SanicException(str(e))
-
-
-
-# @bp.get("/summary")
-# async def summary_all(
-#     request,
-# ) -> json:
-#     try:
-#         with PipelineManager(
-#             base_dir=app.conf.BASE_DIR,
-#             storage_options=app.conf.STORAGE_OPTIONS,
-#             cfg_dir=app.conf.CFG_DIR,
-#             pipelines_dir=app.conf.PIPELINES_DIR,
-#         ) as manager:
-#             pipelines = manager.get_summary()
-#         return json(pipelines)
-#     except Exception as e:
-#         SanicException(str(e))
-
-
-# # @bp.get("/summary/<name>")
-# # async def summary(
-# #     request,
-# #     name: str | None = None,
-# # ) -> json:
-# #     try:
-# #     return json({"pipeline": pipeline})
-
-
-# @bp.post("/run/<name>")
-# async def run_(
-#     request,
-#     name: str,
-# ) -> json:
-#     kwargs = request.json or {}
-#     _ = request.app.ctx.pipeline_manager.run(name, **kwargs)
-#     return json({"status": "success"})
-
-
-# @bp.post("/run-job/<name>")
-# async def run_job(
-#     request,
-#     name: str,
-# ) -> json:
-#     kwargs = request.json or {}
-#     _ = request.app.ctx.pipeline_manager.run_job(name, **kwargs)
-#     return json({"status": "success"})
-
-
-# @bp.post("/schedule/<name>")
-# async def schedule_pipeline(request, name):
-#     kwargs = request.json or {}
-#     id_ = request.app.ctx.pipeline_manager.schedule(name, **kwargs)
-#     return json({"schedule_id": str(id_)})
-
-
-# @bp.post("/start-mqtt-listener/<name>")
-# async def start_mqtt_listener(request, name):
-#     kwargs = request.json or {}
-#     _ = request.app.ctx.pipeline_manager.start_mqtt_listener(name, **kwargs)
-#     return json({"status": "success"})
-
-
-# @bp.post("/stop-mqtt-listener/<name>")
-# async def stop_mqtt_listener(request, name):
-#     kwargs = request.json or {}
-#     _ = request.app.ctx.pipeline_manager.stop_mqtt_listener(name, **kwargs)
-#     return json({"status": "success"})
-
-
-# @bp.get("/show/<name>")
-# async def show(
-#     request,
-#     name: str,
-# ) -> json:
-#     pipeline_dag = request.app.ctx.pipeline_manager.show_dag(name=name)
-#     return raw(pipeline_dag.pipe("svg"))
-
-
-# @bp.post("/set-abc/<value>")
-# async def set_abc(request, value):
-#     request.app.ctx.abc = value
-#     return json({"status": "success"})

@@ -11,8 +11,6 @@ from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
 from .pipeline.schedule import (
     PipelineScheduleConfig,
-    PipelineScheduleRunConfig,
-    PipelineScheduleTriggerConfig,
 )
 from .pipeline.tracker import PipelineTrackerConfig
 from .project.open_telemetry import ProjectOpenTelemetryConfig
@@ -21,12 +19,12 @@ from .project.worker import ProjectWorkerConfig
 
 
 class PipelineConfig(BaseConfig):
-    name: str | None = Field(default=None)
+    name: str | None = None
     run: PipelineRunConfig = Field(default_factory=PipelineRunConfig)
     schedule: PipelineScheduleConfig = Field(default_factory=PipelineScheduleConfig)
-    params: dict | Munch = Field(default_factory=dict)
+    params: dict | Munch = {}
     tracker: PipelineTrackerConfig = Field(default_factory=PipelineTrackerConfig)
-    h_params: dict | Munch = Field(default_factory=dict)
+    h_params: dict | Munch = {}
 
     def model_post_init(self, __context):
         if isinstance(self.params, dict):
@@ -94,7 +92,7 @@ class PipelineConfig(BaseConfig):
 
 
 class ProjectConfig(BaseConfig):
-    name: str | None = Field(default=None)
+    name: str | None = None
     worker: ProjectWorkerConfig = Field(default_factory=ProjectWorkerConfig)
     tracker: ProjectTrackerConfig = Field(default_factory=ProjectTrackerConfig)
     open_telemetry: ProjectOpenTelemetryConfig = Field(
@@ -105,8 +103,8 @@ class ProjectConfig(BaseConfig):
 class Config(BaseConfig):
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     project: ProjectConfig = Field(default_factory=ProjectConfig)
-    fs: AbstractFileSystem | None = Field(default=None)
-    base_dir: str | Path | None = Field(default=None)
+    fs: AbstractFileSystem | None = None
+    base_dir: str | Path | None = None
     storage_options: dict | Munch = Field(default_factory=Munch)
 
     @classmethod
@@ -152,7 +150,7 @@ class Config(BaseConfig):
         if self.pipeline.name is not None:
             # h_params = self.pipeline.params.pop("h_params") if "h_params" in self.pipeline.params else None
             self.pipeline.to_yaml(
-                f"conf/pipelines/{self.pipeline.name.replace(".","/")}.yml", self.fs
+                f"conf/pipelines/{self.pipeline.name.replace(".", "/")}.yml", self.fs
             )
             # if h_params is not None:
             #    self.pipeline.params["h_params"] = h_params

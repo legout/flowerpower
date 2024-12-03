@@ -19,6 +19,7 @@ else:
     init_tracer = None
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
+import rich
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -31,9 +32,8 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
 )
 from .utils.filesystem import get_filesystem
 from .utils.storage_options import BaseStorageOptions
-from .utils.storage_options import from_dict as storage_options_from_dict
-from .utils.storage_options import from_env as storage_options_from_env
 from .utils.templates import PIPELINE_PY_TEMPLATE
+from .utils.misc import view_img
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -616,16 +616,25 @@ class PipelineManager:
                 f"Pipeline path {self._pipelines_dir} does not exist. Please run flowerpower init first."
             )
 
-        if (
-            self._fs.exists(f"{self._pipelines_dir}/{name.replace(".", "/")}.py")
-            and not overwrite
-        ):
-            raise ValueError(
-                f"Pipeline {self.cfg.project.name}.{name.replace(".", "/")} already exists. Use `overwrite=True` to overwrite."
-            )
+        if self._fs.exists(f"{self._pipelines_dir}/{name.replace(".", "/")}.py"):
+            if overwrite:
+                self._fs.rm(f"{self._pipelines_dir}/{name.replace('.', '/')}.py")
+            else:
+                raise ValueError(
+                    f"Pipeline {self.cfg.project.name}.{name.replace(".", "/")} already exists. "
+                    "Use `overwrite=True` to overwrite."
+                )
+        if self._fs.exists(f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
+            if overwrite:
+                self._fs.rm(f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml")
+            else:
+                raise ValueError(
+                    f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
+                    "Use `overwrite=True` to overwrite."
+                )
 
-        pipeline_path = f"{self._pipelines_dir}/{name.replace(".","/")}.py"
-        cfg_path = f"{self._cfg_dir}/pipelines/{name.replace(".","/")}.yml"
+        pipeline_path = f"{self._pipelines_dir}/{name.replace(".", "/")}.py"
+        cfg_path = f"{self._cfg_dir}/pipelines/{name.replace(".", "/")}.yml"
 
         self._fs.makedirs(pipeline_path.rsplit("/", 1)[0], exist_ok=True)
         self._fs.makedirs(cfg_path.rsplit("/", 1)[0], exist_ok=True)
@@ -697,13 +706,30 @@ class PipelineManager:
         if not fs.exists(pipelines_dir):
             raise ValueError(f"Pipeline path {pipeline_path} does not exist.")
 
+        if fs.exists(f"{pipelines_dir}/{name.replace('.', '/')}.py"):
+            if overwrite:
+                fs.rm(f"{pipelines_dir}/{name.replace('.', '/')}.py")
+            else:
+                raise ValueError(
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    "Use `overwrite=True` to overwrite."
+                )
+        if fs.exists(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
+            if overwrite:
+                fs.rm(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml")
+            else:
+                raise ValueError(
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    "Use `overwrite=True` to overwrite."
+                )
+
         fs.get(
-            f"{pipelines_dir}/{name.replace('.','/')}.py",
-            f"{self._pipelines_dir}/{name.replace('.','/')}.py",
+            f"{pipelines_dir}/{name.replace('.' , '/')}.py",
+            f"{self._pipelines_dir}/{name.replace('.', '/')}.py",
         )
         fs.get(
-            f"{cfg_dir}/pipelines/{name.replace('.','/')}.yml",
-            f"{self._cfg_dir}/pipelines/{name.replace('.','/')}.yml",
+            f"{cfg_dir}/pipelines/{name.replace('.' , '/')}.yml",
+            f"{self._cfg_dir}/pipelines/{name.replace('.' , '/')}.yml",
         )
 
         rich.print(
@@ -816,6 +842,8 @@ class PipelineManager:
         self,
         name: str,
         path: str,
+        cfg_dir: str = "conf",
+        pipelines_dir: str = "pipelines",
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         overwrite: bool = False,
@@ -828,6 +856,8 @@ class PipelineManager:
         Args:
             name (str): The name of the pipeline.
             path (str): The path to export the pipeline to.
+            cfg_dir (str, optional): The configuration directory. Defaults to "conf".
+            pipelines_dir (str, optional): The pipeline directory. Defaults to "pipelines".
             storage_options (dict | Munch | BaseStorageOptions | None, optional): The storage options.
                 Defaults to None.
             fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
@@ -849,40 +879,36 @@ class PipelineManager:
             ```
         """
         fs = fs or get_filesystem(path, **storage_options)
-        if (
-            not fs.exists(
-                os.path.join(self._pipelines_dir, name.replace(".", "/") + ".py")
-            )
-            or overwrite
-        ):
-            fs.put_file(
-                os.path.join(self._pipelines_dir, name.replace(".", "/") + ".py"),
-                os.path.join(self._pipelines_dir, name.replace(".", "/") + ".py"),
-            )
-        else:
-            raise ValueError(
-                f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
-            )
-        if (
-            not fs.exists(
-                os.path.join(
-                    self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"
+
+        if fs.exists(os.path.join(pipelines_dir, name.replace(".", "/") + ".py")):
+            if overwrite:
+                fs.rm(os.path.join(pipelines_dir, name.replace(".", "/") + ".py"))
+            else:
+                raise ValueError(
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
                 )
-            )
-            or overwrite
+        if fs.exists(
+            os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
         ):
-            fs.put_file(
-                os.path.join(
-                    self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"
-                ),
-                os.path.join(
-                    self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"
-                ),
-            )
-        else:
-            raise ValueError(
-                f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
-            )
+            if overwrite:
+                fs.rm(
+                    os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
+                )
+            else:
+                raise ValueError(
+                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. Use `overwrite=True` to overwrite."
+                )
+
+        fs.put_file(
+            os.path.join(self._pipelines_dir, name.replace(".", "/") + ".py"),
+            os.path.join(pipelines_dir, name.replace(".", "/") + ".py"),
+        )
+
+        fs.put_file(
+            os.path.join(self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
+            os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
+        )
+
         rich.print(
             f"🔧 Exported pipeline [bold blue]{name}[/bold blue] to {fs.fs.protocol}://{fs.path}"
         )
@@ -891,6 +917,8 @@ class PipelineManager:
         self,
         path: str,
         names: list[str],
+        cfg_dir: str = "conf",
+        pipelines_dir: str = "pipelines",
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         overwrite: bool = False,
@@ -903,6 +931,8 @@ class PipelineManager:
         Args:
             path (str): The path to export the pipelines to.
             names (list[str]): The names of the pipelines.
+            cfg_dir (str, optional): The configuration directory. Defaults to "conf".
+            pipelines_dir (str, optional): The pipeline directory. Defaults to "pipelines
             storage_options (dict | Munch | BaseStorageOptions | None, optional): The storage options.
                 Defaults to None.
             fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
@@ -926,6 +956,8 @@ class PipelineManager:
             self.export(
                 path=path,
                 name=name,
+                cfg_dir=cfg_dir,
+                pipelines_dir=pipelines_dir,
                 storage_options=storage_options,
                 fs=fs,
                 overwrite=overwrite,
@@ -934,6 +966,8 @@ class PipelineManager:
     def export_all(
         self,
         path: str,
+        cfg_dir: str = "conf",
+        pipelines_dir: str = "pipelines",
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         overwrite: bool = False,
@@ -947,6 +981,8 @@ class PipelineManager:
             path (str): The path to export the pipelines to.
             storage_options (dict | Munch | BaseStorageOptions | None, optional): The storage options.
                 Defaults to None.
+            cfg_dir (str, optional): The configuration directory. Defaults to "conf".
+            pipelines_dir (str, optional): The pipeline directory. Defaults to "pipelines".
             fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
             overwrite (bool, optional): Whether to overwrite an existing pipeline with the same name.
                 Defaults to False.
@@ -973,6 +1009,8 @@ class PipelineManager:
         self.export_many(
             path=path,
             names=names,
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
             storage_options=storage_options,
             fs=fs,
             overwrite=overwrite,
@@ -998,13 +1036,13 @@ class PipelineManager:
         """
 
         if cfg:
-            if fs.exists(f"{self._cfg_dir}/pipelines/{name}.yml"):
-                fs.rm(f"{self._cfg_dir}/pipelines/{name}.yml")
+            if self._fs.exists(f"{self._cfg_dir}/pipelines/{name}.yml"):
+                self._fs.rm(f"{self._cfg_dir}/pipelines/{name}.yml")
                 rich.print(f"🗑️ Deleted pipeline config for {name}")
 
         if module:
-            if fs.exists(f"{self._pipelines_dir}/{name}.py"):
-                fs.rm(f"{self._pipelines_dir}/{name}.py")
+            if self._fs.exists(f"{self._pipelines_dir}/{name}.py"):
+                self._fs.rm(f"{self._pipelines_dir}/{name}.py")
                 rich.print(
                     f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
                 )
@@ -1049,7 +1087,9 @@ class PipelineManager:
     def show_dag(
         self,
         name: str,
+        format: str = "png",
         reload: bool = False,
+        raw: bool = False,
     ):
         """
         Display the graph of functions for a given name.
@@ -1059,6 +1099,7 @@ class PipelineManager:
             format (str, optional): The format of the graph file. Defaults to "png".
             show (bool, optional): Whether to open the graph file after generating it. Defaults to False.
             reload (bool, optional): Whether to reload the graph data. Defaults to False.
+            raw (bool, optional): Whether to return the graph object. Defaults to False.
 
         Returns:
             graph: The generated graph object.
@@ -1070,7 +1111,9 @@ class PipelineManager:
             ```
         """
         dag = self._display_all_function(name=name, reload=reload)
-        return dag.show()
+        if raw:
+            return dag
+        view_img(dag.pipe(format), format=format)
 
     def _get_files(self) -> list[str]:
         """
@@ -1435,7 +1478,6 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
-        reload: bool = False,
         **kwargs,
     ) -> dict[str, Any]:
         """Run the pipeline as a job.
@@ -1447,7 +1489,6 @@ class Pipeline:
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to None.
-            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
 
         Returns:
             dict[str, Any]: The final variables for the pipeline.
@@ -1469,7 +1510,6 @@ class Pipeline:
                 final_vars=final_vars,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
-                reload=reload,
                 **kwargs,
             )
 
@@ -1480,7 +1520,6 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
-        reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> UUID:
@@ -1493,7 +1532,6 @@ class Pipeline:
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to None.
-            reload (bool, optional): Whether to reload the pipeline. Defaults to False.
             result_expiration_time (float | dt.timedelta, optional): The result expiration time. Defaults to 0.
 
         Returns:
@@ -1516,7 +1554,6 @@ class Pipeline:
                 final_vars=final_vars,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
-                reload=reload,
                 result_expiration_time=result_expiration_time,
                 **kwargs,
             )
@@ -1535,8 +1572,6 @@ class Pipeline:
         max_jitter: float | dt.timedelta | None = None,
         max_running_jobs: int | None = None,
         conflict_policy: str = "do_nothing",
-        result_expiration_time: float | dt.timedelta = 0,
-        # job_result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> str:
         """Schedule the pipeline.
@@ -1554,7 +1589,6 @@ class Pipeline:
             max_jitter (float | dt.timedelta | None, optional): The max jitter. Defaults to None.
             max_running_jobs (int | None, optional): The max running jobs. Defaults to None.
             conflict_policy (str, optional): The conflict policy. Defaults to "do_nothing".
-            result_expiration_time (float | dt.timedelta, optional): The result expiration time. Defaults to 0.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -1644,7 +1678,7 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            pm.delete(self.name, cfg=cfg, module=remove_module_file)
+            pm.delete(self.name, cfg=cfg, module=module)
 
     def save_dag(self, format="png"):
         """Save a image of the graph of functions for a given name.

@@ -6,10 +6,13 @@ from .api.pipeline import bp as bp_api_pipeline
 from .api.scheduler import bp as bp_api_scheduler
 
 
-
-
-
-def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None = None, cfg_dir: str = "conf", pipelines_dir: str = "pipelines") -> Sanic:
+def setup(
+    app: Sanic,
+    base_dir: str | None = None,
+    storage_options: dict | None = None,
+    cfg_dir: str = "conf",
+    pipelines_dir: str = "pipelines",
+) -> Sanic:
 
     app.config.BASE_DIR = base_dir
     app.config.STORAGE_OPTIONS = storage_options
@@ -18,7 +21,7 @@ def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None 
 
     @app.listener("before_server_start")
     def init_scheduler(app, loop):
-        
+
         app.ctx.scheduler = SchedulerManager(
             base_dir=base_dir, storage_options=storage_options
         )
@@ -29,8 +32,8 @@ def setup(app: Sanic, base_dir: str | None = None, storage_options: dict | None 
         if hasattr(app.ctx, "scheduler"):
             app.ctx.scheduler.stop_worker()
 
-    #app.blueprint(bp_api_pipeline)
-    #app.blueprint(bp_api_scheduler)
-    #app.blueprint(bp_api_cfg)
+    app.blueprint(bp_api_pipeline)
+    # app.blueprint(bp_api_scheduler)
+    # app.blueprint(bp_api_cfg)
 
     return app

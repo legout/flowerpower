@@ -3,6 +3,9 @@ import os
 import pyarrow as pa
 import tqdm
 from joblib import Parallel, delayed
+import tempfile
+import subprocess
+import time
 
 
 def convert_large_types_to_standard(schema: pa.Schema) -> pa.Schema:
@@ -100,3 +103,18 @@ def get_partitions_from_path(
             ]
     else:
         return list(zip(partitioning, parts[-len(partitioning) :]))
+
+
+def view_img(data: str | bytes, format: str = "svg"):
+    # Create a temporary file with .svg extension
+    with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp:
+        tmp.write(data)
+        tmp_path = tmp.name
+
+    # Open with default application on macOS
+    subprocess.run(["open", tmp_path])
+
+    # Optional: Remove the temp file after a delay
+
+    time.sleep(2)  # Wait for viewer to open
+    os.unlink(tmp_path)
