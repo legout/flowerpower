@@ -7,21 +7,21 @@ from ..flowerpower import init as init_
 from .pipeline import app as pipeline_app
 
 
-
 app = typer.Typer()
 
 
 app.add_typer(pipeline_app, name="pipeline")
 
 if importlib.util.find_spec("apscheduler"):
-
     from .scheduler import app as scheduler_app
+
     app.add_typer(scheduler_app, name="scheduler")
 
 if importlib.util.find_spec("paho"):
-
     from .mqtt import app as mqtt_app
+
     app.add_typer(mqtt_app, name="mqtt")
+
 
 @app.command()
 def init(
