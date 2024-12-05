@@ -33,12 +33,26 @@ def parse_dict_or_list_param(
     Returns:
         dict | list | None: Parsed parameter or None if parsing fails
     """
+
+    def convert_string_booleans(obj):
+        if isinstance(obj, dict):
+            return {k: convert_string_booleans(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_string_booleans(item) for item in obj]
+        elif isinstance(obj, str):
+            if obj.lower() == "true":
+                return True
+            elif obj.lower() == "false":
+                return False
+        return obj
+
     if value is None:
         return None
 
     try:
         # Try parsing as JSON first
-        return json.loads(value)
+        parsed = json.loads(value)
+        return convert_string_booleans(parsed)
     except json.JSONDecodeError:
         try:
             # Try parsing as Python literal
@@ -50,13 +64,14 @@ def parse_dict_or_list_param(
             elif param_type == "list" and not isinstance(parsed, list):
                 raise ValueError(f"Expected list, got {type(parsed)}")
 
-            return parsed
+            return convert_string_booleans(parsed)
         except (SyntaxError, ValueError):
             # For dicts, try parsing as comma-separated key=value pairs
             if param_type == "dict" and "=" in value:
-                return dict(
+                parsed = dict(
                     pair.split("=", 1) for pair in value.split(",") if pair.strip()
                 )
+                return convert_string_booleans(parsed)
 
             # For lists, try multiple parsing strategies
             if param_type == "list":
@@ -70,7 +85,9 @@ def parse_dict_or_list_param(
                 list_items = re.findall(r"['\"]?(.*?)['\"]?(?=\s*,|\s*$)", value)
 
                 # Remove any empty strings and strip whitespace
-                return [item.strip() for item in list_items if item.strip()]
+                parsed = [item.strip() for item in list_items if item.strip()]
+
+                return convert_string_booleans(parsed)
 
             # If all parsing fails, log warning and return None
             logger.warning(f"Could not parse {param_type} parameter: {value}")
