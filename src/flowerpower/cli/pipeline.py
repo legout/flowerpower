@@ -41,7 +41,9 @@ def run(
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
+    config: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
     reload: bool = False,
     storage_options: str | None = None,
 ):
@@ -54,7 +56,9 @@ def run(
         base_dir: Base directory for the pipeline
         inputs: Input parameters as JSON, dict string, or key=value pairs
         final_vars: Final variables as JSON or list
-        with_tracker: Enable tracking
+        config: Config for the hamilton pipeline executor
+        with_tracker: Enable tracking with hamilton ui
+        with_opentelemetry: Enable OpenTelemetry tracing
         reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -75,6 +79,7 @@ def run(
     pipeline run my_pipeline --storage-options 'endpoint=http://localhost,use_ssl=true'
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
@@ -87,7 +92,9 @@ def run(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
+            config=parsed_config,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
         )
 
@@ -99,7 +106,9 @@ def run_job(
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
+    config: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
     reload: bool = False,
     storage_options: str | None = None,
 ):
@@ -112,7 +121,9 @@ def run_job(
         base_dir: Base directory for the pipeline
         inputs: Input parameters as JSON, dict string, or key=value pairs
         final_vars: Final variables as JSON or list
-        with_tracker: Enable tracking
+        config: Config for the hamilton pipeline executor
+        with_tracker: Enable tracking with hamilton ui
+        with_opentelemetry: Enable OpenTelemetry tracing
         reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -133,6 +144,7 @@ def run_job(
     pipeline run-job 123 --storage-options 'endpoint=http://localhost,use_ssl=true'
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
@@ -145,7 +157,9 @@ def run_job(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
+            config=parsed_config,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             reload=reload,
         )
 
@@ -157,7 +171,10 @@ def add_job(
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
+    config: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
+    reload: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -169,7 +186,10 @@ def add_job(
         base_dir: Base directory for the pipeline
         inputs: Input parameters as JSON, dict string, or key=value pairs
         final_vars: Final variables as JSON or list
-        with_tracker: Enable tracking
+        config: Config for the hamilton pipeline executor
+        with_tracker: Enable tracking with hamilton ui
+        with_opentelemetry: Enable OpenTelemetry tracing
+        reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -189,6 +209,7 @@ def add_job(
     pipeline add-job my_pipeline --storage-options 'endpoint=http://localhost,use_ssl=true'
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
@@ -203,7 +224,10 @@ def add_job(
             executor=executor,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
+            config=parsed_config,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
+            reload=reload,
         )
 
 
@@ -215,7 +239,9 @@ def schedule(
     type: str = "cron",
     inputs: str | None = None,
     final_vars: str | None = None,
+    config: str | None = None,
     with_tracker: bool = False,
+    with_opentelemetry: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
     misfire_grace_time: float | None = None,
@@ -232,13 +258,64 @@ def schedule(
     """
     Schedule a pipeline with various configuration options.
 
-    Supports flexible input parsing for inputs, final_vars, and storage_options
+    Args:
+        name: Name of the pipeline to schedule
+        executor: Executor to use
+        base_dir: Base directory for the pipeline
+        type: Type of schedule
+        inputs: Input parameters as JSON, dict string, or key=value pairs
+        final_vars: Final variables as JSON or list
+        config: Config for the hamilton pipeline executor
+        with_tracker: Enable tracking with hamilton ui
+        with_opentelemetry: Enable OpenTelemetry tracing
+        paused: Start the job in paused state
+        coalesce: Coalesce policy
+        misfire_grace_time: Misfire grace time
+        max_jitter: Maximum jitter
+        max_running_jobs: Maximum running jobs
+        conflict_policy: Conflict policy
+        crontab: Crontab expression
+        cron_params: Cron parameters as JSON or key=value pairs
+        interval_params: Interval parameters as JSON or key=value pairs
+        calendarinterval_params: Calendar interval parameters as JSON or key=value pairs
+        date_params: Date parameters as JSON or key=value pairs
+        storage_options: Storage options as JSON, dict string, or key=value pairs
+
+    Examples:
+    # JSON inputs
+    pipeline schedule my_pipeline --inputs '{"key": "value"}'
+
+    # Dict string inputs
+    pipeline schedule my_pipeline --inputs "{'key': 'value'}"
+
+    # Key-value pair inputs
+    pipeline schedule my_pipeline --inputs 'key1=value1,key2=value2'
+
+    # List final vars
+    pipeline schedule my_pipeline --final-vars '["var1", "var2"]'
+
+    # Storage options
+    pipeline schedule my_pipeline --storage-options 'endpoint=http://localhost,use_ssl=true'
+
+    # Cron schedule
+    pipeline schedule my_pipeline --type cron --crontab '0 0 * * *'
+
+    # Interval schedule
+    pipeline schedule my_pipeline --type interval --interval_params minutes=1
+
+    # Calendar interval schedule
+    pipeline schedule my_pipeline --type calendarinterval --calendarinterval_params month=5
+
+    # Date schedule
+    pipeline schedule my_pipeline --type date --date_params run_date='2021-01-01 12:00:01'
+
     """
     if get_schedule_manager is None:
         raise ValueError("APScheduler not installed. Please install it first.")
 
     # Parse inputs
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
@@ -278,7 +355,9 @@ def schedule(
             type=type,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
+            config=parsed_config,
             with_tracker=with_tracker,
+            with_opentelemetry=with_opentelemetry,
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
@@ -347,7 +426,7 @@ def delete(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.delete(cfg=cfg,module=module)
+        pipeline.delete(cfg=cfg, module=module)
 
 
 @app.command()
@@ -448,30 +527,3 @@ def show_summary(
         storage_options=parsed_storage_options or {},
     ) as manager:
         manager.show_summary(name=name, cfg=cfg, module=module)
-
-
-# @app.command()
-# def get_summary(
-#     name: str,
-#     config: bool = True,
-#     module: bool = True,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-# ):
-#     """
-#     Get the summary of the specified pipeline.
-
-#     Args:
-#         name: Name of the pipeline to get
-#         base_dir: Base directory for the pipeline
-
-#     Examples:
-#     pipeline get-summary my_pipeline
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
-
-#     with PipelineManager(
-#         base_dir=base_dir,
-#         storage_options=parsed_storage_options or {},
-#     ) as manager:
-#         manager.get_summary(name=name)

@@ -8,6 +8,7 @@ class PipelineRunConfig(BaseConfig):
     final_vars: list[str] = Field(default_factory=list)
     inputs: dict | Munch = Field(default_factory=dict)
     executor: str | None = None
+    config: dict | Munch = Field(default_factory=dict)
     with_tracker: bool = False
     with_opentelemetry: bool = False
 

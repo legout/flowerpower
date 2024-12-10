@@ -155,6 +155,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
+        config: dict | None = None,
         reload: bool = False,
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
@@ -165,6 +166,8 @@ class PipelineManager:
             name (str): The name of the pipeline.
             executor (str | None, optional): The executor to use. Defaults to None.
             with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
             reload (bool, optional): Whether to reload the module. Defaults to False.
             **kwargs: Additional keyword arguments.
@@ -231,6 +234,7 @@ class PipelineManager:
                 .enable_dynamic_execution(allow_experimental_mode=True)
                 .with_adapters(adapters)
                 .with_remote_executor(executor_)
+                .with_config(config)
                 .build()
             )
         else:
@@ -239,6 +243,7 @@ class PipelineManager:
                 .with_modules(self._module)
                 .enable_dynamic_execution(allow_experimental_mode=True)
                 .with_remote_executor(executor_)
+                .with_config(config)
                 .build()
             )
 
@@ -249,6 +254,7 @@ class PipelineManager:
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -263,6 +269,8 @@ class PipelineManager:
             executor (str | None, optional): The executor to use. Defaults to None.
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
@@ -294,6 +302,10 @@ class PipelineManager:
             **(run_params.inputs or {}),
             **(inputs or {}),
         }  # <-- inputs override and adds to run_params
+        config = {
+            **(run_params.config or {}),
+            **(config or {}),
+        }
 
         kwargs.update(
             {
@@ -301,6 +313,7 @@ class PipelineManager:
                 for arg in ["executor", "with_tracker", "with_opentelemetry"]
             }
         )
+        kwargs["config"] = config
 
         dr, shutdown = self._get_driver(
             name=name,
@@ -321,6 +334,7 @@ class PipelineManager:
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -336,6 +350,7 @@ class PipelineManager:
             executor (str | None, optional): The executor to use for the job. Defaults to None.
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
+            config (dict | None, optional): The configuration for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
@@ -351,8 +366,10 @@ class PipelineManager:
             ```
         """
         if SchedulerManager is None:
-            raise ValueError("APScheduler4 not installed. Please install it first. "
-            "Run `pip install 'flowerpower[scheduler]'`.")
+            raise ValueError(
+                "APScheduler4 not installed. Please install it first. "
+                "Run `pip install 'flowerpower[scheduler]'`."
+            )
 
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
@@ -366,6 +383,7 @@ class PipelineManager:
                         "name",
                         "inputs",
                         "final_vars",
+                        "config",
                         "executor",
                         "with_tracker",
                         "with_opentelemetry",
@@ -388,6 +406,7 @@ class PipelineManager:
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -405,6 +424,7 @@ class PipelineManager:
             executor (str | None, optional): The executor for the job. Defaults to None.
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
+            config (dict | None, optional): The configuration for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
@@ -422,8 +442,10 @@ class PipelineManager:
             ```
         """
         if SchedulerManager is None:
-            raise ValueError("APScheduler4 not installed. Please install it first. "
-            "Run `pip install 'flowerpower[scheduler]'`.")
+            raise ValueError(
+                "APScheduler4 not installed. Please install it first. "
+                "Run `pip install 'flowerpower[scheduler]'`."
+            )
 
         with SchedulerManager(
             name=f"{self.cfg.project.name}.{name}",
@@ -437,6 +459,7 @@ class PipelineManager:
                         "name",
                         "inputs",
                         "final_vars",
+                        "config",
                         "executor",
                         "with_tracker",
                         "with_opentelemetry",
@@ -465,6 +488,7 @@ class PipelineManager:
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -488,6 +512,8 @@ class PipelineManager:
             trigger_type (str | None, optional): The type of trigger for the pipeline. Defaults to None.
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to None.
@@ -519,8 +545,10 @@ class PipelineManager:
             ```
         """
         if SchedulerManager is None:
-            raise ValueError("APScheduler4 not installed. Please install it first. "
-            "Run `pip install 'flowerpower[scheduler]'`.")
+            raise ValueError(
+                "APScheduler4 not installed. Please install it first. "
+                "Run `pip install 'flowerpower[scheduler]'`."
+            )
 
         # if "pipeline" in self.cfg.scheduler:
         schedule_cfg = self.cfg.pipeline.schedule  # .copy()
@@ -575,7 +603,7 @@ class PipelineManager:
                 func_or_task_id=self.run,
                 trigger=trigger,
                 id=id_,
-                args=(name,),  # inputs, final_vars, executor, with_tracker),
+                args=(name,),  # inputs, final_vars, config, executor, with_tracker),
                 kwargs=kwargs,
                 job_executor=(
                     executor
@@ -1440,6 +1468,7 @@ class Pipeline:
         self,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
@@ -1451,6 +1480,8 @@ class Pipeline:
         Args:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
             with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1475,6 +1506,7 @@ class Pipeline:
                 executor=executor,
                 inputs=inputs,
                 final_vars=final_vars,
+                config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
                 reload=reload,
@@ -1485,6 +1517,7 @@ class Pipeline:
         self,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -1495,6 +1528,8 @@ class Pipeline:
         Args:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1518,6 +1553,7 @@ class Pipeline:
                 executor=executor,
                 inputs=inputs,
                 final_vars=final_vars,
+                config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
                 **kwargs,
@@ -1527,6 +1563,7 @@ class Pipeline:
         self,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -1538,6 +1575,8 @@ class Pipeline:
         Args:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1562,6 +1601,7 @@ class Pipeline:
                 executor=executor,
                 inputs=inputs,
                 final_vars=final_vars,
+                config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
                 result_expiration_time=result_expiration_time,
@@ -1573,6 +1613,7 @@ class Pipeline:
         trigger_type: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
@@ -1590,6 +1631,8 @@ class Pipeline:
             trigger_type (str | None, optional): The trigger type for the schedule. Defaults to None.
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+                Defaults to None.
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
             with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline. Defaults to False.
@@ -1783,6 +1826,7 @@ def run(
     base_dir: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    config: dict | None = None,
     executor: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
@@ -1797,6 +1841,8 @@ def run(
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+            Defaults to None.
         executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
         with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
         with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1819,6 +1865,7 @@ def run(
         return p.run(
             inputs=inputs,
             final_vars=final_vars,
+            config=config,
             executor=executor,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
@@ -1831,6 +1878,7 @@ def run_job(
     base_dir: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    config: dict | None = None,
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
@@ -1846,6 +1894,8 @@ def run_job(
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+            Defaults to None.
         executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
         with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1870,6 +1920,7 @@ def run_job(
         return p.run_job(
             inputs=inputs,
             final_vars=final_vars,
+            config=config,
             executor=executor,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
@@ -1883,6 +1934,7 @@ def add_job(
     base_dir: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    config: dict | None = None,
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
@@ -1901,6 +1953,8 @@ def add_job(
         executor (str | None, optional): The executor to use for the job. Defaults to None.
         inputs (dict | None, optional): The inputs for the job. Defaults to None.
         final_vars (list | None, optional): The final variables for the job. Defaults to None.
+        config (dict | None, optional): The config for the hamilton driver that executes the job.
+            Defaults to None.
         with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
         storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
@@ -1924,6 +1978,7 @@ def add_job(
         executor=executor,
         inputs=inputs,
         final_vars=final_vars,
+        config=config,
         with_tracker=with_tracker,
         with_opentelemetry=with_opentelemetry,
         result_expiration_time=result_expiration_time,
@@ -1937,6 +1992,7 @@ def schedule(
     inputs: dict | None = None,
     final_vars: list | None = None,
     executor: str | None = None,
+    config: dict | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
     trigger_type: str | None = None,
@@ -1959,6 +2015,8 @@ def schedule(
         base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
+            Defaults to None.
         executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
         with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
@@ -1995,6 +2053,7 @@ def schedule(
             trigger_type=trigger_type,
             inputs=inputs,
             final_vars=final_vars,
+            config=config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
             paused=paused,

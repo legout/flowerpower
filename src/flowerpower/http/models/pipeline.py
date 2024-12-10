@@ -6,6 +6,7 @@ class PipelineRun(BaseModel):
     inputs: dict | None = None
     final_vars: list | None = None
     executor: str | None = None
+    config: dict | None = None
     with_tracker: bool = None
     with_opentelemetry: bool = None
 

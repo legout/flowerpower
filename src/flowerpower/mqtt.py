@@ -256,6 +256,7 @@ class MQTTClient:
         topic: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
+        config: dict | None = None,
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -276,6 +277,7 @@ class MQTTClient:
             topic: MQTT topic to listen to
             inputs: Inputs for the pipeline
             final_vars: Final variables for the pipeline
+            config: Configuration for the pipeline driver
             executor: Executor to use for the pipeline
             with_tracker: Use tracker for the pipeline
             with_opentelemetry: Use OpenTelemetry for the pipeline
@@ -306,6 +308,7 @@ class MQTTClient:
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,
+                            config=config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
                             reload=reload,
@@ -317,6 +320,7 @@ class MQTTClient:
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,
+                            config=config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
                             reload=reload,
@@ -372,6 +376,7 @@ def start_pipeline_listener(
     topic: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
+    config: dict | None = None,
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
@@ -392,6 +397,7 @@ def start_pipeline_listener(
         topic: MQTT topic to listen to
         inputs: Inputs for the pipeline
         final_vars: Final variables for the pipeline
+        config: Configuration for the pipeline driver
         executor: Executor to use for the pipeline
         with_tracker: Use tracker for the pipeline
         with_opentelemetry: Use OpenTelemetry for the pipeline
@@ -410,6 +416,7 @@ def start_pipeline_listener(
         topic=topic,
         inputs=inputs,
         final_vars=final_vars,
+        config=config,
         executor=executor,
         with_tracker=with_tracker,
         with_opentelemetry=with_opentelemetry,
