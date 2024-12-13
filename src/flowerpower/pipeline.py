@@ -1119,7 +1119,9 @@ class PipelineManager:
         dag = self._display_all_function(name=name, reload=reload)
 
         self._fs.makedirs("graphs", exist_ok=True)
-        dag.save(os.path.join(self._base_dir, f"graphs/{name}.{format}"))
+        dag.render(
+            os.path.join(self._base_dir, f"graphs/{name}"), format=format, cleanup=True
+        )
         rich.print(
             f"📊 Saved graph for {name} to {self._base_dir}/graphs/{name}.{format}"
         )
@@ -1132,7 +1134,8 @@ class PipelineManager:
         raw: bool = False,
     ):
         """
-        Display the graph of functions for a given name.
+        Display the graph of functions for a given name. By choosing the `raw` option, the graph object is returned.
+        The choosen format defines, which application is used to display the graph.
 
         Args:
             name (str): The name of the graph.
