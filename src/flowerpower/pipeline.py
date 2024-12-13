@@ -117,7 +117,7 @@ class PipelineManager:
         if modules_path not in sys.path:
             sys.path.append(modules_path)
 
-    def load_module(self, name: str):
+    def load_module(self, name: str, reload: bool = False):
         """
         Load a module dynamically.
 
@@ -131,6 +131,8 @@ class PipelineManager:
 
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
+            if reload:
+                self._module = importlib.reload(self._module)
         else:
             self._module = importlib.reload(self._module)
 
@@ -155,7 +157,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
-        config: dict | None = None,
+        config: dict = {},
         reload: bool = False,
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:

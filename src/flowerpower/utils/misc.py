@@ -8,6 +8,7 @@ import time
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa
+
     def convert_large_types_to_standard(schema: pa.Schema) -> pa.Schema:
         # Define mapping of large types to standard types
         type_mapping = {
@@ -42,6 +43,7 @@ if importlib.util.find_spec("pyarrow"):
                 new_fields.append(field)
 
         return pa.schema(new_fields)
+
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
