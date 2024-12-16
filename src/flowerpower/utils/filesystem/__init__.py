@@ -1,8 +1,8 @@
 import importlib
 
-has_pyarrow = importlib.util.find_spec("pyarrow") is not None
+has_orjson = importlib.util.find_spec("orjson") is not None
 
-if has_pyarrow:
+if has_orjson:
     from .ext import AbstractFileSystem
 else:
     from fsspec import AbstractFileSystem
