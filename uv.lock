@@ -390,13 +390,12 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.8.3.2"
+version = "0.8.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "dill" },
     { name = "fsspec" },
     { name = "munch" },
-    { name = "orjson" },
     { name = "pendulum" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -410,6 +409,7 @@ dependencies = [
 
 [package.optional-dependencies]
 filesystem-ext = [
+    { name = "orjson" },
     { name = "polars" },
     { name = "pyarrow" },
 ]
@@ -463,7 +463,7 @@ requires-dist = [
     { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.5.0" },
     { name = "opentelemetry-exporter-jaeger", marker = "extra == 'opentelemetry'", specifier = ">=1.21.0" },
     { name = "opentelemetry-sdk", marker = "extra == 'opentelemetry'", specifier = ">=1.5.0" },
-    { name = "orjson", specifier = ">=3.10.12" },
+    { name = "orjson", marker = "extra == 'filesystem-ext'", specifier = ">=3.10.12" },
     { name = "orjson", marker = "extra == 'mqtt'", specifier = ">=3.10.11" },
     { name = "orjson", marker = "extra == 'webserver'", specifier = ">=3.10.11" },
     { name = "paho-mqtt", marker = "extra == 'mqtt'", specifier = ">=2.1.0" },
