@@ -12,28 +12,22 @@
 --index-url https://pypi.org/simple/
 
 -e file:.
-aiobotocore==2.15.2
-    # via s3fs
 aiofiles==24.1.0
     # via sanic
     # via sf-hamilton-ui
-aiohappyeyeballs==2.4.3
+aiohappyeyeballs==2.4.4
     # via aiohttp
-aiohttp==3.11.7
-    # via aiobotocore
-    # via s3fs
+aiohttp==3.11.10
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
-aioitertools==0.12.0
-    # via aiobotocore
-aiosignal==1.3.1
+aiosignal==1.3.2
     # via aiohttp
     # via ray
 aiosqlite==0.20.0
     # via flowerpower
 annotated-types==0.7.0
     # via pydantic
-anyio==4.6.2.post1
+anyio==4.7.0
     # via apscheduler
     # via httpx
     # via jupyter-server
@@ -49,7 +43,7 @@ arrow==1.3.0
     # via isoduration
 asgiref==3.8.1
     # via django
-asttokens==2.4.1
+asttokens==3.0.0
     # via stack-data
 async-lru==2.0.4
     # via jupyterlab
@@ -68,16 +62,12 @@ beautifulsoup4==4.12.3
     # via nbconvert
 bleach==6.2.0
     # via nbconvert
-botocore==1.35.36
-    # via aiobotocore
-cbor2==5.6.5
 certifi==2024.8.30
     # via httpcore
     # via httpx
     # via requests
 cffi==1.17.1
     # via argon2-cffi-bindings
-    # via pygit2
 charset-normalizer==3.4.0
     # via requests
 click==8.1.7
@@ -85,25 +75,24 @@ click==8.1.7
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
     # via typer
-cloudpickle==3.1.0
 colorlog==6.9.0
     # via sf-hamilton-ui
 comm==0.2.2
     # via ipykernel
-datafusion==42.0.0
-debugpy==1.8.9
+datafusion==43.1.0
+debugpy==1.8.11
     # via ipykernel
 decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
-deltalake==0.22.0
+deltalake==0.22.3
 deprecated==1.2.15
     # via opentelemetry-api
     # via opentelemetry-semantic-conventions
 dill==0.3.9
     # via flowerpower
-django==5.1.3
+django==5.1.4
     # via django-extensions
     # via django-ninja
     # via sf-hamilton-ui
@@ -116,7 +105,7 @@ dnspython==2.7.0
 duckdb==1.1.3
 executing==2.1.0
     # via stack-data
-fastjsonschema==2.20.0
+fastjsonschema==2.21.1
     # via nbformat
 filelock==3.16.1
     # via ray
@@ -128,7 +117,6 @@ frozenlist==1.5.0
     # via ray
 fsspec==2024.10.0
     # via flowerpower
-    # via s3fs
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
@@ -139,7 +127,7 @@ graphviz==0.20.3
     # via sf-hamilton
 greenlet==3.1.1
     # via flowerpower
-grpcio==1.68.0
+grpcio==1.68.1
     # via opentelemetry-exporter-jaeger-proto-grpc
 h11==0.14.0
     # via httpcore
@@ -150,7 +138,7 @@ httpcore==1.0.7
     # via httpx
 httptools==0.6.4
     # via sanic
-httpx==0.27.2
+httpx==0.28.1
     # via jupyterlab
 idna==3.10
     # via anyio
@@ -162,7 +150,7 @@ importlib-metadata==8.5.0
     # via opentelemetry-api
 ipykernel==6.29.5
     # via jupyterlab
-ipython==8.29.0
+ipython==8.30.0
     # via ipykernel
 isoduration==20.11.0
     # via jsonschema
@@ -175,9 +163,6 @@ jinja2==3.1.4
     # via jupyterlab-server
     # via nbconvert
     # via sf-hamilton-sdk
-jmespath==1.0.1
-    # via botocore
-joblib==1.4.2
 json5==0.10.0
     # via jupyterlab-server
 jsonpointer==3.0.0
@@ -212,17 +197,16 @@ jupyter-server==2.14.2
     # via notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.3.1
+jupyterlab==4.3.3
 jupyterlab-pygments==0.3.0
     # via nbconvert
 jupyterlab-server==2.27.3
     # via jupyterlab
 linkify-it-py==2.0.3
     # via markdown-it-py
-loguru==0.7.2
+loguru==0.7.3
     # via sf-hamilton-sdk
     # via sf-hamilton-ui
-lxml==5.3.0
 markdown-it-py==3.0.0
     # via mdit-py-plugins
     # via rich
@@ -243,7 +227,6 @@ monotonic==1.6
     # via posthog
 msgpack==1.1.0
     # via ray
-msgspec==0.18.6
 multidict==6.1.0
     # via aiohttp
     # via sanic
@@ -252,7 +235,7 @@ munch==4.0.0
     # via flowerpower
 mypy-extensions==1.0.0
     # via typing-inspect
-nbclient==0.10.0
+nbclient==0.10.1
     # via nbconvert
 nbconvert==7.16.4
     # via jupyter-server
@@ -266,10 +249,10 @@ networkx==3.4.2
     # via sf-hamilton
 notebook-shim==0.2.4
     # via jupyterlab
-numpy==2.1.3
+numpy==2.2.0
     # via pandas
     # via sf-hamilton
-opentelemetry-api==1.28.2
+opentelemetry-api==1.29.0
     # via flowerpower
     # via opentelemetry-exporter-jaeger-proto-grpc
     # via opentelemetry-exporter-jaeger-thrift
@@ -281,11 +264,11 @@ opentelemetry-exporter-jaeger-proto-grpc==1.21.0
     # via opentelemetry-exporter-jaeger
 opentelemetry-exporter-jaeger-thrift==1.21.0
     # via opentelemetry-exporter-jaeger
-opentelemetry-sdk==1.28.2
+opentelemetry-sdk==1.29.0
     # via flowerpower
     # via opentelemetry-exporter-jaeger-proto-grpc
     # via opentelemetry-exporter-jaeger-thrift
-opentelemetry-semantic-conventions==0.49b2
+opentelemetry-semantic-conventions==0.50b0
     # via opentelemetry-sdk
 orjson==3.10.12
     # via flowerpower
@@ -312,22 +295,21 @@ pendulum==3.0.0
     # via flowerpower
 pexpect==4.9.0
     # via ipython
-pillow==11.0.0
 platformdirs==4.3.6
     # via jupyter-core
     # via textual
-polars==1.15.0
+polars==1.17.1
     # via flowerpower
-posthog==3.7.3
+posthog==3.7.4
     # via sf-hamilton-sdk
-prometheus-client==0.21.0
+prometheus-client==0.21.1
     # via jupyter-server
 prompt-toolkit==3.0.48
     # via ipython
-propcache==0.2.0
+propcache==0.2.1
     # via aiohttp
     # via yarl
-protobuf==5.28.3
+protobuf==5.29.1
     # via googleapis-common-protos
     # via ray
 psutil==6.1.0
@@ -345,21 +327,20 @@ pyarrow==18.1.0
     # via flowerpower
 pycparser==2.22
     # via cffi
-pydantic==2.10.2
+pydantic==2.10.3
     # via django-ninja
     # via flowerpower
 pydantic-core==2.27.1
     # via pydantic
-pygit2==1.16.0
 pygments==2.18.0
     # via ipython
     # via nbconvert
     # via rich
 pymongo==4.10.1
     # via flowerpower
+pysqlite3==0.5.4
 python-dateutil==2.9.0.post0
     # via arrow
-    # via botocore
     # via jupyter-client
     # via pandas
     # via pendulum
@@ -367,7 +348,7 @@ python-dateutil==2.9.0.post0
     # via time-machine
 python-dotenv==1.0.1
     # via flowerpower
-python-json-logger==2.0.7
+python-json-logger==3.2.0
     # via jupyter-events
 pytz==2024.2
     # via pandas
@@ -380,9 +361,9 @@ pyzmq==26.2.0
     # via ipykernel
     # via jupyter-client
     # via jupyter-server
-ray==2.39.0
+ray==2.40.0
     # via flowerpower
-redis==5.2.0
+redis==5.2.1
     # via flowerpower
 referencing==0.35.1
     # via jsonschema
@@ -404,11 +385,10 @@ rich==13.9.4
     # via flowerpower
     # via textual
     # via typer
-rpds-py==0.21.0
+rpds-py==0.22.3
     # via jsonschema
     # via referencing
-ruff==0.8.0
-s3fs==2024.10.0
+ruff==0.8.3
 sanic==24.6.0
     # via flowerpower
 sanic-ext==23.12.0
@@ -420,7 +400,7 @@ send2trash==1.8.3
 setuptools==75.6.0
     # via jupyterlab
     # via sanic
-sf-hamilton==1.83.3
+sf-hamilton==1.85.0
     # via flowerpower
     # via sf-hamilton-sdk
 sf-hamilton-sdk==0.8.0
@@ -429,8 +409,7 @@ sf-hamilton-ui==0.0.15
     # via flowerpower
 shellingham==1.5.4
     # via typer
-six==1.16.0
-    # via asttokens
+six==1.17.0
     # via posthog
     # via python-dateutil
     # via rfc3339-validator
@@ -439,14 +418,13 @@ smmap==5.0.1
     # via gitdb
 sniffio==1.3.1
     # via anyio
-    # via httpx
 soupsieve==2.6
     # via beautifulsoup4
 sqlalchemy==2.0.36
     # via flowerpower
-sqlglot==25.32.0
+sqlglot==26.0.0
     # via sf-hamilton-sdk
-sqlparse==0.5.2
+sqlparse==0.5.3
     # via django
 stack-data==0.6.3
     # via ipython
@@ -455,7 +433,7 @@ tenacity==8.5.0
 terminado==0.18.1
     # via jupyter-server
     # via jupyter-server-terminals
-textual==0.87.1
+textual==1.0.0
     # via flowerpower
 thrift==0.21.0
     # via opentelemetry-exporter-jaeger-thrift
@@ -463,7 +441,6 @@ time-machine==2.16.0
     # via pendulum
 tinycss2==1.4.0
     # via nbconvert
-toml==0.10.2
 tornado==6.4.2
     # via ipykernel
     # via jupyter-client
@@ -487,13 +464,14 @@ traitlets==5.14.3
     # via nbclient
     # via nbconvert
     # via nbformat
-typer==0.13.1
+typer==0.15.1
     # via flowerpower
     # via sf-hamilton-ui
-types-python-dateutil==2.9.0.20241003
+types-python-dateutil==2.9.0.20241206
     # via arrow
 typing-extensions==4.12.2
     # via aiosqlite
+    # via anyio
     # via datafusion
     # via opentelemetry-sdk
     # via pydantic
@@ -518,7 +496,6 @@ ujson==5.10.0
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.2.3
-    # via botocore
     # via requests
 uvloop==0.21.0
     # via sanic
@@ -534,9 +511,8 @@ websocket-client==1.8.0
 websockets==14.1
     # via sanic
 wrapt==1.17.0
-    # via aiobotocore
     # via deprecated
-yarl==1.18.0
+yarl==1.18.3
     # via aiohttp
 zipp==3.21.0
     # via importlib-metadata

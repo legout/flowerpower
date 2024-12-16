@@ -1,3 +1,3 @@
-from .flowerpower import init
+from .flowerpower import init as init_flowerpower
 
-_ = init()
+#_ = init()

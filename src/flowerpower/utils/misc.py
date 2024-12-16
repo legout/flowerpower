@@ -43,6 +43,9 @@ if importlib.util.find_spec("pyarrow"):
                 new_fields.append(field)
 
         return pa.schema(new_fields)
+else:
+    def convert_large_types_to_standard(*args, **kwargs):
+        raise ImportError("pyarrow not installed")
 
 
 if importlib.util.find_spec("joblib"):
@@ -78,7 +81,9 @@ if importlib.util.find_spec("joblib"):
             return Parallel(n_jobs=n_jobs, backend=backend)(
                 delayed(func)(fp, *args, **kwargs) for fp in func_params
             )
-
+else:
+    def run_parallel(*args, **kwargs):
+        raise ImportError("joblib not installed")
 
 def get_partitions_from_path(
     path: str, partitioning: str | list[str] | None = None
