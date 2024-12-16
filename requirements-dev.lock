@@ -49,7 +49,7 @@ async-lru==2.0.4
     # via jupyterlab
 asyncpg==0.30.0
     # via flowerpower
-attrs==24.2.0
+attrs==24.3.0
     # via aiohttp
     # via apscheduler
     # via jsonschema
@@ -62,7 +62,7 @@ beautifulsoup4==4.12.3
     # via nbconvert
 bleach==6.2.0
     # via nbconvert
-certifi==2024.8.30
+certifi==2024.12.14
     # via httpcore
     # via httpx
     # via requests
@@ -121,7 +121,7 @@ gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
     # via sf-hamilton-sdk
-googleapis-common-protos==1.56.1
+googleapis-common-protos==1.59.1
     # via opentelemetry-exporter-jaeger-proto-grpc
 graphviz==0.20.3
     # via sf-hamilton
@@ -309,7 +309,7 @@ prompt-toolkit==3.0.48
 propcache==0.2.1
     # via aiohttp
     # via yarl
-protobuf==5.29.1
+protobuf==4.25.5
     # via googleapis-common-protos
     # via ray
 psutil==6.1.0
@@ -338,7 +338,6 @@ pygments==2.18.0
     # via rich
 pymongo==4.10.1
     # via flowerpower
-pysqlite3==0.5.4
 python-dateutil==2.9.0.post0
     # via arrow
     # via jupyter-client
@@ -348,7 +347,7 @@ python-dateutil==2.9.0.post0
     # via time-machine
 python-dotenv==1.0.1
     # via flowerpower
-python-json-logger==3.2.0
+python-json-logger==3.2.1
     # via jupyter-events
 pytz==2024.2
     # via pandas

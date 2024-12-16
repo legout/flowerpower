@@ -35,14 +35,14 @@ asgiref==3.8.1
     # via django
 asyncpg==0.30.0
     # via flowerpower
-attrs==24.2.0
+attrs==24.3.0
     # via aiohttp
     # via apscheduler
     # via jsonschema
     # via referencing
 backoff==2.2.1
     # via posthog
-certifi==2024.8.30
+certifi==2024.12.14
     # via requests
 charset-normalizer==3.4.0
     # via requests
@@ -80,7 +80,7 @@ gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
     # via sf-hamilton-sdk
-googleapis-common-protos==1.56.1
+googleapis-common-protos==1.59.1
     # via opentelemetry-exporter-jaeger-proto-grpc
 graphviz==0.20.3
     # via sf-hamilton
@@ -176,7 +176,7 @@ posthog==3.7.4
 propcache==0.2.1
     # via aiohttp
     # via yarl
-protobuf==5.29.1
+protobuf==4.25.5
     # via googleapis-common-protos
     # via ray
 psycopg2-binary==2.9.10
