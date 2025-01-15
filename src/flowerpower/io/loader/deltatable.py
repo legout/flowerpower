@@ -1,15 +1,18 @@
-import datetime as dt
+# import datetime as dt
 
 import datafusion as dtf
 import duckdb
-import pandas as pd
-import pyarrow as pa
-import pyarrow.dataset as pds
+
+# import pandas as pd
+# import pyarrow as pa
+# import pyarrow.dataset as pds
 from deltalake import DeltaTable
-from hamilton.function_modifiers import dataloader
+
+# from hamilton.function_modifiers import dataloader
 
 from ...utils.polars import pl
-from ..utils import get_dataframe_metadata, get_delta_metadata
+
+# from ..utils import get_dataframe_metadata, get_delta_metadata
 
 
 class DeltaTableLoader(DeltaTable):
@@ -70,6 +73,6 @@ class DeltaTableLoader(DeltaTable):
             ctx.register_dataset(name, self.to_pyarrow_dataset())
         else:
             ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
-            table = table.to_table()
-        ctx.register_dataset(name, table)
+            # table = table.to_table()
+        # ctx.register_dataset(name, table)
         return ctx

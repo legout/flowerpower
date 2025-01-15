@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from pydantic import BaseModel
 
-from ...helpers.sql import sql2polars_filter
+from ...utils.sql import sql2polars_filter
 
 
 class MQTTLoader(BaseModel):

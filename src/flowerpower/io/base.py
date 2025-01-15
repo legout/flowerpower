@@ -379,7 +379,8 @@ class BaseFileLoader(BaseFileIO):
             filter_expr (str | pl.Expr | pa.compute.Expression): Filter expression.
 
         Returns:
-            pl.DataFrame | pl.LazyFrame | pa.Table | list[pl.DataFrame] | list[pl.LazyFrame] | list[pa.Table]: Filtered data.
+            pl.DataFrame | pl.LazyFrame | pa.Table | list[pl.DataFrame] | list[pl.LazyFrame]
+                | list[pa.Table]: Filtered data.
         """
         if isinstance(self._data, pl.DataFrame | pl.LazyFrame):
             pl_schema = (
@@ -643,29 +644,103 @@ class BaseFileWriter(BaseFileIO):
         | pl.LazyFrame
         | pa.Table
         | pd.DataFrame
-        | list[pl.DataFrame]
-        | list[pl.LazyFrame]
-        | list[pa.Table]
-        | list[pd.DataFrame]
+        | dict[str, Any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]]
     )
-    mode: str = "append"
+    basename: str | None = None
+    concat: bool = False
+    mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
 
-    def model_post_init(self, __context):
-        if isinstance(self.data, list) and self.concat:
-            if isinstance(self.data[0], pl.DataFrame | pl.LazyFrame):
-                self.data = pl.concat(self.data, how="diagonal_relaxed")
-            elif isinstance(self.data[0], pa.Table):
-                self.data = pa.concat_tables(self.data, promote_options="permissive")
-            elif isinstance(self.data[0], pd.DataFrame):
-                self.data = pd.concat(self.data)
-        self._gen_paths()
+    def write(
+        self,
+        data: (
+            pl.DataFrame
+            | pl.LazyFrame
+            | pa.Table
+            | pd.DataFrame
+            | dict[str, Any]
+            | list[
+                pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]
+            ]
+        ) | None = None,
+        basename: str | None = None,
+        concat: bool = False,
+        mode: str = "append",
+        **kwargs,
+    ):
 
-    def _gen_paths(self):
-        if isinstance(self.path, str) and isinstance(self.data, list):
-            if self.path.endswith(self.format):
-                self.path = [
-                    f"{self.path}-{i}.{self.format}" for i in range(len(self.data))
-                ]
+        self.fs.write_files(
+            data=data or self.data,
+            basename=basename or self.basename,
+            concat=concat or self.concat,
+            mode=mode or self.mode,
+            **kwargs,
+        )
 
-    def write(self, data, **kwargs):
-        self.fs.write
+
+class BaseDatasetWriter(BaseFileWriter):
+    data: (
+        pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any]
+        | list[
+            pl.DataFrame
+            | pl.LazyFrame
+            | pa.Table
+            | pa.RecordBatch
+            | pa.RecordBatchReader
+            | pd.DataFrame
+            | dict[str, Any]
+        ]
+    )
+    basename: str | None = None
+    schema: pa.Schema | None = None
+    partition_by: str | list[str] | pds.Partitioning | None = None
+    compression: str = "zstd"
+    concat: bool = False
+    mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
+
+    def write_dataset(
+        self,
+        data: (
+            pl.DataFrame
+            | pl.LazyFrame
+            | pa.Table
+            | pa.RecordBatch
+            | pa.RecordBatchReader
+            | pd.DataFrame
+            | dict[str, Any]
+            | list[
+                pl.DataFrame
+                | pl.LazyFrame
+                | pa.Table
+                | pa.RecordBatch
+                | pa.RecordBatchReader
+                | pd.DataFrame
+                | dict[str, Any]
+            ]
+        ) | None = None,
+        basename: str | None = None,
+        schema: pa.Schema | None = None,
+        partition_by: str | list[str] | pds.Partitioning | None = None,
+        compression: str = "zstd",
+        concat: bool = False,
+        mode: str = "append",
+        **kwargs,
+    ):
+        self.fs.write_pyarrow_dataset(
+            data=data or self.data,
+            path=self.path,
+            basename=basename or self.basename,
+            schema=schema or self.schema,
+            partition_by=partition_by or self.partition_by,
+            format=self.format,
+            compression=compression or self.compression,
+            concat=concat or self.concat,
+            mode=mode or self.mode,
+            **kwargs,
+        )

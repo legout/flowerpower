@@ -7,6 +7,7 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from fsspec import AbstractFileSystem
+import importlib
 
 
 def get_serializable_schema(
@@ -20,10 +21,10 @@ def get_serializable_schema(
     ),
 ) -> dict[str, str]:
     """
-    Convert pandas DataFrame dtypes to a serializable dictionary.
+    Convert DataFrame dtypes to a serializable dictionary.
 
     Args:
-        df: pandas DataFrame
+        data:  DataFrame
 
     Returns:
         dict mapping column names to dtype strings
@@ -132,7 +133,6 @@ def get_duckdb_metadata(
         "format": format,
         "timestamp": dt.datetime.now().timestamp(),
         "schema": schema,
-        # "partition_columns": None,
         "num_columns": shape[1] if shape else None,
         "num_rows": shape[0] if shape else None,
         "num_files": len(fs.glob(path)) if include_num_files else None,
@@ -190,24 +190,32 @@ def get_delta_metadata(
     return {k: v for k, v in metadata.items() if v is not None}
 
 
-# def get_mqtt_metadata(
-#     payload: bytes | dict[str, any],
-#     topic: str | None = None,
-#     **kwargs,
-# ) -> dict:
-#     if isinstance(payload, bytes):
-#         payload = orjson.loads(payload)
+if importlib.util.find_spec("orjson"):
+    import orjson
 
-#     schema = get_serializable_schema(payload)
-#     metadata = {
-#         "topic": topic,
-#         "format": "mqtt",
-#         "timestamp": dt.datetime.now().timestamp(),
-#         "schema": schema,
-#         "num_columns": len(schema),
-#         "num_rows": len(payload),
-#         "name": kwargs.get("name", None),
-#         "description": kwargs.get("description", None),
-#         "id": kwargs.get("id", None),
-#     }
-#     return metadata
+    def get_mqtt_metadata(
+        payload: bytes | dict[str, any],
+        topic: str | None = None,
+        **kwargs,
+    ) -> dict:
+        if isinstance(payload, bytes):
+            payload = orjson.loads(payload)
+
+        schema = get_serializable_schema(payload)
+        metadata = {
+            "topic": topic,
+            "format": "mqtt",
+            "timestamp": dt.datetime.now().timestamp(),
+            "schema": schema,
+            "num_columns": len(schema),
+            "num_rows": len(payload),
+            "name": kwargs.get("name", None),
+            "description": kwargs.get("description", None),
+            "id": kwargs.get("id", None),
+        }
+        return metadata
+
+else:
+
+    def get_mqtt_metadata(*args, **kwargs):
+        raise ImportError("orjson not installed")

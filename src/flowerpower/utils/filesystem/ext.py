@@ -10,7 +10,7 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..misc import convert_large_types_to_standard, run_parallel
+from ..misc import convert_large_types_to_standard, run_parallel, _dict_to_dataframe
 from ..polars import pl
 
 
@@ -629,8 +629,8 @@ def read_parquet(
         self=self,
         path=path,
         include_file_path=include_file_path,
-        concat=concat,
         use_threads=use_threads,
+        concat=concat,
         verbose=verbose,
         **kwargs,
     )
@@ -811,7 +811,7 @@ def pyarrow_parquet_dataset(
 
 def write_parquet(
     self,
-    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
     path: str,
     schema: pa.Schema | None = None,
     **kwargs,
@@ -828,9 +828,12 @@ def write_parquet(
     Returns:
         (pq.FileMetaData): Parquet file metadata.
     """
+    if isinstance(data, dict | list[dict]):
+        data = _dict_to_dataframe(data)
+
     if isinstance(data, pl.LazyFrame):
         data = data.collect()
-    if isinstance(data, pl.DataFrame):
+    elif isinstance(data, pl.DataFrame):
         data = data.to_arrow()
         data = data.cast(convert_large_types_to_standard(data.schema))
     elif isinstance(data, pd.DataFrame):
@@ -847,7 +850,9 @@ def write_parquet(
 
 def write_json(
     self,
-    data: dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    data: (
+        dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict]
+    ),
     path: str,
     append: bool = False,
 ) -> None:
@@ -882,7 +887,7 @@ def write_json(
 
 def write_csv(
     self,
-    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict,
     path: str,
     **kwargs,
 ) -> None:
@@ -897,9 +902,11 @@ def write_csv(
     Returns:
         None
     """
-    if isinstance(data, pl.LazyFrame):
+    if isinstance(data, dict | list[dict]):
+        data = _dict_to_dataframe(data)
+    elif isinstance(data, pl.LazyFrame):
         data = data.collect()
-    if isinstance(data, pa.Table):
+    elif isinstance(data, pa.Table):
         data = pl.from_arrow(data)
     elif isinstance(data, pd.DataFrame):
         data = pl.from_pandas(data)
@@ -910,7 +917,7 @@ def write_csv(
 
 def write_file(
     self,
-    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
     path: str,
     format: str,
     **kwargs,
@@ -935,19 +942,128 @@ def write_file(
         write_parquet(self, data, path, **kwargs)
 
 
-def write_pyarrow_dataset(
+def write_files(
     self,
     data: (
         pl.DataFrame
+        | pl.LazyFrame
         | pa.Table
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | list[pl.DataFrame]
-        | list[pa.Table]
-        | list[pa.RecordBatch]
-        | list[pa.RecordBatchReader]
-        | list[pd.DataFrame]
+        | dict
+        | list[
+            pl.DataFrame
+            | pl.LazyFrame
+            | pa.Table
+            | pa.RecordBatch
+            | pa.RecordBatchReader
+            | pd.DataFrame
+            | dict
+        ]
+    ),
+    path: str | list[str],
+    basename: str = None,
+    format: str = None,
+    concat: bool = True,
+    mode: str = "append",  # append, overwrite, delete_matching, error_if_exists
+    use_threads: bool = True,
+    **kwargs,
+) -> None:
+    """Write a DataFrame or a list of DataFrames to a file or a list of files.
+
+    Args:
+        data: (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[pl.DataFrame | pl.LazyFrame |
+            pa.Table | pd.DataFrame | dict]) Data to write.
+        path: (str | list[str]) Path to write the data.
+        basename: (str, optional) Basename of the files. Defaults to None.
+        format: (str, optional) Format of the data. Defaults to None.
+        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
+        mode: (str, optional) Write mode. Defaults to 'append'. Options: 'append', 'overwrite', 'delete_matching',
+            'error_if_exists'.
+        use_threads: (bool, optional) If True, use parallel processing. Defaults to True.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        None
+
+    Raises:
+        FileExistsError: If file already exists and mode is 'error_if_exists'.
+    """
+    if not isinstance(data, list):
+        data = [data]
+
+    if concat:
+        if isinstance(data[0], dict):
+            data = _dict_to_dataframe(data)
+        if isinstance(data[0], pl.LazyFrame):
+            data = pl.concat([d.collect() for d in data], how="diagonal_relaxed")
+        if isinstance(
+            data[0], pa.Table | pa.RecordBatch | pa.RecordBatchReader | Generator
+        ):
+            data = pl.concat([pl.from_arrow(d) for d in data], how="diagonal_relaxed")
+        elif isinstance(data[0], pd.DataFrame):
+            data = pl.concat([pl.from_pandas(d) for d in data], how="diagonal_relaxed")
+        data = [data]
+
+    if format is None:
+        format = (
+            path[0].split(".")[-1]
+            if isinstance(path, list) and "." in path[0]
+            else path.split(".")[-1] if "." in path else "parquet"
+        )
+
+    if isinstance(path, str):
+        path = [path]
+
+    def _write(i, data, p, basename):
+        if f".{format}" not in p:
+            if not basename:
+                basename = f"data-{dt.datetime.now().strftime('%Y%m%d_%H%M%S%f')[:-3]}-{uuid.uuid4().hex[:16]}"
+            p = f"{p}/{basename}-{i}.{format}"
+        if mode == "delete_matching":
+            write_file(self, data[i], p, format, **kwargs)
+        elif mode == "overwrite":
+            self.fs.rm(os.path.dirname(p), recursive=True)
+            write_file(self, data[i], p, format, **kwargs)
+        elif mode == "append":
+            if not self.exists(p):
+                write_file(self, data[i], p, format, **kwargs)
+            else:
+                p = p.replace(f".{format}", f"-{i}.{format}")
+                write_file(self, data[i], p, format, **kwargs)
+        elif mode == "error_if_exists":
+            if self.exists(p):
+                raise FileExistsError(f"File already exists: {p}")
+            else:
+                write_file(self, data[i], p, format, **kwargs)
+
+    if use_threads:
+        run_parallel(_write, range(len(path)), data, path, basename)
+    else:
+        for i, p in enumerate(path):
+            _write(i, data, p)
+
+
+def write_pyarrow_dataset(
+    self,
+    data: (
+        pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict
+        | list[
+            pl.DataFrame
+            | pl.LazyFrame
+            | pa.Table
+            | pa.RecordBatch
+            | pa.RecordBatchReader
+            | pd.DataFrame
+            | dict
+        ]
     ),
     path: str,
     basename: str | None = None,
@@ -957,6 +1073,7 @@ def write_pyarrow_dataset(
     mode: str = "append",
     format: str | None = "parquet",
     compression: str = "zstd",
+    concat: bool = True,
     **kwargs,
 ) -> list[pq.FileMetaData] | None:
     """
@@ -975,20 +1092,41 @@ def write_pyarrow_dataset(
         mode: (str, optional) Write mode. Defaults to 'append'.
         format: (str, optional) Format of the data. Defaults to 'parquet'.
         compression: (str, optional) Compression algorithm. Defaults to 'zstd'.
+        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
         **kwargs: Additional keyword arguments for `pds.write_dataset`.
 
     Returns:
         (list[pq.FileMetaData] | None): List of Parquet file metadata or None.
     """
+    if isinstance(data, dict):
+        data = _dict_to_dataframe(data)
+    if isinstance(data, list):
+        if isinstance(data[0], dict):
+            data = _dict_to_dataframe(data)
+
     if not isinstance(data, list):
         data = [data]
 
+    if isinstance(data[0], pl.LazyFrame):
+        data = [dd.collect() for dd in data]
+
     if isinstance(data[0], pl.DataFrame):
-        data = [dd.to_arrow() for dd in data]
-        data = [dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data]
+        if concat:
+            data = pl.concat(data, how="diagonal_relaxed").to_arrow()
+            data = data.cast(convert_large_types_to_standard(data.schema))
+        else:
+            data = [dd.to_arrow() for dd in data]
+            data = [dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data]
 
     elif isinstance(data[0], pd.DataFrame):
         data = [pa.Table.from_pandas(dd, preserve_index=False) for dd in data]
+        if concat:
+            data = pa.concat_tables(data, promote_options="permissive")
+    elif isinstance(data[0], pa.RecordBatch | pa.RecordBatchReader | Generator):
+        if concat:
+            data = pa.Table.from_batches(data)
+        else:
+            data = [pa.Table.from_batches([dd]) for dd in data]
 
     if mode == "delete_matching":
         existing_data_behavior = "delete_matching"

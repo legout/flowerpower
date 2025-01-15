@@ -27,7 +27,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.8.5.6"
+version = "0.9.0"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -94,5 +94,9 @@ dev-dependencies = [
   "jupyterlab>=4.3.0",
   "deltalake>=0.21.0",
   "datafusion>=42.0.0",
+  "orjson>=3.10.14",
+  "joblib>=1.4.2",
+  "sanic>=24.12.0",
+  "sanic-ext>=23.12.0",
 ]
 managed = true
