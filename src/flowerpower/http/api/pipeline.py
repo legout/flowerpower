@@ -30,23 +30,24 @@ bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 async def run(
     request,
     name: str,
-    # body: PipelineRun,
 ):
 
     body = await deserialize_and_validate(PipelineRun, body=request.json)
+    # body = request.json
 
     try:
         with Pipeline(
             name=name,
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            # cfg_dir=request.app.config.CFG_DIR,
+            # pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             final_vars = pipeline.run(**body.model_dump())
 
-        final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
-        return json(final_vars)
+        # final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
+        # return bytes(final_vars)
+        return json({"status": "success", "message": "Pipeline ran successfully"})
     except Exception as e:
         raise SanicException(str(e))
 
@@ -59,16 +60,15 @@ async def run(
 async def run_job(
     request,
     name: str,
-    body: PipelineRun,
 ):
     body = await deserialize_and_validate(PipelineRun, body=request.json)
     try:
         with Pipeline(
             name=name,
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             final_vars = pipeline.run_job(**body.model_dump())
             final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
@@ -90,10 +90,10 @@ async def add_job(
     try:
         with Pipeline(
             name=name,
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             id_ = pipeline.add_job(**body.model_dump())
         return json({"job_id": str(id_)})
@@ -115,10 +115,10 @@ async def schedule(
 
     try:
         with Pipeline(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             id_ = manager.schedule(name, **body.model_dump())
         return json({"schedule_id": str(id_)})
@@ -140,10 +140,10 @@ async def update_schedule(
 
     try:
         with Pipeline(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             id_ = manager.schedule(name, overwrite=overwrite, **body.model_dump())
         return json({"schedule_id": str(id_)})
@@ -165,10 +165,10 @@ async def new(
 
     try:
         with PipelineManager(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             manager.new(name, **body.model_dump())
         return json({"status": f"Pipeline {name} created"})
@@ -196,10 +196,10 @@ async def import_pipeline(
     try:
 
         with PipelineManager(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             if name:
                 manager.import_pipeline(name=name, path=path, **body.model_dump())
@@ -238,10 +238,10 @@ async def export_pipeline(
         names = names.split(",")
     try:
         with PipelineManager(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             if name:
                 manager.export_pipeline(name, path=path, **body.model_dump())
@@ -272,10 +272,10 @@ async def delete(
     try:
         with Pipeline(
             name=name,
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             pipeline.delete(**body.model_dump())
         return json({"status": f"Pipeline {name} deleted"})
@@ -311,10 +311,10 @@ async def summary(
     try:
         if name == "all":
             with PipelineManager(
-                base_dir=request.app.conf.BASE_DIR,
-                storage_options=request.app.conf.STORAGE_OPTIONS,
-                cfg_dir=request.app.conf.CFG_DIR,
-                pipelines_dir=request.app.conf.PIPELINES_DIR,
+                base_dir=request.app.config.BASE_DIR,
+                storage_options=request.app.config.STORAGE_OPTIONS,
+                cfg_dir=request.app.config.CFG_DIR,
+                pipelines_dir=request.app.config.PIPELINES_DIR,
             ) as manager:
                 if to_html or to_svg:
                     summary = manager.show_summary(
@@ -325,10 +325,10 @@ async def summary(
         else:
             with Pipeline(
                 name=name,
-                base_dir=request.app.conf.BASE_DIR,
-                storage_options=request.app.conf.STORAGE_OPTIONS,
-                cfg_dir=request.app.conf.CFG_DIR,
-                pipelines_dir=request.app.conf.PIPELINES_DIR,
+                base_dir=request.app.config.BASE_DIR,
+                storage_options=request.app.config.STORAGE_OPTIONS,
+                cfg_dir=request.app.config.CFG_DIR,
+                pipelines_dir=request.app.config.PIPELINES_DIR,
             ) as pipeline:
 
                 summary = pipeline.get_summary(
@@ -359,10 +359,10 @@ async def show(
     try:
         with Pipeline(
             name=name,
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             pipeline_dag = pipeline.show_dag(raw=True)
         return raw(pipeline_dag.pipe(format))
@@ -387,10 +387,10 @@ async def pipelines(
     to_svg = format_.lower() == "svg"
     try:
         with PipelineManager(
-            base_dir=request.app.conf.BASE_DIR,
-            storage_options=request.app.conf.STORAGE_OPTIONS,
-            cfg_dir=request.app.conf.CFG_DIR,
-            pipelines_dir=request.app.conf.PIPELINES_DIR,
+            base_dir=request.app.config.BASE_DIR,
+            storage_options=request.app.config.STORAGE_OPTIONS,
+            cfg_dir=request.app.config.CFG_DIR,
+            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             if show:
                 pipelines = manager._all_pipelines(

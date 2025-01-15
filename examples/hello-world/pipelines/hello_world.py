@@ -59,5 +59,5 @@ def spend_zero_mean_unit_variance(
     spend_zero_mean: pd.Series, spend_std_dev: float
 ) -> pd.Series:
     """Function showing one way to make spend have zero mean and unit variance."""
-    # print("spend_zero_mean_unit_variance", spend_zero_mean / spend_std_dev)
+    print("spend_zero_mean_unit_variance", spend_zero_mean / spend_std_dev)
     return spend_zero_mean / spend_std_dev

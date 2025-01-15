@@ -98,5 +98,10 @@ dev-dependencies = [
   "joblib>=1.4.2",
   "sanic>=24.12.0",
   "sanic-ext>=23.12.0",
+  "apscheduler>=4.0.0a5",
+  "sqlalchemy>=2.0.37",
+  "asyncpg>=0.30.0",
+  "paho-mqtt>=2.1.0",
+  "greenlet>=3.1.1",
 ]
 managed = true

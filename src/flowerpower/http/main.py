@@ -7,7 +7,7 @@ from sanic import Sanic
 # from sanic.response import json
 
 from .setup import setup
-from .utils import parse_dict_or_list_param
+from ..cli.utils import parse_dict_or_list_param
 
 load_dotenv()
 
