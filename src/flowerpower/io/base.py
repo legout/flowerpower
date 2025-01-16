@@ -121,6 +121,7 @@ class BaseFileIO(BaseModel):
             dirfs=False,
         )
 
+    @property
     def _glob_path(self):
         if isinstance(self.path, list):
             return
@@ -140,7 +141,7 @@ class BaseFileIO(BaseModel):
         if isinstance(self.path, list):
             return self.path
 
-        glob_path = self._glob_path()
+        glob_path = self._glob_path
         return self.fs.glob(glob_path)
 
 
@@ -180,18 +181,16 @@ class BaseFileLoader(BaseFileIO):
 
     include_file_path: bool = False
     concat: bool = True
+    batch_size: int | None = None
     conn: duckdb.DuckDBPyConnection | None = None
     ctx: datafusion.SessionContext | None = None
+    jsonlines: bool | None = None
 
     def _load(self, **kwargs):
-        if "include_file_path" not in kwargs:
-            self.include_file_path = kwargs.get(
-                "include_file_path", self.include_file_path
-            )
-        if "concat" not in kwargs:
-            self.concat = kwargs.get("concat", self.concat)
+        self.include_file_path = kwargs.get("include_file_path", self.include_file_path)
+        self.concat = kwargs.get("concat", self.concat)
 
-        if not hasattr(self, "_data"):
+        if not hasattr(self, "_data") or self._data is None:
             self._data = self.fs.read_files(
                 self._glob_path,
                 self.format,
@@ -208,8 +207,11 @@ class BaseFileLoader(BaseFileIO):
                 reload = True
             if isinstance(self._data, list) and self.concat:
                 self._data = pl.concat(self._data, how="diagonal_relaxed")
+
             if reload:
-                self._load(
+                self._data = self.fs.read_files(
+                    self._glob_path,
+                    self.format,
                     include_file_path=self.include_file_path,
                     concat=self.concat,
                     jsonlines=self.jsonlines or None,

@@ -45,8 +45,8 @@ async def run(
         ) as pipeline:
             final_vars = pipeline.run(**body.model_dump())
 
-        # final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
-        # return bytes(final_vars)
+        final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
+        return bytes(final_vars)
         return json({"status": "success", "message": "Pipeline ran successfully"})
     except Exception as e:
         raise SanicException(str(e))

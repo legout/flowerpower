@@ -104,7 +104,7 @@ def _read_json(
 def _read_json_batches(
     self,
     path: str | list[str],
-    num_batches: int = 1,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     jsonlines: bool = False,
     as_dataframe: bool = True,
@@ -118,7 +118,7 @@ def _read_json_batches(
 
     Args:
         path: (str | list[str]) Path to the JSON file(s).
-        num_batches: (int) Number of files per batch. Defaults to 1.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool) If True, return with file path as key.
         jsonlines: (bool) If True, read JSON lines. Defaults to False.
         as_dataframe: (bool) If True, return DataFrame. Defaults to True.
@@ -143,8 +143,8 @@ def _read_json_batches(
         path = [path]
 
     # Process files in batches
-    for i in range(0, len(path), num_batches):
-        batch_paths = path[i : i + num_batches]
+    for i in range(0, len(path), batch_size):
+        batch_paths = path[i : i + batch_size]
 
         # Read batch with optional parallelization
         if use_threads and len(batch_paths) > 1:
@@ -192,7 +192,7 @@ def _read_json_batches(
 def read_json(
     self,
     path: str | list[str],
-    num_batches: int | None = None,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     jsonlines: bool = False,
     as_dataframe: bool = True,
@@ -213,7 +213,7 @@ def read_json(
 
     Args:
         path: (str | list[str]) Path to the JSON file(s).
-        num_batches: (int, optional) Number of files to process in each batch. Defaults to 1.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool) If True, return with file path as key.
         jsonlines: (bool) If True, read JSON lines. Defaults to False.
         as_dataframe: (bool) If True, return DataFrame. Defaults to True.
@@ -229,11 +229,11 @@ def read_json(
         (dict | list[dict] | pl.DataFrame | list[pl.DataFrame]:
             Dictionary, list of dictionaries, DataFrame, list of DataFrames
     """
-    if num_batches is not None:
-        yield from _read_json_batches(
+    if batch_size is not None:
+        return _read_json_batches(
             self=self,
             path=path,
-            num_batches=num_batches,
+            batch_size=batch_size,
             include_file_path=include_file_path,
             jsonlines=jsonlines,
             as_dataframe=as_dataframe,
@@ -324,7 +324,7 @@ def _read_csv(
 def _read_csv_batches(
     self,
     path: str | list[str],
-    num_batches: int = 1,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
@@ -336,7 +336,7 @@ def _read_csv_batches(
 
     Args:
         path: (str | list[str]) Path to the CSV file(s).
-        num_batches: (int) Number of files per batch. Defaults to 1.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool) If True, include file_path column.
         concat: (bool) If True, concatenate batch DataFrames.
         use_threads: (bool) If True, use parallel processing within batches.
@@ -360,8 +360,8 @@ def _read_csv_batches(
         path = [path]
 
     # Process files in batches
-    for i in range(0, len(path), num_batches):
-        batch_paths = path[i : i + num_batches]
+    for i in range(0, len(path), batch_size):
+        batch_paths = path[i : i + batch_size]
 
         # Read batch with optional parallelization
         if use_threads and len(batch_paths) > 1:
@@ -392,7 +392,7 @@ def _read_csv_batches(
 def read_csv(
     self,
     path: str | list[str],
-    num_batches: int | None = None,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
@@ -409,7 +409,7 @@ def read_csv(
 
     Args:
         path: (str | list[str]) Path to the CSV file(s).
-        num_batches: (int, optional) Number of files to process in each batch. Defaults to 1.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool, optional) If True, include 'file_path' column.
         concat: (bool, optional) If True, concatenate the batch DataFrames. Defaults to True.
         use_threads: (bool, optional) If True, use parallel processing within batches. Defaults to True.
@@ -424,11 +424,11 @@ def read_csv(
         pl.DataFrame | list[pl.DataFrame]:
             DataFrame or list of DataFrames containing data from num_batches files.
     """
-    if num_batches is not None:
-        yield from _read_csv_batches(
+    if batch_size is not None:
+        return _read_csv_batches(
             self=self,
             path=path,
-            num_batches=num_batches,
+            batch_size=batch_size,
             include_file_path=include_file_path,
             concat=concat,
             use_threads=use_threads,
@@ -479,15 +479,19 @@ def _read_parquet(
         (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
     """
     if not include_file_path and concat:
+        path = path.replace("**", "").replace("*.parquet", "")
         return pq.read_table(path, filesystem=self, **kwargs)
     else:
         if isinstance(path, str):
             if "**" in path:
+                if "*.parquet" in path:
+                    path = os.path.join(path, "*.parquet")
+
                 path = self.glob(path)
             else:
-                if ".parquet" not in os.path.basename(path):
+                if ".parquet" in path:
                     path = os.path.join(path, "**/*.parquet")
-                    path = self.glob(path)
+                path = self.glob(path)
 
         if isinstance(path, list):
             if use_threads:
@@ -501,16 +505,17 @@ def _read_parquet(
                     verbose=verbose,
                     **kwargs,
                 )
-            table = [
-                read_parquet_file(
-                    p, self=self, include_file_path=include_file_path, **kwargs
-                )
-                for p in path
-            ]
-
-    table = read_parquet_file(
-        path=path, self=self, include_file_path=include_file_path, **kwargs
-    )
+            else:
+                table = [
+                    read_parquet_file(
+                        p, self=self, include_file_path=include_file_path, **kwargs
+                    )
+                    for p in path
+                ]
+        else:
+            table = read_parquet_file(
+                path=path, self=self, include_file_path=include_file_path, **kwargs
+            )
     if concat:
         return pa.concat_tables(table, promote_options="permissive")
     return table
@@ -519,46 +524,55 @@ def _read_parquet(
 def _read_parquet_batches(
     self,
     path: str | list[str],
-    num_batches: int = 1,
+    batch_size: int | None = None,
     include_file_path: bool = False,
-    concat: bool = True,
     use_threads: bool = True,
+    concat: bool = True,
     verbose: bool = False,
     **kwargs,
-) -> Generator[pa.Table, None, None]:
+) -> Generator[pa.Table | list[pa.Table], None, None]:
     """
-    Read Parquet files in batches with optional parallel processing within batches.
+    Read Parquet files in batches, yielding PyArrow Tables.
 
     Args:
         path: (str | list[str]) Path to the Parquet file(s).
-        num_batches: (int) Number of files per batch. Defaults to 1.
-        include_file_path: (bool) If True, include file_path column.
-        concat: (bool) If True, concatenate batch tables.
-        use_threads: (bool) If True, use parallel processing within batches.
-        verbose: (bool) If True, print verbose output.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
+        include_file_path: (bool) If True, return Tables with 'file_path' column. Defaults to False.
+        use_threads: (bool) If True, read files in parallel within batches. Defaults to True.
+        concat: (bool) If True, concatenate Tables within each batch. Defaults to True.
+        verbose: (bool) If True, print progress information. Defaults to False.
         **kwargs: Additional keyword arguments.
 
     Yields:
-        pa.Table: PyArrow Table containing data from num_batches files.
+        pa.Table | list[pa.Table]: Table or list of Tables per batch.
     """
+    # Fast path for simple cases
+    if not include_file_path and concat and batch_size is None:
+        path = path.replace("**", "").replace("*.parquet", "")
+        yield pq.read_table(path, filesystem=self, **kwargs)
+        return
 
-    # Handle path resolution
+    # Resolve path(s) to list
     if isinstance(path, str):
         if "**" in path:
+            if "*.parquet" not in path:
+                path = os.path.join(path, "**/*.parquet")
             path = self.glob(path)
         else:
-            if ".parquet" not in os.path.basename(path):
+            if ".parquet" not in path:
                 path = os.path.join(path, "**/*.parquet")
-                path = self.glob(path)
+            path = self.glob(path)
 
-    if isinstance(path, str):
-        path = [path]
+    if not isinstance(path, list):
+        yield read_parquet_file(
+            path=path, self=self, include_file_path=include_file_path, **kwargs
+        )
+        return
 
-    # Process files in batches
-    for i in range(0, len(path), num_batches):
-        batch_paths = path[i : i + num_batches]
+    # Process in batches
 
-        # Read batch of files with optional parallelization
+    for i in range(0, len(path), batch_size):
+        batch_paths = path[i : i + batch_size]
         if use_threads and len(batch_paths) > 1:
             batch_tables = run_parallel(
                 read_parquet_file,
@@ -578,7 +592,7 @@ def _read_parquet_batches(
                 for p in batch_paths
             ]
 
-        if concat and len(batch_tables) > 1:
+        if concat and batch_tables:
             yield pa.concat_tables(batch_tables, promote_options="permissive")
         else:
             yield batch_tables
@@ -587,7 +601,7 @@ def _read_parquet_batches(
 def read_parquet(
     self,
     path: str | list[str],
-    num_batches: int | None = None,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
@@ -600,7 +614,7 @@ def read_parquet(
 
     Args:
         path: (str | list[str]) Path to the Parquet file(s).
-        num_batches: (int, optional) Number of files to process in each batch. Defaults to 1.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool, optional) If True, include 'file_path' column.
         concat: (bool, optional) If True, concatenate the batch Tables. Defaults to True.
         use_threads: (bool, optional) If True, use parallel processing within batches. Defaults to True.
@@ -614,11 +628,11 @@ def read_parquet(
     Yields:
         pa.Table | list[pa.Table]: PyArrow Table or list of PyArrow Tables containing data from num_batches files.
     """
-    if num_batches is not None:
-        yield from _read_parquet_batches(
+    if batch_size is not None:
+        return _read_parquet_batches(
             self=self,
             path=path,
-            num_batches=num_batches,
+            batch_size=batch_size,
             include_file_path=include_file_path,
             concat=concat,
             use_threads=use_threads,
@@ -640,7 +654,7 @@ def read_files(
     self,
     path: str | list[str],
     format: str,
-    num_batches: int | None = None,
+    batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     jsonlines: bool = False,
@@ -662,7 +676,7 @@ def read_files(
     Args:
         path: (str | list[str]) Path to the file(s).
         format: (str) Format of the file.
-        num_batches: (int, optional) Number of files to process in each batch. Defaults to None.
+        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
         include_file_path: (bool, optional) If True, return a DataFrame with a 'file_path' column.
             Defaults to False.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
@@ -680,11 +694,11 @@ def read_files(
             Polars DataFrame, Pyarrow Table or list of DataFrames, LazyFrames or Tables.
     """
     if format == "json":
-        if num_batches is not None:
-            yield from read_json(
+        if batch_size is not None:
+            return read_json(
                 self=self,
                 path=path,
-                num_batches=num_batches,
+                batch_size=batch_size,
                 include_file_path=include_file_path,
                 jsonlines=jsonlines,
                 concat=concat,
@@ -703,11 +717,11 @@ def read_files(
             **kwargs,
         )
     elif format == "csv":
-        if num_batches is not None:
-            yield from read_csv(
+        if batch_size is not None:
+            return read_csv(
                 self=self,
                 path=path,
-                num_batches=num_batches,
+                batch_size=batch_size,
                 include_file_path=include_file_path,
                 concat=concat,
                 use_threads=use_threads,
@@ -724,11 +738,11 @@ def read_files(
             **kwargs,
         )
     elif format == "parquet":
-        if num_batches is not None:
-            yield from read_parquet(
+        if batch_size is not None:
+            return read_parquet(
                 self=self,
                 path=path,
-                num_batches=num_batches,
+                batch_size=batch_size,
                 include_file_path=include_file_path,
                 concat=concat,
                 use_threads=use_threads,

@@ -1,7 +1,7 @@
 import uuid
 
 import dill
-from sanic import Blueprint 
+from sanic import Blueprint
 from sanic.exceptions import SanicException
 from sanic.response import json, raw
 from sanic_ext import openapi
@@ -11,7 +11,7 @@ from ..models.scheduler import (
     SchedulerModify,
     SchedulerDelete,
     SchedulerList,
-    SchedulerInfo
+    SchedulerInfo,
 )
 from ..utils import deserialize_and_validate
 
@@ -62,7 +62,7 @@ async def job_result(request, job_id: str) -> raw:
 
 
 @bp.get("/schedules")
-@openapi.summary("List all schedules") 
+@openapi.summary("List all schedules")
 @openapi.description("Get a list of all pipeline schedules")
 @openapi.body({"application/json": SchedulerList}, required=False)
 @openapi.response(200, {"application/json": dict})
@@ -70,8 +70,7 @@ async def schedules(request) -> json:
     try:
         body = await deserialize_and_validate(SchedulerList, query=request.args)
         schedules = request.app.ctx.scheduler.get_schedules(
-            pattern=body.pattern, 
-            as_dict=True
+            pattern=body.pattern, as_dict=True
         )
         return json({"schedules": schedules})
     except Exception as e:
@@ -87,7 +86,7 @@ async def schedules(request) -> json:
 @openapi.response(404, {"application/json": dict})
 async def schedule(request, schedule_id: str) -> json:
     try:
-        body = await deserialize_and_validate(SchedulerInfo, body=request.json)
+        # body = await deserialize_and_validate(SchedulerInfo, body=request.json)
         if schedule_id not in [s.id for s in request.app.ctx.scheduler.get_schedules()]:
             raise SanicException("Schedule not found", status_code=404)
         schedule = request.app.ctx.scheduler.get_schedule(schedule_id, as_dict=True)
@@ -113,7 +112,7 @@ async def add_schedule(request) -> json:
 @bp.patch("/schedule/<schedule_id>")
 @openapi.summary("Modify schedule")
 @openapi.description("Modify an existing pipeline schedule")
-@openapi.parameter("schedule_id", str, required=True) 
+@openapi.parameter("schedule_id", str, required=True)
 @openapi.body({"application/json": SchedulerModify}, required=True)
 @openapi.response(200, {"application/json": dict})
 @openapi.response(404, {"application/json": dict})
@@ -121,7 +120,7 @@ async def modify_schedule(request, schedule_id: str) -> json:
     try:
         if schedule_id not in [s.id for s in request.app.ctx.scheduler.get_schedules()]:
             raise SanicException("Schedule not found", status_code=404)
-        
+
         body = await deserialize_and_validate(SchedulerModify, body=request.json)
         request.app.ctx.scheduler.modify_schedule(schedule_id, **body.model_dump())
         return json({"status": "success"})
@@ -138,7 +137,7 @@ async def modify_schedule(request, schedule_id: str) -> json:
 @openapi.response(404, {"application/json": dict})
 async def remove_schedule(request, schedule_id: str) -> json:
     try:
-        body = await deserialize_and_validate(SchedulerDelete, body=request.json)
+        # body = await deserialize_and_validate(SchedulerDelete, body=request.json)
         if schedule_id not in [s.id for s in request.app.ctx.scheduler.get_schedules()]:
             raise SanicException("Schedule not found", status_code=404)
         request.app.ctx.scheduler.remove_schedule(schedule_id)
