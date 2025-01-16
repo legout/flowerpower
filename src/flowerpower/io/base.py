@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Generator
 
 import datafusion
 import duckdb
@@ -71,7 +71,7 @@ class BaseFileIO(BaseModel):
         # self._update_storage_options_from_env()
         if isinstance(self.path, str):
             self.path = (
-                self.path.replace(f"**/*.{format}", "")
+                self.path.replace(f"**/*.{self.format}", "")
                 .replace("**", "")
                 .replace("*", "")
                 .rstrip("//")
@@ -127,10 +127,10 @@ class BaseFileIO(BaseModel):
             return
         else:
             if self.format is not None:
-                if f"**/*.{format}" in self.path:
+                if f"**/*.{self.format}" in self.path:
                     return self.path
                 else:
-                    return f"{self.path}/**/*.{format}"
+                    return f"{self.path}/**/*.{self.format}"
             else:
                 if "**" in self.path:
                     return self.path
@@ -187,36 +187,42 @@ class BaseFileLoader(BaseFileIO):
     jsonlines: bool | None = None
 
     def _load(self, **kwargs):
-        self.include_file_path = kwargs.get("include_file_path", self.include_file_path)
-        self.concat = kwargs.get("concat", self.concat)
+        self.include_file_path = kwargs.pop("include_file_path", self.include_file_path)
+        self.concat = kwargs.pop("concat", self.concat)
+        self.batch_size = kwargs.pop("batch_size", self.batch_size)
 
         if not hasattr(self, "_data") or self._data is None:
             self._data = self.fs.read_files(
-                self._glob_path,
-                self.format,
+                path=self._glob_path,
+                format=self.format,
                 include_file_path=self.include_file_path,
                 concat=self.concat,
                 jsonlines=self.jsonlines or None,
+                batch_size=self.batch_size,
                 **kwargs,
             )
+
         else:
             reload = False
             if self.include_file_path and not "file_path" not in self._data.columns:
                 reload = True
             if isinstance(self._data, pl.DataFrame) and not self.concat:
                 reload = True
-            if isinstance(self._data, list) and self.concat:
-                self._data = pl.concat(self._data, how="diagonal_relaxed")
+            # if isinstance(self._data, list) and self.concat:
+            #    self._data = pl.concat(self._data, how="diagonal_relaxed")
 
             if reload:
                 self._data = self.fs.read_files(
-                    self._glob_path,
-                    self.format,
+                    path=self._glob_path,
+                    format=self.format,
                     include_file_path=self.include_file_path,
                     concat=self.concat,
                     jsonlines=self.jsonlines or None,
+                    batch_size=self.batch_size,
                     **kwargs,
                 )
+        if isinstance(self._data, Generator):
+            self._data = list(self._data)
 
     def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
         """Convert data to Pandas DataFrame(s).
@@ -225,8 +231,10 @@ class BaseFileLoader(BaseFileIO):
             pd.DataFrame | list[pd.DataFrame]: Pandas DataFrame or list of DataFrames.
         """
         self._load(**kwargs)
-        if not self.concat:
-            return [df.to_pandas() for df in self._data]
+        if isinstance(self._data, list):
+            df = [df.to_pandas() for df in self._data]
+            return pd.concat(df) if self.concat else df
+
         return self._data.to_pandas()
 
     def _to_polars_dataframe(self, **kwargs) -> pl.DataFrame | list[pl.DataFrame]:
@@ -235,12 +243,13 @@ class BaseFileLoader(BaseFileIO):
         Returns:
             pl.DataFrame | list[pl.DataFrame]: Polars DataFrame or list of DataFrames.
         """
-        self._load(self, **kwargs)
-        if not self.concat:
-            return [
+        self._load(**kwargs)
+        if isinstance(self._data, list):
+            df = [
                 df if isinstance(self._data, pl.DataFrame) else pl.from_arrow(df)
                 for df in self._data
             ]
+            return pl.concat(df) if self.concat else df
         return (
             self._data
             if isinstance(self._data, pl.DataFrame)
@@ -283,11 +292,12 @@ class BaseFileLoader(BaseFileIO):
             pa.Table | list[pa.Table]: PyArrow Table or list of Tables.
         """
         self._load(**kwargs)
-        if not self.concat:
-            return [
+        if isinstance(self._data, list):
+            df = [
                 df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
                 for df in self._data
             ]
+            return pa.concat_tables(df) if self.concat else df
         return (
             self._data.to_arrow(**kwargs)
             if isinstance(self._data, pl.DataFrame)
