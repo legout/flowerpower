@@ -1,7 +1,7 @@
 from ..base import BaseDatasetLoader
 
 
-class PydalaLDatasetoader(BaseDatasetLoader):
+class PydalaDatasetLoader(BaseDatasetLoader):
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.format = "parquet"
