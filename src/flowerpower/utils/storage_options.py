@@ -51,6 +51,17 @@ class AwsStorageOptions(BaseStorageOptions):
     region: str | None = None
     allow_invalid_certificates: bool | None = None
     allow_http: bool | None = None
+    profile: str | None = None
+
+    def model_post_init(self, __context):
+        if self.profile is not None:
+            super().__init__(
+                **self.from_aws_credentials(
+                    profile=self.profile,
+                    allow_invalid_certificates=self.allow_invalid_certificates,
+                    allow_http=self.allow_http,
+                ).to_dict()
+            )
 
     @classmethod
     def from_aws_credentials(
@@ -108,9 +119,9 @@ class AwsStorageOptions(BaseStorageOptions):
                 "verify": (
                     not self.allow_invalid_certificates
                     if self.allow_invalid_certificates is not None
-                    else None
+                    else False
                 ),
-                "use_ssl": not self.allow_http if self.allow_http is not None else None,
+                "use_ssl": not self.allow_http if self.allow_http is not None else True,
             },
         }
         return {k: v for k, v in fsspec_kwargs.items() if v is not None}
@@ -189,28 +200,6 @@ class LocalStorageOptions(BaseStorageOptions):
     protocol: str = "file"
 
 
-# class StorageOptions(BaseModel):
-#     aws: AwsStorageOptions | None = None
-#     azure: AzureStorageOptions | None = None
-#     gcs: GcsStorageOptions | None = None
-#     github: GitHubStorageOptions | None = None
-#     gitlab: GitLabStorageOptions | None = None
-
-#     @classmethod
-#     def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
-#         with fs.open(path, "r") as f:
-#             data = yaml.safe_load(f)
-#         return cls(**data)
-
-#     @classmethod
-#     def from_env(cls) -> "StorageOptions":
-#         return cls(
-#             aws=AwsStorageOptions.from_env(),
-#             github=GitHubStorageOptions.from_env(),
-#             gitlab=GitLabStorageOptions.from_env(),
-#         )
-
-
 def from_dict(
     protocol: str, storage_options: dict
 ) -> (
@@ -257,3 +246,57 @@ def from_env(
         return LocalStorageOptions()
     else:
         raise ValueError(f"Unsupported protocol: {protocol}")
+
+
+class StorageOptions(BaseModel):
+    storage_options: BaseStorageOptions
+
+    def __init__(self, **data):
+        protocol = data.get("protocol")
+        if protocol is None and "storage_options" not in data:
+            raise ValueError("protocol must be specified")
+
+        if "storage_options" not in data:
+            if protocol == "s3":
+                storage_options = AwsStorageOptions(**data)
+            elif protocol == "github":
+                storage_options = GitHubStorageOptions(**data)
+            elif protocol == "gitlab":
+                storage_options = GitLabStorageOptions(**data)
+            elif protocol in ["az", "abfs", "adl"]:
+                storage_options = AzureStorageOptions(**data)
+            elif protocol in ["gs", "gcs"]:
+                storage_options = GcsStorageOptions(**data)
+            elif protocol == "file":
+                storage_options = LocalStorageOptions(**data)
+            else:
+                raise ValueError(f"Unsupported protocol: {protocol}")
+
+            super().__init__(storage_options=storage_options)
+        else:
+            super().__init__(**data)
+
+    @classmethod
+    def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
+        with fs.open(path, "r") as f:
+            data = yaml.safe_load(f)
+        return cls(**data)
+
+    @classmethod
+    def from_env(cls, protocol: str) -> "StorageOptions":
+        if protocol == "s3":
+            return cls(storage_options=AwsStorageOptions.from_env())
+        elif protocol == "github":
+            return cls(storage_options=GitHubStorageOptions.from_env())
+        elif protocol == "gitlab":
+            return cls(storage_options=GitLabStorageOptions.from_env())
+        elif protocol == "file":
+            return cls(storage_options=LocalStorageOptions())
+        else:
+            raise ValueError(f"Unsupported protocol: {protocol}")
+
+    def to_filesystem(self) -> AbstractFileSystem:
+        return self.storage_options.to_filesystem()
+
+    def to_dict(self) -> dict:
+        return self.storage_options.to_dict()

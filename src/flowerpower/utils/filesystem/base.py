@@ -248,7 +248,7 @@ MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
 
 def get_filesystem(
     path: str | Path | None = None,
-    storage_options: (BaseStorageOptions | dict[str, str] | None) = None,
+    storage_options: BaseStorageOptions | dict[str, str] | None = None,
     dirfs: bool = True,
     cached: bool = False,
     cache_storage: str | None = None,
@@ -282,7 +282,10 @@ def get_filesystem(
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = pp.get("protocol")
-    path = pp.get("host", "") + pp.get("path", "")
+    host = pp.get("host", "")
+    path = pp.get("path", "")
+    if host and host not in path:
+        path = os.path.join(host, path)
 
     if protocol == "file" or protocol == "local":
         fs = filesystem(protocol)
@@ -291,6 +294,9 @@ def get_filesystem(
             fs = DirFileSystem(path=path, fs=fs)
             fs.is_cache_fs = False
         return fs
+
+    if isinstance(storage_options, dict):
+        storage_options = storage_options_from_dict(protocol, storage_options)
 
     if storage_options is None:
         storage_options = storage_options_from_dict(protocol, storage_options_kwargs)
