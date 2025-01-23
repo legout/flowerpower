@@ -3,7 +3,7 @@ authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
 dependencies = [
   "sf-hamilton[visualization]>=1.69.0",
   "python-dotenv>=1.0.1",
-  "fsspec>=2024.5.0",
+  "fsspec>=2024.10.0",
   "pyyaml>=6.0.1",
   "typer>=0.12.3",
   "rich>=13.9.3",
@@ -13,6 +13,7 @@ dependencies = [
   "pendulum>=3.0.0",
   "tqdm>=4.67.1",
   "pydantic>=2.10.2",
+  "s3fs>=2024.10.0",
 ]
 description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 keywords = [
@@ -111,5 +112,6 @@ dev-dependencies = [
   "asyncpg>=0.30.0",
   "paho-mqtt>=2.1.0",
   "greenlet>=3.1.1",
+  "obstore>=0.3.0",
 ]
 managed = true

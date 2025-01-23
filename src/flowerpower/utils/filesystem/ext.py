@@ -880,7 +880,7 @@ def write_parquet(
     Returns:
         (pq.FileMetaData): Parquet file metadata.
     """
-    if isinstance(data, dict | list[dict]):
+    if isinstance(data, (dict | list)):
         data = _dict_to_dataframe(data)
 
     if isinstance(data, pl.LazyFrame):

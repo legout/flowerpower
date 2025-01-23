@@ -94,49 +94,6 @@ class BaseFileIO(BaseModel):
                 .rstrip("/")
             )
 
-    # def _update_storage_options_from_aws_credentials(
-    #     self,
-    #     profile: str = "default",
-    #     allow_invalid_certificates: bool = False,
-    #     allow_http: bool = False,
-    # ) -> AwsStorageOptions:
-    #     if isinstance(self.storage_options, AwsStorageOptions):
-    #         self.storage_options = self.storage_options.to_aws_credentials(
-    #             profile=profile,
-    #             allow_invalid_certificates=allow_invalid_certificates,
-    #             allow_http=allow_http,
-    #         )
-    #     self._update_fs()
-
-    # def _update_storage_options_from_env(
-    #     self,
-    # ):
-    #     protocol = get_protocol(self.path)
-    #     if protocol == "s3":
-    #         self.storage_options = AwsStorageOptions.from_env()
-    #     elif protocol == "gs" or protocol == "gcs":
-    #         self.storage_options = GcsStorageOptions.from_env()
-    #     elif protocol == "az" or protocol == "abfs":
-    #         self.storage_options = AzureStorageOptions.from_env()
-    #     elif protocol == "github":
-    #         self.storage_options = GitHubStorageOptions.from_env()
-    #     elif protocol == "gitlab":
-    #         self.storage_options = GitLabStorageOptions.from_env()
-    #     self._update_fs()
-
-    # def _update_storage_options(self, **kwargs):
-    #     self.storage_options = self.storage_options.model_copy(update=kwargs)
-    #     self._update_fs()
-
-    # def _update_fs(self):
-    #     if self.fs is None:
-    #         self.fs = get_filesystem(
-    #             path=self.path if isinstance(self.path, str) else self.path[0],
-    #             storage_options=self.storage_options,
-    #             fs=self.fs,
-    #             dirfs=False,
-    #         )
-
     @property
     def _path(self):
         if self.fs.protocol == "dir":

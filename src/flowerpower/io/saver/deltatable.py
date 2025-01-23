@@ -4,7 +4,7 @@ import pyarrow as pa
 import polars as pl
 import pandas as pd
 from typing import Any
-from ..utils.misc import _dict_to_dataframe
+from ...utils.misc import _dict_to_dataframe
 
 
 class DeltaTableWriter:
