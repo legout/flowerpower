@@ -32,7 +32,7 @@ app = typer.Typer(help="Config management commands")
 #     cfg.update(data)
 #     try:
 #         cfg.to_yaml(
-#             os.path.join(
+#             posixpath.join(
 #                 "pipelines",
 #                 pipeline_name + ".yml",
 #             ),

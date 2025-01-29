@@ -17,7 +17,7 @@ else:
         "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[scheduler]`"
     )
 
-import os
+import posixpath
 import uuid
 from pathlib import Path
 from typing import Any
@@ -28,7 +28,7 @@ from loguru import logger
 from .cfg import Config
 from .utils.datastore import setup_data_store
 from .utils.eventbroker import setup_event_broker
-from .utils.filesystem import get_filesystem
+from .filesystem import get_filesystem
 from .utils.scheduler import display_jobs, display_schedules, display_tasks
 
 
@@ -90,7 +90,7 @@ class SchedulerManager(Scheduler):
         if self._fs.is_cache_fs:
             self._fs.sync()
 
-        modules_path = os.path.join(self._fs.path, self._pipelines_path)
+        modules_path = posixpath.join(self._fs.path, self._pipelines_path)
         if modules_path not in sys.path:
             sys.path.append(modules_path)
 

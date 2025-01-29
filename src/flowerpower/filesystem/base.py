@@ -1,6 +1,7 @@
 import base64
 import inspect
 import os
+import posixpath
 import urllib
 from pathlib import Path
 
@@ -14,8 +15,8 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
-from ..storage_options import BaseStorageOptions
-from ..storage_options import from_dict as storage_options_from_dict
+from ..utils.storage_options import BaseStorageOptions
+from ..utils.storage_options import from_dict as storage_options_from_dict
 from . import AbstractFileSystem
 
 
@@ -24,13 +25,15 @@ class FileNameCacheMapper(AbstractCacheMapper):
         self.directory = directory
 
     def __call__(self, path: str) -> str:
-        os.makedirs(os.path.dirname(os.path.join(self.directory, path)), exist_ok=True)
+        os.makedirs(
+            posixpath.dirname(posixpath.join(self.directory, path)), exist_ok=True
+        )
         return path
 
 
 class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
     def __init__(self, **kwargs):
-        # kwargs["cache_storage"] = os.path.join(
+        # kwargs["cache_storage"] = posixpath.join(
         #    kwargs.get("cache_storage"), kwargs.get("fs").protocol[0]
         # )
         self._verbose = kwargs.get("verbose", False)
@@ -41,8 +44,8 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         self._check_cache()
         cache_path = self._mapper(path)
         for storage in self.storage:
-            fn = os.path.join(storage, cache_path)
-            if os.path.exists(fn):
+            fn = posixpath.join(storage, cache_path)
+            if posixpath.exists(fn):
                 return fn
             if self._verbose:
                 logger.info(f"Downloading {self.protocol[0]}://{path}")
@@ -55,7 +58,7 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         if cached_file is None:
             return self.fs.size(path)
         else:
-            return os.path.getsize(cached_file)
+            return posixpath.getsize(cached_file)
 
     def sync(self, reload: bool = False):
         if reload:
@@ -285,7 +288,7 @@ def get_filesystem(
     host = pp.get("host", "")
     path = pp.get("path", "")
     if host and host not in path:
-        path = os.path.join(host, path)
+        path = posixpath.join(host, path)
 
     if protocol == "file" or protocol == "local":
         fs = filesystem(protocol)

@@ -2,6 +2,7 @@ import datetime as dt
 import importlib
 import importlib.util
 import os
+import posixpath
 import sys
 from typing import Any, Callable
 from uuid import UUID
@@ -30,7 +31,7 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
     Config,
     PipelineConfig,
 )
-from .utils.filesystem import get_filesystem
+from .filesystem import get_filesystem
 from .utils.storage_options import BaseStorageOptions
 from .utils.templates import PIPELINE_PY_TEMPLATE
 from .utils.misc import view_img
@@ -113,7 +114,7 @@ class PipelineManager:
         if self._fs.is_cache_fs:
             self._fs.sync()
 
-        modules_path = os.path.join(self._fs.path, self._pipelines_dir)
+        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
         if modules_path not in sys.path:
             sys.path.append(modules_path)
 
@@ -127,7 +128,7 @@ class PipelineManager:
         Returns:
             None
         """
-        sys.path.append(os.path.join(self._fs.path, self._pipelines_dir))
+        sys.path.append(posixpath.join(self._fs.path, self._pipelines_dir))
 
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
@@ -918,20 +919,22 @@ class PipelineManager:
         """
         fs = fs or get_filesystem(path, **storage_options)
 
-        if fs.exists(os.path.join(pipelines_dir, name.replace(".", "/") + ".py")):
+        if fs.exists(posixpath.join(pipelines_dir, name.replace(".", "/") + ".py")):
             if overwrite:
-                fs.rm(os.path.join(pipelines_dir, name.replace(".", "/") + ".py"))
+                fs.rm(posixpath.join(pipelines_dir, name.replace(".", "/") + ".py"))
             else:
                 raise ValueError(
                     f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
                     "Use `overwrite=True` to overwrite."
                 )
         if fs.exists(
-            os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
+            posixpath.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
         ):
             if overwrite:
                 fs.rm(
-                    os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml")
+                    posixpath.join(
+                        cfg_dir, "pipelines", name.replace(".", "/") + ".yml"
+                    )
                 )
             else:
                 raise ValueError(
@@ -940,13 +943,13 @@ class PipelineManager:
                 )
 
         fs.put_file(
-            os.path.join(self._pipelines_dir, name.replace(".", "/") + ".py"),
-            os.path.join(pipelines_dir, name.replace(".", "/") + ".py"),
+            posixpath.join(self._pipelines_dir, name.replace(".", "/") + ".py"),
+            posixpath.join(pipelines_dir, name.replace(".", "/") + ".py"),
         )
 
         fs.put_file(
-            os.path.join(self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
-            os.path.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
+            posixpath.join(self._cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
+            posixpath.join(cfg_dir, "pipelines", name.replace(".", "/") + ".yml"),
         )
 
         rich.print(
@@ -1120,7 +1123,9 @@ class PipelineManager:
 
         self._fs.makedirs("graphs", exist_ok=True)
         dag.render(
-            os.path.join(self._base_dir, f"graphs/{name}"), format=format, cleanup=True
+            posixpath.join(self._base_dir, f"graphs/{name}"),
+            format=format,
+            cleanup=True,
         )
         rich.print(
             f"📊 Saved graph for {name} to {self._base_dir}/graphs/{name}.{format}"
@@ -1174,7 +1179,7 @@ class PipelineManager:
         Returns:
             list[str]: A list of pipeline names.
         """
-        return [os.path.splitext(os.path.basename(f))[0] for f in self._get_files()]
+        return [posixpath.splitext(posixpath.basename(f))[0] for f in self._get_files()]
 
     def get_summary(
         self, name: str | None = None, cfg: bool = True, module: bool = True
@@ -1338,7 +1343,7 @@ class PipelineManager:
             f for f in self._fs.ls(self._pipelines_dir) if f.endswith(".py")
         ]
         pipeline_names = [
-            os.path.splitext(f)[0]
+            posixpath.splitext(f)[0]
             .replace(self._pipelines_dir, "")
             .lstrip("/")
             .replace("/", ".")
@@ -1352,7 +1357,7 @@ class PipelineManager:
         pipeline_info = []
 
         for path, name in zip(pipeline_files, pipeline_names):
-            # path = os.path.join( f)
+            # path = posixpath.join( f)
             try:
                 mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
             except NotImplementedError:

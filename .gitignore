@@ -19,3 +19,4 @@ flowerpower.db
 Digraph.gv
 Digraph.gv.pdf
 test/test2.json
+.qodo/history.sqlite

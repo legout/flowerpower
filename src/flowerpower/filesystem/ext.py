@@ -1,5 +1,5 @@
 import datetime as dt
-import os
+import posixpath
 import uuid
 from typing import Generator
 
@@ -10,8 +10,12 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..misc import convert_large_types_to_standard, run_parallel, _dict_to_dataframe
-from ..polars import pl
+from ..utils.misc import (
+    convert_large_types_to_standard,
+    run_parallel,
+    _dict_to_dataframe,
+)
+from ..utils.polars import pl
 
 import importlib
 
@@ -72,8 +76,8 @@ def _read_json(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".json" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
+            if ".json" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
                 path = self.glob(path)
 
     if isinstance(path, list):
@@ -147,8 +151,8 @@ def _read_json_batches(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".json" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
+            if ".json" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
                 path = self.glob(path)
 
     if isinstance(path, str):
@@ -305,8 +309,8 @@ def _read_csv(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".csv" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.csv")
+            if ".csv" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.csv")
                 path = self.glob(path)
 
     if isinstance(path, list):
@@ -363,8 +367,8 @@ def _read_csv_batches(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".csv" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.csv")
+            if ".csv" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.csv")
                 path = self.glob(path)
 
     # Ensure path is a list
@@ -497,12 +501,12 @@ def _read_parquet(
         if isinstance(path, str):
             if "**" in path:
                 if "*.parquet" in path:
-                    path = os.path.join(path, "*.parquet")
+                    path = posixpath.join(path, "*.parquet")
 
                 path = self.glob(path)
             else:
                 if ".parquet" in path:
-                    path = os.path.join(path, "**/*.parquet")
+                    path = posixpath.join(path, "**/*.parquet")
                 path = self.glob(path)
 
         if isinstance(path, list):
@@ -568,11 +572,11 @@ def _read_parquet_batches(
     if isinstance(path, str):
         if "**" in path:
             if "*.parquet" not in path:
-                path = os.path.join(path, "**/*.parquet")
+                path = posixpath.join(path, "**/*.parquet")
             path = self.glob(path)
         else:
             if ".parquet" not in path:
-                path = os.path.join(path, "**/*.parquet")
+                path = posixpath.join(path, "**/*.parquet")
             path = self.glob(path)
 
     if not isinstance(path, list):
@@ -825,7 +829,7 @@ def pyarrow_parquet_dataset(
         (pds.Dataset): Pyarrow dataset.
     """
     if not self.is_file(path):
-        path = os.path.join(path, "_metadata")
+        path = posixpath.join(path, "_metadata")
     return pds.dataset(
         path,
         filesystem=self,
@@ -1076,7 +1080,7 @@ def write_files(
         if mode == "delete_matching":
             write_file(self, data[i], p, format, **kwargs)
         elif mode == "overwrite":
-            self.fs.rm(os.path.dirname(p), recursive=True)
+            self.fs.rm(posixpath.dirname(p), recursive=True)
             write_file(self, data[i], p, format, **kwargs)
         elif mode == "append":
             if not self.exists(p):

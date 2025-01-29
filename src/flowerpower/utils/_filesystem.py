@@ -2,6 +2,7 @@ import base64
 import datetime as dt
 import inspect
 import os
+import posixpath
 import urllib
 import uuid
 from pathlib import Path
@@ -40,13 +41,15 @@ class FileNameCacheMapper(AbstractCacheMapper):
         self.directory = directory
 
     def __call__(self, path: str) -> str:
-        os.makedirs(os.path.dirname(os.path.join(self.directory, path)), exist_ok=True)
+        os.makedirs(
+            posixpath.dirname(posixpath.join(self.directory, path)), exist_ok=True
+        )
         return path
 
 
 class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
     def __init__(self, **kwargs):
-        # kwargs["cache_storage"] = os.path.join(
+        # kwargs["cache_storage"] = posixpath.join(
         #    kwargs.get("cache_storage"), kwargs.get("fs").protocol[0]
         # )
         self._verbose = kwargs.get("verbose", False)
@@ -57,8 +60,8 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         self._check_cache()
         cache_path = self._mapper(path)
         for storage in self.storage:
-            fn = os.path.join(storage, cache_path)
-            if os.path.exists(fn):
+            fn = posixpath.join(storage, cache_path)
+            if posixpath.exists(fn):
                 return fn
             if self._verbose:
                 logger.info(f"Downloading {self.protocol[0]}://{path}")
@@ -71,7 +74,7 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         if cached_file is None:
             return self.fs.size(path)
         else:
-            return os.path.getsize(cached_file)
+            return posixpath.getsize(cached_file)
 
     def sync(self, reload: bool = False):
         if reload:
@@ -303,8 +306,8 @@ def _read_json(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".json" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
+            if ".json" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
                 path = self.glob(path)
 
     if isinstance(path, list):
@@ -378,8 +381,8 @@ def _read_json_batches(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".json" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
+            if ".json" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
                 path = self.glob(path)
 
     if isinstance(path, str):
@@ -536,8 +539,8 @@ def _read_csv(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".csv" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.csv")
+            if ".csv" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.csv")
                 path = self.glob(path)
 
     if isinstance(path, list):
@@ -594,8 +597,8 @@ def _read_csv_batches(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".csv" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.csv")
+            if ".csv" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.csv")
                 path = self.glob(path)
 
     # Ensure path is a list
@@ -728,8 +731,8 @@ def _read_parquet(
             if "**" in path:
                 path = self.glob(path)
             else:
-                if ".parquet" not in os.path.basename(path):
-                    path = os.path.join(path, "**/*.parquet")
+                if ".parquet" not in posixpath.basename(path):
+                    path = posixpath.join(path, "**/*.parquet")
                     path = self.glob(path)
 
         if isinstance(path, list):
@@ -790,8 +793,8 @@ def _read_parquet_batches(
         if "**" in path:
             path = self.glob(path)
         else:
-            if ".parquet" not in os.path.basename(path):
-                path = os.path.join(path, "**/*.parquet")
+            if ".parquet" not in posixpath.basename(path):
+                path = posixpath.join(path, "**/*.parquet")
                 path = self.glob(path)
 
     if isinstance(path, str):
@@ -1042,7 +1045,7 @@ def pyarrow_parquet_dataset(
         (pds.Dataset): Pyarrow dataset.
     """
     if not self.is_file(path):
-        path = os.path.join(path, "_metadata")
+        path = posixpath.join(path, "_metadata")
     return pds.dataset(
         path,
         filesystem=self,

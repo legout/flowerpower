@@ -5,9 +5,10 @@ import polars as pl
 import pandas as pd
 from typing import Any
 from ...utils.misc import _dict_to_dataframe
+from ..base import BaseDatasetWriter
 
 
-class DeltaTableWriter:
+class DeltaTableWriter(BaseDatasetWriter):
     """Delta table writer.
 
     This class is responsible for writing dataframes to Delta tables.
@@ -19,19 +20,9 @@ class DeltaTableWriter:
         ```
     """
 
-    def __init__(
-        self,
-        path: str | list[str] | None = None,
-        schema: pa.Schema | None = None,
-        partition_by: list[str] | str | None = None,
-        storage_options: dict[str, str] | None = None,
-        description: str | None = None,
-    ):
-        self.path = path
-        self.schema = schema
-        self.partition_by = partition_by
-        self.storage_options = storage_options
-        self.description = description
+    description = None
+
+    def model_post_init(self, __context):
         self.format = "delta"
 
     def write(
@@ -53,9 +44,11 @@ class DeltaTableWriter:
                 | pd.DataFrame
                 | dict[str, Any]
             ]
-        ),
+        ) | None = None,
         mode: str = "append",  # "overwrite" | "append" | "error | "ignore"
+        schema: pa.Schema | None = None,
         schema_mode: str | None = None,  # "merge" | "overwrite"
+        partition_by: list[str] | None = None,
         partition_filters: list[tuple[str, str, Any]] | None = None,
         predicate: str | None = None,
         target_file_size: int | None = None,
@@ -69,12 +62,14 @@ class DeltaTableWriter:
         data_page_row_count_limit: int | None = None,
         write_batch_size: int | None = None,
         max_row_group_size: int | None = None,
-        compression: str | None = "ZSTD",
+        compression: str | None = None,
         compression_level: int | None = None,
         statistics_truncate_length: int | None = None,
         default_column_properties: ColumnProperties | None = None,
         column_properties: dict[str, ColumnProperties] | None = None,
     ):
+        if data is None:
+            data = self.data
         if isinstance(data, dict):
             data = _dict_to_dataframe(data)
         if not isinstance(data, list):
@@ -100,20 +95,20 @@ class DeltaTableWriter:
             dictionary_page_size_limit=dictionary_page_size_limit,
             data_page_row_count_limit=data_page_row_count_limit,
             write_batch_size=write_batch_size,
-            max_row_group_size=max_row_group_size,
-            compression=compression,
+            max_row_group_size=max_row_group_size or self.row_group_size,
+            compression=compression or self.compression.upper(),
             compression_level=compression_level,
             statistics_truncate_length=statistics_truncate_length,
             default_column_properties=default_column_properties,
             column_properties=column_properties,
         )
         write_deltalake(
-            self.path,
+            self._raw_path,
             data,
             mode=mode,
-            schema=self.schema,
-            partition_by=self.partition_by,
-            storage_options=self.storage_options,
+            schema=schema or self.schema_,
+            partition_by=partition_by or self.partition_by,
+            storage_options=self.storage_options.to_object_store_kwargs(),
             description=self.description,
             schema_mode=schema_mode,
             partition_filters=partition_filters,

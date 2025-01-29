@@ -28,7 +28,7 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.2"
+version = "0.9.3"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
@@ -113,5 +113,7 @@ dev-dependencies = [
   "paho-mqtt>=2.1.0",
   "greenlet>=3.1.1",
   "obstore>=0.3.0",
+  "pytest>=8.3.4",
+  "mocker>=1.1.1",
 ]
 managed = true

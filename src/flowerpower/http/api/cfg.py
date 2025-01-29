@@ -1,4 +1,4 @@
-import os
+import posixpath
 
 from sanic import Blueprint
 from sanic.exceptions import SanicException
@@ -36,7 +36,7 @@ async def update_pipeline(request, pipeline_name, body: PipelineConfig) -> json:
     cfg.update(data)
     try:
         cfg.to_yaml(
-            os.path.join(
+            posixpath.join(
                 "pipelines",
                 pipeline_name + ".yml",
             ),

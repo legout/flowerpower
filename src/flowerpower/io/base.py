@@ -10,7 +10,7 @@ from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
-from ..utils.filesystem import get_filesystem
+from ..filesystem import get_filesystem
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
 from ..utils.storage_options import (
@@ -67,7 +67,7 @@ class BaseFileIO(BaseModel):
     format: str | None = None
 
     def model_post_init(self, __context):
-        # self._update_storage_options_from_env()
+        self._raw_path = self.path
         if isinstance(self.storage_options, dict):
             if "protocol" not in self.storage_options:
                 self.storage_options["protocol"] = get_protocol(self.path)
@@ -569,7 +569,7 @@ class BaseDatasetLoader(BaseFileLoader):
                 **kwargs,
             )
         elif self.format == "parquet":
-            if self.fs.exists(os.path.join(self._path, "_metadata")):
+            if self.fs.exists(posixpath.join(self._path, "_metadata")):
                 self._dataset = self.fs.parquet_dataset(
                     self._path,
                     schema=self.schema_,
@@ -738,7 +738,7 @@ class BaseFileWriter(BaseFileIO):
         | pd.DataFrame
         | dict[str, Any]
         | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]]
-    )
+    ) | None = None
     basename: str | None = None
     concat: bool = False
     mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
@@ -788,7 +788,7 @@ class BaseDatasetWriter(BaseFileWriter):
             | pd.DataFrame
             | dict[str, Any]
         ]
-    )
+    ) | None = None
     basename: str | None = None
     schema_: pa.Schema | None = None
     partition_by: str | list[str] | pds.Partitioning | None = None
@@ -798,7 +798,7 @@ class BaseDatasetWriter(BaseFileWriter):
     max_rows_per_file: int | None = 2_500_000
     concat: bool = False
     mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
-    is_pydala_dataset: bool = (False,)
+    is_pydala_dataset: bool = False
 
     def write(
         self,

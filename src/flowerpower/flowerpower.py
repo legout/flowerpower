@@ -1,12 +1,13 @@
 import datetime as dt
 import os
+import posixpath
 from pathlib import Path
 
 import rich
 from fsspec.spec import AbstractFileSystem
 
 from .cfg import Config
-from .utils.filesystem import get_filesystem
+from .filesystem import get_filesystem
 
 
 def init(
@@ -22,20 +23,20 @@ def init(
     if base_dir is None:
         base_dir = str(Path.cwd())
 
-    fs = get_filesystem(os.path.join(base_dir, name), **storage_options)
+    fs = get_filesystem(posixpath.join(base_dir, name), **storage_options)
 
     fs.makedirs("conf/pipelines", exist_ok=True)
     fs.makedirs("pipelines", exist_ok=True)
 
-    cfg = Config.load(base_dir=os.path.join(base_dir, name), name=name)
+    cfg = Config.load(base_dir=posixpath.join(base_dir, name), name=name)
 
-    with open(os.path.join(base_dir, name, "README.md"), "w") as f:
+    with open(posixpath.join(base_dir, name, "README.md"), "w") as f:
         f.write(
             f"# {name.replace('_', ' ').upper()}\n\n"
             f"**created with FlowerPower**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
         )
     cfg.save()
-    os.chdir(os.path.join(base_dir, name))
+    os.chdir(posixpath.join(base_dir, name))
 
     rich.print(
         f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] at [italic green]{base_dir}[/italic green]\n"

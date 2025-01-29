@@ -126,7 +126,7 @@ class AwsStorageOptions(BaseStorageOptions):
         }
         return {k: v for k, v in fsspec_kwargs.items() if v is not None}
 
-    def to_object_store_kwargs(self, conditional_put="") -> dict:
+    def to_object_store_kwargs(self, conditional_put="etag") -> dict:
         object_store_kwargs = {
             k: str(v)
             for k, v in self.to_dict().items()
