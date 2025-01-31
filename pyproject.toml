@@ -28,18 +28,12 @@ keywords = [
 name = "FlowerPower"
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.3"
+version = "0.9.4"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-# dask = ["dask[complete]>=2024.7.1"]
-#filesystem-ext = [
-#  "pyarrow>=18.1.0",
-#  "polars>=1.15.0", #"duckdb>=1.1.3",  #"datafusion>=42.0.0",
-#  "orjson>=3.10.12",
-#]
 io = [
   "datafusion>=43.1.0",
   "duckdb>=1.1.3",
@@ -72,26 +66,26 @@ webserver = [
   "orjson>=3.10.11",
 ]
 
-[build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
+#[build-system]
+#build-backend = "hatchling.build"
+#requires = ["hatchling"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
+#[tool.hatch.metadata]
+#allow-direct-references = true
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/flowerpower"]
+#[tool.hatch.build.targets.wheel]
+#packages = ["src/flowerpower"]
 
-[tool.hatch.build.targets.sdist]
-exclude = [
-  "tests",
-  "docs",
-  "examples",
-  "src/flowerpower.egg-info",
-  "src/flowerpower/__pycache__",
-  "docker",
-  ".gitignore",
-]
+#[tool.hatch.build.targets.sdist]
+#exclude = [
+#  "tests",
+#  "docs",
+#  "examples",
+#  "src/flowerpower.egg-info",
+#  "src/flowerpower/__pycache__",
+#  "docker",
+#  ".gitignore",
+#]
 
 [tool.uv]
 dev-dependencies = [
@@ -116,4 +110,4 @@ dev-dependencies = [
   "pytest>=8.3.4",
   "mocker>=1.1.1",
 ]
-managed = true
+package = true

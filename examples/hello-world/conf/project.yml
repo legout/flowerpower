@@ -6,12 +6,13 @@ worker:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy
-    #suri: sqlite+aiosqlite:///flowerpower.db
-    uri: postgresql+asyncpg://postgres:password@localhost:5432/flowerpower
+    uri: sqlite+aiosqlite:///flowerpower.db
+    #uri: postgresql+asyncpg://postgres:password@localhost:5432/flowerpower
   event_broker:
-    host: localhost
-    port: 1883
-    type: mqtt
+    {}
+    #host: localhost
+    #port: 6379
+    #type: redis
   max_concurrent_jobs: 100
 tracker:
   api_key: null

@@ -553,7 +553,9 @@ class PipelineManager:
                 "Run `pip install 'flowerpower[scheduler]'`."
             )
 
-        # if "pipeline" in self.cfg.scheduler:
+        if not self.cfg.pipeline.name == name:
+            self.load_config(name=name)
+
         schedule_cfg = self.cfg.pipeline.schedule  # .copy()
         run_cfg = self.cfg.pipeline.run
 
@@ -601,6 +603,9 @@ class PipelineManager:
             role="scheduler",
         ) as sm:
             trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
+
+            if overwrite:
+                sm.remove_schedule(id_)
 
             id_ = sm.add_schedule(
                 func_or_task_id=self.run,

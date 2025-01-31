@@ -39,21 +39,24 @@ def init(
     os.chdir(posixpath.join(base_dir, name))
 
     rich.print(
-        f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] at [italic green]{base_dir}[/italic green]\n"
+        f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] "
+        f"at [italic green]{base_dir}[/italic green]\n"
     )
 
     rich.print(
         """[yellow]Getting Started:[/yellow]
 
-    📦 It is recommended to use the project manager [bold cyan]`uv`[/bold cyan] to manage the dependenvies of your project.
+    📦  It is recommended to use the project manager [bold cyan]`uv`[/bold cyan] to manage the
+        dependenvies of your project.
 
-    🔧 Install uv:
-        [dim]Run:[/dim] [bold white]pip install uv[/bold white]
-        [dim]More options:[/dim] [blue underline]https://docs.astral.sh/uv/getting-started/installation/[/blue underline]
+    🔧  Install uv:
+            [dim]Run:[/dim] [bold white]pip install uv[/bold white]
+            [dim]More options:[/dim] 
+                [blue underline]https://docs.astral.sh/uv/getting-started/installation/[/blue underline]
 
-    🚀 Initialize your project:
-        [dim]Run the following in your project directory:[/dim]
-        [bold white]uv init --app --no-readme --vcs git[/bold white]
+    🚀  Initialize your project:
+            [dim]Run the following in your project directory:[/dim]
+            [bold white]uv init --app --no-readme --vcs git[/bold white]
     """
     )
 

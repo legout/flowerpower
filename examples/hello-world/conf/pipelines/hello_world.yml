@@ -29,7 +29,7 @@ schedule:
   trigger:
     type_: cron
     cron:
-      crontab: 1 * * * *
+      crontab: "* * * * *"
       year: null
       month: null
       week: null
