@@ -13,6 +13,8 @@ PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
 
+print(Path(__file__).parents[1])
+
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""

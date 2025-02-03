@@ -82,6 +82,12 @@ class PipelineManager:
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
 
+        try:
+            self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
+            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Error creating directories: {e}")
+
         self._sync_fs()
         self.load_config()
 
@@ -626,6 +632,47 @@ class PipelineManager:
             )
             return id_
 
+    def schedule_all(
+        self,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        executor: str | None = None,
+        with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
+        trigger_type: str | None = None,
+        id_: str | None = None,
+        paused: bool = False,
+        coalesce: str = "latest",
+        misfire_grace_time: float | dt.timedelta | None = None,
+        max_jitter: float | dt.timedelta | None = None,
+        max_running_jobs: int | None = None,
+        conflict_policy: str = "do_nothing",
+        overwrite: bool = False,
+        **kwargs,
+    ):
+        pipelines = self._get_names()
+        for name in pipelines:
+            self.schedule(
+                name=name,
+                inputs=inputs,
+                final_vars=final_vars,
+                config=config,
+                executor=executor,
+                with_tracker=with_tracker,
+                with_opentelemetry=with_opentelemetry,
+                trigger_type=trigger_type,
+                id_=id_,
+                paused=paused,
+                coalesce=coalesce,
+                misfire_grace_time=misfire_grace_time,
+                max_jitter=max_jitter,
+                max_running_jobs=max_running_jobs,
+                conflict_policy=conflict_policy,
+                overwrite=overwrite,
+                **kwargs,
+            )
+
     def new(
         self,
         name: str,
@@ -660,12 +707,12 @@ class PipelineManager:
                 f"Pipeline path {self._pipelines_dir} does not exist. Please run flowerpower init first."
             )
 
-        if self._fs.exists(f"{self._pipelines_dir}/{name.replace(".", "/")}.py"):
+        if self._fs.exists(f"{self._pipelines_dir}/{name.replace('.', '/')}.py"):
             if overwrite:
                 self._fs.rm(f"{self._pipelines_dir}/{name.replace('.', '/')}.py")
             else:
                 raise ValueError(
-                    f"Pipeline {self.cfg.project.name}.{name.replace(".", "/")} already exists. "
+                    f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
                     "Use `overwrite=True` to overwrite."
                 )
         if self._fs.exists(f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
@@ -677,8 +724,8 @@ class PipelineManager:
                     "Use `overwrite=True` to overwrite."
                 )
 
-        pipeline_path = f"{self._pipelines_dir}/{name.replace(".", "/")}.py"
-        cfg_path = f"{self._cfg_dir}/pipelines/{name.replace(".", "/")}.yml"
+        pipeline_path = f"{self._pipelines_dir}/{name.replace('.', '/')}.py"
+        cfg_path = f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"
 
         self._fs.makedirs(pipeline_path.rsplit("/", 1)[0], exist_ok=True)
         self._fs.makedirs(cfg_path.rsplit("/", 1)[0], exist_ok=True)
@@ -750,31 +797,39 @@ class PipelineManager:
         if not fs.exists(pipelines_dir):
             raise ValueError(f"Pipeline path {pipeline_path} does not exist.")
 
-        if fs.exists(f"{pipelines_dir}/{name.replace('.', '/')}.py"):
+        if self._fs.exists(f"{pipelines_dir}/{name.replace('.', '/')}.py"):
             if overwrite:
-                fs.rm(f"{pipelines_dir}/{name.replace('.', '/')}.py")
+                self._fs.rm(f"{pipelines_dir}/{name.replace('.', '/')}.py")
             else:
                 raise ValueError(
-                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    f"Pipeline {name} already exists at {self._fs.fs.protocol}://{fs.path}. "
                     "Use `overwrite=True` to overwrite."
                 )
-        if fs.exists(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
+        if self._fs.exists(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
             if overwrite:
-                fs.rm(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml")
+                self._fs.rm(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml")
             else:
                 raise ValueError(
-                    f"Pipeline {name} already exists at {fs.fs.protocol}://{fs.path}. "
+                    f"Pipeline {name} already exists at {self._fs.fs.protocol}://{fs.path}. "
                     "Use `overwrite=True` to overwrite."
                 )
 
-        fs.get(
-            f"{pipelines_dir}/{name.replace('.' , '/')}.py",
+        self._fs.write_bytes(
             f"{self._pipelines_dir}/{name.replace('.', '/')}.py",
+            fs.read_bytes(f"{pipelines_dir}/{name.replace('.', '/')}.py"),
         )
-        fs.get(
-            f"{cfg_dir}/pipelines/{name.replace('.' , '/')}.yml",
-            f"{self._cfg_dir}/pipelines/{name.replace('.' , '/')}.yml",
+        self._fs.write_bytes(
+            f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml",
+            fs.read_bytes(f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml"),
         )
+        # fs.get(
+        #    f"{pipelines_dir}/{name.replace('.', '/')}.py",
+        #    f"{self._pipelines_dir}/{name.replace('.', '/')}.py",
+        # )
+        # fs.get(
+        #    f"{cfg_dir}/pipelines/{name.replace('.', '/')}.yml",
+        #    f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml",
+        # )
 
         rich.print(
             f"🔧 Imported pipeline [bold blue]{name}[/bold blue] from {fs.fs.protocol}://{fs.path}"
@@ -1434,7 +1489,7 @@ class PipelineManager:
             pipelines = pm.pipelines
             ```
         """
-        return self.all_pipelines(show=False)
+        return self._all_pipelines(show=False)
 
 
 class Pipeline:

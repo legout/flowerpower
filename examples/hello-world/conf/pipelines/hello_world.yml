@@ -4,18 +4,17 @@ params:
   spend_zero_mean:
     offset: 0
 run:
+  config: {}
   executor: null
   final_vars:
-    [
-      spend,
-      signups,
-      avg_x_wk_spend,
-      spend_per_signup,
-      spend_zero_mean_unit_variance,
-    ]
+  - spend
+  - signups
+  - avg_x_wk_spend
+  - spend_per_signup
+  - spend_zero_mean_unit_variance
   inputs: {}
-  with_tracker: false
   with_opentelemetry: false
+  with_tracker: false
 schedule:
   run:
     coalesce: latest
@@ -27,41 +26,42 @@ schedule:
     misfire_grace_time: null
     paused: false
   trigger:
-    type_: cron
-    cron:
-      crontab: "* * * * *"
-      year: null
-      month: null
-      week: null
-      day_of_week: null
-      hour: null
-      minute: null
-      second: null
-      start_time: null
-      end_time: null
-      timezone: null
-    interval:
-      weeks: null
-      days: null
-      hours: null
-      minutes: null
-      seconds: null
-      microseconds: null
-      start_time: null
-      end_time: null
     calendar:
-      years: null
-      months: null
-      weeks: null
       days: null
+      end_date: null
       hour: null
       minute: null
+      months: null
       second: null
       start_date: null
-      end_date: null
       timezone: null
+      weeks: null
+      years: null
+    cron:
+      crontab: '* * * * *'
+      day: null
+      day_of_week: null
+      end_time: null
+      hour: null
+      minute: null
+      month: null
+      second: null
+      start_time: null
+      timezone: null
+      week: null
+      year: null
     date:
       run_time: null
+    interval:
+      days: null
+      end_time: null
+      hours: null
+      microseconds: null
+      minutes: null
+      seconds: null
+      start_time: null
+      weeks: null
+    type_: cron
 tracker:
   dag_name: null
   project_id: null

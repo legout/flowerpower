@@ -2,20 +2,18 @@ name: hello-world
 open_telemetry:
   host: localhost
   port: 6381
-worker:
-  cleanup_interval: 900
-  data_store:
-    type: sqlalchemy
-    uri: sqlite+aiosqlite:///flowerpower.db
-    #uri: postgresql+asyncpg://postgres:password@localhost:5432/flowerpower
-  event_broker:
-    {}
-    #host: localhost
-    #port: 6379
-    #type: redis
-  max_concurrent_jobs: 100
 tracker:
   api_key: null
   api_url: http://localhost:8241
   ui_url: http://localhost:8242
   username: null
+worker:
+  cleanup_interval: 900
+  data_store:
+    type: sqlalchemy
+    uri: sqlite+aiosqlite:///flowerpower.db
+    #uri: postgresql+asyncpg://postgres:password@localhost/flowerpower
+  event_broker:
+    type: redis
+    uri: redis://localhost:6379
+  max_concurrent_jobs: 100

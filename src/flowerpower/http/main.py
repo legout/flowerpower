@@ -30,18 +30,18 @@ def create_app(args):
     )
     storage_options = parse_dict_or_list_param(storage_options, param_type="dict") or {}
 
-    cfg_dir = args.cfg_dir if hasattr(args, "cfg_dir") else "conf"
-    pipelines_dir = (
-        args.pipelines_dir if hasattr(args, "pipelines_dir") else "pipelines"
-    )
+    # cfg_dir = args.cfg_dir if hasattr(args, "cfg_dir") else "conf"
+    # pipelines_dir = (
+    #    args.pipelines_dir if hasattr(args, "pipelines_dir") else "pipelines"
+    # )
 
     app = Sanic("flowerpower", dumps=dumps, loads=loads)
     setup(
         app=app,
         base_dir=base_dir,
         storage_options=storage_options,
-        cfg_dir=cfg_dir,
-        pipelines_dir=pipelines_dir,
+        # cfg_dir=cfg_dir,
+        # pipelines_dir=pipelines_dir,
     )
 
     # @app.get("/")

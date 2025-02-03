@@ -7,8 +7,8 @@ class PipelineRun(BaseModel):
     final_vars: list | None = None
     executor: str | None = None
     config: dict | None = None
-    with_tracker: bool = None
-    with_opentelemetry: bool = None
+    with_tracker: bool | None = None
+    with_opentelemetry: bool | None = None
 
 
 class PipelineAddJob(PipelineRun):

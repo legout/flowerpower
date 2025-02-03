@@ -285,10 +285,6 @@ def get_filesystem(
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = pp.get("protocol")
-    host = pp.get("host", "")
-    path = pp.get("path", "")
-    if host and host not in path:
-        path = posixpath.join(host, path)
 
     if protocol == "file" or protocol == "local":
         fs = filesystem(protocol)
@@ -297,6 +293,11 @@ def get_filesystem(
             fs = DirFileSystem(path=path, fs=fs)
             fs.is_cache_fs = False
         return fs
+
+    host = pp.get("host", "")
+    path = pp.get("path", "").lstrip("/")
+    if len(host) and host not in path:
+        path = posixpath.join(host, path)
 
     if isinstance(storage_options, dict):
         storage_options = storage_options_from_dict(protocol, storage_options)

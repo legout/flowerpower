@@ -52,11 +52,11 @@ opentelemetry = [
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
 scheduler = [
-  "aiosqlite>=0.20.0",
   "greenlet>=3.0.3",
   "asyncpg>=0.29.0",
   "sqlalchemy>=2.0.30",
   "apscheduler>=4.0.0a5", #"apscheduler @ git+https://github.com/agronholm/apscheduler",
+  "aiosqlite>=0.21.0",
 ]
 tui = ["textual>=0.85.2"]
 ui = ["sf-hamilton-ui>=0.0.11"]
@@ -109,5 +109,8 @@ dev-dependencies = [
   "obstore>=0.3.0",
   "pytest>=8.3.4",
   "mocker>=1.1.1",
+  "marimo>=0.10.19",
+  "panel>=1.6.0",
+  "ipywidgets>=8.1.5",
 ]
 package = true

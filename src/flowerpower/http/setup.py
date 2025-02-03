@@ -10,14 +10,14 @@ def setup(
     app: Sanic,
     base_dir: str | None = None,
     storage_options: dict | None = None,
-    cfg_dir: str = "conf",
-    pipelines_dir: str = "pipelines",
+    #cfg_dir: str = "conf",
+    #pipelines_dir: str = "pipelines",
 ) -> Sanic:
 
     app.config.BASE_DIR = base_dir
     app.config.STORAGE_OPTIONS = storage_options
-    app.config.CFG_DIR = cfg_dir
-    app.config.PIPELINES_DIR = pipelines_dir
+    #app.config.CFG_DIR = cfg_dir
+    #app.config.PIPELINES_DIR = pipelines_dir
 
     @app.listener("before_server_start")
     def init_scheduler(app, loop):

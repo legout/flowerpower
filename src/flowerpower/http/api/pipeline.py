@@ -1,6 +1,6 @@
 import dill
 from sanic import Blueprint, SanicException
-from sanic_ext import openapi
+from sanic_ext import validate
 
 
 from sanic.response import json, raw, html
@@ -15,78 +15,60 @@ from ..models.pipeline import (
     PipelineDelete,
     PipelineManagerSummary,
 )
-from ..utils import deserialize_and_validate
 
 bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 
 
 @bp.post("run/<name>")
-@openapi.body({"application/json": PipelineRun}, required=False)
-@openapi.summary("Run a pipeline")
-@openapi.description("Run a pipeline with the given parameters")
-# @openapi.response(
-#     200,
-# )
+@validate(json=PipelineRun)
 async def run(
     request,
     name: str,
+    body: PipelineRun,
 ):
-
-    body = await deserialize_and_validate(PipelineRun, body=request.json)
-    # body = request.json
-
     try:
         with Pipeline(
             name=name,
             base_dir=request.app.config.BASE_DIR,
             storage_options=request.app.config.STORAGE_OPTIONS,
-            # cfg_dir=request.app.config.CFG_DIR,
-            # pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             final_vars = pipeline.run(**body.model_dump())
 
-        final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
-        return bytes(final_vars)
-        return json({"status": "success", "message": "Pipeline ran successfully"})
+        final_vars = dill.dumps(final_vars)
+        # {k: dill.dumps(v) for k, v in final_vars.items()}
+        return raw(final_vars)
+        # return json({"status": "success", "message": "Pipeline ran successfully"})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("run-job/<name>")
-@openapi.body({"application/json": PipelineRun}, required=False)
-@openapi.summary("Run a pipeline as a job")
-@openapi.description("Run a pipeline as a job with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, Any]})
+@validate(json=PipelineRun)
 async def run_job(
     request,
     name: str,
+    body: PipelineRun,
 ):
-    body = await deserialize_and_validate(PipelineRun, body=request.json)
     try:
         with Pipeline(
             name=name,
             base_dir=request.app.config.BASE_DIR,
             storage_options=request.app.config.STORAGE_OPTIONS,
-            cfg_dir=request.app.config.CFG_DIR,
-            pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as pipeline:
             final_vars = pipeline.run_job(**body.model_dump())
-            final_vars = {k: dill.dumps(v) for k, v in final_vars.items()}
-        return json(final_vars)
+        final_vars = dill.dumps(final_vars)
+        return raw(final_vars)
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("/add-job/<name>")
-@openapi.body({"application/json": PipelineAddJob}, required=False)
-@openapi.summary("Add a pipeline as a job")
-@openapi.description("Add a pipeline as a job with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineAddJob)
 async def add_job(
     request,
     name: str,
+    body: PipelineAddJob,
 ):
-    body = await deserialize_and_validate(PipelineAddJob, body=request.json)
     try:
         with Pipeline(
             name=name,
@@ -102,16 +84,12 @@ async def add_job(
 
 
 @bp.post("/schedule/<name>")
-@openapi.body({"application/json": PipelineSchedule}, required=False)
-@openapi.summary("Schedule a pipeline")
-@openapi.description("Schedule a pipeline with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineSchedule)
 async def schedule(
     request,
     name: str,
+    body: PipelineSchedule,
 ):
-
-    body = await deserialize_and_validate(PipelineSchedule, body=request.json)
 
     try:
         with Pipeline(
@@ -127,16 +105,14 @@ async def schedule(
 
 
 @bp.patch("/schedule/<name>")
-@openapi.body({"application/json": PipelineSchedule}, required=False)
-@openapi.summary("Update a pipeline schedule")
-@openapi.description("Update a pipeline schedule with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineSchedule)
 async def update_schedule(
     request,
     name: str,
+    body: PipelineSchedule,
 ):
-    overwrite = request.json.pop("overwrite", True)
-    body = await deserialize_and_validate(PipelineSchedule, body=request.json)
+    params = body.model_dump()
+    params.update({"overwrite": True})
 
     try:
         with Pipeline(
@@ -145,23 +121,19 @@ async def update_schedule(
             cfg_dir=request.app.config.CFG_DIR,
             pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
-            id_ = manager.schedule(name, overwrite=overwrite, **body.model_dump())
+            id_ = manager.schedule(name, **params)
         return json({"schedule_id": str(id_)})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.post("new/<name>")
-@openapi.body({"application/json": PipelineManagerNew}, required=False)
-@openapi.summary("Create a new pipeline")
-@openapi.description("Create a new pipeline with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineManagerNew)
 async def new(
     request,
     name: str,
+    body: PipelineManagerNew,
 ):
-
-    body = await deserialize_and_validate(PipelineManagerNew, body=request.json)
 
     try:
         with PipelineManager(
@@ -177,19 +149,15 @@ async def new(
 
 
 @bp.post("/import")
-@openapi.body({"application/json": PipelineManagerImportExport}, required=True)
-@openapi.summary("Import a pipeline")
-@openapi.description("Import a pipeline with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineManagerImportExport)
 async def import_pipeline(
     request,
+    body: PipelineManagerImportExport,
 ):
-    name = request.json.pop("name", None)
-    names = request.json.pop("names", None)
-    path = request.json.pop("path", None)
-    body = await deserialize_and_validate(
-        PipelineManagerImportExport, body=request.json
-    )
+    params = body.model_dump()
+    name = params.pop("name", None)
+    names = params.pop("names", None)
+    path = params.pop("path", None)
 
     if isinstance(names, str):
         names = names.split(",")
@@ -202,15 +170,15 @@ async def import_pipeline(
             pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             if name:
-                manager.import_pipeline(name=name, path=path, **body.model_dump())
+                manager.import_pipeline(name=name, path=path, **params)
                 return json({"status": f"Pipeline {name} imported from {path}"})
             elif names:
-                manager.import_many(names, path=path, **body.model_dump())
+                manager.import_many(names, path=path, **params)
                 return json(
                     {"status": f"Pipelines {', '.join(names)} imported from {path}"}
                 )
             else:
-                manager.import_all(path=path, **body.model_dump())
+                manager.import_all(path=path, **params)
                 return json({"status": f"All pipelines imported from {path}"})
 
     except Exception as e:
@@ -218,21 +186,15 @@ async def import_pipeline(
 
 
 @bp.post("/export")
-@openapi.body({"application/json": PipelineManagerImportExport}, required=True)
-@openapi.summary("Export a pipeline")
-@openapi.description("Export a pipeline with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineManagerImportExport)
 async def export_pipeline(
     request,
+    body: PipelineManagerImportExport,
 ):
-
-    path = request.json.pop("path", None)
-    name = request.json.pop("name", None)
-    names = request.json.pop("names", None)
-
-    body = await deserialize_and_validate(
-        PipelineManagerImportExport, body=request.json
-    )
+    params = body.model_dump()
+    path = params.pop("path", None)
+    name = params.pop("name", None)
+    names = params.pop("names", None)
 
     if isinstance(names, str):
         names = names.split(",")
@@ -244,31 +206,27 @@ async def export_pipeline(
             pipelines_dir=request.app.config.PIPELINES_DIR,
         ) as manager:
             if name:
-                manager.export_pipeline(name, path=path, **body.model_dump())
+                manager.export_pipeline(name, path=path, **params)
                 return json({"status": f"Pipeline {name} exported to {path}"})
             elif names:
-
-                manager.export_many(names, path=path, **body.model_dump())
+                manager.export_many(names, path=path, **params)
                 return json(
                     {"status": f"Pipelines {', '.join(names)} exported to {path}"}
                 )
             else:
-                manager.export_all(path=path, **body.model_dump())
+                manager.export_all(path=path, **params)
                 return json({"status": f"All pipelines exported to {path}"})
     except Exception as e:
         raise SanicException(str(e))
 
 
 @bp.delete("/delete/<name>")
-@openapi.body({"application/json": PipelineDelete}, required=False)
-@openapi.summary("Delete a pipeline")
-@openapi.description("Delete a pipeline with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, str]})
+@validate(json=PipelineDelete)
 async def delete(
     request,
     name: str,
+    body: PipelineDelete,
 ):
-    body = await deserialize_and_validate(PipelineDelete, body=request.json)
     try:
         with Pipeline(
             name=name,
@@ -284,14 +242,10 @@ async def delete(
 
 
 @bp.get("/summary/<name>")
-@openapi.body({"application/json": PipelineManagerSummary}, required=False)
-@openapi.summary("Show a pipeline summary")
-@openapi.description("Show a pipeline summary with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, Any]})
-# @openapi.response(200, {"text/html": str})
-# @openapi.response(200, {"image/svg": bytes})
+@validate(query=PipelineManagerSummary)
 async def summary(
     request,
+    query: PipelineManagerSummary,
     name: str | None = None,
 ):
 
@@ -306,8 +260,6 @@ async def summary(
         to_html = False
         to_svg = False
 
-    body = await deserialize_and_validate(PipelineManagerSummary, body=request.json)
-
     try:
         if name == "all":
             with PipelineManager(
@@ -318,9 +270,9 @@ async def summary(
             ) as manager:
                 if to_html or to_svg:
                     summary = manager.show_summary(
-                        to_html=to_html, to_svg=to_svg, **body.model_dump()
+                        to_html=to_html, to_svg=to_svg, **query.model_dump()
                     )
-                summary = manager.get_summary(**body.model_dump())
+                summary = manager.get_summary(**query.model_dump())
 
         else:
             with Pipeline(
@@ -332,7 +284,7 @@ async def summary(
             ) as pipeline:
 
                 summary = pipeline.get_summary(
-                    to_html=to_html, to_svg=to_svg, **body.model_dump()
+                    to_html=to_html, to_svg=to_svg, **query.model_dump()
                 )
         if to_html:
             return html(summary)
@@ -344,11 +296,6 @@ async def summary(
 
 
 @bp.get("/show/<name>")
-# @openapi.parameter({"name": str})
-@openapi.summary("Show a pipeline graph")
-@openapi.description("Show a pipeline grap with the given parameters")
-# @openapi.response(200, {"image/png": bytes})
-# @openapi.response(200, {"image/svg": bytes})
 async def show(
     request,
     name: str,
@@ -371,13 +318,6 @@ async def show(
 
 
 @bp.get("/pipelines")
-# @openapi.parameter({"show": bool})
-# @openapi.parameter({"format": str})
-@openapi.summary("List pipelines")
-@openapi.description("List pipelines with the given parameters")
-# @openapi.response(200, {"application/json": dict[str, Any]})
-# @openapi.response(200, {"text/html": str})
-# @openapi.response(200, {"image/svg": bytes})
 async def pipelines(
     request,
 ):
