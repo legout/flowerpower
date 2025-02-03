@@ -51,7 +51,7 @@ def init(
 
     🔧  Install uv:
             [dim]Run:[/dim] [bold white]pip install uv[/bold white]
-            [dim]More options:[/dim] 
+            [dim]More options:[/dim]
                 [blue underline]https://docs.astral.sh/uv/getting-started/installation/[/blue underline]
 
     🚀  Initialize your project:

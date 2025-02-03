@@ -236,7 +236,7 @@ def schedule(
     name: str,
     executor: str = "local",
     base_dir: str | None = None,
-    type: str = "cron",
+    trigger_type: str = "cron",
     inputs: str | None = None,
     final_vars: str | None = None,
     config: str | None = None,
@@ -263,7 +263,7 @@ def schedule(
         name: Name of the pipeline to schedule
         executor: Executor to use
         base_dir: Base directory for the pipeline
-        type: Type of schedule
+        trigger_type: Type of schedule
         inputs: Input parameters as JSON, dict string, or key=value pairs
         final_vars: Final variables as JSON or list
         config: Config for the hamilton pipeline executor
@@ -300,16 +300,16 @@ def schedule(
     pipeline schedule my_pipeline --storage-options 'endpoint=http://localhost,use_ssl=true'
 
     # Cron schedule
-    pipeline schedule my_pipeline --type cron --crontab '0 0 * * *'
+    pipeline schedule my_pipeline --trigger-type cron --crontab '0 0 * * *'
 
     # Interval schedule
-    pipeline schedule my_pipeline --type interval --interval_params minutes=1
+    pipeline schedule my_pipeline --trigger-type interval --interval_params minutes=1
 
     # Calendar interval schedule
-    pipeline schedule my_pipeline --type calendarinterval --calendarinterval_params month=5
+    pipeline schedule my_pipeline --trigger-type calendarinterval --calendarinterval_params month=5
 
     # Date schedule
-    pipeline schedule my_pipeline --type date --date_params run_date='2021-01-01 12:00:01'
+    pipeline schedule my_pipeline --trigger-type date --date_params run_date='2021-01-01 12:00:01'
 
     """
     if get_schedule_manager is None:
@@ -354,7 +354,7 @@ def schedule(
     ) as pipeline:
         id_ = pipeline.schedule(
             executor=executor,
-            type=type,
+            trigger_type=trigger_type,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
             config=parsed_config,
@@ -377,7 +377,6 @@ def schedule(
 def schedule_all(
     executor: str = "local",
     base_dir: str | None = None,
-    type: str = "cron",
     inputs: str | None = None,
     final_vars: str | None = None,
     config: str | None = None,
@@ -389,11 +388,6 @@ def schedule_all(
     max_jitter: float | None = None,
     max_running_jobs: int | None = None,
     conflict_policy: str = "do_nothing",
-    crontab: str | None = None,
-    cron_params: str | None = None,
-    interval_params: str | None = None,
-    calendarinterval_params: str | None = None,
-    date_params: str | None = None,
     storage_options: str | None = None,
     overwrite: bool = False,
 ):
@@ -403,7 +397,6 @@ def schedule_all(
     Args:
         executor: Executor to use
         base_dir: Base directory for the pipeline
-        type: Type of schedule
         inputs: Input parameters as JSON, dict string, or key=value pairs
         final_vars: Final variables as JSON or list
         config: Config for the hamilton pipeline executor
@@ -415,11 +408,6 @@ def schedule_all(
         max_jitter: Maximum jitter
         max_running_jobs: Maximum running jobs
         conflict_policy: Conflict policy
-        crontab: Crontab expression
-        cron_params: Cron parameters as JSON or key=value pairs
-        interval_params: Interval parameters as JSON or key=value pairs
-        calendarinterval_params: Calendar interval parameters as JSON or key=value pairs
-        date_params: Date parameters as JSON or key=value pairs
         storage_options: Storage options as JSON, dict string, or key=value pairs
         overwrite: Overwrite existing schedule
 
@@ -437,7 +425,6 @@ def schedule_all(
     ) as manager:
         manager.schedule_all(
             executor=executor,
-            type=type,
             inputs=inputs,
             final_vars=final_vars,
             config=config,
@@ -450,11 +437,6 @@ def schedule_all(
             max_running_jobs=max_running_jobs,
             conflict_policy=conflict_policy,
             overwrite=overwrite,
-            crontab=crontab,
-            cron_params=cron_params,
-            interval_params=interval_params,
-            calendarinterval_params=calendarinterval_params,
-            date_params=date_params,
         )
 
 
