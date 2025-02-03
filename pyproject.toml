@@ -1,5 +1,19 @@
 [project]
+name = "FlowerPower"
+description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
 authors = [{name = "Volker L.", email = "ligno.blades@gmail.com"}]
+readme = "README.md"
+requires-python = ">= 3.11"
+version = "0.9.5"
+keywords = [
+  "hamilton",
+  "workflow",
+  "pipeline",
+  "scheduler",
+  "apscheduler",
+  "dask",
+  "ray",
+]
 dependencies = [
   "sf-hamilton[visualization]>=1.69.0",
   "python-dotenv>=1.0.1",
@@ -15,20 +29,11 @@ dependencies = [
   "pydantic>=2.10.2",
   "s3fs>=2024.10.0",
 ]
-description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
-keywords = [
-  "hamilton",
-  "workflow",
-  "pipeline",
-  "scheduler",
-  "apscheduler",
-  "dask",
-  "ray",
-]
-name = "FlowerPower"
-readme = "README.md"
-requires-python = ">= 3.11"
-version = "0.9.4"
+
+
+[project.urls]
+"Homepage" = "https://github.com/legout/flowerpower"
+"Bug Tracker" = "https://github.com/legout/flowerpower/issues"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"

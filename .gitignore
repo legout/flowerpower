@@ -20,3 +20,6 @@ Digraph.gv
 Digraph.gv.pdf
 test/test2.json
 .qodo/history.sqlite
+examples/hello-world3/
+examples/hello-world2/
+examples/hello-world4/
