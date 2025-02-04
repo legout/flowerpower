@@ -241,7 +241,7 @@ class PipelineManager:
                 driver.Builder()
                 .with_modules(self._module)
                 .enable_dynamic_execution(allow_experimental_mode=True)
-                .with_adapters(adapters)
+                .with_adapters(*adapters)
                 .with_remote_executor(executor_)
                 .with_config(config)
                 .build()

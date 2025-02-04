@@ -5,13 +5,13 @@ open_telemetry:
 tracker:
   api_key: null
   api_url: http://localhost:8241
-  ui_url: http://localhost:8242
-  username: null
+  ui_url: https://localhost:8242
+  username: volker@lorrmann.de
 worker:
   cleanup_interval: 900
   data_store:
     type: sqlalchemy
-    uri: sqlite+aiosqlite:///flowerpower.db
+    uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
     #uri: postgresql+asyncpg://postgres:password@localhost/flowerpower
   event_broker:
     type: redis

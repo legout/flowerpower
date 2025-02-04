@@ -7,14 +7,14 @@ run:
   config: {}
   executor: null
   final_vars:
-  - spend
-  - signups
-  - avg_x_wk_spend
-  - spend_per_signup
-  - spend_zero_mean_unit_variance
+    - spend
+    - signups
+    - avg_x_wk_spend
+    - spend_per_signup
+    - spend_zero_mean_unit_variance
   inputs: {}
   with_opentelemetry: false
-  with_tracker: false
+  with_tracker: true
 schedule:
   run:
     coalesce: latest
@@ -38,7 +38,7 @@ schedule:
       weeks: null
       years: null
     cron:
-      crontab: '* * * * *'
+      crontab: "* * * * *"
       day: null
       day_of_week: null
       end_time: null
@@ -63,7 +63,6 @@ schedule:
       weeks: null
     type_: cron
 tracker:
-  dag_name: null
-  project_id: null
+  dag_name: test
+  project_id: 2
   tags: {}
-  version: null

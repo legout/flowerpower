@@ -23,3 +23,4 @@ test/test2.json
 examples/hello-world3/
 examples/hello-world2/
 examples/hello-world4/
+~/.hamilton/db/db.sqlite3
