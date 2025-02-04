@@ -8,3 +8,4 @@ class ProjectTrackerConfig(BaseConfig):
     api_url: str = "http://localhost:8241"
     ui_url: str = "http://localhost:8242"
     api_key: str | None = Field(default=None)
+    verify: bool = False
