@@ -7,7 +7,7 @@ resolution-markers = [
 
 [[package]]
 name = "aiobotocore"
-version = "2.19.0"
+version = "2.17.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -19,9 +19,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a0/46/86a52025bb356bc38bfba9fa11f754b8411f400265094c3448148a931280/aiobotocore-2.19.0.tar.gz", hash = "sha256:552d5756989621b5274f1b4a4840cd76ae83dd930d0b1839af6443743a893faf", size = 107828 }
+sdist = { url = "https://files.pythonhosted.org/packages/06/1e/0974ea18d6b82fa2b51d992c1db4263bebef3a53f13df1e92c4d52fbe747/aiobotocore-2.17.0.tar.gz", hash = "sha256:a3041333c565bff9d63b4468bee4944f2d81cff63a45b10e5cc652f3837f9cc2", size = 107309 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/43/8a1bdf8dd7f0d7eca7be0d64bacdd96c593cf3f3aea6c452f90e052cf9e8/aiobotocore-2.19.0-py3-none-any.whl", hash = "sha256:12c2960a21472b8eb3452cde5eb31d541ca1464d236f4221556320fa8aed2ee8", size = 77659 },
+    { url = "https://files.pythonhosted.org/packages/9f/e4/412e859a95ff95c51b7a381bd546eb8048c6e6fa685636da6d9a75fb5e87/aiobotocore-2.17.0-py3-none-any.whl", hash = "sha256:aedccd5368a64401233ef9f27983d3d3cb6a507a6ca981f5ec1df014c00e260e", size = 77630 },
 ]
 
 [[package]]
@@ -380,16 +380,16 @@ wheels = [
 
 [[package]]
 name = "botocore"
-version = "1.36.3"
+version = "1.35.93"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/61/69eb06a803c83e0da733b60b2bc65880c18ef2dee19ee10cf8732794a3c1/botocore-1.36.3.tar.gz", hash = "sha256:775b835e979da5c96548ed1a0b798101a145aec3cd46541d62e27dda5a94d7f8", size = 13507880 }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/4f/95d69a973620d2e9377e5dca0a5ffe0c0767e3a6764161ca995e2bab1636/botocore-1.35.93.tar.gz", hash = "sha256:b8d245a01e7d64c41edcf75a42be158df57b9518a83a3dbf5c7e4b8c2bc540cc", size = 13496923 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/14/f952fed35b9c04aa66453b5fb5d1262a5a9f5dfdcb396d387c1ff0c6da41/botocore-1.36.3-py3-none-any.whl", hash = "sha256:536ab828e6f90dbb000e3702ac45fd76642113ae2db1b7b1373ad24104e89255", size = 13304681 },
+    { url = "https://files.pythonhosted.org/packages/93/02/ae434045c9eabb0df01610f5feca18fc7afc86b3d061eb47123935a873cb/botocore-1.35.93-py3-none-any.whl", hash = "sha256:47f7161000af6036f806449e3de12acdd3ec11aac7f5578e43e96241413a0f8f", size = 13300724 },
 ]
 
 [[package]]
@@ -592,19 +592,19 @@ wheels = [
 
 [[package]]
 name = "datafusion"
-version = "43.1.0"
+version = "44.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyarrow" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/87/195496ccdc4bf557fcac60a6d42878ffc347eceab20509866291f6193930/datafusion-43.1.0.tar.gz", hash = "sha256:271fee9ed931e976bd095ceb50ba9907fd93267f4f9517a6ea83cd46c1aa42d5", size = 141499 }
+sdist = { url = "https://files.pythonhosted.org/packages/30/24/83468ebfe6f5ed9d7d483c8c09d88001ff57290d3f052b303a635a35a34b/datafusion-44.0.0.tar.gz", hash = "sha256:5fc3740406ff531527aa8baa5954fe0bf1f02ea72170e172746b38cffc0d8d50", size = 144129 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/71/180fb6861e3315a1df9aa719ab46f22479bd86bc5cfd3b8e082f4775dd2b/datafusion-43.1.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:b40afe48762c7649d1ec3a0116e31d3ee5226812fc4896c0f309d3d490a855c8", size = 20362799 },
-    { url = "https://files.pythonhosted.org/packages/f8/e6/024b1dba599897eaf538d11b107132188c74a33dcbf041b231c8531cbc51/datafusion-43.1.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:a61d3efa91578108631ae5f8f070e15656d8eb125a34fe9a1df13db72ce1bcde", size = 18561250 },
-    { url = "https://files.pythonhosted.org/packages/32/8f/d6329d65ae83f5485b41b216138bab45bd206465cf6df537f5753178eee7/datafusion-43.1.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eb46deaf625558819cff708acb115d1d249a18adf51e1eaabda898979b344b5b", size = 22558573 },
-    { url = "https://files.pythonhosted.org/packages/2b/f4/b9ad6cec2702ff988b3d45386c2fb92744b3b13126da29abaec43d894573/datafusion-43.1.0-cp38-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:0d9ae56162304475a147c8e7284b85bda1849659c4495da4d071834a2e6392cd", size = 21381501 },
-    { url = "https://files.pythonhosted.org/packages/39/ea/5b14fa3866e7b2aad824a07b33fc719531443952cef8c0678f0cc545b9cb/datafusion-43.1.0-cp38-abi3-win_amd64.whl", hash = "sha256:930830dad47925b1a84b281184eafc00152f02a84a8acc770ac3ebd36b4db5ac", size = 22112172 },
+    { url = "https://files.pythonhosted.org/packages/94/0e/c4a3b57566222280218ecaad324da9d9b1f226a43a2de9a80ea5c114c28d/datafusion-44.0.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:4786f0a09c6b422ac18c6ea095650c14454be5af3df880b5c169688f610ab41a", size = 23836633 },
+    { url = "https://files.pythonhosted.org/packages/84/24/bccab6dc3017252b0db611d64dc34363f4209625c3bf2bacc64c74299f67/datafusion-44.0.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:bbad11b33c424a658edbc52db39dfe4ddc30339ffac7c43cdc1aa128c260ae76", size = 22345779 },
+    { url = "https://files.pythonhosted.org/packages/41/a1/751df680b8e53e79a3226ad82e91e681ac41ee4aed94822c0e46faab1c50/datafusion-44.0.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4ca3b47fd34e1c96cf6d40a877245afd36f3ccf8b39dda1e5b6f811f273af781", size = 24659036 },
+    { url = "https://files.pythonhosted.org/packages/ab/e8/22d3f02545a572d8bbfc22ac32d1e5d7d8efc9bbe57ba2045182e4bdc387/datafusion-44.0.0-cp38-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:22d2e3ecf5d0b1b75c8ad48c8d9af14a0ac4de1633e86d3b397614f68aa8123c", size = 23768362 },
+    { url = "https://files.pythonhosted.org/packages/48/40/76906a8644da47b658da050c1a52202b97eed4f0b41007a77e72e3427c30/datafusion-44.0.0-cp38-abi3-win_amd64.whl", hash = "sha256:b36774dca54a0e1c88c8080b8c72cc2df5e95f4340a0cdbdd18a0473401551c5", size = 23647042 },
 ]
 
 [[package]]
@@ -801,9 +801,10 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.6.7"
+version = "0.9.6.8"
 source = { editable = "." }
 dependencies = [
+    { name = "aiobotocore" },
     { name = "dill" },
     { name = "fsspec" },
     { name = "munch" },
@@ -896,6 +897,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiobotocore", specifier = "<2.18.0" },
     { name = "aiosqlite", marker = "extra == 'scheduler'", specifier = ">=0.21.0" },
     { name = "apscheduler", marker = "extra == 'scheduler'", specifier = ">=4.0.0a5" },
     { name = "asyncpg", marker = "extra == 'scheduler'", specifier = ">=0.29.0" },

@@ -948,7 +948,7 @@ def write_csv(
     Returns:
         None
     """
-    if isinstance(data, dict | list[dict]):
+    if isinstance(data, dict | list):
         data = _dict_to_dataframe(data)
     elif isinstance(data, pl.LazyFrame):
         data = data.collect()
