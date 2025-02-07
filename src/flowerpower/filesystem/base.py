@@ -17,7 +17,7 @@ from loguru import logger
 
 from ..utils.storage_options import BaseStorageOptions
 from ..utils.storage_options import from_dict as storage_options_from_dict
-from . import AbstractFileSystem
+from .ext import AbstractFileSystem
 
 
 class FileNameCacheMapper(AbstractCacheMapper):
