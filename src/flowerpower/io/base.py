@@ -1,4 +1,4 @@
-import os
+import posixpath
 from typing import Any, Generator
 
 import datafusion
@@ -14,11 +14,11 @@ from ..filesystem import get_filesystem
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
 from ..utils.storage_options import (
-    # AwsStorageOptions,
-    # AzureStorageOptions,
-    # GcsStorageOptions,
-    # GitHubStorageOptions,
-    # GitLabStorageOptions,
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
     StorageOptions,
 )
 import importlib
@@ -62,7 +62,16 @@ class BaseFileIO(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     path: str | list[str]
-    storage_options: StorageOptions | dict[str, Any] | None = None
+    storage_options: (
+        StorageOptions
+        | AwsStorageOptions
+        | AzureStorageOptions
+        | GcsStorageOptions
+        | GitLabStorageOptions
+        | GitHubStorageOptions
+        | dict[str, Any]
+        | None
+    ) = None
     fs: AbstractFileSystem | None = None
     format: str | None = None
 
@@ -74,6 +83,8 @@ class BaseFileIO(BaseModel):
             self.storage_options = StorageOptions(
                 **self.storage_options
             ).storage_options
+        if isinstance(self.storage_options, StorageOptions):
+            self.storage_options = self.storage_options.storage_options
 
         if self.fs is None:
             self.fs = get_filesystem(
@@ -326,7 +337,6 @@ class BaseFileLoader(BaseFileIO):
         batch_size: int = 1,
         **kwargs,
     ) -> Generator[pl.DataFrame | pl.LazyFrame, None, None]:
-
         if lazy:
             yield from self._iter_polars_lazyframe(batch_size=batch_size, **kwargs)
         yield from self._iter_polars_dataframe(batch_size=batch_size, **kwargs)
@@ -754,13 +764,13 @@ class BaseFileWriter(BaseFileIO):
             | list[
                 pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]
             ]
-        ) | None = None,
+        )
+        | None = None,
         basename: str | None = None,
         concat: bool = False,
         mode: str = "append",
         **kwargs,
     ):
-
         self.fs.write_files(
             data=data or self.data,
             basename=basename or self.basename,
@@ -819,7 +829,8 @@ class BaseDatasetWriter(BaseFileWriter):
                 | pd.DataFrame
                 | dict[str, Any]
             ]
-        ) | None = None,
+        )
+        | None = None,
         unique: bool | list[str] | str = False,
         delta_subset: str | None = None,
         alter_schema: bool = False,

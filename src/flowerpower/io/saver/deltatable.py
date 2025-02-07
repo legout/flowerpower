@@ -20,9 +20,10 @@ class DeltaTableWriter(BaseDatasetWriter):
         ```
     """
 
-    description = None
+    description: str | None = None
 
     def model_post_init(self, __context):
+        super().model_post_init(__context)
         self.format = "delta"
 
     def write(
@@ -44,7 +45,8 @@ class DeltaTableWriter(BaseDatasetWriter):
                 | pd.DataFrame
                 | dict[str, Any]
             ]
-        ) | None = None,
+        )
+        | None = None,
         mode: str = "append",  # "overwrite" | "append" | "error | "ignore"
         schema: pa.Schema | None = None,
         schema_mode: str | None = None,  # "merge" | "overwrite"
@@ -76,7 +78,7 @@ class DeltaTableWriter(BaseDatasetWriter):
             data = [data]
         if isinstance(data[0], dict):
             data = [_dict_to_dataframe(d) for d in data]
-        if isinstance(data[0], pa.LazyFrame):
+        if isinstance(data[0], pl.LazyFrame):
             data = [d.collect() for d in data]
         if isinstance(data[0], pl.DataFrame):
             data = pl.concat(data, how="diagonal_relaxed").to_arrow()

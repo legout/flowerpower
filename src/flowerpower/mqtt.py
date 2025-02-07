@@ -230,8 +230,8 @@ class MQTTClient:
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":
                 return cls(
-                    user=event_broker_cfg.get("user", None),
-                    pw=event_broker_cfg.get("pw", None),
+                    user=event_broker_cfg.get("username", None),
+                    pw=event_broker_cfg.get("password", None),
                     host=event_broker_cfg.get("host", "localhost"),
                     port=event_broker_cfg.get("port", 1883),
                     transport=event_broker_cfg.get("transport", "tcp"),
@@ -387,6 +387,10 @@ def start_pipeline_listener(
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
     background: bool = False,
+    host: str | None = None,
+    port: int | None = None,
+    username: str | None = None,
+    password: str | None = None,
     **kwargs,
 ):
     """
@@ -410,6 +414,13 @@ def start_pipeline_listener(
         background: Run the listener in the background
         **kwargs: Additional keyword arguments
     """
+    if host and port:
+        client = MQTTClient(
+            user=username,
+            pw=password,
+            host=host,
+            port=port,
+        )
     client = MQTTClient.from_event_broker(base_dir=base_dir)
     client.start_pipeline_listener(
         name=name,
