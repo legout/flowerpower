@@ -499,14 +499,12 @@ def _read_parquet(
     """
     if not include_file_path and concat:
         path = path.replace("**", "").replace("*.parquet", "")
-        print(path)
         return pq.read_table(path, filesystem=self, **kwargs)
     else:
         if isinstance(path, str):
             path = path_to_glob(path, format="parquet")
             path = self.glob(path)
 
-        # print(path)
         if isinstance(path, list):
             if use_threads:
                 table = run_parallel(
@@ -1368,5 +1366,7 @@ AbstractFileSystem.pyarrow_parquet_dataset = pyarrow_parquet_dataset
 AbstractFileSystem.write_parquet = write_parquet
 AbstractFileSystem.write_json = write_json
 AbstractFileSystem.write_csv = write_csv
+AbstractFileSystem.write_file = write_file
+AbstractFileSystem.write_files = write_files
 AbstractFileSystem.write_pyarrow_dataset = write_pyarrow_dataset
 AbstractFileSystem.write_pydala_dataset = write_pydala_dataset
