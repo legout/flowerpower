@@ -773,6 +773,7 @@ class BaseFileWriter(BaseFileIO):
     ):
         self.fs.write_files(
             data=data if data is not None else self.data,
+            path=self._path,
             basename=basename or self.basename,
             concat=concat or self.concat,
             mode=mode or self.mode,
