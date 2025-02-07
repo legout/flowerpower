@@ -772,7 +772,7 @@ class BaseFileWriter(BaseFileIO):
         **kwargs,
     ):
         self.fs.write_files(
-            data=data or self.data,
+            data=data if data is not None else self.data,
             basename=basename or self.basename,
             concat=concat or self.concat,
             mode=mode or self.mode,
@@ -868,7 +868,7 @@ class BaseDatasetWriter(BaseFileWriter):
 
         if not self.is_pydala_dataset:
             self.fs.write_pyarrow_dataset(
-                data=data or self.data,
+                data=data if data is not None else self.data,
                 path=self._path,
                 basename=basename or self.basename,
                 schema=schema or self.schema_,
@@ -884,7 +884,7 @@ class BaseDatasetWriter(BaseFileWriter):
             )
         else:
             self.fs.write_pydala_dataset(
-                data=data or self.data,
+                data=data if data is not None else self.data,
                 path=self._path,
                 mode=mode,
                 basename=basename or self.basename,
