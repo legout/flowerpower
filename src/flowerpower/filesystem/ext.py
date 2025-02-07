@@ -30,6 +30,28 @@ else:
     ParquetDataset = None
 
 
+def path_to_glob(path: str, format: str | None = None) -> str:
+    path = path.rstrip("/")
+    if format is None:
+        if ".json" in path:
+            format = "json"
+        elif ".csv" in path:
+            format = "csv"
+        elif ".parquet" in path:
+            format = "parquet"
+
+    if format in path:
+        return path
+    else:
+        if path.endswith("**"):
+            return posixpath.join(path, f"*.{format}")
+        elif path.endswith("*"):
+            if path.endswith("*/*"):
+                return path + f".{format}"
+            return posixpath.join(path.rstrip("/*"), f"*.{format}")
+        return posixpath.join(path, f"**/*.{format}")
+
+
 def read_json_file(
     path, self, include_file_path: bool = False, jsonlines: bool = False
 ) -> dict | list[dict]:
@@ -73,12 +95,8 @@ def _read_json(
             Dictionary, list of dictionaries, DataFrame or list of DataFrames.
     """
     if isinstance(path, str):
-        if "**" in path:
-            path = self.glob(path)
-        else:
-            if ".json" not in posixpath.basename(path):
-                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
-                path = self.glob(path)
+        path = path_to_glob(path, format="json")
+        path = self.glob(path)
 
     if isinstance(path, list):
         if use_threads:
@@ -148,15 +166,8 @@ def _read_json_batches(
     """
     # Handle path resolution
     if isinstance(path, str):
-        if "**" in path:
-            path = self.glob(path)
-        else:
-            if ".json" not in posixpath.basename(path):
-                path = posixpath.join(path, "**/*.jsonl" if jsonlines else "**/*.json")
-                path = self.glob(path)
-
-    if isinstance(path, str):
-        path = [path]
+        path = path_to_glob(path, format="json")
+        path = self.glob(path)
 
     # Process files in batches
     for i in range(0, len(path), batch_size):
@@ -306,12 +317,8 @@ def _read_csv(
         (pl.DataFrame | list[pl.DataFrame]): Polars DataFrame or list of DataFrames.
     """
     if isinstance(path, str):
-        if "**" in path:
-            path = self.glob(path)
-        else:
-            if ".csv" not in posixpath.basename(path):
-                path = posixpath.join(path, "**/*.csv")
-                path = self.glob(path)
+        path = path_to_glob(path, format="csv")
+        path = self.glob(path)
 
     if isinstance(path, list):
         if use_threads:
@@ -364,12 +371,8 @@ def _read_csv_batches(
     """
     # Handle path resolution
     if isinstance(path, str):
-        if "**" in path:
-            path = self.glob(path)
-        else:
-            if ".csv" not in posixpath.basename(path):
-                path = posixpath.join(path, "**/*.csv")
-                path = self.glob(path)
+        path = path_to_glob(path, format="csv")
+        path = self.glob(path)
 
     # Ensure path is a list
     if isinstance(path, str):
@@ -496,19 +499,14 @@ def _read_parquet(
     """
     if not include_file_path and concat:
         path = path.replace("**", "").replace("*.parquet", "")
+        print(path)
         return pq.read_table(path, filesystem=self, **kwargs)
     else:
         if isinstance(path, str):
-            if "**" in path:
-                if "*.parquet" in path:
-                    path = posixpath.join(path, "*.parquet")
+            path = path_to_glob(path, format="parquet")
+            path = self.glob(path)
 
-                path = self.glob(path)
-            else:
-                if ".parquet" in path:
-                    path = posixpath.join(path, "**/*.parquet")
-                path = self.glob(path)
-
+        # print(path)
         if isinstance(path, list):
             if use_threads:
                 table = run_parallel(
@@ -570,14 +568,8 @@ def _read_parquet_batches(
 
     # Resolve path(s) to list
     if isinstance(path, str):
-        if "**" in path:
-            if "*.parquet" not in path:
-                path = posixpath.join(path, "**/*.parquet")
-            path = self.glob(path)
-        else:
-            if ".parquet" not in path:
-                path = posixpath.join(path, "**/*.parquet")
-            path = self.glob(path)
+        path = path_to_glob(path, format="parquet")
+        path = self.glob(path)
 
     if not isinstance(path, list):
         yield read_parquet_file(
@@ -1066,7 +1058,9 @@ def write_files(
         format = (
             path[0].split(".")[-1]
             if isinstance(path, list) and "." in path[0]
-            else path.split(".")[-1] if "." in path else "parquet"
+            else path.split(".")[-1]
+            if "." in path
+            else "parquet"
         )
 
     if isinstance(path, str):

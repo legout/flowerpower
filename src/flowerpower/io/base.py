@@ -11,6 +11,7 @@ from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
 from ..filesystem import get_filesystem
+from ..filesystem.ext import path_to_glob
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
 from ..utils.storage_options import (
@@ -94,9 +95,20 @@ class BaseFileIO(BaseModel):
                 dirfs=True,
             )
 
+        if hasattr(self.storage_options, "protocol"):
+            protocol = self.storage_options.protocol
+        else:
+            protocol = self.fs.protocol
+            if protocol == "dir":
+                protocol = (
+                    self.fs.fs.protocol
+                    if isinstance(self.fs.fs.protocol, str)
+                    else self.fs.fs.protocol[0]
+                )
+
         if isinstance(self.path, str):
             self.path = (
-                self.path.replace(self.storage_options.protocol, "")
+                self.path.replace(protocol, "")
                 .lstrip("://")
                 .replace(f"**/*.{self.format}", "")
                 .replace("**", "")
@@ -109,26 +121,14 @@ class BaseFileIO(BaseModel):
     def _path(self):
         if self.fs.protocol == "dir":
             if isinstance(self.path, list):
-                return [p.lstrip(self.fs.path).lstrip("/") for p in self.path]
+                return [p.rerplace(self.fs.path, "").lstrip("/") for p in self.path]
             else:
-                return self.path.lstrip(self.fs.path).lstrip("/")
+                return self.path.replace(self.fs.path, "").lstrip("/")
         return self.path
 
     @property
     def _glob_path(self):
-        if isinstance(self._path, list):
-            return
-        else:
-            if self.format is not None:
-                if f"**/*.{self.format}" in self._path:
-                    return self._path
-                else:
-                    return f"{self._path}/**/*.{self.format}".lstrip("/")
-            else:
-                if "**" in self._path:
-                    return self._path
-                else:
-                    return f"{self._path}/**".lstrip("/")
+        return path_to_glob(self._path, self.format)
 
     def list_files(self):
         if isinstance(self._path, list):

@@ -6,7 +6,7 @@ class ParquetFileLoader(BaseFileLoader):
         super().model_post_init(__context)
         self.format = "parquet"
 
-    def load(self, **kwargs):
+    def __call__(self, **kwargs):
         return self.to_pyarrow_table(**kwargs)
 
 
@@ -15,5 +15,5 @@ class ParquetDatasetLoader(BaseDatasetLoader):
         super().model_post_init(__context)
         self.format = "parquet"
 
-    def load(self, **kwargs):
+    def __call__(self, **kwargs):
         return self.to_pyarrow_dataset(**kwargs)

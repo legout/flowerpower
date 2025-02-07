@@ -43,7 +43,7 @@ class DeltaTableLoader(BaseDatasetLoader):
         """Converts the DeltaTable to a PyArrow Dataset."""
         return self.delta_table.to_pyarrow_dataset()
 
-    def to_pyrrow_table(self) -> pa.Table:
+    def to_pyarrow_table(self) -> pa.Table:
         """Converts the DeltaTable to a PyArrow Table."""
         return self.delta_table.to_pyarrow_table()
 
