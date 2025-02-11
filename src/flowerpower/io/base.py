@@ -188,19 +188,29 @@ class BaseFileLoader(BaseFileIO):
             if self.include_file_path != kwargs["include_file_path"]:
                 reload = True
                 self.include_file_path = kwargs.pop("include_file_path")
+            else:
+                kwargs.pop("include_file_path")
+
         if "concat" in kwargs:
             if self.concat != kwargs["concat"]:
                 reload = True
                 self.concat = kwargs.pop("concat")
+            else:
+                kwargs.pop("concat")
+
         if "batch_size" in kwargs:
             if self.batch_size != kwargs["batch_size"]:
                 reload = True
                 self.batch_size = kwargs.pop("batch_size")
+            else:
+                kwargs.pop("batch_size")
 
         if "partitioning" in kwargs:
             if self.partitioning != kwargs["partitioning"]:
                 reload = True
                 self.partitioning = kwargs.pop("partitioning")
+            else:
+                kwargs.pop("partitioning")
 
         if not hasattr(self, "_data") or self._data is None or reload:
             self._data = self.fs.read_files(
