@@ -180,13 +180,29 @@ class BaseFileLoader(BaseFileIO):
     conn: duckdb.DuckDBPyConnection | None = None
     ctx: datafusion.SessionContext | None = None
     jsonlines: bool | None = None
+    partitioning: str | list[str] | pds.Partitioning | None = None
 
     def load(self, **kwargs):
-        self.include_file_path = kwargs.pop("include_file_path", self.include_file_path)
-        self.concat = kwargs.pop("concat", self.concat)
-        self.batch_size = kwargs.pop("batch_size", self.batch_size)
+        reload = kwargs.pop("reload", False)
+        if "include_file_path" in kwargs:
+            if self.include_file_path != kwargs["include_file_path"]:
+                reload = True
+                self.include_file_path = kwargs.pop("include_file_path")
+        if "concat" in kwargs:
+            if self.concat != kwargs["concat"]:
+                reload = True
+                self.concat = kwargs.pop("concat")
+        if "batch_size" in kwargs:
+            if self.batch_size != kwargs["batch_size"]:
+                reload = True
+                self.batch_size = kwargs.pop("batch_size")
 
-        if not hasattr(self, "_data") or self._data is None:
+        if "partitioning" in kwargs:
+            if self.partitioning != kwargs["partitioning"]:
+                reload = True
+                self.partitioning = kwargs.pop("partitioning")
+
+        if not hasattr(self, "_data") or self._data is None or reload:
             self._data = self.fs.read_files(
                 path=self._glob_path,
                 format=self.format,
@@ -194,28 +210,29 @@ class BaseFileLoader(BaseFileIO):
                 concat=self.concat,
                 jsonlines=self.jsonlines or None,
                 batch_size=self.batch_size,
+                partitioning=self.partitioning,
                 **kwargs,
             )
 
-        else:
-            reload = kwargs.pop("reload", False)
-            if self.include_file_path and not "file_path" not in self._data.columns:
-                reload = True
-            if isinstance(self._data, pl.DataFrame | pa.Table) and not self.concat:
-                reload = True
-            if isinstance(self._data, Generator):
-                reload = True
+        # else:
+        #     reload = kwargs.pop("reload", False)
+        #     if self.include_file_path and not "file_path" not in self._data.columns:
+        #         reload = True
+        #     if isinstance(self._data, pl.DataFrame | pa.Table) and not self.concat:
+        #         reload = True
+        #     if isinstance(self._data, Generator):
+        #         reload = True
 
-            if reload:
-                self._data = self.fs.read_files(
-                    path=self._glob_path,
-                    format=self.format,
-                    include_file_path=self.include_file_path,
-                    concat=self.concat,
-                    jsonlines=self.jsonlines or None,
-                    batch_size=self.batch_size,
-                    **kwargs,
-                )
+        #     if reload:
+        #         self._data = self.fs.read_files(
+        #             path=self._glob_path,
+        #             format=self.format,
+        #             include_file_path=self.include_file_path,
+        #             concat=self.concat,
+        #             jsonlines=self.jsonlines or None,
+        #             batch_size=self.batch_size,
+        #             **kwargs,
+        #         )
 
     def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
         """Convert data to Pandas DataFrame(s).
@@ -403,7 +420,8 @@ class BaseFileLoader(BaseFileIO):
             return self.conn.from_arrow(self.to_pyarrow_table(concat=True))
 
         else:
-            return self.conn.read_csv(self._glob_path, **kwargs)
+            self.load(**kwargs)
+            return self.conn.from_arrow(self.to_pyarrow_table(concat=True))
 
     def register_in_duckdb(
         self, conn: duckdb.DuckDBPyConnection, name: str | None = None, **kwargs
