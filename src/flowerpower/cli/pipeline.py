@@ -44,6 +44,7 @@ def run(
     config: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     reload: bool = False,
     storage_options: str | None = None,
 ):
@@ -59,6 +60,7 @@ def run(
         config: Config for the hamilton pipeline executor
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
+        with_progressbar: Enable progress bar
         reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -95,6 +97,7 @@ def run(
             config=parsed_config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             reload=reload,
         )
 
@@ -109,6 +112,7 @@ def run_job(
     config: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     reload: bool = False,
     storage_options: str | None = None,
 ):
@@ -124,6 +128,7 @@ def run_job(
         config: Config for the hamilton pipeline executor
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
+        with_progressbar: Enable progress bar
         reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -160,6 +165,7 @@ def run_job(
             config=parsed_config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             reload=reload,
         )
 
@@ -174,6 +180,7 @@ def add_job(
     config: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     reload: bool = False,
     storage_options: str | None = None,
 ):
@@ -189,6 +196,7 @@ def add_job(
         config: Config for the hamilton pipeline executor
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
+        with_progressbar: Enable progress bar
         reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -227,6 +235,7 @@ def add_job(
             config=parsed_config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             reload=reload,
         )
 
@@ -242,6 +251,7 @@ def schedule(
     config: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
     misfire_grace_time: float | None = None,
@@ -269,6 +279,7 @@ def schedule(
         config: Config for the hamilton pipeline executor
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
+        with_progressbar: Enable progress bar
         paused: Start the job in paused state
         coalesce: Coalesce policy
         misfire_grace_time: Misfire grace time
@@ -360,6 +371,7 @@ def schedule(
             config=parsed_config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,
@@ -382,6 +394,7 @@ def schedule_all(
     config: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     paused: bool = False,
     coalesce: str = "latest",
     misfire_grace_time: float | None = None,
@@ -402,6 +415,7 @@ def schedule_all(
         config: Config for the hamilton pipeline executor
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
+        with_progressbar: Enable progress bar
         paused: Start the job in paused state
         coalesce: Coalesce policy
         misfire_grace_time: Misfire grace time
@@ -430,6 +444,7 @@ def schedule_all(
             config=config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,

@@ -307,6 +307,7 @@ class MQTTClient:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         as_job: bool = False,
@@ -328,6 +329,7 @@ class MQTTClient:
             executor: Executor to use for the pipeline
             with_tracker: Use tracker for the pipeline
             with_opentelemetry: Use OpenTelemetry for the pipeline
+            with_progressbar: Use progress for the pipeline
             reload: Reload the pipeline
             result_expiration_time: Result expiration time for the pipeline
             as_job: Run the pipeline as a job
@@ -360,6 +362,7 @@ class MQTTClient:
                             config=config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
+                            with_progressbar=with_progressbar,
                             reload=reload,
                             result_expiration_time=result_expiration_time,
                             **kwargs,
@@ -372,6 +375,7 @@ class MQTTClient:
                             config=config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
+                            with_progressbar=with_progressbar,
                             reload=reload,
                             result_expiration_time=result_expiration_time,
                             **kwargs,
@@ -429,6 +433,7 @@ def start_pipeline_listener(
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
+    with_progressbar: bool | None = None,
     reload: bool = False,
     result_expiration_time: float | dt.timedelta = 0,
     as_job: bool = False,
@@ -480,6 +485,7 @@ def start_pipeline_listener(
         executor=executor,
         with_tracker=with_tracker,
         with_opentelemetry=with_opentelemetry,
+        with_progressbar=with_progressbar,
         reload=reload,
         result_expiration_time=result_expiration_time,
         as_job=as_job,

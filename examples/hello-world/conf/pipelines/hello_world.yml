@@ -15,6 +15,7 @@ run:
   inputs: {}
   with_opentelemetry: false
   with_tracker: true
+  with_progressbar: false
 schedule:
   run:
     coalesce: latest

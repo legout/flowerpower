@@ -905,7 +905,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.7"
+version = "0.9.8.4"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -919,7 +919,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
     { name = "s3fs" },
-    { name = "sf-hamilton", extra = ["visualization"] },
+    { name = "sf-hamilton", extra = ["tqdm", "visualization"] },
     { name = "sf-hamilton-sdk" },
     { name = "tqdm" },
     { name = "typer" },
@@ -1035,7 +1035,7 @@ requires-dist = [
     { name = "s3fs", specifier = ">=2024.10.0" },
     { name = "sanic", marker = "extra == 'webserver'", specifier = ">=24.6.0" },
     { name = "sanic-ext", marker = "extra == 'webserver'", specifier = ">=23.12.0" },
-    { name = "sf-hamilton", extras = ["visualization"], specifier = ">=1.69.0" },
+    { name = "sf-hamilton", extras = ["visualization", "rich", "tqdm"], specifier = ">=1.69.0" },
     { name = "sf-hamilton-sdk", specifier = ">=0.5.2" },
     { name = "sf-hamilton-ui", marker = "extra == 'ui'", specifier = ">=0.0.11" },
     { name = "sqlalchemy", marker = "extra == 'scheduler'", specifier = ">=2.0.30" },
@@ -2627,7 +2627,7 @@ wheels = [
 
 [[package]]
 name = "posthog"
-version = "3.12.0"
+version = "3.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backoff" },
@@ -2636,9 +2636,9 @@ dependencies = [
     { name = "requests" },
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/73/03/46e690f652bb3117ee0833668176616829b1a9417505abfadbd96b1fc56f/posthog-3.12.0.tar.gz", hash = "sha256:0cdf914ece2a3fe9e0710a71ccfea8d008d4e7c16d0df62611282001a92ae3b8", size = 61640 }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/39/12ff2ab6798f86832d822763d1f66b70d39743ead87d737f9eca55bfaadd/posthog-3.12.1.tar.gz", hash = "sha256:319036f83436981b3bdc750b0ed067b5439c510ed601933f8fc043d0989c73c6", size = 61754 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/6a/60075a722b98fb2d6ea126e6ac9d27cbcd2e4907193fbb082e88cf243658/posthog-3.12.0-py2.py3-none-any.whl", hash = "sha256:410aec128be879176306227e72c1a2533c944170c59c29d9878d427143d74ba9", size = 72351 },
+    { url = "https://files.pythonhosted.org/packages/db/56/1d828f4248a1b1933fca932fda101389681f468e194e193a6bf457364729/posthog-3.12.1-py2.py3-none-any.whl", hash = "sha256:f749bb4aa4610678c3ea71e0f491cfb2dce570196b9753a04260ff08e52dfb6d", size = 72471 },
 ]
 
 [[package]]
@@ -3592,6 +3592,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+tqdm = [
+    { name = "tqdm" },
+]
 visualization = [
     { name = "graphviz" },
     { name = "networkx" },

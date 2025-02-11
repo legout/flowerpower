@@ -9,6 +9,7 @@ class PipelineRun(BaseModel):
     config: dict | None = None
     with_tracker: bool | None = None
     with_opentelemetry: bool | None = None
+    with_progressbar: bool | None = None
 
 
 class PipelineAddJob(PipelineRun):

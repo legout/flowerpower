@@ -4,7 +4,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.8.4"
+version = "0.9.8.5"
 keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
 dependencies = [
   'aiobotocore<2.18.0',
@@ -19,7 +19,7 @@ dependencies = [
   'rich>=13.9.3',
   's3fs>=2024.10.0',
   'sf-hamilton-sdk>=0.5.2',
-  'sf-hamilton[visualization]>=1.69.0',
+  'sf-hamilton[visualization,rich,tqdm]>=1.69.0',
   'tqdm>=4.67.1',
   'typer>=0.12.3',
 ]

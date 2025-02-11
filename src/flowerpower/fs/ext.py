@@ -604,7 +604,7 @@ def _read_parquet_batches(
         path = self.glob(path)
 
     if not isinstance(path, list):
-        yield read_parquet_file(
+        yield _read_parquet_file(
             path=path, self=self, include_file_path=include_file_path, **kwargs
         )
         return
@@ -615,7 +615,7 @@ def _read_parquet_batches(
         batch_paths = path[i : i + batch_size]
         if use_threads and len(batch_paths) > 1:
             batch_tables = run_parallel(
-                read_parquet_file,
+                _read_parquet_file,
                 batch_paths,
                 self=self,
                 include_file_path=include_file_path,
@@ -626,7 +626,7 @@ def _read_parquet_batches(
             )
         else:
             batch_tables = [
-                read_parquet_file(
+                _read_parquet_file(
                     p, self=self, include_file_path=include_file_path, **kwargs
                 )
                 for p in batch_paths

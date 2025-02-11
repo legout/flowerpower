@@ -18,6 +18,7 @@ if importlib.util.find_spec("opentelemetry"):
 else:
     h_opentelemetry = None
     init_tracer = None
+from hamilton.plugins import h_tqdm
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
 import rich
@@ -164,6 +165,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
+        with_progressbar: bool = False,
         config: dict = {},
         reload: bool = False,
         **kwargs,
@@ -175,6 +177,8 @@ class PipelineManager:
             name (str): The name of the pipeline.
             executor (str | None, optional): The executor to use. Defaults to None.
             with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
+            with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
+            with_progressbar (bool, optional): Whether to use a progress bar. Defaults to False.
             config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
                 Defaults to None.
             with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
@@ -234,6 +238,9 @@ class PipelineManager:
             )
             tracer = trace.get_tracer(__name__)
             adapters.append(h_opentelemetry.OpenTelemetryTracer(tracer=tracer))
+
+        if with_progressbar:
+            adapters.append(h_tqdm.ProgressBar(desc=f"{self.cfg.project.name}.{name}"))
         if len(adapters):
             # print("adapters len:", len(adapters))
 
@@ -267,6 +274,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         reload: bool = False,
         **kwargs,
     ) -> dict[str, Any]:
@@ -282,6 +290,7 @@ class PipelineManager:
                 Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
+            with_progressbar (bool | None, optional): Whether to use a progress bar. Defaults to None.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
             **kwargs: Additional keyword arguments.
 
@@ -319,7 +328,12 @@ class PipelineManager:
         kwargs.update(
             {
                 arg: eval(arg) or getattr(run_params, arg)
-                for arg in ["executor", "with_tracker", "with_opentelemetry"]
+                for arg in [
+                    "executor",
+                    "with_tracker",
+                    "with_opentelemetry",
+                    "with_progressbar",
+                ]
             }
         )
         kwargs["config"] = config
@@ -347,6 +361,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         reload: bool = False,
         **kwargs,
     ) -> dict[str, Any]:
@@ -362,6 +377,7 @@ class PipelineManager:
             config (dict | None, optional): The configuration for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
+            with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
             **kwargs: Additional keyword arguments.
 
@@ -396,6 +412,7 @@ class PipelineManager:
                         "executor",
                         "with_tracker",
                         "with_opentelemetry",
+                        "with_progressbar",
                         "reload",
                     ]
                 }
@@ -419,6 +436,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         reload: bool = False,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
@@ -436,6 +454,7 @@ class PipelineManager:
             config (dict | None, optional): The configuration for the job. Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
+            with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
             reload (bool, optional): Whether to reload the job. Defaults to False.
             result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
                 Defaults to None.
@@ -472,6 +491,7 @@ class PipelineManager:
                         "executor",
                         "with_tracker",
                         "with_opentelemetry",
+                        "with_progressbar",
                         "reload",
                     ]
                 }
@@ -501,6 +521,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         trigger_type: str | None = None,
         id_: str | None = None,
         paused: bool = False,
@@ -526,6 +547,7 @@ class PipelineManager:
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to None.
+            with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
             id_ (str | None, optional): The ID of the scheduled pipeline. Defaults to None.
             paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
             coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
@@ -640,6 +662,7 @@ class PipelineManager:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         trigger_type: str | None = None,
         id_: str | None = None,
         paused: bool = False,
@@ -661,6 +684,7 @@ class PipelineManager:
                 executor=executor,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
+                with_progressbar=with_progressbar,
                 trigger_type=trigger_type,
                 id_=id_,
                 paused=paused,
@@ -1542,6 +1566,7 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
+        with_progressbar: bool = False,
         reload: bool = False,
         **kwargs,
     ) -> dict[str, Any]:
@@ -1556,6 +1581,7 @@ class Pipeline:
             with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
             with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to False.
+            with_progressbar (bool, optional): Whether to include a progress bar for the pipeline.
             reload (bool, optional): Whether to reload the pipeline. Defaults to False.
 
         Returns:
@@ -1579,6 +1605,7 @@ class Pipeline:
                 config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
+                with_progressbar=with_progressbar,
                 reload=reload,
                 **kwargs,
             )
@@ -1591,6 +1618,7 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         **kwargs,
     ) -> dict[str, Any]:
         """Run the pipeline as a job.
@@ -1603,6 +1631,8 @@ class Pipeline:
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
+                Defaults to None.
+            with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
                 Defaults to None.
 
         Returns:
@@ -1626,6 +1656,7 @@ class Pipeline:
                 config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
+                with_progressbar=with_progressbar,
                 **kwargs,
             )
 
@@ -1637,6 +1668,7 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
         result_expiration_time: float | dt.timedelta = 0,
         **kwargs,
     ) -> UUID:
@@ -1651,6 +1683,7 @@ class Pipeline:
             with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
                 Defaults to None.
+            with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
             result_expiration_time (float | dt.timedelta, optional): The result expiration time. Defaults to 0.
 
         Returns:
@@ -1674,6 +1707,7 @@ class Pipeline:
                 config=config,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
+                with_progressbar=with_progressbar,
                 result_expiration_time=result_expiration_time,
                 **kwargs,
             )
@@ -1687,6 +1721,7 @@ class Pipeline:
         executor: str | None = None,
         with_tracker: bool = False,
         with_opentelemetry: bool = False,
+        with_progressbar: bool = False,
         paused: bool = False,
         coalesce: str = "latest",
         misfire_grace_time: float | dt.timedelta | None = None,
@@ -1706,6 +1741,7 @@ class Pipeline:
             executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
             with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
             with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline. Defaults to False.
+            with_progressbar (bool, optional): Whether to include a progress bar for the pipeline. Defaults to False.
             paused (bool, optional): Whether to pause the schedule. Defaults to False.
             coalesce (str, optional): The coalesce strategy. Defaults to "latest".
             misfire_grace_time (float | dt.timedelta | None, optional): The misfire grace time. Defaults to None.
@@ -1736,6 +1772,7 @@ class Pipeline:
                 final_vars=final_vars,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
+                with_progressbar=with_progressbar,
                 paused=paused,
                 coalesce=coalesce,
                 misfire_grace_time=misfire_grace_time,
@@ -1900,6 +1937,7 @@ def run(
     executor: str | None = None,
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
+    with_progressbar: bool = False,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
     **kwargs,
@@ -1917,6 +1955,7 @@ def run(
         with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
         with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline.
             Defaults to False.
+        with_progressbar (bool, optional): Whether to include a progress bar for the pipeline.
         storage_options (dict, optional): The fsspec storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         **kwargs: Additional keyword arguments.
@@ -1939,6 +1978,7 @@ def run(
             executor=executor,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             **kwargs,
         )
 
@@ -1952,7 +1992,8 @@ def run_job(
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
-    result_expiration_time: float | dt.timedelta = 0,
+    with_progressbar: bool | None = None,
+    # result_expiration_time: float | dt.timedelta = 0,
     storage_options: dict | Munch | BaseStorageOptions = {},
     fs: AbstractFileSystem | None = None,
     **kwargs,
@@ -1970,8 +2011,7 @@ def run_job(
         with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
             Defaults to None.
-        result_expiration_time (float | dt.timedelta | None, optional): The result expiration time.
-            Defaults to None.
+        with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
         storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
         fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
         **kwargs: Additional keyword arguments.
@@ -1994,7 +2034,8 @@ def run_job(
             executor=executor,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
-            result_expiration_time=result_expiration_time,
+            with_progressbar=with_progressbar,
+            # result_expiration_time=result_expiration_time,
             **kwargs,
         )
 
@@ -2008,6 +2049,7 @@ def add_job(
     executor: str | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
+    with_progressbar: bool | None = None,
     result_expiration_time: float | dt.timedelta = 0,
     storage_options: dict | Munch | BaseStorageOptions = {},
     fs: AbstractFileSystem | None = None,
@@ -2027,6 +2069,7 @@ def add_job(
             Defaults to None.
         with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
+        with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
         storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
         result_expiration_time (float | dt.timedelta | None, optional): The expiration time for the job result.
             Defaults to None.
@@ -2051,6 +2094,7 @@ def add_job(
         config=config,
         with_tracker=with_tracker,
         with_opentelemetry=with_opentelemetry,
+        with_progressbar=with_progressbar,
         result_expiration_time=result_expiration_time,
         **kwargs,
     )
@@ -2065,6 +2109,7 @@ def schedule(
     config: dict | None = None,
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
+    with_progressbar: bool | None = None,
     trigger_type: str | None = None,
     id_: str | None = None,
     paused: bool = False,
@@ -2091,6 +2136,7 @@ def schedule(
         with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
         with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
             Defaults to None.
+        with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
         trigger_type (str | None, optional): The trigger type for the schedule. Defaults to None.
         id_ (str | None, optional): The schedule ID. Defaults to None.
         paused (bool, optional): Whether to pause the schedule. Defaults to False.
@@ -2126,6 +2172,7 @@ def schedule(
             config=config,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
+            with_progressbar=with_progressbar,
             paused=paused,
             coalesce=coalesce,
             misfire_grace_time=misfire_grace_time,

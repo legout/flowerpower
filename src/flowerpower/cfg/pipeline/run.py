@@ -11,6 +11,7 @@ class PipelineRunConfig(BaseConfig):
     config: dict | Munch = Field(default_factory=dict)
     with_tracker: bool = False
     with_opentelemetry: bool = False
+    with_progressbar: bool = False
 
     def model_post_init(self, __context):
         if isinstance(self.inputs, dict):
