@@ -1102,8 +1102,7 @@ def write_files(
             if not basename:
                 basename = f"data-{dt.datetime.now().strftime('%Y%m%d_%H%M%S%f')[:-3]}-{uuid.uuid4().hex[:16]}"
             p = f"{p}/{basename}-{i}.{format}"
-        else:
-            p = p.replace(f".{format}", f"-{i}.{format}")
+
         if mode == "delete_matching":
             write_file(self, d, p, format, **kwargs)
         elif mode == "overwrite":
