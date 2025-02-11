@@ -15,8 +15,8 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
-from ..utils.storage_options import BaseStorageOptions
-from ..utils.storage_options import from_dict as storage_options_from_dict
+from .storage_options import BaseStorageOptions
+from .storage_options import from_dict as storage_options_from_dict
 from .ext import AbstractFileSystem
 
 

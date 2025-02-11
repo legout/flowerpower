@@ -300,3 +300,8 @@ class StorageOptions(BaseModel):
 
     def to_dict(self) -> dict:
         return self.storage_options.to_dict()
+
+    def to_object_store_kwargs(self, conditional_put="etag") -> dict:
+        return self.storage_options.to_object_store_kwargs(
+            conditional_put=conditional_put
+        )

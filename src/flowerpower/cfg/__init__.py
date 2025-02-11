@@ -6,7 +6,7 @@ from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 from pydantic import Field
 
-from ..filesystem import get_filesystem
+from ..fs import get_filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
 from .pipeline.schedule import (
@@ -177,7 +177,7 @@ class Config(BaseConfig):
         if self.pipeline.name is not None:
             # h_params = self.pipeline.params.pop("h_params") if "h_params" in self.pipeline.params else None
             self.pipeline.to_yaml(
-                f"conf/pipelines/{self.pipeline.name.replace(".", "/")}.yml", self.fs
+                f"conf/pipelines/{self.pipeline.name.replace('.', '/')}.yml", self.fs
             )
             # if h_params is not None:
             #    self.pipeline.params["h_params"] = h_params

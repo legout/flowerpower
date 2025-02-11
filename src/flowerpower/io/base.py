@@ -10,11 +10,11 @@ from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
-from ..filesystem import get_filesystem
-from ..filesystem.ext import path_to_glob
+from ..fs import get_filesystem
+from ..fs.ext import path_to_glob
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
-from ..utils.storage_options import (
+from ..fs.storage_options import (
     AwsStorageOptions,
     AzureStorageOptions,
     GcsStorageOptions,

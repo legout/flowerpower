@@ -31,8 +31,8 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
     Config,
     PipelineConfig,
 )
-from .filesystem import get_filesystem
-from .utils.storage_options import BaseStorageOptions
+from .fs import get_filesystem
+from .fs.storage_options import BaseStorageOptions
 from .utils.templates import PIPELINE_PY_TEMPLATE
 from .utils.misc import view_img
 

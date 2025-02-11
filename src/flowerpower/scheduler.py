@@ -28,7 +28,7 @@ from loguru import logger
 from .cfg import Config
 from .utils.datastore import setup_data_store
 from .utils.eventbroker import setup_event_broker
-from .filesystem import get_filesystem
+from .fs import get_filesystem
 from .utils.scheduler import display_jobs, display_schedules, display_tasks
 
 

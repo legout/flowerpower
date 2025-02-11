@@ -1,16 +1,12 @@
 # import datetime as dt
 
-import datafusion as dtf
-import duckdb
 
-import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 
 # from hamilton.function_modifiers import dataloader
 
-from ...utils.polars import pl
 from ..base import BaseDatasetLoader
 
 # from ..utils import get_dataframe_metadata, get_delta_metadata
