@@ -1106,7 +1106,8 @@ def write_files(
         if mode == "delete_matching":
             write_file(self, d, p, format, **kwargs)
         elif mode == "overwrite":
-            self.fs.rm(posixpath.dirname(p), recursive=True)
+            if self.exists(p):
+                self.fs.rm(p, recursive=True)
             write_file(self, d, p, format, **kwargs)
         elif mode == "append":
             if not self.exists(p):
@@ -1119,6 +1120,17 @@ def write_files(
                 raise FileExistsError(f"File already exists: {p}")
             else:
                 write_file(self, d, p, format, **kwargs)
+
+    if mode == "overwrite":
+        if isinstance(path, list):
+            for p in path:
+                # Remove existing files
+                if self.exists(p):
+                    self.rm(p, recursive=True)
+        else:
+            # Remove existing files
+            if self.exists(path):
+                self.rm(path, recursive=True)
 
     if use_threads:
         run_parallel(
