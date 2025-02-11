@@ -52,7 +52,7 @@ def path_to_glob(path: str, format: str | None = None) -> str:
         return posixpath.join(path, f"**/*.{format}")
 
 
-def read_json_file(
+def _read_json_file(
     path, self, include_file_path: bool = False, jsonlines: bool = False
 ) -> dict | list[dict]:
     with self.open(path) as f:
@@ -63,6 +63,14 @@ def read_json_file(
     if include_file_path:
         return {path: data}
     return data
+
+
+def read_json_file(
+    self, path: str, include_file_path: bool = False, jsonlines: bool = False
+) -> dict | list[dict]:
+    return _read_json_file(
+        path=path, self=self, include_file_path=include_file_path, jsonlines=jsonlines
+    )
 
 
 def _read_json(
@@ -101,7 +109,7 @@ def _read_json(
     if isinstance(path, list):
         if use_threads:
             data = run_parallel(
-                read_json_file,
+                _read_json_file,
                 path,
                 self=self,
                 include_file_path=include_file_path,
@@ -112,7 +120,7 @@ def _read_json(
                 **kwargs,
             )
         data = [
-            read_json_file(
+            _read_json_file(
                 path=p,
                 self=self,
                 include_file_path=include_file_path,
@@ -120,16 +128,24 @@ def _read_json(
             )
             for p in path
         ]
-    data = read_json_file(
-        path=path, self=self, include_file_path=include_file_path, jsonlines=jsonlines
-    )
+    else:
+        data = _read_json_file(
+            path=path,
+            self=self,
+            include_file_path=include_file_path,
+            jsonlines=jsonlines,
+        )
     if as_dataframe:
         if not include_file_path:
-            data = pl.DataFrame(data)
+            data = [pl.DataFrame(d) for d in data]
         else:
-            data = pl.DataFrame(list(data.values())[0]).with_columns(
-                pl.lit(list(data.keys())[0]).alias("file_path")
-            )
+            data = [
+                [
+                    pl.DataFrame(_data[k]).with_columns(pl.lit(k).alias("file_path"))
+                    for k in _data
+                ][0]
+                for _data in data
+            ]
         if concat:
             return pl.concat(data, how="diagonal_relaxed")
     return data
@@ -176,7 +192,7 @@ def _read_json_batches(
         # Read batch with optional parallelization
         if use_threads and len(batch_paths) > 1:
             batch_data = run_parallel(
-                read_json_file,
+                _read_json_file,
                 batch_paths,
                 self=self,
                 include_file_path=include_file_path,
@@ -188,7 +204,7 @@ def _read_json_batches(
             )
         else:
             batch_data = [
-                read_json_file(
+                _read_json_file(
                     path=p,
                     self=self,
                     include_file_path=include_file_path,
@@ -282,14 +298,23 @@ def read_json(
     )
 
 
-def read_csv_file(
+def _read_csv_file(
     path, self, include_file_path: bool = False, **kwargs
 ) -> pl.DataFrame:
+    print(path)
     with self.open(path) as f:
         df = pl.read_csv(f, **kwargs)
     if include_file_path:
         return df.with_columns(pl.lit(path).alias("file_path"))
     return df
+
+
+def read_csv_file(
+    self, path: str, include_file_path: bool = False, **kwargs
+) -> pl.DataFrame:
+    return _read_csv_file(
+        path=path, self=self, include_file_path=include_file_path, **kwargs
+    )
 
 
 def _read_csv(
@@ -323,7 +348,7 @@ def _read_csv(
     if isinstance(path, list):
         if use_threads:
             dfs = run_parallel(
-                read_csv_file,
+                _read_csv_file,
                 path,
                 self=self,
                 include_file_path=include_file_path,
@@ -333,12 +358,13 @@ def _read_csv(
                 **kwargs,
             )
         dfs = [
-            read_csv_file(p, self=self, include_file_path=include_file_path, **kwargs)
+            _read_csv_file(p, self=self, include_file_path=include_file_path, **kwargs)
             for p in path
         ]
-    dfs = read_csv_file(
-        path=path, self=self, include_file_path=include_file_path, **kwargs
-    )
+    else:
+        dfs = _read_csv_file(
+            path, self=self, include_file_path=include_file_path, **kwargs
+        )
     if concat:
         return pl.concat(dfs, how="diagonal_relaxed")
     return dfs
@@ -385,7 +411,7 @@ def _read_csv_batches(
         # Read batch with optional parallelization
         if use_threads and len(batch_paths) > 1:
             batch_dfs = run_parallel(
-                read_csv_file,
+                _read_csv_file,
                 batch_paths,
                 self=self,
                 include_file_path=include_file_path,
@@ -396,7 +422,7 @@ def _read_csv_batches(
             )
         else:
             batch_dfs = [
-                read_csv_file(
+                _read_csv_file(
                     p, self=self, include_file_path=include_file_path, **kwargs
                 )
                 for p in batch_paths
@@ -465,13 +491,21 @@ def read_csv(
     )
 
 
-def read_parquet_file(
+def _read_parquet_file(
     path, self, include_file_path: bool = False, **kwargs
 ) -> pa.Table:
     table = pq.read_table(path, filesystem=self, **kwargs)
     if include_file_path:
         return table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
     return table
+
+
+def read_parquet_file(
+    self, path: str, include_file_path: bool = False, **kwargs
+) -> pa.Table:
+    return _read_parquet_file(
+        path=path, self=self, include_file_path=include_file_path, **kwargs
+    )
 
 
 def _read_parquet(
@@ -508,7 +542,7 @@ def _read_parquet(
         if isinstance(path, list):
             if use_threads:
                 table = run_parallel(
-                    read_parquet_file,
+                    _read_parquet_file,
                     path,
                     self=self,
                     include_file_path=include_file_path,
@@ -519,13 +553,13 @@ def _read_parquet(
                 )
             else:
                 table = [
-                    read_parquet_file(
+                    _read_parquet_file(
                         p, self=self, include_file_path=include_file_path, **kwargs
                     )
                     for p in path
                 ]
         else:
-            table = read_parquet_file(
+            table = _read_parquet_file(
                 path=path, self=self, include_file_path=include_file_path, **kwargs
             )
     if concat:
@@ -1061,36 +1095,47 @@ def write_files(
             else "parquet"
         )
 
-    if isinstance(path, str):
-        path = [path]
+    # if isinstance(path, str):
+    #    path = [path]
 
-    def _write(i, data, p, basename):
+    # if len(path) == 1 and len(data) > 1:
+    #    path = path * len(data)
+
+    def _write(d, p, basename, i):
         if f".{format}" not in p:
             if not basename:
                 basename = f"data-{dt.datetime.now().strftime('%Y%m%d_%H%M%S%f')[:-3]}-{uuid.uuid4().hex[:16]}"
             p = f"{p}/{basename}-{i}.{format}"
+        else:
+            p = p.replace(f".{format}", f"-{i}.{format}")
         if mode == "delete_matching":
-            write_file(self, data[i], p, format, **kwargs)
+            write_file(self, d, p, format, **kwargs)
         elif mode == "overwrite":
             self.fs.rm(posixpath.dirname(p), recursive=True)
-            write_file(self, data[i], p, format, **kwargs)
+            write_file(self, d, p, format, **kwargs)
         elif mode == "append":
             if not self.exists(p):
-                write_file(self, data[i], p, format, **kwargs)
+                write_file(self, d, p, format, **kwargs)
             else:
                 p = p.replace(f".{format}", f"-{i}.{format}")
-                write_file(self, data[i], p, format, **kwargs)
+                write_file(self, d, p, format, **kwargs)
         elif mode == "error_if_exists":
             if self.exists(p):
                 raise FileExistsError(f"File already exists: {p}")
             else:
-                write_file(self, data[i], p, format, **kwargs)
+                write_file(self, d, p, format, **kwargs)
 
     if use_threads:
-        run_parallel(_write, range(len(path)), data, path, basename)
+        run_parallel(
+            _write,
+            d=data,
+            p=path,
+            basename=basename,
+            i=list(range(len(data))),
+        )
     else:
         for i, p in enumerate(path):
-            _write(i, data, p)
+            _write(i, data, p, basename)
 
 
 def write_pyarrow_dataset(

@@ -161,7 +161,6 @@ if importlib.util.find_spec("joblib"):
 
     def run_parallel(
         func: callable,
-        func_params: list[any],
         *args,
         n_jobs: int = -1,
         backend: str = "threading",
@@ -171,27 +170,90 @@ if importlib.util.find_spec("joblib"):
         """Runs a function for a list of parameters in parallel.
 
         Args:
-            func (Callable): function to run in Parallelallel.
-            func_params (list[any]): parameters for the function
-            n_jobs (int, optional): Number of joblib workers. Defaults to -1.
+            func (Callable): function to run in parallel
+            *args: Positional arguments. Can be single values or iterables
+            n_jobs (int, optional): Number of joblib workers. Defaults to -1
             backend (str, optional): joblib backend. Valid options are
-            `loky`,`threading`, `mutliprocessing` or `sequential`.  Defaults to "threading".
+                `loky`,`threading`, `mutliprocessing` or `sequential`. Defaults to "threading"
+            verbose (bool, optional): Show progress bar. Defaults to True
+            **kwargs: Keyword arguments. Can be single values or iterables
 
         Returns:
-            list[any]: Function output.
-        """
-        if not isinstance(func_params[0], list | tuple):
-            func_params = [func_params]
-        if verbose:
-            return Parallel(n_jobs=n_jobs, backend=backend)(
-                delayed(func)(*fp, *args, **kwargs)
-                for fp in tqdm.tqdm(zip(*func_params))
-            )
+            list[any]: Function output
 
-        else:
-            return Parallel(n_jobs=n_jobs, backend=backend)(
-                delayed(func)(*fp, *args, **kwargs) for fp in zip(*func_params)
+        Examples:
+            >>> # Single iterable argument
+            >>> run_parallel(func, [1,2,3], fixed_arg=42)
+
+            >>> # Multiple iterables in args and kwargs
+            >>> run_parallel(func, [1,2,3], val=[7,8,9], fixed=42)
+
+            >>> # Only kwargs iterables
+            >>> run_parallel(func, x=[1,2,3], y=[4,5,6], fixed=42)
+        """
+        # Special kwargs for run_parallel itself
+        parallel_kwargs = {"n_jobs": n_jobs, "backend": backend, "verbose": 0}
+
+        # Process args and kwargs to separate iterables and fixed values
+        iterables = []
+        fixed_args = []
+        iterable_kwargs = {}
+        fixed_kwargs = {}
+
+        # Get the length of the first iterable to determine number of iterations
+        first_iterable_len = None
+
+        # Process args
+        for arg in args:
+            if isinstance(arg, (list, tuple)) and not isinstance(arg[0], (list, tuple)):
+                iterables.append(arg)
+                if first_iterable_len is None:
+                    first_iterable_len = len(arg)
+                elif len(arg) != first_iterable_len:
+                    raise ValueError(
+                        f"Iterable length mismatch: argument has length {len(arg)}, expected {first_iterable_len}"
+                    )
+            else:
+                fixed_args.append(arg)
+
+        # Process kwargs
+        for key, value in kwargs.items():
+            if isinstance(value, (list, tuple)) and not isinstance(
+                value[0], (list, tuple)
+            ):
+                if first_iterable_len is None:
+                    first_iterable_len = len(value)
+                elif len(value) != first_iterable_len:
+                    raise ValueError(
+                        f"Iterable length mismatch: {key} has length {len(value)}, expected {first_iterable_len}"
+                    )
+                iterable_kwargs[key] = value
+            else:
+                fixed_kwargs[key] = value
+
+        if first_iterable_len is None:
+            raise ValueError("At least one iterable argument is required")
+
+        # Create parameter combinations
+        all_iterables = iterables + list(iterable_kwargs.values())
+        param_combinations = list(zip(*all_iterables))  # Convert to list for tqdm
+
+        if verbose:
+            param_combinations = tqdm.tqdm(param_combinations)
+
+        return Parallel(**parallel_kwargs)(
+            delayed(func)(
+                *(list(param_tuple[: len(iterables)]) + fixed_args),
+                **{
+                    k: v
+                    for k, v in zip(
+                        iterable_kwargs.keys(), param_tuple[len(iterables) :]
+                    )
+                },
+                **fixed_kwargs,
             )
+            for param_tuple in param_combinations
+        )
 
 else:
 
