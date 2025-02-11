@@ -1048,6 +1048,7 @@ def write_files(
     concat: bool = True,
     mode: str = "append",  # append, overwrite, delete_matching, error_if_exists
     use_threads: bool = True,
+    verbose: bool = False,
     **kwargs,
 ) -> None:
     """Write a DataFrame or a list of DataFrames to a file or a list of files.
@@ -1062,6 +1063,7 @@ def write_files(
         mode: (str, optional) Write mode. Defaults to 'append'. Options: 'append', 'overwrite', 'delete_matching',
             'error_if_exists'.
         use_threads: (bool, optional) If True, use parallel processing. Defaults to True.
+        verbose: (bool, optional) If True, print verbose output. Defaults to False.
         **kwargs: Additional keyword arguments.
 
     Returns:
@@ -1095,12 +1097,6 @@ def write_files(
             else "parquet"
         )
 
-    # if isinstance(path, str):
-    #    path = [path]
-
-    # if len(path) == 1 and len(data) > 1:
-    #    path = path * len(data)
-
     def _write(d, p, basename, i):
         if f".{format}" not in p:
             if not basename:
@@ -1132,6 +1128,7 @@ def write_files(
             p=path,
             basename=basename,
             i=list(range(len(data))),
+            verbose=verbose,
         )
     else:
         for i, p in enumerate(path):
