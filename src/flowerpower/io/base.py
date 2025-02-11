@@ -110,12 +110,10 @@ class BaseFileIO(BaseModel):
 
         if isinstance(self.path, str):
             self.path = (
-                self.path.replace(protocol, "")
-                .lstrip("://")
+                self.path.replace(protocol + "://", "")
                 .replace(f"**/*.{self.format}", "")
                 .replace("**", "")
                 .replace("*", "")
-                .rstrip("//")
                 .rstrip("/")
             )
 
@@ -123,9 +121,12 @@ class BaseFileIO(BaseModel):
     def _path(self):
         if self.fs.protocol == "dir":
             if isinstance(self.path, list):
-                return [p.lstrip(self.fs.path).lstrip("/") for p in self.path]
+                return [
+                    p.replace(self.fs.path.lstrip("/"), "").lstrip("/")
+                    for p in self.path
+                ]
             else:
-                return self.path.lstrip(self.fs.path).lstrip("/")
+                return self.path.replace(self.fs.path.lstrip("/"), "").lstrip("/")
         return self.path
 
     @property
