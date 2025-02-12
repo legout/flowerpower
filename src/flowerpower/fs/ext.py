@@ -868,7 +868,7 @@ def pydala_dataset(
     path: str,
     partitioning: str | list[str] | pds.Partitioning = None,
     **kwargs,
-) -> ParquetDataset:
+) -> ParquetDataset:  # type: ignore
     """
     Create a pydala dataset.
 

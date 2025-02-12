@@ -678,7 +678,7 @@ class BaseDatasetLoader(BaseFileLoader):
             self.to_pyarrow_dataset(**kwargs)
         return self._dataset.to_table()
 
-    def to_pydala_dataset(self, **kwargs) -> ParquetDataset:
+    def to_pydala_dataset(self, **kwargs) -> "ParquetDataset":
         if ParquetDataset is None:
             raise ImportError("pydala is not installed.")
         if not hasattr(self, "_pydala_dataset"):

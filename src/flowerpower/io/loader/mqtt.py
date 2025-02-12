@@ -34,20 +34,20 @@ class MQTTLoader(BaseModel):
     def _to_polars_lazyframe(self) -> pl.LazyFrame:
         return pl.LazyFrame(self.payload)
 
-    def to_poars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
+    def to_polars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
         if lazy:
             return self._to_polars_lazyframe()
         else:
             return self._to_polars_dataframe()
 
-    def to_duckdb(self, conn: duckdb.DuckDBPyConnection | None = None):
+    def to_duckdb_relation(self, conn: duckdb.DuckDBPyConnection | None = None):
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()
             self.conn = conn
         return self.conn.from_arrow(self.to_pyarrow_table())
 
-    def to_dataset(self, **kwargs) -> pds.Dataset:
+    def to_pyarrow_dataset(self, **kwargs) -> pds.Dataset:
         return pds.dataset(self.to_pyarrow_table(), **kwargs)
 
     def register_in_duckdb(

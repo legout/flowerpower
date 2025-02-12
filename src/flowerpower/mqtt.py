@@ -16,8 +16,8 @@ from .pipeline import Pipeline
 class MQTTClient:
     def __init__(
         self,
-        user: str | None = None,
-        pw: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
         host: str | None = "localhost",
         port: int | None = 1883,
         topic: str | None = None,
@@ -26,11 +26,17 @@ class MQTTClient:
         reconnect_rate: int = 2,
         max_reconnect_delay: int = 60,
         transport: str = "tcp",
+        **kwargs,
     ):
+        if "user" in kwargs:
+            username = kwargs["user"]
+        if "pw" in kwargs:
+            password = kwargs["pw"]
+
         self.topic = topic
 
-        self._user = user
-        self._pw = pw
+        self._username = username
+        self._password = password
         self._host = host
         self._port = port
         self._first_reconnect_delay = first_reconnect_delay
@@ -136,8 +142,8 @@ class MQTTClient:
             client_id=f"flowerpower-{random.randint(0, 10000)}",
             transport=self._transport,
             userdata=Munch(
-                user=self._user,
-                pw=self._pw,
+                user=self._username,
+                pw=self._password,
                 host=self._host,
                 port=self._port,
                 topic=self.topic,
@@ -148,8 +154,8 @@ class MQTTClient:
                 transport=self._transport,
             ),
         )
-        if self._pw != "" and self._user != "":
-            client.username_pw_set(self._user, self._pw)
+        if self._password != "" and self._username != "":
+            client.username_pw_set(self._username, self._password)
 
         client.on_connect = self._on_connect
         client.on_disconnect = self._on_disconnect
