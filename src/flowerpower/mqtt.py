@@ -94,11 +94,11 @@ class MQTTClient:
         logger.info(f"Reconnect failed after {reconnect_count} attempts. Exiting...")
 
     @staticmethod
-    def _on_publish(client, userdata, mid, tmp=None):
+    def _on_publish(client, userdata, mid):
         logger.info(f"Published message id: {mid}")
 
     @staticmethod
-    def _on_subscribe(client, userdata, mid, qos, tmp=None):
+    def _on_subscribe(client, userdata, mid, qos):
         if isinstance(qos, list):
             qos_msg = str(qos[0])
         else:
@@ -280,7 +280,7 @@ class MQTTClient:
 
     @classmethod
     def from_event_broker(cls, base_dir: str | None = None):
-        base_dir or str(Path.cwd())
+        base_dir = base_dir or str(Path.cwd())
 
         event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
         if event_broker_cfg is not None:
