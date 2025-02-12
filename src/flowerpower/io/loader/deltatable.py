@@ -5,9 +5,10 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 
+from ..base import BaseDatasetLoader
+
 # from hamilton.function_modifiers import dataloader
 
-from ..base import BaseDatasetLoader
 
 # from ..utils import get_dataframe_metadata, get_delta_metadata
 

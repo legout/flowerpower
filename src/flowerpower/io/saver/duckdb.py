@@ -1,10 +1,12 @@
+import os
+from typing import Literal
+
 import duckdb
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 from pydantic import BaseModel
-import os
-from typing import Literal
+
 from ...utils.misc import _dict_to_dataframe
 
 

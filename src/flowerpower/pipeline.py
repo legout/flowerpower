@@ -18,10 +18,10 @@ if importlib.util.find_spec("opentelemetry"):
 else:
     h_opentelemetry = None
     init_tracer = None
+import rich
 from hamilton.plugins import h_tqdm
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
-import rich
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -29,13 +29,11 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config,
-    PipelineConfig,
-)
+    Config, PipelineConfig)
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
-from .utils.templates import PIPELINE_PY_TEMPLATE
 from .utils.misc import view_img
+from .utils.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager

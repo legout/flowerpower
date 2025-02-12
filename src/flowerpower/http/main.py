@@ -4,10 +4,11 @@ from dotenv import load_dotenv
 from orjson import dumps, loads
 from sanic import Sanic
 
+from ..cli.utils import parse_dict_or_list_param
+from .setup import setup
+
 # from sanic.response import json
 
-from .setup import setup
-from ..cli.utils import parse_dict_or_list_param
 
 load_dotenv()
 

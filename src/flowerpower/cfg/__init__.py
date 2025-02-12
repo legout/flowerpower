@@ -9,9 +9,7 @@ from pydantic import Field
 from ..fs import get_filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
-from .pipeline.schedule import (
-    PipelineScheduleConfig,
-)
+from .pipeline.schedule import PipelineScheduleConfig
 from .pipeline.tracker import PipelineTrackerConfig
 from .project.open_telemetry import ProjectOpenTelemetryConfig
 from .project.tracker import ProjectTrackerConfig

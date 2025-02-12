@@ -120,7 +120,8 @@ class Trigger:
         self,
         **kwargs,
     ):
-        from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
+        from apscheduler.triggers.calendarinterval import \
+            CalendarIntervalTrigger
 
         return CalendarIntervalTrigger(
             **kwargs,

@@ -1,4 +1,5 @@
 import datetime as dt
+import importlib
 
 import duckdb
 import pandas as pd
@@ -7,7 +8,6 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from fsspec import AbstractFileSystem
-import importlib
 
 
 def get_serializable_schema(

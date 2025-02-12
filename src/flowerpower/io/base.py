@@ -1,3 +1,4 @@
+import importlib
 import posixpath
 from typing import Any, Generator
 
@@ -12,17 +13,11 @@ from pydantic import BaseModel, ConfigDict
 
 from ..fs import get_filesystem
 from ..fs.ext import path_to_glob
+from ..fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
+                                  GcsStorageOptions, GitHubStorageOptions,
+                                  GitLabStorageOptions, StorageOptions)
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
-from ..fs.storage_options import (
-    AwsStorageOptions,
-    AzureStorageOptions,
-    GcsStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-    StorageOptions,
-)
-import importlib
 
 if importlib.util.find_spec("pydala"):
     from pydala.dataset import ParquetDataset

@@ -1,20 +1,13 @@
 import dill
 from sanic import Blueprint, SanicException
+from sanic.response import html, json, raw
 from sanic_ext import validate
 
-
-from sanic.response import json, raw, html
-
 from ...pipeline import Pipeline, PipelineManager
-from ..models.pipeline import (
-    PipelineRun,
-    PipelineAddJob,
-    PipelineSchedule,
-    PipelineManagerNew,
-    PipelineManagerImportExport,
-    PipelineDelete,
-    PipelineManagerSummary,
-)
+from ..models.pipeline import (PipelineAddJob, PipelineDelete,
+                               PipelineManagerImportExport, PipelineManagerNew,
+                               PipelineManagerSummary, PipelineRun,
+                               PipelineSchedule)
 
 bp = Blueprint("api_flowerpower_pipeline", url_prefix="api/pipeline")
 
@@ -90,7 +83,6 @@ async def schedule(
     name: str,
     body: PipelineSchedule,
 ):
-
     try:
         with Pipeline(
             base_dir=request.app.config.BASE_DIR,
@@ -134,7 +126,6 @@ async def new(
     name: str,
     body: PipelineManagerNew,
 ):
-
     try:
         with PipelineManager(
             base_dir=request.app.config.BASE_DIR,
@@ -162,7 +153,6 @@ async def import_pipeline(
     if isinstance(names, str):
         names = names.split(",")
     try:
-
         with PipelineManager(
             base_dir=request.app.config.BASE_DIR,
             storage_options=request.app.config.STORAGE_OPTIONS,
@@ -248,7 +238,6 @@ async def summary(
     query: PipelineManagerSummary,
     name: str | None = None,
 ):
-
     as_ = request.args.get("as", None)
     if as_ == "html":
         to_html = True
@@ -282,7 +271,6 @@ async def summary(
                 cfg_dir=request.app.config.CFG_DIR,
                 pipelines_dir=request.app.config.PIPELINES_DIR,
             ) as pipeline:
-
                 summary = pipeline.get_summary(
                     to_html=to_html, to_svg=to_svg, **query.model_dump()
                 )
@@ -300,7 +288,6 @@ async def show(
     request,
     name: str,
 ):
-
     format = request.args.get("format", "png")
 
     try:

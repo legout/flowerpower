@@ -1,6 +1,7 @@
 import datetime as dt
 import random
 import time
+from pathlib import Path
 from types import TracebackType
 from typing import Callable
 
@@ -278,7 +279,9 @@ class MQTTClient:
         logger.info("Client stopped.")
 
     @classmethod
-    def from_event_broker(cls, base_dir: str):
+    def from_event_broker(cls, base_dir: str | None = None):
+        base_dir or str(Path.cwd())
+
         event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":

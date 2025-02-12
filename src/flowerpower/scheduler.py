@@ -26,9 +26,9 @@ from fsspec.spec import AbstractFileSystem
 from loguru import logger
 
 from .cfg import Config
+from .fs import get_filesystem
 from .utils.datastore import setup_data_store
 from .utils.eventbroker import setup_event_broker
-from .fs import get_filesystem
 from .utils.scheduler import display_jobs, display_schedules, display_tasks
 
 

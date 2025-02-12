@@ -1,10 +1,10 @@
-import os
 import importlib
+import os
+import subprocess
+import tempfile
+import time
 
 import tqdm
-import tempfile
-import subprocess
-import time
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa

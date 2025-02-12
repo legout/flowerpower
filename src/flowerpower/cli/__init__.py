@@ -1,11 +1,10 @@
+import importlib
+
 import typer
 from loguru import logger
-import importlib
+
 from ..flowerpower import init as init_
-
-
 from .pipeline import app as pipeline_app
-
 
 app = typer.Typer()
 

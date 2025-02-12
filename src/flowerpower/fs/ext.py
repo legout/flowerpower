@@ -1,4 +1,5 @@
 import datetime as dt
+import importlib
 import posixpath
 import uuid
 from typing import Generator
@@ -10,14 +11,9 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..utils.misc import (
-    convert_large_types_to_standard,
-    run_parallel,
-    _dict_to_dataframe,
-)
+from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
+                          run_parallel)
 from ..utils.polars import pl
-
-import importlib
 
 if importlib.util.find_spec("duckdb") is not None:
     import duckdb

@@ -15,9 +15,9 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
+from .ext import AbstractFileSystem
 from .storage_options import BaseStorageOptions
 from .storage_options import from_dict as storage_options_from_dict
-from .ext import AbstractFileSystem
 
 
 class FileNameCacheMapper(AbstractCacheMapper):
