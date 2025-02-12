@@ -905,7 +905,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.8.4"
+version = "0.9.8.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -930,7 +930,17 @@ io = [
     { name = "datafusion" },
     { name = "duckdb" },
     { name = "orjson" },
+    { name = "pandas" },
     { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pydala2" },
+]
+io-legacy = [
+    { name = "datafusion" },
+    { name = "duckdb" },
+    { name = "orjson" },
+    { name = "pandas" },
+    { name = "polars-lts-cpu" },
     { name = "pyarrow" },
     { name = "pydala2" },
 ]
@@ -1008,8 +1018,10 @@ requires-dist = [
     { name = "apscheduler", marker = "extra == 'scheduler'", specifier = ">=4.0.0a5" },
     { name = "asyncpg", marker = "extra == 'scheduler'", specifier = ">=0.29.0" },
     { name = "datafusion", marker = "extra == 'io'", specifier = ">=43.1.0" },
+    { name = "datafusion", marker = "extra == 'io-legacy'", specifier = ">=43.1.0" },
     { name = "dill", specifier = ">=0.3.8" },
     { name = "duckdb", marker = "extra == 'io'", specifier = ">=1.1.3" },
+    { name = "duckdb", marker = "extra == 'io-legacy'", specifier = ">=1.1.3" },
     { name = "fsspec", specifier = ">=2024.10.0" },
     { name = "greenlet", marker = "extra == 'scheduler'", specifier = ">=3.0.3" },
     { name = "munch", specifier = ">=4.0.0" },
@@ -1017,14 +1029,20 @@ requires-dist = [
     { name = "opentelemetry-exporter-jaeger", marker = "extra == 'opentelemetry'", specifier = ">=1.21.0" },
     { name = "opentelemetry-sdk", marker = "extra == 'opentelemetry'", specifier = ">=1.5.0" },
     { name = "orjson", marker = "extra == 'io'", specifier = ">=3.10.12" },
+    { name = "orjson", marker = "extra == 'io-legacy'", specifier = ">=3.10.12" },
     { name = "orjson", marker = "extra == 'mqtt'", specifier = ">=3.10.11" },
     { name = "orjson", marker = "extra == 'webserver'", specifier = ">=3.10.11" },
     { name = "paho-mqtt", marker = "extra == 'mqtt'", specifier = ">=2.1.0" },
+    { name = "pandas", marker = "extra == 'io'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "extra == 'io-legacy'", specifier = ">=2.2.3" },
     { name = "pendulum", specifier = ">=3.0.0" },
     { name = "polars", marker = "extra == 'io'", specifier = ">=1.15.0" },
+    { name = "polars-lts-cpu", marker = "extra == 'io-legacy'", specifier = ">=1.15.0" },
     { name = "pyarrow", specifier = "<19.0.0" },
     { name = "pyarrow", marker = "extra == 'io'", specifier = ">=18.1.0" },
+    { name = "pyarrow", marker = "extra == 'io-legacy'", specifier = ">=18.1.0" },
     { name = "pydala2", marker = "extra == 'io'", specifier = ">=0.9.4.5" },
+    { name = "pydala2", marker = "extra == 'io-legacy'", specifier = ">=0.9.4.5" },
     { name = "pydantic", specifier = ">=2.10.2" },
     { name = "pymongo", marker = "extra == 'mongodb'", specifier = ">=4.7.2" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
@@ -2623,6 +2641,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/ae/c014bcb259757acd9081b4db76d19157c8978cb6eeb864f80ac0544e85cd/polars-1.22.0-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:729e6be8a884812a206518195a2fb407b61962323886095ede1a2a934cdb1410", size = 30165643 },
     { url = "https://files.pythonhosted.org/packages/82/ef/2a13676be0f0cfa23f1899855d8342b303cc46111126b770cdacc7fd804d/polars-1.22.0-cp39-abi3-win_amd64.whl", hash = "sha256:78b8bcd1735e9376815d117aeae49391441b2199b5a70a300669d692b34ec713", size = 33179742 },
     { url = "https://files.pythonhosted.org/packages/79/ae/f46ff902e5ad0d3ce377902ae8ff65eaac23d9aba3c6bcb3b38ce22f5544/polars-1.22.0-cp39-abi3-win_arm64.whl", hash = "sha256:cde8f56c408151ab9790c43485b90f690d5c198ce26ab38a845045c73c999325", size = 29458831 },
+]
+
+[[package]]
+name = "polars-lts-cpu"
+version = "1.22.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/61/057b394f851542f95dd637d8ebd021b0f759b9aeb4d97911ec5fd53e2637/polars_lts_cpu-1.22.0.tar.gz", hash = "sha256:3400a34f2648a3f14f1a5c639841e9649a30e3750b54109b193e9315c172eb2b", size = 4397760 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/1d/74374f684b6436e3907e12487ed85f3f360c0b68a5a5bb953cb797412036/polars_lts_cpu-1.22.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:e7e81df5eca193e05814f2d4911fb9b21957cf02b2f49bb8eae7f7fcac96b473", size = 31842885 },
+    { url = "https://files.pythonhosted.org/packages/d6/ed/15f628b10b3b7a861f11face72d1f50804368a13635edb323a32cb184557/polars_lts_cpu-1.22.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:d372e1a9d12c5d8eaef0ce5dde79d89f4574c282b1313c035ff25bd11121a7d5", size = 29145190 },
+    { url = "https://files.pythonhosted.org/packages/0a/c6/e9f91528e5d3a4e8e3500f7a669639035407ff0ae5a743f4d0be72d956c8/polars_lts_cpu-1.22.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ae6549b754406215e4199a296590371f6dc638e7e2867fdd716b206cd4620578", size = 32435434 },
+    { url = "https://files.pythonhosted.org/packages/f6/79/f60ef3872ebff2823cad824776ffbfeaf1419f2eeb43f4ad6f809f90346d/polars_lts_cpu-1.22.0-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:781c1219e5dac126e7bc5e34425e844569432680a94640a98c0a00b3f10238ad", size = 30165711 },
+    { url = "https://files.pythonhosted.org/packages/e6/96/9c7c5dd46cf84b5c11e9799ae2ab440e92c3d27783fcb01bcf732f469952/polars_lts_cpu-1.22.0-cp39-abi3-win_amd64.whl", hash = "sha256:08f2a87053aaa73a41330d6d43b084becaae4f6d4f7005ae06ec58e09d02b809", size = 33138294 },
+    { url = "https://files.pythonhosted.org/packages/69/a3/c11e1f4a3908857ded0f218b42718df69b71e4ee3c3b0f198e44f83b773d/polars_lts_cpu-1.22.0-cp39-abi3-win_arm64.whl", hash = "sha256:f99c590eb17df97d88d121830673d43b9a563b0667c83f5535f9e4b7a963d725", size = 29458909 },
 ]
 
 [[package]]
