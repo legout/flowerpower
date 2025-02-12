@@ -94,11 +94,11 @@ class MQTTClient:
         logger.info(f"Reconnect failed after {reconnect_count} attempts. Exiting...")
 
     @staticmethod
-    def _on_publish(client, userdata, mid):
+    def _on_publish(client, userdata, mid, rc, properties):
         logger.info(f"Published message id: {mid}")
 
     @staticmethod
-    def _on_subscribe(client, userdata, mid, qos):
+    def _on_subscribe(client, userdata, mid, qos, properties):
         if isinstance(qos, list):
             qos_msg = str(qos[0])
         else:
@@ -106,38 +106,6 @@ class MQTTClient:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
-        # def on_connect(client, userdata, flags, rc, properties):
-        #     if rc == 0:
-        #         logger.info(f"Connected to MQTT Broker {userdata.host}!")
-        #     else:
-        #         logger.error(f"Failed to connect, return code {rc}")
-
-        # def on_disconnect(client, userdata, disconnect_flags, rc, properties=None):
-        #     logger.info(f"Disconnected with result code: {rc}")
-        #     reconnect_count, reconnect_delay = 0, userdata.first_reconnect_delay
-
-        #     if userdata.max_reconnect_count == 0:
-        #         logger.info("Disconnected successfully!")
-        #         return
-
-        #     while reconnect_count < userdata.max_reconnect_count:
-        #         logger.info(f"Reconnecting in {reconnect_delay} seconds...")
-        #         time.sleep(reconnect_delay)
-
-        #         try:
-        #             client.reconnect()
-        #             logger.info("Reconnected successfully!")
-        #             return
-        #         except Exception as err:
-        #             logger.error(f"{err}. Reconnect failed. Retrying...")
-
-        #         reconnect_delay *= userdata.reconnect_rate
-        #         reconnect_delay = min(reconnect_delay, userdata.max_reconnect_delay)
-        #         reconnect_count += 1
-        #     logger.info(
-        #         f"Reconnect failed after {reconnect_count} attempts. Exiting..."
-        #     )
-
         client = Client(
             CallbackAPIVersion.VERSION2,
             client_id=f"flowerpower-{random.randint(0, 10000)}",
@@ -158,8 +126,8 @@ class MQTTClient:
         if self._password != "" and self._username != "":
             client.username_pw_set(self._username, self._password)
 
-        client.on_connect = self._on_connect
-        client.on_disconnect = self._on_disconnect
+        client.on_connect = self._on_connect  # self._on_connect
+        client.on_disconnect = self._on_disconnect  # self._on_disconnect
         client.on_publish = self._on_publish
         client.on_subscribe = self._on_subscribe
 
