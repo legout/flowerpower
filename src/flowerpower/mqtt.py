@@ -14,7 +14,7 @@ from .cfg import Config
 from .pipeline import Pipeline
 
 
-class MQTTClient:
+class MQTTManager:
     def __init__(
         self,
         username: str | None = None,
@@ -48,7 +48,7 @@ class MQTTClient:
 
         self._client = None
 
-    def __enter__(self) -> "MQTTClient":
+    def __enter__(self) -> "MQTTManager":
         self.connect()
         return self
 
@@ -388,9 +388,9 @@ def start_listener(
         None
     """
     if client_config:
-        client = MQTTClient.from_config(client_config)
+        client = MQTTManager.from_config(client_config)
     elif base_dir:
-        client = MQTTClient.from_event_broker(base_dir)
+        client = MQTTManager.from_event_broker(base_dir)
     else:
         raise ValueError(
             "No client configuration found. Please provide a client configuration "
@@ -446,13 +446,13 @@ def start_pipeline_listener(
         **kwargs: Additional keyword arguments
     """
     if host and port:
-        client = MQTTClient(
+        client = MQTTManager(
             user=username,
             pw=password,
             host=host,
             port=port,
         )
-    client = MQTTClient.from_event_broker(base_dir=base_dir)
+    client = MQTTManager.from_event_broker(base_dir=base_dir)
     client.start_pipeline_listener(
         name=name,
         topic=topic,

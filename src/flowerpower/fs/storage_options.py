@@ -9,8 +9,11 @@ from pydantic import BaseModel
 class BaseStorageOptions(BaseModel):
     protocol: str
 
-    def to_dict(self) -> dict:
-        return {k: v for k, v in self.model_dump().items() if v is not None}
+    def to_dict(self, with_protocol: bool = False) -> dict:
+        items = self.model_dump().items()
+        if not with_protocol:
+            return {k: v for k, v in items if k != "protocol" and v is not None}
+        return {k: v for k, v in items if v is not None}
 
     @classmethod
     def from_yaml(
@@ -126,14 +129,14 @@ class AwsStorageOptions(BaseStorageOptions):
         }
         return {k: v for k, v in fsspec_kwargs.items() if v is not None}
 
-    def to_object_store_kwargs(self, conditional_put="etag") -> dict:
+    def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
         object_store_kwargs = {
             k: str(v)
             for k, v in self.to_dict().items()
             if v is not None and k != "protocol"
         }
-        if len(conditional_put):
-            object_store_kwargs["conditional_put"] = conditional_put
+        if with_conditional_put:
+            object_store_kwargs["conditional_put"] = "etag"
         return object_store_kwargs
 
     def to_env(self) -> None:
@@ -298,10 +301,10 @@ class StorageOptions(BaseModel):
     def to_filesystem(self) -> AbstractFileSystem:
         return self.storage_options.to_filesystem()
 
-    def to_dict(self) -> dict:
-        return self.storage_options.to_dict()
+    def to_dict(self, protocol: bool = False) -> dict:
+        return self.storage_options.to_dict(protocol=protocol)
 
-    def to_object_store_kwargs(self, conditional_put="etag") -> dict:
+    def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
         return self.storage_options.to_object_store_kwargs(
-            conditional_put=conditional_put
+            with_conditional_put=with_conditional_put
         )

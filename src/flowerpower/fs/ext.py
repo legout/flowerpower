@@ -12,7 +12,7 @@ import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
 from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
-                          run_parallel)
+                          run_parallel, to_pyarrow_table)
 from ..utils.polars import pl
 
 if importlib.util.find_spec("duckdb") is not None:
@@ -904,16 +904,7 @@ def write_parquet(
     Returns:
         (pq.FileMetaData): Parquet file metadata.
     """
-    if isinstance(data, (dict | list)):
-        data = _dict_to_dataframe(data)
-
-    if isinstance(data, pl.LazyFrame):
-        data = data.collect()
-    elif isinstance(data, pl.DataFrame):
-        data = data.to_arrow()
-        data = data.cast(convert_large_types_to_standard(data.schema))
-    elif isinstance(data, pd.DataFrame):
-        data = pa.Table.from_pandas(data, preserve_index=False)
+    data = to_pyarrow_table(data, concat=False, unique=False)
 
     if schema is not None:
         data = data.cast(schema)
@@ -1042,6 +1033,7 @@ def write_files(
     basename: str = None,
     format: str = None,
     concat: bool = True,
+    unique: bool | list[str] | str = False,
     mode: str = "append",  # append, overwrite, delete_matching, error_if_exists
     use_threads: bool = True,
     verbose: bool = False,
@@ -1056,6 +1048,7 @@ def write_files(
         basename: (str, optional) Basename of the files. Defaults to None.
         format: (str, optional) Format of the data. Defaults to None.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
+        unique: (bool | list[str] | str, optional) If True, remove duplicates. Defaults to False.
         mode: (str, optional) Write mode. Defaults to 'append'. Options: 'append', 'overwrite', 'delete_matching',
             'error_if_exists'.
         use_threads: (bool, optional) If True, use parallel processing. Defaults to True.
@@ -1076,12 +1069,20 @@ def write_files(
             data = _dict_to_dataframe(data)
         if isinstance(data[0], pl.LazyFrame):
             data = pl.concat([d.collect() for d in data], how="diagonal_relaxed")
+
         if isinstance(
             data[0], pa.Table | pa.RecordBatch | pa.RecordBatchReader | Generator
         ):
             data = pl.concat([pl.from_arrow(d) for d in data], how="diagonal_relaxed")
         elif isinstance(data[0], pd.DataFrame):
             data = pl.concat([pl.from_pandas(d) for d in data], how="diagonal_relaxed")
+
+        if unique:
+            data = data.unique(
+                subset=None if not isinstance(unique, str | list) else unique,
+                maintain_order=True,
+            )
+
         data = [data]
 
     if format is None:
@@ -1173,6 +1174,7 @@ def write_pyarrow_dataset(
     max_rows_per_file: int | None = 2_500_000,
     row_group_size: int | None = 250_000,
     concat: bool = True,
+    unique: bool | list[str] | str = False,
     **kwargs,
 ) -> list[pq.FileMetaData] | None:
     """
@@ -1194,40 +1196,13 @@ def write_pyarrow_dataset(
         max_rows_per_file: (int, optional) Maximum number of rows per file. Defaults to 2_500_000.
         row_group_size: (int, optional) Row group size. Defaults to 250_000.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
+        unique: (bool | list[str] | str, optional) If True, remove duplicates. Defaults to False.
         **kwargs: Additional keyword arguments for `pds.write_dataset`.
 
     Returns:
         (list[pq.FileMetaData] | None): List of Parquet file metadata or None.
     """
-    if isinstance(data, dict):
-        data = _dict_to_dataframe(data)
-    if isinstance(data, list):
-        if isinstance(data[0], dict):
-            data = _dict_to_dataframe(data)
-
-    if not isinstance(data, list):
-        data = [data]
-
-    if isinstance(data[0], pl.LazyFrame):
-        data = [dd.collect() for dd in data]
-
-    if isinstance(data[0], pl.DataFrame):
-        if concat:
-            data = pl.concat(data, how="diagonal_relaxed").to_arrow()
-            data = data.cast(convert_large_types_to_standard(data.schema))
-        else:
-            data = [dd.to_arrow() for dd in data]
-            data = [dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data]
-
-    elif isinstance(data[0], pd.DataFrame):
-        data = [pa.Table.from_pandas(dd, preserve_index=False) for dd in data]
-        if concat:
-            data = pa.concat_tables(data, promote_options="permissive")
-    elif isinstance(data[0], pa.RecordBatch | pa.RecordBatchReader | Generator):
-        if concat:
-            data = pa.Table.from_batches(data)
-        else:
-            data = [pa.Table.from_batches([dd]) for dd in data]
+    data = to_pyarrow_table(data, concat=concat, unique=unique)
 
     if mode == "delete_matching":
         existing_data_behavior = "delete_matching"
@@ -1352,35 +1327,7 @@ def write_pydala_dataset(
     Returns:
         None
     """
-    if isinstance(data, dict):
-        data = _dict_to_dataframe(data)
-    if isinstance(data, list):
-        if isinstance(data[0], dict):
-            data = _dict_to_dataframe(data)
-
-    if not isinstance(data, list):
-        data = [data]
-
-    if isinstance(data[0], pl.LazyFrame):
-        data = [dd.collect() for dd in data]
-
-    if isinstance(data[0], pl.DataFrame):
-        if concat:
-            data = pl.concat(data, how="diagonal_relaxed").to_arrow()
-            data = data.cast(convert_large_types_to_standard(data.schema))
-        else:
-            data = [dd.to_arrow() for dd in data]
-            data = [dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data]
-
-    elif isinstance(data[0], pd.DataFrame):
-        data = [pa.Table.from_pandas(dd, preserve_index=False) for dd in data]
-        if concat:
-            data = pa.concat_tables(data, promote_options="permissive")
-    elif isinstance(data[0], pa.RecordBatch | pa.RecordBatchReader | Generator):
-        if concat:
-            data = pa.Table.from_batches(data)
-        else:
-            data = [pa.Table.from_batches([dd]) for dd in data]
+    data = to_pyarrow_table(data, concat=concat, unique=unique)
 
     ds = pydala_dataset(self=self, path=path, partitioning=partitioning_flavor)
     ds.write_to_dataset(

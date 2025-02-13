@@ -13,9 +13,15 @@ from pydantic import BaseModel, ConfigDict
 
 from ..fs import get_filesystem
 from ..fs.ext import path_to_glob
-from ..fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                  GcsStorageOptions, GitHubStorageOptions,
-                                  GitLabStorageOptions, StorageOptions)
+from ..fs.storage_options import (
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+    StorageOptions,
+)
+from ..utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
 
@@ -23,6 +29,9 @@ if importlib.util.find_spec("pydala"):
     from pydala.dataset import ParquetDataset
 else:
     ParquetDataset = None
+import sqlite3
+
+from sqlalchemy import create_engine
 
 
 class BaseFileIO(BaseModel):
@@ -177,8 +186,7 @@ class BaseFileLoader(BaseFileIO):
     jsonlines: bool | None = None
     partitioning: str | list[str] | pds.Partitioning | None = None
 
-    def load(self, **kwargs):
-        reload = kwargs.pop("reload", False)
+    def load(self, reload: bool = False, **kwargs):
         if "include_file_path" in kwargs:
             if self.include_file_path != kwargs["include_file_path"]:
                 reload = True
@@ -218,26 +226,6 @@ class BaseFileLoader(BaseFileIO):
                 partitioning=self.partitioning,
                 **kwargs,
             )
-
-        # else:
-        #     reload = kwargs.pop("reload", False)
-        #     if self.include_file_path and not "file_path" not in self._data.columns:
-        #         reload = True
-        #     if isinstance(self._data, pl.DataFrame | pa.Table) and not self.concat:
-        #         reload = True
-        #     if isinstance(self._data, Generator):
-        #         reload = True
-
-        #     if reload:
-        #         self._data = self.fs.read_files(
-        #             path=self._glob_path,
-        #             format=self.format,
-        #             include_file_path=self.include_file_path,
-        #             concat=self.concat,
-        #             jsonlines=self.jsonlines or None,
-        #             batch_size=self.batch_size,
-        #             **kwargs,
-        #         )
 
     def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
         """Convert data to Pandas DataFrame(s).
@@ -489,7 +477,8 @@ class BaseFileLoader(BaseFileIO):
         """Filter data based on a filter expression.
 
         Args:
-            filter_expr (str | pl.Expr | pa.compute.Expression): Filter expression.
+            filter_expr (str | pl.Expr | pa.compute.Expression): Filter expression. Can be a SQL expression, Polars
+                expression, or PyArrow compute expression.
 
         Returns:
             pl.DataFrame | pl.LazyFrame | pa.Table | list[pl.DataFrame] | list[pl.LazyFrame]
@@ -673,7 +662,12 @@ class BaseDatasetLoader(BaseFileLoader):
             self.to_pyarrow_dataset(**kwargs)
         return self._dataset.to_table()
 
-    def to_pydala_dataset(self, **kwargs) -> "ParquetDataset":
+    def to_pydala_dataset(self, **kwargs) -> "ParquetDataset":  # type: ignore
+        """Convert data to Pydala ParquetDataset.
+
+        Returns:
+            ParquetDataset: Pydala ParquetDataset.
+        """
         if ParquetDataset is None:
             raise ImportError("pydala is not installed.")
         if not hasattr(self, "_pydala_dataset"):
@@ -756,9 +750,19 @@ class BaseDatasetLoader(BaseFileLoader):
             self.to_pyarrow_dataset(**kwargs)
 
         self.ctx.register_dataset(name, self._dataset)
-        # return self.tx
 
     def filter(self, filter_exp: str | pa.compute.Expression) -> pds.Dataset:
+        """
+        Filter data based on a filter expression.
+
+        Args:
+            filter_exp (str | pa.compute.Expression): Filter expression. Can be a SQL expression or
+                PyArrow compute expression.
+
+        Returns:
+            pds.Dataset: Filtered dataset.
+
+        """
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset()
         if isinstance(filter_exp, str):
@@ -767,17 +771,18 @@ class BaseDatasetLoader(BaseFileLoader):
 
 
 class BaseFileWriter(BaseFileIO):
-    data: (
-        pl.DataFrame
-        | pl.LazyFrame
-        | pa.Table
-        | pd.DataFrame
-        | dict[str, Any]
-        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]]
-    ) | None = None
+    # data: (
+    #     pl.DataFrame
+    #     | pl.LazyFrame
+    #     | pa.Table
+    #     | pd.DataFrame
+    #     | dict[str, Any]
+    #     | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]]
+    # ) | None = None
     basename: str | None = None
     concat: bool = False
     mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
+    unique: bool | list[str] | str = False
 
     def write(
         self,
@@ -790,42 +795,43 @@ class BaseFileWriter(BaseFileIO):
             | list[
                 pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]
             ]
-        )
-        | None = None,
+        ),
         basename: str | None = None,
-        concat: bool = False,
-        mode: str = "append",
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+        mode: str | None = None,
         **kwargs,
     ):
         self.fs.write_files(
-            data=data if data is not None else self.data,
+            data=data,  # if data is not None else self.data,
             path=self._path,
             basename=basename or self.basename,
             concat=concat or self.concat,
+            unique=unique or self.unique,
             mode=mode or self.mode,
             **kwargs,
         )
 
 
 class BaseDatasetWriter(BaseFileWriter):
-    data: (
-        pl.DataFrame
-        | pl.LazyFrame
-        | pa.Table
-        | pa.RecordBatch
-        | pa.RecordBatchReader
-        | pd.DataFrame
-        | dict[str, Any]
-        | list[
-            pl.DataFrame
-            | pl.LazyFrame
-            | pa.Table
-            | pa.RecordBatch
-            | pa.RecordBatchReader
-            | pd.DataFrame
-            | dict[str, Any]
-        ]
-    ) | None = None
+    # data: (
+    #     pl.DataFrame
+    #     | pl.LazyFrame
+    #     | pa.Table
+    #     | pa.RecordBatch
+    #     | pa.RecordBatchReader
+    #     | pd.DataFrame
+    #     | dict[str, Any]
+    #     | list[
+    #         pl.DataFrame
+    #         | pl.LazyFrame
+    #         | pa.Table
+    #         | pa.RecordBatch
+    #         | pa.RecordBatchReader
+    #         | pd.DataFrame
+    #         | dict[str, Any]
+    #     ]
+    # ) | None = None
     basename: str | None = None
     schema_: pa.Schema | None = None
     partition_by: str | list[str] | pds.Partitioning | None = None
@@ -834,6 +840,7 @@ class BaseDatasetWriter(BaseFileWriter):
     row_group_size: int | None = 250_000
     max_rows_per_file: int | None = 2_500_000
     concat: bool = False
+    unique: bool | list[str] | str = False
     mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
     is_pydala_dataset: bool = False
 
@@ -856,9 +863,10 @@ class BaseDatasetWriter(BaseFileWriter):
                 | pd.DataFrame
                 | dict[str, Any]
             ]
-        )
-        | None = None,
-        unique: bool | list[str] | str = False,
+        ),
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+        mode: str | None = None,
         delta_subset: str | None = None,
         alter_schema: bool = False,
         update_metadata: bool = True,
@@ -890,12 +898,10 @@ class BaseDatasetWriter(BaseFileWriter):
         compression = kwargs.pop("compression", self.compression)
         row_group_size = kwargs.pop("row_group_size", self.row_group_size)
         max_rows_per_file = kwargs.pop("max_rows_per_file", self.max_rows_per_file)
-        concat = kwargs.pop("concat", self.concat)
-        mode = kwargs.pop("mode", self.mode)
 
         if not self.is_pydala_dataset:
             self.fs.write_pyarrow_dataset(
-                data=data if data is not None else self.data,
+                data=data,  # if data is not None else self.data,
                 path=self._path,
                 basename=basename or self.basename,
                 schema=schema or self.schema_,
@@ -906,14 +912,15 @@ class BaseDatasetWriter(BaseFileWriter):
                 row_group_size=row_group_size or self.row_group_size,
                 max_rows_per_file=max_rows_per_file or self.max_rows_per_file,
                 concat=concat or self.concat,
+                unique=unique or self.unique,
                 mode=mode or self.mode,
                 **kwargs,
             )
         else:
             self.fs.write_pydala_dataset(
-                data=data if data is not None else self.data,
+                data=data,  # if data is not None else self.data,
                 path=self._path,
-                mode=mode,
+                mode=mode or self.mode,
                 basename=basename or self.basename,
                 schema=schema or self.schema_,
                 partition_flavor=partitioning_flavor or self.partitioning_flavor,
@@ -922,7 +929,7 @@ class BaseDatasetWriter(BaseFileWriter):
                 row_group_size=row_group_size or self.row_group_size,
                 max_rows_per_file=max_rows_per_file or self.max_rows_per_file,
                 concat=concat or self.concat,
-                unique=unique,
+                unique=unique or self.unique,
                 delta_subset=delta_subset,
                 alter_schema=alter_schema,
                 update_metadata=update_metadata,
@@ -930,3 +937,411 @@ class BaseDatasetWriter(BaseFileWriter):
                 verbose=verbose,
                 **kwargs,
             )
+
+
+class BaseDatabaseIO(BaseModel):
+    type_: str  # "sqlite", "duckdb", "postgres", "mysql", "mssql", or "oracle"
+    table_name: str
+    path: str | None = None  # For sqlite or duckdb file paths
+    connection_string: str | None = None  # For SQLAlchemy-based databases
+    username: str | None = None
+    password: str | None = None
+    server: str | None = None
+    port: str | None = None
+    database: str | None = None
+    mode: str = "append"  # append, replace, fail
+
+    def model_post_init(self, __context):
+        db = self.type_.lower()
+        if (
+            db in ["postgres", "mysql", "mssql", "oracle"]
+            and not self.connection_string
+        ):
+            if not all(
+                [self.username, self.password, self.server, self.port, self.database]
+            ):
+                raise ValueError(
+                    f"{self.type_} requires connection_string or username, password, server, port, and table_name "
+                    "to build it."
+                )
+            if db == "postgres":
+                self.connection_string = (
+                    f"postgresql://{self.username}:{self.password}@{self.server}:{self.port}/"
+                    f"{self.database}"
+                )
+            elif db == "mysql":
+                self.connection_string = (
+                    f"mysql+pymysql://{self.username}:{self.password}@{self.server}:{self.port}/"
+                    f"{self.database}"
+                )
+            elif db == "mssql":
+                self.connection_string = (
+                    f"mssql+pyodbc://{self.username}:{self.password}@{self.server}:{self.port}/"
+                    f"{self.database}?driver=ODBC+Driver+17+for+SQL+Server"
+                )
+            elif db == "oracle":
+                self.connection_string = (
+                    f"oracle+cx_oracle://{self.username}:{self.password}@{self.server}:{self.port}/"
+                    f"{self.database}"
+                )
+        if db in ["sqlite", "sqlite3"]:
+            if not self.path:
+                raise ValueError("SQLite requires a file path.")
+            self.connection_string = f"sqlite:///{self.path}"
+
+    def _to_pandas(
+        self,
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any],
+    ) -> pd.DataFrame | list[pd.DataFrame]:
+        # convert data to pandas DataFrame if needed
+        if isinstance(data, pl.DataFrame):
+            return data.to_pandas()
+        elif isinstance(data, pa.Table):
+            return data.to_pandas()
+        elif isinstance(data, pl.LazyFrame):
+            return data.collect().to_pandas()
+        elif isinstance(data, pa.RecordBatch):
+            return pa.Table.from_batches([self.data]).to_pandas()
+        elif isinstance(data, pa.RecordBatchReader):
+            return data.read_all().to_pandas()
+        elif isinstance(data, dict):
+            return pd.DataFrame(data)
+        return data
+
+
+class BaseDatabaseWriter(BaseDatabaseIO):
+    concat: bool = False
+    unique: bool | list[str] | str = False
+
+    def _write_sqlite(
+        self,
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        mode: str | None = None,
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+    ) -> None:
+        if not self.path:
+            raise ValueError("SQLite requires a file path.")
+
+        data = to_pyarrow_table(
+            data, unique=unique or self.unique, concat=concat or self.concat
+        )
+        if not isinstance(data, list):
+            data = [data]
+
+        conn = sqlite3.connect(self.path)
+        # Activate WAL mode:
+        conn.execute("PRAGMA journal_mode=WAL;")
+
+        for _data in data:
+            df = self._to_pandas(_data)
+            df.to_pandas().to_sql(
+                self.table_name, conn, if_exists=mode or self.mode, index=False
+            )
+
+        conn.close()
+
+    def _write_duckdb(
+        self,
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        mode: str | None = None,
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+    ) -> None:
+        if not self.path:
+            raise ValueError("DuckDB requires a file path.")
+
+        data = to_pyarrow_table(
+            data, unique=unique or self.unique, concat=concat or self.concat
+        )
+        if not isinstance(data, list):
+            data = [data]
+
+        conn = duckdb.connect(database=self.path)
+        mode = mode or self.mode
+        for _data in data:
+            conn.register(f"temp_{self.table_name}", _data)
+            if mode == "append":
+                conn.execute(
+                    f"CREATE TABLE IF NOT EXISTS {self.table_name} AS SELECT * FROM temp_{self.table_name} LIMIT 0;"
+                )
+                conn.execute(
+                    f"INSERT INTO {self.table_name} SELECT * FROM temp_{self.table_name};"
+                )
+            elif mode == "replace":
+                conn.execute(
+                    f"CREATE OR REPLACE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
+                )
+            elif mode == "fail":
+                try:
+                    conn.execute(
+                        f"CREATE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
+                    )
+                except Exception as e:
+                    raise e
+
+            conn.execute(f"DROP TABLE temp_{self.table_name};")
+
+        conn.close()
+
+    def _write_sqlalchemy(
+        self,
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        mode: str | None = None,
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+    ) -> None:
+        if not self.connection_string:
+            raise ValueError(f"{self.type_} requires a connection string.")
+
+        data = to_pyarrow_table(
+            data, unique=unique or self.unique, concat=concat or self.concat
+        )
+        if not isinstance(data, list):
+            data = [data]
+
+        engine = create_engine(self.connection_string)
+        for _data in data:
+            df = self._to_pandas(_data)
+            df.to_sql(self.table_name, engine, if_exists=mode or self.mode, index=False)
+        engine.dispose()
+
+    def write(
+        self,
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pd.DataFrame
+        | dict[str, Any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        mode: str | None = None,
+        concat: bool | None = None,
+        unique: bool | list[str] | str | None = None,
+    ) -> None:
+        db = self.type_.lower()
+        if db == "sqlite":
+            self._write_sqlite(data=data, mode=mode, concat=concat, unique=unique)
+        elif db == "duckdb":
+            self._write_duckdb(data=data, mode=mode, concat=concat, unique=unique)
+        elif db in ["postgres", "mysql", "mssql", "oracle"]:
+            self._write_sqlalchemy(data=data, mode=mode, concat=concat, unique=unique)
+        else:
+            raise ValueError(f"Unsupported database type: {self.type_}")
+
+
+class BaseDatabaseLoader(BaseDatabaseIO):
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        if self.connection_string is not None:
+            if "+" in self.connection_string:
+                self.connection_string = (
+                    f"{self.connection_string.split('+')[0]}://"
+                    f"{self.connection_string.split('://')[1]}"
+                )
+
+    def load(self, query: str | None = None, reload: bool = False, **kwargs) -> None:
+        """Load data from database.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            None
+        """
+        if query is None:
+            query = f"SELECT * FROM {self.table_name}"
+        else:
+            query = query.replace("table", self.table_name)
+
+        if query != self._query:
+            reload = True
+
+        self._query = query
+
+        if self.type_ == "duckdb":
+            if not self.path:
+                raise ValueError("DuckDB requires a file path.")
+
+            if not hasattr(self, "_data") or self._data is None or reload:
+                conn = duckdb.connect(database=self.path)
+                self._data = conn.execute(query).arrow()
+                conn.close()
+
+        else:
+            if not self.connection_string:
+                raise ValueError(f"{self.type_} requires a connection string.")
+            if not hasattr(self, "_data") or self._data is None or reload:
+                data = pl.from_arrow(
+                    pl.read_database_uri(
+                        query=query, uri=self.connection_string, **kwargs
+                    )
+                )
+                self._data = data.cast(convert_large_types_to_standard(data.schema))
+
+    def to_polars(
+        self, query: str | None = None, reload: bool = False, **kwargs
+    ) -> pl.DataFrame:
+        """Convert data to Polars DataFrame.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            pl.DataFrame: Polars DataFrame.
+        """
+        self.load(query=query, reload=reload, **kwargs)
+        return pl.from_arrow(self._data)
+
+    def to_pandas(
+        self, query: str | None = None, reload: bool = False, **kwargs
+    ) -> pd.DataFrame:
+        """Convert data to Pandas DataFrame.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            pd.DataFrame: Pandas DataFrame.
+        """
+        self.load(query=query, reload=reload, **kwargs)
+        return self._data.to_pandas()
+
+    def to_pyarrow_table(
+        self, query: str | None = None, reload: bool = False, **kwargs
+    ) -> pa.Table:
+        """Convert data to PyArrow Table.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            pa.Table: PyArrow Table.
+        """
+        self.load(query=query, reload=reload, **kwargs)
+        return self._data
+
+    def to_duckdb_relation(
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        **kwargs,
+    ) -> duckdb.DuckDBPyRelation:
+        """Convert data to DuckDB relation.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            duckdb.DuckDBPyRelation: DuckDB relation.
+        """
+        self.load(query=query, reload=reload, **kwargs)
+        if self.conn is None:
+            if conn is None:
+                conn = duckdb.connect()
+            self.conn = conn
+
+        return self.conn.from_arrow(self._data)
+
+    def register_in_duckdb(
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        name: str | None = None,
+        **kwargs,
+    ) -> None:
+        """Register data in DuckDB.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            name (str, optional): Name of the relation.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            None
+        """
+        if name is None:
+            name = f"{self.type_}:{self.table_name}"
+
+        if self.conn is None:
+            if conn is None:
+                conn = duckdb.connect()
+            self.conn = conn
+
+        self.load(query=query, reload=reload, **kwargs)
+        self.conn.register(name, self._data)
+
+    def register_in_datafusion(
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        ctx: datafusion.SessionContext | None = None,
+        name: str | None = None,
+        **kwargs,
+    ) -> None:
+        """Register data in DataFusion.
+
+        Args:
+            query (str, optional): SQL query to execute. If None, loads all data from the table.
+            reload (bool, optional): Reload data if True.
+            ctx (datafusion.SessionContext, optional): DataFusion session context instance.
+            name (str, optional): Name of the relation.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            None
+        """
+        if name is None:
+            name = f"{self.type_}:{self.table_name}"
+
+        if self.ctx is None:
+            if ctx is None:
+                ctx = datafusion.SessionContext()
+            self.ctx = ctx
+
+        self.load(query=query, reload=reload, **kwargs)
+
+        self.ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])

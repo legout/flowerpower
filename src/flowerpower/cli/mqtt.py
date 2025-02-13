@@ -1,7 +1,7 @@
 import typer
 
 from ..cli.utils import parse_dict_or_list_param
-from ..mqtt import MQTTClient
+from ..mqtt import MQTTManager
 
 app = typer.Typer(help="MQTT management commands")
 
@@ -15,4 +15,4 @@ def start_broker(
     log_level: str = "INFO",
 ):
     """Start an MQTT broker."""
-    MQTTClient.start_broker(host, port, username, password, log_level)
+    MQTTManager.start_broker(host, port, username, password, log_level)

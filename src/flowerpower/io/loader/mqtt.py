@@ -7,12 +7,13 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ...utils.sql import sql2polars_filter
 
 
-class MQTTLoader(BaseModel):
+class PayloadLoader(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     payload: bytes | dict[str, Any]
     topic: str | None = None
     conn: duckdb.DuckDBPyConnection | None = None
@@ -83,7 +84,7 @@ class MQTTLoader(BaseModel):
         return ctx
 
     def filter(self, filter_expr: str | pl.Expr) -> pl.DataFrame | pl.LazyFrame:
-        self._data = self.to_poars()
+        self._data = self.to_polars()
 
         pl_schema = (
             self._data.schema

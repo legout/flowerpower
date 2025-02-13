@@ -44,6 +44,7 @@ if importlib.util.find_spec("pyarrow"):
 
         return pa.schema(new_fields)
 
+
 else:
 
     def convert_large_types_to_standard(*args, **kwargs):
@@ -53,7 +54,9 @@ else:
 if importlib.util.find_spec("polars"):
     import polars as pl
 
-    def _dict_to_dataframe(data: dict | list[dict]) -> pl.DataFrame | pa.Table:
+    def _dict_to_dataframe(
+        data: dict | list[dict], unique: bool | list[str] | str = False
+    ) -> pl.DataFrame:
         """
         Convert a dictionary or list of dictionaries to a polars DataFrame.
 
@@ -61,7 +64,7 @@ if importlib.util.find_spec("polars"):
             data: (dict | list[dict]) Data to convert.
 
         Returns:
-            pl.DataFrame | pa.Table: Converted data.
+            pl.DataFrame: Converted data.
 
         Examples:
             >>> # Single dict with list values
@@ -126,9 +129,17 @@ if importlib.util.find_spec("polars"):
                 # Check if the dict values are lists/tuples
                 if any(isinstance(v, (list, tuple)) for v in first_item.values()):
                     # Each dict becomes a row with list/tuple values
-                    return pl.DataFrame(data)
-                # If values are scalars, convert list of dicts to DataFrame
-                return pl.DataFrame(data)
+                    data = pl.DataFrame(data)
+                else:
+                    # If values are scalars, convert list of dicts to DataFrame
+                    data = pl.DataFrame(data)
+
+                if unique:
+                    data = data.unique(
+                        subset=None if not isinstance(unique, str | list) else unique,
+                        maintain_order=True,
+                    )
+                return data
 
         # If it's a single dict
         if isinstance(data, dict):
@@ -139,14 +150,22 @@ if importlib.util.find_spec("polars"):
                     next(v for v in data.values() if isinstance(v, (list, tuple)))
                 )
                 # Convert to DataFrame where each list element becomes a row
-                return pl.DataFrame(
+                data = pl.DataFrame(
                     {
                         k: v if isinstance(v, (list, tuple)) else [v] * length
                         for k, v in data.items()
                     }
                 )
-            # If values are scalars, wrap them in a list to create a single row
-            return pl.DataFrame({k: [v] for k, v in data.items()})
+            else:
+                # If values are scalars, wrap them in a list to create a single row
+                data = pl.DataFrame({k: [v] for k, v in data.items()})
+
+            if unique:
+                data = data.unique(
+                    subset=None if not isinstance(unique, str | list) else unique,
+                    maintain_order=True,
+                )
+            return data
 
         raise ValueError("Input must be a dictionary or list of dictionaries")
 
@@ -154,6 +173,94 @@ else:
 
     def _dict_to_dataframe(*args, **kwargs):
         raise ImportError("polars not installed")
+
+
+if (
+    importlib.util.find_spec("pandas")
+    and importlib.util.find_spec("polars")
+    and importlib.util.find_spec("pyarrow")
+):
+    from typing import Generator
+
+    import pandas as pd
+
+    def to_pyarrow_table(
+        data: pl.DataFrame
+        | pl.LazyFrame
+        | pd.DataFrame
+        | dict
+        | list[pl.DataFrame | pl.LazyFrame | pd.DataFrame | dict],
+        concat: bool = False,
+        unique: bool | list[str] | str = False,
+    ) -> pa.Table:
+        if isinstance(data, dict):
+            data = _dict_to_dataframe(data)
+        if isinstance(data, list):
+            if isinstance(data[0], dict):
+                data = _dict_to_dataframe(data, unique=unique)
+
+        if not isinstance(data, list):
+            data = [data]
+
+        if isinstance(data[0], pl.LazyFrame):
+            data = [dd.collect() for dd in data]
+
+        if isinstance(data[0], pl.DataFrame):
+            if concat:
+                data = pl.concat(data, how="diagonal_relaxed")
+                if unique:
+                    data = data.unique(
+                        subset=None if not isinstance(unique, str | list) else unique,
+                        maintain_order=True,
+                    )
+                data = data.to_arrow()
+                data = data.cast(convert_large_types_to_standard(data.schema))
+            else:
+                data = [dd.to_arrow() for dd in data]
+                data = [
+                    dd.cast(convert_large_types_to_standard(dd.schema)) for dd in data
+                ]
+
+        elif isinstance(data[0], pd.DataFrame):
+            data = [pa.Table.from_pandas(dd, preserve_index=False) for dd in data]
+            if concat:
+                data = pa.concat_tables(data, promote_options="permissive")
+                if unique:
+                    data = (
+                        pl.from_arrow(data)
+                        .unique(
+                            subset=None
+                            if not isinstance(unique, str | list)
+                            else unique,
+                            maintain_order=True,
+                        )
+                        .to_arrow()
+                    )
+                    data = data.cast(convert_large_types_to_standard(data.schema))
+
+        elif isinstance(data[0], pa.RecordBatch | pa.RecordBatchReader | Generator):
+            if concat:
+                data = pa.Table.from_batches(data)
+                if unique:
+                    data = (
+                        pl.from_arrow(data)
+                        .unique(
+                            subset=None
+                            if not isinstance(unique, str | list)
+                            else unique,
+                            maintain_order=True,
+                        )
+                        .to_arrow()
+                    )
+                    data = data.cast(convert_large_types_to_standard(data.schema))
+            else:
+                data = [pa.Table.from_batches([dd]) for dd in data]
+
+        return data
+else:
+
+    def to_pyarrow_table(*args, **kwargs):
+        raise ImportError("pandas, polars, or pyarrow not installed")
 
 
 if importlib.util.find_spec("joblib"):
