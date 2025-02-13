@@ -4,7 +4,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.9.2"
+version = "0.9.9.3"
 keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
 dependencies = [
   'aiobotocore<2.18.0',
@@ -43,6 +43,8 @@ io = [
   'polars>=1.15.0',
   'pyarrow>=18.1.0',
   'pydala2>=0.9.4.5',
+  "redis>=5.2.1",
+  "sherlock>=0.4.1",
 ]
 io-legacy = [
   "connectorx>=0.4.1",
@@ -54,6 +56,8 @@ io-legacy = [
   'polars-lts-cpu>=1.15.0',
   'pyarrow>=18.1.0',
   'pydala2>=0.9.4.5',
+  "redis>=5.2.1",
+  "sherlock>=0.4.1",
 ]
 mongodb = ["pymongo>=4.7.2"]
 mqtt = ["paho-mqtt>=2.1.0", "orjson>=3.10.11"]

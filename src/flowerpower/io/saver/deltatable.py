@@ -3,12 +3,13 @@ from typing import Any
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from deltalake.table import (ColumnProperties, CommitProperties,
-                             PostCommitHookProperties)
+from deltalake.table import ColumnProperties, CommitProperties, PostCommitHookProperties
 from deltalake.writer import WriterProperties, write_deltalake
 
 from ...utils.misc import _dict_to_dataframe
 from ..base import BaseDatasetWriter
+from sherlock import RedisLock
+from redis import StrictRedis, Redis
 
 
 class DeltaTableWriter(BaseDatasetWriter):
@@ -24,10 +25,14 @@ class DeltaTableWriter(BaseDatasetWriter):
     """
 
     description: str | None = None
+    with_lock: bool = False
+    redis: StrictRedis | Redis | None = None
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.format = "delta"
+        if self.with_lock and self.redis is None:
+            raise ValueError("Redis connection is required when using locks.")
 
     def write(
         self,
@@ -107,21 +112,36 @@ class DeltaTableWriter(BaseDatasetWriter):
             default_column_properties=default_column_properties,
             column_properties=column_properties,
         )
-        write_deltalake(
-            self._raw_path,
-            data,
-            mode=mode,
-            schema=schema or self.schema_,
-            partition_by=partition_by or self.partition_by,
-            storage_options=self.storage_options.to_object_store_kwargs(),
-            description=self.description,
-            schema_mode=schema_mode,
-            partition_filters=partition_filters,
-            predicate=predicate,
-            target_file_size=target_file_size,
-            large_dtypes=large_dtypes,
-            custom_metadata=custom_metadata,
-            post_commithook_properties=post_commithook_properties,
-            commit_properties=commit_properties,
-            writer_properties=writer_properties,
-        )
+
+        def _write():
+            write_deltalake(
+                self._raw_path,
+                data,
+                mode=mode,
+                schema=schema or self.schema_,
+                partition_by=partition_by or self.partition_by,
+                storage_options=self.storage_options.to_object_store_kwargs(),
+                description=self.description,
+                schema_mode=schema_mode,
+                partition_filters=partition_filters,
+                predicate=predicate,
+                target_file_size=target_file_size,
+                large_dtypes=large_dtypes,
+                custom_metadata=custom_metadata,
+                post_commithook_properties=post_commithook_properties,
+                commit_properties=commit_properties,
+                writer_properties=writer_properties,
+            )
+
+        if self.with_lock:
+            with RedisLock(
+                lock_name=self._raw_path,
+                namespace="flowerpower",
+                client=self.redis,
+                expire=10,
+                timeout=5,
+                retry_interval=0.1,
+            ):
+                _write()
+        else:
+            _write()
