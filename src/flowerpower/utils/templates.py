@@ -150,7 +150,6 @@ PIPELINE_PY_TEMPLATE = """# FlowerPower pipeline {name}.py
 
 from hamilton.function_modifiers import parameterize, dataloader, datasaver
 from hamilton.htypes import Parallelizable, Collect
-from hamilton.function_modifiers import dataloader, datasaver
 
 from pathlib import Path
 
