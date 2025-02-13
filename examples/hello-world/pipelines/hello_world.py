@@ -9,6 +9,9 @@ from hamilton.function_modifiers import parameterize
 
 from flowerpower.cfg import Config
 
+from loguru import logger
+import time
+
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
@@ -18,11 +21,13 @@ print(Path(__file__).parents[1])
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""
+    time.sleep(2)
     return pd.Series(range(10_000)) * 10
 
 
 def signups() -> pd.Series:
     """Returns a series of signups data."""
+    time.sleep(1)
     return pd.Series(range(10_000))
 
 
@@ -31,11 +36,13 @@ def signups() -> pd.Series:
 )  # (**{"avg_x_wk_spend": {"rolling": value(3)}})  #
 def avg_x_wk_spend(spend: pd.Series, rolling: int) -> pd.Series:
     """Rolling x week average spend."""
+    time.sleep(2)
     return spend.rolling(rolling).mean()
 
 
 def spend_per_signup(spend: pd.Series, signups: pd.Series) -> pd.Series:
     """The cost per signup in relation to spend."""
+    time.sleep(1)
     return spend / signups
 
 
@@ -61,5 +68,5 @@ def spend_zero_mean_unit_variance(
     spend_zero_mean: pd.Series, spend_std_dev: float
 ) -> pd.Series:
     """Function showing one way to make spend have zero mean and unit variance."""
-    print("spend_zero_mean_unit_variance", spend_zero_mean / spend_std_dev)
+    logger.info(f"spend_zero_mean_unit_variance {spend_zero_mean / spend_std_dev}")
     return spend_zero_mean / spend_std_dev

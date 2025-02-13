@@ -1,14 +1,14 @@
 from ..base import BaseDatabaseLoader
 
 
-class DuckdbLoader(BaseDatabaseLoader):
+class DuckDBLoader(BaseDatabaseLoader):
     """DuckDB loader.
 
     This class is responsible for loading dataframes from DuckDB database.
 
     Examples:
         ```python
-        loader = DuckdbLoader(table_name="table", path="data.db")
+        loader = DuckDBLoader(table_name="table", path="data.db")
         df = loader.to_polars("SELECT * FROM table WHERE column = 'value'")
         ```
     """

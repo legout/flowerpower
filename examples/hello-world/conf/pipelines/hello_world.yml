@@ -14,7 +14,7 @@ run:
     - spend_zero_mean_unit_variance
   inputs: {}
   with_opentelemetry: false
-  with_tracker: true
+  with_tracker: false
   with_progressbar: false
 schedule:
   run:

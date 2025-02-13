@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fsspec.spec import AbstractFileSystem
 from hamilton import driver
+from hamilton.telemetry import disable_telemetry
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -21,6 +22,7 @@ else:
 import rich
 from hamilton.plugins import h_tqdm
 from hamilton_sdk.adapters import HamiltonTracker
+from hamilton.plugins.h_threadpool import FutureAdapter
 from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
@@ -29,7 +31,9 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config, PipelineConfig)
+    Config,
+    PipelineConfig,
+)
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img
@@ -60,6 +64,7 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str = "conf",
         pipelines_dir: str = "pipelines",
+        telemetry: bool = True,
     ):
         """
         Initializes the Pipeline object.
@@ -72,6 +77,7 @@ class PipelineManager:
         Returns:
             None
         """
+        self._telemetry = telemetry
         self._base_dir = base_dir or str(Path.cwd())
         self._storage_options = storage_options
         if fs is None:
@@ -137,12 +143,12 @@ class PipelineManager:
 
         if not hasattr(self, "_module"):
             self._module = importlib.import_module(name)
-            if reload:
-                self._module = importlib.reload(self._module)
-        else:
-            self._module = importlib.reload(self._module)
 
-    def load_config(self, name: str | None = None):
+        else:
+            if reload:
+                importlib.reload(self._module)
+
+    def load_config(self, name: str | None = None, reload: bool = False):
         """
         Load the configuration file.
 
@@ -155,6 +161,8 @@ class PipelineManager:
         Returns:
             None
         """
+        if reload:
+            del self.cfg
         self.cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
 
     def _get_driver(
@@ -196,17 +204,18 @@ class PipelineManager:
         Returns:
             tuple[driver.Driver, Callable | None]: A tuple containing the driver and shutdown function.
         """
-        if not self.cfg.pipeline.name == name:
-            self.load_config(name=name)
+        if not self.cfg.pipeline.name == name or reload:
+            self.load_config(name=name, reload=reload)
+        if not hasattr(self, "_module") or reload:
+            self.load_module(name=name, reload=reload)
+        if self._telemetry:
+            disable_telemetry()
 
         max_tasks = kwargs.pop("max_tasks", 20)
         num_cpus = kwargs.pop("num_cpus", 4)
         executor_, shutdown = get_executor(
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
-        if reload or not hasattr(self, "_module"):
-            self.load_module(name=name)
-
         adapters = []
         if with_tracker:
             tracker_cfg = {
@@ -239,6 +248,10 @@ class PipelineManager:
 
         if with_progressbar:
             adapters.append(h_tqdm.ProgressBar(desc=f"{self.cfg.project.name}.{name}"))
+
+        if executor == "threadpool":
+            adapters.append(FutureAdapter())
+
         if len(adapters):
             # print("adapters len:", len(adapters))
 
@@ -301,11 +314,11 @@ class PipelineManager:
             final_vars = pm.run("my_pipeline")
             ```
         """
-        if not self.cfg.pipeline.name == name:
-            self.load_config(name=name)
+        if not self.cfg.pipeline.name == name or reload:
+            self.load_config(name=name, reload=reload)
 
         if reload or not hasattr(self, "_module"):
-            self.load_module(name=name)
+            self.load_module(name=name, reload=reload)
 
         logger.info(
             f"Starting pipeline {self.cfg.project.name}.{name}"
@@ -322,18 +335,17 @@ class PipelineManager:
             **(run_params.config or {}),
             **(config or {}),
         }
+        for arg in [
+            "executor",
+            "with_tracker",
+            "with_opentelemetry",
+            "with_progressbar",
+        ]:
+            if eval(arg) is not None:
+                kwargs[arg] = eval(arg)
+            else:
+                kwargs[arg] = getattr(run_params, arg)
 
-        kwargs.update(
-            {
-                arg: eval(arg) or getattr(run_params, arg)
-                for arg in [
-                    "executor",
-                    "with_tracker",
-                    "with_opentelemetry",
-                    "with_progressbar",
-                ]
-            }
-        )
         kwargs["config"] = config
 
         dr, shutdown = self._get_driver(

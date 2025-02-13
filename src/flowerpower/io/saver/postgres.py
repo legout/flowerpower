@@ -1,20 +1,20 @@
 from ..base import BaseDatabaseWriter
 
 
-class PostgresWriter(BaseDatabaseWriter):
-    """Postgres writer.
+class PostgreSQLWriter(BaseDatabaseWriter):
+    """PostgreSQL writer.
 
-    This class is responsible for writing dataframes to Postgres database.
+    This class is responsible for writing dataframes to PostgreSQL database.
 
     Examples:
         ```python
-        writer = PostgresWriter(table_name="table", host="localhost",
+        writer = PostgreSQLWriter(table_name="table", host="localhost",
                                 port=5432, username="user", password="password",
                                 database="database")
         writer.write(df)
 
         # or
-        writer = PostgresWriter(table_name="table",
+        writer = PostgreSQLWriter(table_name="table",
                                 connection_string="postgresql://user:password@localhost:5432/database")
         writer.write(df)
         ```

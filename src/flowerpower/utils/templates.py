@@ -144,12 +144,32 @@
 PIPELINE_PY_TEMPLATE = """# FlowerPower pipeline {name}.py
 # Created on {date}
 
+####################################################################################################
+# Import necessary libraries
+# NOTE: Remove or comment out imports that are not used in the pipeline
 
-from hamilton.function_modifiers import parameterize
-from flowerpower.cfg import Config
+from hamilton.function_modifiers import parameterize, dataloader, datasaver
+from hamilton.htypes import Parallelizable, Collect
+from hamilton.function_modifiers import dataloader, datasaver
+
 from pathlib import Path
+
+from flowerpower.cfg import Config
+
+####################################################################################################
+# Load pipeline parameters. Do not modify this section.
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="{name}"
 ).pipeline.h_params
+
+
+####################################################################################################
+# Helper functions.
+# This functions have to start with an underscore (_).
+
+
+####################################################################################################
+# Pipeline functions
+
 """

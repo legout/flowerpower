@@ -1,18 +1,18 @@
 from ..base import BaseDatabaseLoader
 
 
-class SqliteLoader(BaseDatabaseLoader):
-    """Sqlite loader.
+class SQLiteLoader(BaseDatabaseLoader):
+    """SQLite loader.
 
-    This class is responsible for loading dataframes from Sqlite database.
+    This class is responsible for loading dataframes from SQLite database.
 
     Examples:
         ```python
-        loader = SqliteLoader(table_name="table", path="data.db")
+        loader = SQLiteLoader(table_name="table", path="data.db")
         df = loader.to_polars("SELECT * FROM table WHERE column = 'value'")
 
         # or
-        loader = SqliteLoader(table_name="table", connection_string="sqlite://data.db")
+        loader = SQLiteLoader(table_name="table", connection_string="sqlite://data.db")
         df = loader.to_pyarrow_table()
         ```
     """

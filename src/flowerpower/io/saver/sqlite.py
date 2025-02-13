@@ -1,18 +1,18 @@
 from ..base import BaseDatabaseWriter
 
 
-class SqliteWriter(BaseDatabaseWriter):
-    """Sqlite writer.
+class SQLiteWriter(BaseDatabaseWriter):
+    """SQLite writer.
 
-    This class is responsible for writing dataframes to Sqlite database.
+    This class is responsible for writing dataframes to SQLite database.
 
     Examples:
         ```python
-        writer = SqliteWriter(table_name="table", path="data.db")
+        writer = SQLiteWriter(table_name="table", path="data.db")
         writer.write(df)
 
         # or
-        writer = SqliteWriter(table_name="table",
+        writer = SQLiteWriter(table_name="table",
                                 connection_string="sqkite:///data.db")
         writer.write(df)
         ```

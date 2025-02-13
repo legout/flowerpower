@@ -8,6 +8,7 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from fsspec import AbstractFileSystem
+from ..fs.ext import path_to_glob
 
 
 def get_serializable_schema(
@@ -71,13 +72,8 @@ def get_dataframe_metadata(
         if isinstance(path, list):
             num_files = len(path)
         else:
-            if "*" in path:
-                if fs is None:
-                    num_files = None
-                else:
-                    num_files = len(fs.glob(path))
-            else:
-                num_files = 1
+            path = path_to_glob(path)
+            num_files = len(fs.glob(path)) if fs is not None else None
     else:
         num_files = None
 
