@@ -1,7 +1,7 @@
-from ..base import BaseDatasetLoader, BaseFileLoader
+from ..base import BaseDatasetReader, BaseFileReader
 
 
-class CSVFileLoader(BaseFileLoader):
+class CSVFileReader(BaseFileReader):
     """CSV file loader.
 
     This class is responsible for loading CSV files into several dataframe formats,
@@ -9,17 +9,18 @@ class CSVFileLoader(BaseFileLoader):
 
     Examples:
         ```python
-        loader = CSVFileLoader("data.csv")
+        loader = CSVFileReader("data.csv")
         df = loader.to_pandas()
     ```
     """
 
+    format: str = "csv"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"
 
 
-class CSVDatasetLoader(BaseDatasetLoader):
+class CSVDatasetReader(BaseDatasetReader):
     """CSV dataset loader.
 
     This class is responsible for loading CSV files into several dataframe formats,
@@ -27,11 +28,12 @@ class CSVDatasetLoader(BaseDatasetLoader):
 
     Examples:
         ```python
-        loader = CSVDatasetLoader("csv_data/")
+        loader = CSVDatasetReader("csv_data/")
         df = loader.to_pandas()
         ```
     """
 
+    format: str = "csv"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"

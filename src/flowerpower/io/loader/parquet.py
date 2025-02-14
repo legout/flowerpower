@@ -1,19 +1,37 @@
-from ..base import BaseDatasetLoader, BaseFileLoader
+from ..base import BaseDatasetReader, BaseFileReader
 
 
-class ParquetFileLoader(BaseFileLoader):
+class ParquetFileReader(BaseFileReader):
+    """Parquet file loader.
+
+    This class is responsible for loading dataframes from Parquet files.
+
+    Examples:
+        ```python
+        loader = ParquetFileReader("data.parquet")
+        df = loader.load()
+        ```
+    """
+
+    format: str = "parquet"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "parquet"
-
-    def __call__(self, **kwargs):
-        return self.to_pyarrow_table(**kwargs)
 
 
-class ParquetDatasetLoader(BaseDatasetLoader):
+class ParquetDatasetReader(BaseDatasetReader):
+    """Parquet dataset loader.
+
+    This class is responsible for loading dataframes from Parquet dataset.
+
+    Examples:
+        ```python
+        loader = ParquetDatasetReader("parquet_data/")
+        df = loader.load()
+        ```
+    """
+
+    type_: str = "parquet"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "parquet"
-
-    def __call__(self, **kwargs):
-        return self.to_pyarrow_dataset(**kwargs)

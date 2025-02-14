@@ -18,6 +18,8 @@ class SQLiteWriter(BaseDatabaseWriter):
         ```
     """
 
+    type_: str = "sqlite"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.type_ = "sqlite"
+        # self.type_ = "sqlite"

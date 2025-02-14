@@ -12,28 +12,41 @@ from pydantic import BaseModel, ConfigDict
 from ...utils.sql import sql2polars_filter
 
 
-class PayloadLoader(BaseModel):
+class PayloadReader(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     payload: bytes | dict[str, Any]
     topic: str | None = None
     conn: duckdb.DuckDBPyConnection | None = None
     ctx: datafusion.SessionContext | None = None
+    format: str = "mqtt"
 
     def model_post_init(self, __context):
         if isinstance(self.payload, bytes):
             self.payload = orjson.loads(self.payload)
 
     def to_pyarrow_table(self) -> pa.Table:
-        return pa.Table.from_pydict(self.payload)
+        try:
+            return pa.Table.from_pydict(self.payload)
+        except pa.ArrowInvalid:
+            return pa.Table.from_pylist([self.payload])
 
     def to_pandas(self) -> pd.DataFrame:
-        return pd.DataFrame.from_dict(self.payload)
+        try:
+            return pd.DataFrame(self.payload)
+        except ValueError:
+            return pd.DataFrame([self.payload])
 
     def _to_polars_dataframe(self) -> pl.DataFrame:
-        return pl.DataFrame(self.payload)
+        try:
+            return pl.DataFrame(self.payload)
+        except pl.exceptions.ShapeError:
+            return pl.DataFrame([self.payload])
 
     def _to_polars_lazyframe(self) -> pl.LazyFrame:
-        return pl.LazyFrame(self.payload)
+        try:
+            return pl.LazyFrame(self.payload)
+        except pl.exceptions.ShapeError:
+            return pl.LazyFrame([self.payload])
 
     def to_polars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
         if lazy:

@@ -13,9 +13,10 @@ class JsonFileWriter(BaseFileWriter):
         ```
     """
 
+    format: str = "json"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"
 
 
 class JsonDatasetWriter(BaseFileWriter):
@@ -31,6 +32,7 @@ class JsonDatasetWriter(BaseFileWriter):
 
     """
 
+    format: str = "json"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"

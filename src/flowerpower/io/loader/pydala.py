@@ -1,10 +1,19 @@
-from ..base import BaseDatasetLoader
+from ..base import BaseDatasetReader
 
 
-class PydalaDatasetLoader(BaseDatasetLoader):
+class PydalaDatasetReader(BaseDatasetReader):
+    """Pydala dataset loader.
+
+    This class is responsible for loading dataframes from Pydala dataset.
+
+    Examples:
+        ```python
+        loader = PydalaDatasetReader("pydala_data/")
+        df = loader.load()
+        ```
+    """
+
+    format: str = "parquet"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "parquet"
-
-    def load(self, **kwargs):
-        return self.to_pydala_dataset(**kwargs)

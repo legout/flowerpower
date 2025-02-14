@@ -1,7 +1,7 @@
-from ..base import BaseFileLoader
+from ..base import BaseFileReader
 
 
-class JsonFileLoader(BaseFileLoader):
+class JsonFileReader(BaseFileReader):
     """
     JSON file loader.
 
@@ -9,17 +9,18 @@ class JsonFileLoader(BaseFileLoader):
 
     Examples:
         ```python
-        loader = JsonFileLoader("data.json")
+        loader = JsonFileReader("data.json")
         df = loader.load()
         ```
     """
 
+    format: str = "json"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "json"
 
 
-class JsonDatasetLoader(BaseFileLoader):
+class JsonDatasetReader(BaseFileReader):
     """
     JSON dataset loader.
 
@@ -27,11 +28,12 @@ class JsonDatasetLoader(BaseFileLoader):
 
     Examples:
         ```python
-        loader = JsonDatasetLoader("json_data/")
+        loader = JsonDatasetReader("json_data/")
         df = loader.load()
         ```
     """
 
+    format: str = "json"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "json"

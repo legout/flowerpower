@@ -27,6 +27,7 @@ class DeltaTableWriter(BaseDatasetWriter):
     description: str | None = None
     with_lock: bool = False
     redis: StrictRedis | Redis | None = None
+    format: str = "delta"
 
     def model_post_init(self, __context):
         super().model_post_init(__context)

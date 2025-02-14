@@ -13,9 +13,10 @@ class ParquetFileWriter(BaseFileWriter):
         ```
     """
 
+    format: str = "parquet"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "parquet"
 
 
 class ParquetDatasetWriter(BaseDatasetWriter):
@@ -31,6 +32,7 @@ class ParquetDatasetWriter(BaseDatasetWriter):
 
     """
 
+    format: str = "parquet"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "parquet"

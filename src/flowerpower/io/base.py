@@ -144,7 +144,7 @@ class BaseFileIO(BaseModel):
         return self.fs.glob(self._glob_path)
 
 
-class BaseFileLoader(BaseFileIO):
+class BaseFileReader(BaseFileIO):
     """
     Base class for file loading operations supporting various file formats.
     This class provides a foundation for file loading operations across different file formats
@@ -161,7 +161,7 @@ class BaseFileLoader(BaseFileIO):
 
     Examples:
         ```python
-        file_loader = BaseFileLoader(
+        file_loader = BaseFileReader(
             path="s3://bucket/path/to/files",
             format="csv",
             include_file_path=True,
@@ -529,7 +529,7 @@ class BaseFileLoader(BaseFileIO):
                 return [d.filter(filter_expr) for d in self._data]
 
 
-class BaseDatasetLoader(BaseFileLoader):
+class BaseDatasetReader(BaseFileReader):
     """
     Base class for dataset loading operations supporting various file formats.
     This class provides a foundation for dataset loading operations across different file formats
@@ -548,7 +548,7 @@ class BaseDatasetLoader(BaseFileLoader):
 
         Examples:
         ```python
-        dataset_loader = BaseDatasetLoader(
+        dataset_loader = BaseDatasetReader(
             path="s3://bucket/path/to/files",
             format="csv",
             include_file_path=True,
@@ -1048,9 +1048,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
 
         for _data in data:
             df = self._to_pandas(_data)
-            df.to_pandas().to_sql(
-                self.table_name, conn, if_exists=mode or self.mode, index=False
-            )
+            df.to_sql(self.table_name, conn, if_exists=mode or self.mode, index=False)
 
         conn.close()
 
@@ -1158,7 +1156,9 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             raise ValueError(f"Unsupported database type: {self.type_}")
 
 
-class BaseDatabaseLoader(BaseDatabaseIO):
+class BaseDatabaseReader(BaseDatabaseIO):
+    query: str | None = None
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         if self.connection_string is not None:
@@ -1184,10 +1184,10 @@ class BaseDatabaseLoader(BaseDatabaseIO):
         else:
             query = query.replace("table", self.table_name)
 
-        if query != self._query:
+        if query != self.query:
             reload = True
 
-        self._query = query
+        self.query = query
 
         if self.type_ == "duckdb":
             if not self.path:
@@ -1202,11 +1202,13 @@ class BaseDatabaseLoader(BaseDatabaseIO):
             if not self.connection_string:
                 raise ValueError(f"{self.type_} requires a connection string.")
             if not hasattr(self, "_data") or self._data is None or reload:
-                data = pl.from_arrow(
+                data = (
                     pl.read_database_uri(
-                        query=query, uri=self.connection_string, **kwargs
+                        query=query,
+                        uri=self.connection_string.replace("///", "//"),
+                        **kwargs,
                     )
-                )
+                ).to_arrow()
                 self._data = data.cast(convert_large_types_to_standard(data.schema))
 
     def to_polars(

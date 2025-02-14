@@ -13,9 +13,10 @@ class CSVFileWriter(BaseFileWriter):
         ```
     """
 
+    format: str = "csv"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"
 
 
 class CSVDatasetWriter(BaseDatasetWriter):
@@ -31,6 +32,7 @@ class CSVDatasetWriter(BaseDatasetWriter):
 
     """
 
+    format: str = "csv"
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.format = "csv"
