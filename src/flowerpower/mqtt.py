@@ -323,7 +323,7 @@ class MQTTManager:
             inputs = {}
 
         def on_message(client, userdata, msg):
-            logger.info("Message arrived")
+            logger.info(f"Received message on topic {topic}")
 
             inputs["payload"] = msg.payload
 
@@ -363,7 +363,7 @@ class MQTTManager:
                     _ = e
                     logger.exception(e)
 
-                logger.warning("processing failed")
+                logger.warning("Message processing failed")
 
         self.start_listener(on_message=on_message, topic=topic, background=background)
 
