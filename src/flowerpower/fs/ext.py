@@ -11,8 +11,12 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
-                          run_parallel, to_pyarrow_table)
+from ..utils.misc import (
+    _dict_to_dataframe,
+    convert_large_types_to_standard,
+    run_parallel,
+    to_pyarrow_table,
+)
 from ..utils.polars import pl
 
 if importlib.util.find_spec("duckdb") is not None:
@@ -528,7 +532,8 @@ def _read_parquet(
         (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
     """
     if not include_file_path and concat:
-        path = path.replace("**", "").replace("*.parquet", "")
+        if isinstance(path, str):
+            path = path.replace("**", "").replace("*.parquet", "")
         return pq.read_table(path, filesystem=self, **kwargs)
     else:
         if isinstance(path, str):
@@ -590,7 +595,8 @@ def _read_parquet_batches(
     """
     # Fast path for simple cases
     if not include_file_path and concat and batch_size is None:
-        path = path.replace("**", "").replace("*.parquet", "")
+        if isinstance(path, str):
+            path = path.replace("**", "").replace("*.parquet", "")
         yield pq.read_table(path, filesystem=self, **kwargs)
         return
 
