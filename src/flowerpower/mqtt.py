@@ -274,7 +274,17 @@ class MQTTManager:
             transport=cfg.get("transport", "tcp"),
         )
 
-    def start_pipeline_listener(
+    @classmethod
+    def from_dict(cls, cfg: dict):
+        return cls(
+            user=cfg.get("user", None),
+            pw=cfg.get("pw", None),
+            host=cfg.get("host", "localhost"),
+            port=cfg.get("port", 1883),
+            transport=cfg.get("transport", "tcp"),
+        )
+
+    def run_pipeline_on_message(
         self,
         name: str,
         topic: str | None = None,
@@ -372,36 +382,59 @@ def start_listener(
     on_message: Callable,
     topic: str | None = None,
     background: bool = False,
-    client_config: dict = {},
+    mqtt_cfg: dict = {},
     base_dir: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    host: str | None = None,
+    port: int | None = None,
 ) -> None:
     """
     Start the MQTT listener.
 
+    The connection to the MQTT broker is established using the provided configuration of a
+    MQTT event broker defined in the project configuration file `conf/project.toml`.
+    If no configuration is found, you have to provide either the argument `mqtt_cfg`, dict with the
+    connection parameters or the arguments `username`, `password`, `host`, and `port`.
+
     Args:
-        client: MQTT client
         on_message: Callback function to run when a message is received
         topic: MQTT topic to listen to
         background: Run the listener in the background
+        mqtt_cfg: MQTT client configuration. Use either this or arguments
+            username, password, host, and port.
+        base_dir: Base directory for the MQTT client
+        username: Username for the MQTT client
+        password: Password for the MQTT client
+        host: Host for the MQTT client
+        port: Port for the MQTT client
 
     Returns:
         None
     """
-    if client_config:
-        client = MQTTManager.from_config(client_config)
-    elif base_dir:
+    try:
         client = MQTTManager.from_event_broker(base_dir)
-    else:
-        raise ValueError(
-            "No client configuration found. Please provide a client configuration "
-            "or a FlowerPower project base directory, in which a event broker is "
-            "configured in the `config/project.yml` file."
-        )
+    except ValueError:
+        if mqtt_cfg:
+            client = MQTTManager.from_dict(mqtt_cfg)
+        elif host and port:
+            client = MQTTManager(
+                username=username,
+                password=password,
+                host=host,
+                port=port,
+            )
+        else:
+            raise ValueError(
+                "No client configuration found. Please provide a client configuration "
+                "or a FlowerPower project base directory, in which a event broker is "
+                "configured in the `config/project.yml` file."
+            )
 
     client.start_listener(on_message=on_message, topic=topic, background=background)
 
 
-def start_pipeline_listener(
+def run_pipeline_on_message(
     name: str,
     topic: str | None = None,
     inputs: dict | None = None,
@@ -418,6 +451,7 @@ def start_pipeline_listener(
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
     background: bool = False,
+    mqtt_cfg: dict = {},
     host: str | None = None,
     port: int | None = None,
     username: str | None = None,
@@ -443,17 +477,33 @@ def start_pipeline_listener(
         storage_options: Storage options for the pipeline
         fs: File system for the pipeline
         background: Run the listener in the background
+        mqtt_cfg: MQTT client configuration. Use either this or arguments
+            username, password, host, and port.
+        host: Host for the MQTT client
+        port: Port for the MQTT client
+        username: Username for the MQTT client
+        password: Password for the MQTT
         **kwargs: Additional keyword arguments
     """
-    if host and port:
-        client = MQTTManager(
-            user=username,
-            pw=password,
-            host=host,
-            port=port,
-        )
-    client = MQTTManager.from_event_broker(base_dir=base_dir)
-    client.start_pipeline_listener(
+    try:
+        client = MQTTManager.from_event_broker(base_dir)
+    except ValueError:
+        if mqtt_cfg:
+            client = MQTTManager.from_dict(mqtt_cfg)
+        elif host and port:
+            client = MQTTManager(
+                user=username,
+                pw=password,
+                host=host,
+                port=port,
+            )
+        else:
+            raise ValueError(
+                "No client configuration found. Please provide a client configuration "
+                "or a FlowerPower project base directory, in which a event broker is "
+                "configured in the `config/project.yml` file."
+            )
+    client.run_pipeline_on_message(
         name=name,
         topic=topic,
         inputs=inputs,

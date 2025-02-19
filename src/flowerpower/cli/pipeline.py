@@ -37,7 +37,7 @@ app = typer.Typer(help="Pipeline management commands")
 @app.command()
 def run(
     name: str,
-    executor: str = "local",
+    executor: str | None = None,
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
@@ -45,7 +45,6 @@ def run(
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
     with_progressbar: bool = False,
-    reload: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -61,7 +60,6 @@ def run(
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
         with_progressbar: Enable progress bar
-        reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -98,14 +96,13 @@ def run(
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
             with_progressbar=with_progressbar,
-            reload=reload,
         )
 
 
 @app.command()
 def run_job(
     name: str,
-    executor: str = "local",
+    executor: str | None = None,
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
@@ -113,7 +110,6 @@ def run_job(
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
     with_progressbar: bool = False,
-    reload: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -129,7 +125,6 @@ def run_job(
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
         with_progressbar: Enable progress bar
-        reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -166,14 +161,13 @@ def run_job(
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
             with_progressbar=with_progressbar,
-            reload=reload,
         )
 
 
 @app.command()
 def add_job(
     name: str,
-    executor: str = "local",
+    executor: str | None = None,
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,
@@ -181,7 +175,6 @@ def add_job(
     with_tracker: bool = False,
     with_opentelemetry: bool = False,
     with_progressbar: bool = False,
-    reload: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -197,7 +190,6 @@ def add_job(
         with_tracker: Enable tracking with hamilton ui
         with_opentelemetry: Enable OpenTelemetry tracing
         with_progressbar: Enable progress bar
-        reload: Reload pipeline before running
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -236,14 +228,13 @@ def add_job(
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,
             with_progressbar=with_progressbar,
-            reload=reload,
         )
 
 
 @app.command()
 def schedule(
     name: str,
-    executor: str = "local",
+    executor: str | None = None,
     base_dir: str | None = None,
     trigger_type: str = "cron",
     inputs: str | None = None,
@@ -387,7 +378,7 @@ def schedule(
 
 @app.command()
 def schedule_all(
-    executor: str = "local",
+    executor: str | None = None,
     base_dir: str | None = None,
     inputs: str | None = None,
     final_vars: str | None = None,

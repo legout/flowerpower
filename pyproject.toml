@@ -4,7 +4,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.9.5"
+version = "0.9.9.6"
 keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
 dependencies = [
   'aiobotocore<2.18.0',
@@ -74,26 +74,6 @@ tui       = ["textual>=0.85.2"]
 ui        = ["sf-hamilton-ui>=0.0.11"]
 webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11"]
 
-#[build-system]
-#build-backend = "hatchling.build"
-#requires = ["hatchling"]
-
-#[tool.hatch.metadata]
-#allow-direct-references = true
-
-#[tool.hatch.build.targets.wheel]
-#packages = ["src/flowerpower"]
-
-#[tool.hatch.build.targets.sdist]
-#exclude = [
-#  "tests",
-#  "docs",
-#  "examples",
-#  "src/flowerpower.egg-info",
-#  "src/flowerpower/__pycache__",
-#  "docker",
-#  ".gitignore",
-#]
 
 [tool.uv]
 dev-dependencies = [
