@@ -12,7 +12,7 @@ from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
 from ..fs import get_filesystem
-from ..fs.ext import path_to_glob
+from ..fs.ext import path_to_glob, _dict_to_dataframe
 from ..fs.storage_options import (
     AwsStorageOptions,
     AzureStorageOptions,
@@ -24,6 +24,12 @@ from ..fs.storage_options import (
 from ..utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
+from .metadata import (
+    get_dataframe_metadata,
+    get_delta_metadata,
+    get_pyarrow_dataset_metadata,
+)
+
 
 if importlib.util.find_spec("pydala"):
     from pydala.dataset import ParquetDataset
@@ -219,13 +225,23 @@ class BaseFileReader(BaseFileIO):
             self._data = self.fs.read_files(
                 path=self._glob_path,
                 format=self.format,
-                include_file_path=self.include_file_path,
+                include_file_path=True,
                 concat=self.concat,
                 jsonlines=self.jsonlines or None,
                 batch_size=self.batch_size,
                 partitioning=self.partitioning,
                 **kwargs,
             )
+            self._metadata = get_dataframe_metadata(
+                df=self._data,
+                path=self._path,
+                format=self.format,
+                num_files=pl.from_arrow(self._data.select(["file_path"])).select(
+                    pl.n_unique("file_path")
+                )[0, 0],
+            )
+            if not self.include_file_path:
+                self._data = self._data.pop("file_path")
 
     def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
         """Convert data to Pandas DataFrame(s).
@@ -528,6 +544,12 @@ class BaseFileReader(BaseFileIO):
                 )
                 return [d.filter(filter_expr) for d in self._data]
 
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            self.load()
+        return self._metadata
+
 
 class BaseDatasetReader(BaseFileReader):
     """
@@ -593,6 +615,7 @@ class BaseDatasetReader(BaseFileReader):
                 partitioning=self.partitioning,
                 **kwargs,
             )
+            self._metadata = get_pyarrow_dataset_metadata(self._dataset)
         elif self.format == "parquet":
             if self.fs.exists(posixpath.join(self._path, "_metadata")):
                 self._dataset = self.fs.parquet_dataset(
@@ -609,10 +632,9 @@ class BaseDatasetReader(BaseFileReader):
                     partitioning=self.partitioning,
                     **kwargs,
                 )
+            self._metadata = get_pyarrow_dataset_metadata(self._dataset)
         else:
-            self._dataset = pds.dataset(
-                self.to_pyarrow_table(**kwargs), schema=self.schema_
-            )
+            raise ValueError(f"Unsupported format: {self.format}")
         return self._dataset
 
     def to_pandas(self, **kwargs) -> pd.DataFrame:
@@ -678,6 +700,10 @@ class BaseDatasetReader(BaseFileReader):
                 partitioning=self.partitioning,
                 ddb_con=self.conn,
                 **kwargs,
+            )
+            self._pydala_dataset.load(update_metadata=True)
+            self._metadata = get_pyarrow_dataset_metadata(
+                self._pydala_dataset._arrow_dataset
             )
         return self._pydala_dataset
 
@@ -769,16 +795,54 @@ class BaseDatasetReader(BaseFileReader):
             filter_exp = sql2pyarrow_filter(filter_exp, self._dataset.schema)
         return self._dataset.filter(filter_exp)
 
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            self.to_pyarrow_dataset()
+        return self._metadata
+
 
 class BaseFileWriter(BaseFileIO):
-    # data: (
-    #     pl.DataFrame
-    #     | pl.LazyFrame
-    #     | pa.Table
-    #     | pd.DataFrame
-    #     | dict[str, Any]
-    #     | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]]
-    # ) | None = None
+    """
+    Base class for file writing operations supporting various storage backends.
+    This class provides a foundation for file writing operations across different storage systems
+    including AWS S3, Google Cloud Storage, Azure Blob Storage, GitHub, and GitLab.
+
+    Args:
+        path (str | list[str]): Path or list of paths to file(s).
+        storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
+                             GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+                             Storage-specific options for accessing remote filesystems.
+        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
+        format (str, optional): File format extension (without dot).
+        basename (str, optional): Basename for the output file(s).
+        concat (bool, optional): Concatenate multiple files into a single DataFrame.
+        mode (str, optional): Write mode (append, overwrite, delete_matching, error_if_exists).
+        unique (bool | list[str] | str, optional): Unique columns for deduplication.
+
+    Examples:
+        ```python
+        file_writer = BaseFileWriter(
+            path="s3://bucket/path/to/files",
+            storage_options=AwsStorageOptions(
+                key="access_key",
+                secret="secret_key"),
+            format="csv",
+            basename="output",
+            concat=True,
+            mode="append",
+            unique=True
+        )
+        file_writer.write(data=df)
+        ```
+
+    Notes:
+        - Supports multiple cloud storage backends through different storage options
+        - Automatically handles filesystem initialization based on path protocol
+        - Supports both single path and multiple path inputs
+        - Supports writing data to cloud storage with various write modes
+    """
+
     basename: str | None = None
     concat: bool = False
     mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
@@ -802,6 +866,16 @@ class BaseFileWriter(BaseFileIO):
         mode: str | None = None,
         **kwargs,
     ):
+        if isinstance(data, list):
+            if isinstance(data[0], dict):
+                data = _dict_to_dataframe(data)
+        if isinstance(data, dict):
+            data = _dict_to_dataframe(data)
+
+        self._metadata = get_dataframe_metadata(
+            df=data, path=self._path, format=self.format
+        )
+
         self.fs.write_files(
             data=data,  # if data is not None else self.data,
             path=self._path,
@@ -812,26 +886,71 @@ class BaseFileWriter(BaseFileIO):
             **kwargs,
         )
 
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            return {}
+        return self._metadata
+
 
 class BaseDatasetWriter(BaseFileWriter):
-    # data: (
-    #     pl.DataFrame
-    #     | pl.LazyFrame
-    #     | pa.Table
-    #     | pa.RecordBatch
-    #     | pa.RecordBatchReader
-    #     | pd.DataFrame
-    #     | dict[str, Any]
-    #     | list[
-    #         pl.DataFrame
-    #         | pl.LazyFrame
-    #         | pa.Table
-    #         | pa.RecordBatch
-    #         | pa.RecordBatchReader
-    #         | pd.DataFrame
-    #         | dict[str, Any]
-    #     ]
-    # ) | None = None
+    """
+    Base class for dataset writing operations supporting various file formats.
+    This class provides a foundation for dataset writing operations across different file formats
+    including CSV, Parquet, JSON, Arrow, and IPC.
+
+    Args:
+        path (str | list[str]): Path or list of paths to file(s).
+        format (str, optional): File format extension (without dot).
+        storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
+                                GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+            Storage-specific options for accessing remote filesystems.
+        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
+        basename (str, optional): Basename for the output file(s).
+        schema (pa.Schema, optional): PyArrow schema for the dataset.
+        partition_by (str | list[str] | pds.Partitioning, optional): Dataset partitioning scheme.
+        partitioning_flavor (str, optional): Partitioning flavor for the dataset.
+        compression (str, optional): Compression codec for the dataset.
+        row_group_size (int, optional): Row group size for the dataset.
+        max_rows_per_file (int, optional): Maximum number of rows per file.
+        concat (bool, optional): Concatenate multiple files into a single DataFrame.
+        unique (bool | list[str] | str, optional): Unique columns for deduplication.
+        mode (str, optional): Write mode (append, overwrite, delete_matching, error_if_exists).
+        is_pydala_dataset (bool, optional): Write data as a Pydala ParquetDataset.
+
+    Examples:
+        ```python
+        dataset_writer = BaseDatasetWriter(
+            path="s3://bucket/path/to/files",
+            format="parquet",
+            storage_options=AwsStorageOptions(
+                key="access_key",
+                secret="secret_key"),
+            basename="output",
+            schema=pa.schema([
+                pa.field("column1", pa.int64()),
+                pa.field("column2", pa.string())
+            ]),
+            partition_by="column1",
+            partitioning_flavor="hive",
+            compression="zstd",
+            row_group_size=250_000,
+            max_rows_per_file=2_500_000,
+            concat=True,
+            unique=True,
+            mode="append",
+            is_pydala_dataset=False
+        )
+        dataset_writer.write(data=df)
+        ```
+    Notes:
+        - Supports multiple file formats including CSV, Parquet, JSON, Arrow, and IPC
+        - Automatically handles filesystem initialization based on path protocol
+        - Supports both single path and multiple path inputs
+        - Supports writing data to cloud storage with various write modes
+        - Supports writing data as a Pydala ParquetDataset
+    """
+
     basename: str | None = None
     schema_: pa.Schema | None = None
     partition_by: str | list[str] | pds.Partitioning | None = None
@@ -899,6 +1018,16 @@ class BaseDatasetWriter(BaseFileWriter):
         row_group_size = kwargs.pop("row_group_size", self.row_group_size)
         max_rows_per_file = kwargs.pop("max_rows_per_file", self.max_rows_per_file)
 
+        if isinstance(data, list):
+            if isinstance(data[0], dict):
+                data = _dict_to_dataframe(data)
+        if isinstance(data, dict):
+            data = _dict_to_dataframe(data)
+
+        self._metadata = get_dataframe_metadata(
+            df=data, path=self._path, format=self.format
+        )
+
         if not self.is_pydala_dataset:
             self.fs.write_pyarrow_dataset(
                 data=data,  # if data is not None else self.data,
@@ -938,8 +1067,48 @@ class BaseDatasetWriter(BaseFileWriter):
                 **kwargs,
             )
 
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            return {}
+        return self._metadata
+
 
 class BaseDatabaseIO(BaseModel):
+    """
+    Base class for database read/write operations supporting various database systems.
+    This class provides a foundation for database read/write operations across different database systems
+    including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle.
+
+    Args:
+        type_ (str): Database type (sqlite, duckdb, postgres, mysql, mssql, oracle).
+        table_name (str): Table name in the database.
+        path (str | None, optional): File path for SQLite or DuckDB databases.
+        connection_string (str | None, optional): Connection string for SQLAlchemy-based databases.
+        username (str | None, optional): Username for the database.
+        password (str | None, optional): Password for the database.
+        server (str | None, optional): Server address for the database.
+        port (str | None, optional): Port number for the database.
+        database (str | None, optional): Database name.
+        mode (str, optional): Write mode (append, replace, fail).
+
+    Examples:
+        ```python
+        db_reader = BaseDatabaseIO(
+            type_="sqlite",
+            table_name="table_name",
+            path="path/to/database.db"
+        )
+        data = db_reader.read()
+        ```
+
+    Notes:
+        - Supports multiple database systems including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle
+        - Automatically handles database initialization based on connection parameters
+        - Supports reading data from databases into DataFrames
+        - Supports writing data to databases from DataFrames
+    """
+
     type_: str  # "sqlite", "duckdb", "postgres", "mysql", "mssql", or "oracle"
     table_name: str
     path: str | None = None  # For sqlite or duckdb file paths
@@ -949,7 +1118,6 @@ class BaseDatabaseIO(BaseModel):
     server: str | None = None
     port: str | None = None
     database: str | None = None
-    mode: str = "append"  # append, replace, fail
 
     def model_post_init(self, __context):
         db = self.type_.lower()
@@ -1016,6 +1184,42 @@ class BaseDatabaseIO(BaseModel):
 
 
 class BaseDatabaseWriter(BaseDatabaseIO):
+    """
+    Base class for database writing operations supporting various database systems.
+    This class provides a foundation for database writing operations across different database systems
+    including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle.
+
+    Args:
+        type_ (str): Database type (sqlite, duckdb, postgres, mysql, mssql, oracle).
+        table_name (str): Table name in the database.
+        path (str | None, optional): File path for SQLite or DuckDB databases.
+        connection_string (str | None, optional): Connection string for SQLAlchemy-based databases.
+        username (str | None, optional): Username for the database.
+        password (str | None, optional): Password for the database.
+        server (str | None, optional): Server address for the database.
+        port (str | None, optional): Port number for the database.
+        database (str | None, optional): Database name.
+        mode (str, optional): Write mode (append, replace, fail).
+        concat (bool, optional): Concatenate multiple files into a single DataFrame.
+        unique (bool | list[str] | str, optional): Unique columns for deduplication.
+
+    Examples:
+        ```python
+        db_writer = BaseDatabaseWriter(
+            type_="sqlite",
+            table_name="table_name",
+            path="path/to/database.db"
+        )
+        db_writer.write(data=df)
+        ```
+
+    Notes:
+        - Supports multiple database systems including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle
+        - Automatically handles database initialization based on connection parameters
+        - Supports writing data to databases from DataFrames
+    """
+
+    mode: str = "append"  # append, replace, fail
     concat: bool = False
     unique: bool | list[str] | str = False
 
@@ -1046,7 +1250,11 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         # Activate WAL mode:
         conn.execute("PRAGMA journal_mode=WAL;")
 
-        for _data in data:
+        self._metadata = get_dataframe_metadata(
+            df=data, path=self.connection_string, format=self.type_
+        )
+
+        for n, _data in enumerate(data):
             df = self._to_pandas(_data)
             df.to_sql(self.table_name, conn, if_exists=mode or self.mode, index=False)
 
@@ -1074,6 +1282,10 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         )
         if not isinstance(data, list):
             data = [data]
+
+        self._metadata = get_dataframe_metadata(
+            df=data, path=self.connection_string, format=self.type_
+        )
 
         conn = duckdb.connect(database=self.path)
         mode = mode or self.mode
@@ -1125,6 +1337,10 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         if not isinstance(data, list):
             data = [data]
 
+        self._metadata = get_dataframe_metadata(
+            df=data, path=self.connection_string, format=self.type_
+        )
+
         engine = create_engine(self.connection_string)
         for _data in data:
             df = self._to_pandas(_data)
@@ -1155,8 +1371,46 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         else:
             raise ValueError(f"Unsupported database type: {self.type_}")
 
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            return {}
+        return self._metadata
+
 
 class BaseDatabaseReader(BaseDatabaseIO):
+    """
+    Base class for database read operations supporting various database systems.
+    This class provides a foundation for database read operations across different database systems
+    including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle.
+
+    Args:
+        type_ (str): Database type (sqlite, duckdb, postgres, mysql, mssql, oracle).
+        table_name (str): Table name in the database.
+        path (str | None, optional): File path for SQLite or DuckDB databases.
+        connection_string (str | None, optional): Connection string for SQLAlchemy-based databases.
+        username (str | None, optional): Username for the database.
+        password (str | None, optional): Password for the database.
+        server (str | None, optional): Server address for the database.
+        port (str | None, optional): Port number for the database.
+        database (str | None, optional): Database name.
+        query (str | None, optional): SQL query to execute.
+
+    Examples:
+        ```python
+        db_reader = BaseDatabaseReader(
+            type_="sqlite",
+            table_name="table_name",
+            path="path/to/database.db"
+        )
+        data = db_reader.read()
+        ```
+    Notes:
+        - Supports multiple database systems including SQLite, DuckDB, PostgreSQL, MySQL, SQL Server, and Oracle
+        - Automatically handles database initialization based on connection parameters
+        - Supports reading data from databases into DataFrames
+    """
+
     query: str | None = None
 
     def model_post_init(self, __context):
@@ -1217,6 +1471,10 @@ class BaseDatabaseReader(BaseDatabaseIO):
                     )
                 ).to_arrow()
                 self._data = data.cast(convert_large_types_to_standard(data.schema))
+
+        self._metadata = get_dataframe_metadata(
+            self._data, path=self.connection_string, format=self.type_
+        )
 
     def to_polars(
         self, query: str | None = None, reload: bool = False, **kwargs
@@ -1354,3 +1612,9 @@ class BaseDatabaseReader(BaseDatabaseIO):
         self.load(query=query, reload=reload, **kwargs)
 
         self.ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
+
+    @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            self.load()
+        return self._metadata

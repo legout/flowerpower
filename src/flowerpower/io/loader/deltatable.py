@@ -4,6 +4,7 @@
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
+from deltalake.exceptions import TableNotFoundError
 import datetime
 from sherlock import RedisLock
 from ..base import BaseDatasetReader
@@ -29,11 +30,13 @@ class DeltaTableReader(BaseDatasetReader):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-
-        self.delta_table = DeltaTable(
-            self._raw_path,
-            storage_options=self.storage_options.to_object_store_kwargs(),
-        )
+        try:
+            self.delta_table = DeltaTable(
+                self._raw_path,
+                storage_options=self.storage_options.to_object_store_kwargs(),
+            )
+        except TableNotFoundError:
+            raise ValueError(f"Table {self._raw_path} not found.")
         if self.with_lock and self.redis is None:
             raise ValueError("Redis connection is required when using locks.")
 

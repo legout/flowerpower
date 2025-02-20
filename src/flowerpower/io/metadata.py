@@ -19,6 +19,9 @@ def get_serializable_schema(
         | duckdb.DuckDBPyRelation
         | pa.Table
         | pa.Schema
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+        | pds.Dataset
     ),
 ) -> dict[str, str]:
     """
@@ -47,10 +50,24 @@ def get_serializable_schema(
 
 
 def get_dataframe_metadata(
-    df: pd.DataFrame | pl.DataFrame | pl.LazyFrame | pa.Table,
-    path: str | list[str],
-    format: str,
+    df: pd.DataFrame
+    | pl.DataFrame
+    | pl.LazyFrame
+    | pa.Table
+    | pa.RecordBatch
+    | pa.RecordBatchReader
+    | list[
+        pd.DataFrame
+        | pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | pa.RecordBatch
+        | pa.RecordBatchReader
+    ],
+    path: str | list[str] | None = None,
+    format: str | None = None,
     topic: str | None = None,
+    num_files: int | None = None,
     fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> dict:
@@ -66,26 +83,29 @@ def get_dataframe_metadata(
     Returns:
         dict: DataFrame metadata
     """
-    schema = get_serializable_schema(df)
+    if isinstance(df, list):
+        schema = get_serializable_schema(df[0])
+        num_rows = sum(df_.shape[0] for df_ in df)
+    else:
+        schema = get_serializable_schema(df)
+        num_rows = df.shape[0] if hasattr(df, "shape") else None
 
-    if path is not None:
+    if path is not None and num_files is None:
         if isinstance(path, list):
             num_files = len(path)
         else:
-            path = path_to_glob(path)
-            num_files = len(fs.glob(path)) if fs is not None else None
-    else:
-        num_files = None
+            path_ = path_to_glob(path=path, format=format)
+            num_files = len(fs.glob(path_)) if fs is not None else None
 
     metadata = {
         "path": path,
         "topic": topic,
         "format": format,
-        "timestamp": dt.datetime.now().timestamp(),
+        "timestamp": int(dt.datetime.now().timestamp() * 1000),
         "schema": schema,
         # "partition_columns": None,
         "num_columns": len(schema),
-        "num_rows": df.shape[0] if hasattr(df, "shape") else None,
+        "num_rows": num_rows,
         "num_files": num_files,
         "name": kwargs.get("name", None),
         "description": kwargs.get("description", None),
