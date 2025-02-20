@@ -1,3 +1,5 @@
 from .flowerpower import init as init_flowerpower
 
-# _ = init()
+import importlib.metadata
+
+__version__ = importlib.metadata.version("FlowerPower")
