@@ -1184,6 +1184,9 @@ class BaseDatabaseReader(BaseDatabaseIO):
         else:
             query = query.replace("table", self.table_name)
 
+        if "engine" in kwargs:
+            engine = kwargs.pop("engine", "connectorx")
+
         if query != self.query:
             reload = True
 
@@ -1202,10 +1205,14 @@ class BaseDatabaseReader(BaseDatabaseIO):
             if not self.connection_string:
                 raise ValueError(f"{self.type_} requires a connection string.")
             if not hasattr(self, "_data") or self._data is None or reload:
+                if engine == "connectorx":
+                    cs = self.connection_string.replace("///", "//")
+                else:
+                    cs = self.connection_string
                 data = (
                     pl.read_database_uri(
                         query=query,
-                        uri=self.connection_string.replace("///", "//"),
+                        uri=cs,
                         **kwargs,
                     )
                 ).to_arrow()

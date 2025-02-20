@@ -967,7 +967,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.9.6"
+version = "0.9.9.8"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -1881,7 +1881,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.11.6"
+version = "0.11.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1902,9 +1902,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/08/6d/078848a3dd6a0c7494a41395d2adbbace2662937a6df75117d7d68b10f91/marimo-0.11.6.tar.gz", hash = "sha256:e0c8390ab91f19a65d0b3a4a85468597c5b16e43a42659105531c3c56aec6bfa", size = 10612190 }
+sdist = { url = "https://files.pythonhosted.org/packages/63/cb/c67e5464db93605f1ba83fb83b1fe9899c2ecf84c93871eed4af492cbf01/marimo-0.11.7.tar.gz", hash = "sha256:fc5c9801d8861dc5a36512a4f9f7f8e4526e6414fd7c675f86d404a257362a02", size = 10628209 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/f4/0eecdf87f543f293a1ca93a7ae60e91a4e1e18715fe207b5d68d42b08259/marimo-0.11.6-py3-none-any.whl", hash = "sha256:98c2be11fdf959ee5769808be71e613a40b0b07dc52a4f11834e2f9ec605c547", size = 10951396 },
+    { url = "https://files.pythonhosted.org/packages/70/d7/a8bfccadb023ab0cf91fd09714f7e33f3e94fcd2080ea59f1630a58f42cf/marimo-0.11.7-py3-none-any.whl", hash = "sha256:cbd3ee22521d28f6df3986e0894691e7786b965bc76fb48706443fd3203f6ff7", size = 10970507 },
 ]
 
 [[package]]
@@ -2750,7 +2750,7 @@ wheels = [
 
 [[package]]
 name = "posthog"
-version = "3.14.1"
+version = "3.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backoff" },
@@ -2759,9 +2759,9 @@ dependencies = [
     { name = "requests" },
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/16/422ef6b6d4068d83b8c12b411c2a63807c233b73c83d09fb5f9e10e017e2/posthog-3.14.1.tar.gz", hash = "sha256:c8ea74ac6b3dff726e08d9e0f11f4726be46f0b4d335cc51ea25568fc8d23d99", size = 62632 }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/34/6f7b96f29143506c95c1a3c50b83f085828432ca97d5aa2a427df180877c/posthog-3.14.2.tar.gz", hash = "sha256:b9794aa5b316767cc7f8685292f8ff3e0df8b01fcaf2905afe2efa9696cb5c77", size = 63157 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/b9/e6b8361bc08dd7fcae0f7689b369c02a56e9171cd7227f6cdd6e7372a947/posthog-3.14.1-py2.py3-none-any.whl", hash = "sha256:ee305413e9bc8a81f7092e5b38373afc14b00f9550021ed74cdc9d6074bfce28", size = 73314 },
+    { url = "https://files.pythonhosted.org/packages/7b/4d/a293066f66bce78bd57bbc9cb0efd227d427d62cf1a323b5bcad6f508cac/posthog-3.14.2-py2.py3-none-any.whl", hash = "sha256:f50d41dfe116ace4971b304518de57e0de34a936cdfdff84efed0dd993dfbcda", size = 73854 },
 ]
 
 [[package]]
@@ -3934,7 +3934,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "2.0.4"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"] },
@@ -3942,9 +3942,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/d7/b45464bf3e8362190b817e1fa60cce3d7004369e4a2ec0f0d28c7fa3d83d/textual-2.0.4.tar.gz", hash = "sha256:128177fc6d63d0f3236e374e28d68f4343bd2e996825da2a6f122d9fbf017d31", size = 1591729 }
+sdist = { url = "https://files.pythonhosted.org/packages/86/ae/dfa6423fa0ecfc514eebf148e3464bc332648ec7f096fb4d50abe54b24d5/textual-2.1.0.tar.gz", hash = "sha256:0b1d45cbe351ccd68bfeefd22defa33a59811436089de048bab9fb8b4657bd87", size = 1595872 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/68/7f26c55e7c5818eed5c1912106e1392bf1edfb1b7ef342b35930fa559f2d/textual-2.0.4-py3-none-any.whl", hash = "sha256:0a151c060586eb4fb091584fab58f0706daa51cf27330efef548bc14f3c6aa66", size = 679459 },
+    { url = "https://files.pythonhosted.org/packages/5d/44/6fb6948a42f4932874e80f084d26f075f32edb4ac1a581d71c643f052ecd/textual-2.1.0-py3-none-any.whl", hash = "sha256:c061604f4ca639ea660671213ea2b6db6139e04528b2e9a6210b1063ba467114", size = 679686 },
 ]
 
 [[package]]
