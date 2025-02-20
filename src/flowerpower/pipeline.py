@@ -79,7 +79,7 @@ class PipelineManager:
         """
         self._telemetry = telemetry
         self._base_dir = base_dir or str(Path.cwd())
-        self._storage_options = storage_options
+        self._storage_options = storage_options or {}
         if fs is None:
             fs = get_filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
@@ -1549,7 +1549,7 @@ class Pipeline:
         # super().__init__(base_dir=base_dir, storage_options=storage_options, fs=fs)
         self.name = name
         self._base_dir = base_dir or os.getcwd()
-        self._storage_options = storage_options
+        self._storage_options = storage_options or {}
         if fs is None:
             fs = get_filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
