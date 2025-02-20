@@ -8,6 +8,11 @@ from deltalake.exceptions import TableNotFoundError
 import datetime
 from sherlock import RedisLock
 from ..base import BaseDatasetReader
+from ..metadata import (
+    get_delta_metadata,
+    get_dataframe_metadata,
+    get_pyarrow_dataset_metadata,
+)
 
 # from hamilton.function_modifiers import dataloader
 
@@ -44,13 +49,41 @@ class DeltaTableReader(BaseDatasetReader):
     def dt(self) -> DeltaTable:
         return self.delta_table
 
-    def to_pyarrow_dataset(self) -> pds.Dataset:
-        """Converts the DeltaTable to a PyArrow Dataset."""
-        return self.delta_table.to_pyarrow_dataset()
+    def to_pyarrow_dataset(
+        self, metadata: bool = False
+    ) -> pds.Dataset | tuple[pds.Dataset, dict[str, any]]:
+        """Converts the DeltaTable to a PyArrow Dataset.
 
-    def to_pyarrow_table(self) -> pa.Table:
-        """Converts the DeltaTable to a PyArrow Table."""
-        return self.delta_table.to_pyarrow_table()
+        Args:
+            metadata (bool, optional): Whether to include metadata. Defaults to False.
+
+        Returns:
+            pds.Dataset | tuple[pds.Dataset, dict[str, any]]: PyArrow Dataset or tuple of PyArrow Dataset and metadata.
+        """
+        self._dataset = self.delta_table.to_pyarrow_dataset()
+        if metadata:
+            metadata = get_pyarrow_dataset_metadata(
+                self._dataset, self._raw_path, "parquet"
+            )
+            return self._dataset, metadata
+        return self._dataset
+
+    def to_pyarrow_table(
+        self, metadata: bool = False
+    ) -> pa.Table | tuple[pa.Table, dict[str, any]]:
+        """Converts the DeltaTable to a PyArrow Table.
+
+        Args:
+            metadata (bool, optional): Whether to include metadata. Defaults to False.
+
+        Returns:
+            pa.Table | tuple[pa.Table, dict[str, any]]: PyArrow Table or tuple of PyArrow Table and metadata.
+        """
+        table = self.delta_table.to_pyarrow_table()
+        if metadata:
+            metadata = get_dataframe_metadata(table, self._raw_path, "parquet")
+            return table, metadata
+        return table
 
     def compact(
         self,
@@ -125,3 +158,9 @@ class DeltaTableReader(BaseDatasetReader):
                 _z_order()
         else:
             _z_order()
+
+    @property
+    def metadata(self) -> dict:
+        if not hasattr(self, "_metadata"):
+            self._metadata = get_delta_metadata(self.delta_table, self._raw_path)
+        return self._metadata

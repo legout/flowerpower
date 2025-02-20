@@ -1,6 +1,6 @@
 import importlib
 import posixpath
-from typing import Any, Generator
+from typing import Generator
 
 import datafusion
 import duckdb
@@ -26,7 +26,6 @@ from ..utils.polars import pl
 from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import (
     get_dataframe_metadata,
-    get_delta_metadata,
     get_pyarrow_dataset_metadata,
 )
 
@@ -49,7 +48,7 @@ class BaseFileIO(BaseModel):
     Args:
         path (str | list[str]): Path or list of paths to file(s).
         storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
-                             GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+                             GitHubStorageOptions | GitLabStorageOptions | dict[str, any] |  None, optional):
             Storage-specific options for accessing remote filesystems.
         fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
         format (str, optional): File format extension (without dot).
@@ -80,7 +79,7 @@ class BaseFileIO(BaseModel):
         | GcsStorageOptions
         | GitLabStorageOptions
         | GitHubStorageOptions
-        | dict[str, Any]
+        | dict[str, any]
         | None
     ) = None
     fs: AbstractFileSystem | None = None
@@ -232,24 +231,53 @@ class BaseFileReader(BaseFileIO):
                 partitioning=self.partitioning,
                 **kwargs,
             )
-            self._metadata = get_dataframe_metadata(
-                df=self._data,
-                path=self._path,
-                format=self.format,
-                num_files=pl.from_arrow(self._data.select(["file_path"])).select(
-                    pl.n_unique("file_path")
-                )[0, 0],
-            )
-            if not self.include_file_path:
-                self._data = self._data.pop("file_path")
+            if not isinstance(self._data, Generator):
+                self._metadata = get_dataframe_metadata(
+                    df=self._data,
+                    path=self._path,
+                    format=self.format,
+                    num_files=pl.from_arrow(self._data.select(["file_path"])).select(
+                        pl.n_unique("file_path")
+                    )[0, 0],
+                )
+                if not self.include_file_path:
+                    self._data = self._data.drop("file_path")
+            else:
+                self._metadata = {}
 
-    def to_pandas(self, **kwargs) -> pd.DataFrame | list[pd.DataFrame]:
+    def to_pandas(
+        self, metadata: bool = False, **kwargs
+    ) -> (
+        tuple[pd.DataFrame | list[pd.DataFrame], dict[str, any]]
+        | pd.DataFrame
+        | list[pd.DataFrame]
+    ):
         """Convert data to Pandas DataFrame(s).
 
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+
         Returns:
-            pd.DataFrame | list[pd.DataFrame]: Pandas DataFrame or list of DataFrames.
+            tuple[pd.DataFrame | list[pd.DataFrame], dict[str, any]] | pd.DataFrame | list[pd.DataFrame]: Pandas
+                DataFrame or list of DataFrames and optional metadata.
         """
         self.load(**kwargs)
+        if isinstance(self._data, list):
+            df = [
+                df if isinstance(df, pd.DataFrame) else df.to_pandas()
+                for df in self._data
+            ]
+            df = pd.concat(df) if self.concat else df
+        else:
+            df = (
+                self._data
+                if isinstance(self._data, pd.DataFrame)
+                else self._data.to_pandas()
+            )
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
     def iter_pandas(
         self, batch_size: int = 1, **kwargs
@@ -270,24 +298,30 @@ class BaseFileReader(BaseFileIO):
                 else self._data.to_pandas()
             )
 
-    def _to_polars_dataframe(self, **kwargs) -> pl.DataFrame | list[pl.DataFrame]:
-        """Convert data to Polars DataFrame(s).
-
-        Returns:
-            pl.DataFrame | list[pl.DataFrame]: Polars DataFrame or list of DataFrames.
-        """
+    def _to_polars_dataframe(
+        self, metadata: bool = False, **kwargs
+    ) -> (
+        tuple[pl.DataFrame | list[pl.DataFrame], dict[str, any]]
+        | pl.DataFrame
+        | list[pl.DataFrame]
+    ):
         self.load(**kwargs)
         if isinstance(self._data, list):
             df = [
                 df if isinstance(self._data, pl.DataFrame) else pl.from_arrow(df)
                 for df in self._data
             ]
-            return pl.concat(df) if self.concat else df
-        return (
-            self._data
-            if isinstance(self._data, pl.DataFrame)
-            else pl.from_arrow(self._data)
-        )
+            df = pl.concat(df) if self.concat else df
+        else:
+            df = (
+                self._data
+                if isinstance(self._data, pl.DataFrame)
+                else pl.from_arrow(self._data)
+            )
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
     def _iter_polars_dataframe(
         self, batch_size: int = 1, **kwargs
@@ -308,16 +342,23 @@ class BaseFileReader(BaseFileIO):
                 else pl.from_arrow(self._data)
             )
 
-    def _to_polars_lazyframe(self, **kwargs) -> pl.LazyFrame | list[pl.LazyFrame]:
-        """Convert data to Polars LazyFrame(s).
-
-        Returns:
-            pl.LazyFrame | list[pl.LazyFrame]: Polars LazyFrame or list of LazyFrames.
-        """
+    def _to_polars_lazyframe(
+        self, metadata: bool = False, **kwargs
+    ) -> (
+        tuple[pl.LazyFrame | list[pl.LazyFrame], dict[str, any]]
+        | pl.LazyFrame
+        | list[pl.LazyFrame]
+    ):
         self.load(**kwargs)
         if not self.concat:
-            return [df.lazy() for df in self._to_polars_dataframe()]
-        return self._to_polars_dataframe.lazy()
+            df = [df.lazy() for df in self._to_polars_dataframe()]
+
+        else:
+            df = self._to_polars_dataframe.lazy()
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
     def _iter_polars_lazyframe(
         self, batch_size: int = 1, **kwargs
@@ -345,16 +386,28 @@ class BaseFileReader(BaseFileIO):
     def to_polars(
         self,
         lazy: bool = False,
+        metadata: bool = False,
         **kwargs,
-    ) -> pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame]:
+    ) -> (
+        pl.DataFrame
+        | pl.LazyFrame
+        | list[pl.DataFrame]
+        | list[pl.LazyFrame]
+        | tuple[
+            pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame],
+            dict[str, any],
+        ]
+    ):
         """Convert data to Polars DataFrame or LazyFrame.
 
         Args:
             lazy (bool, optional): Return a LazyFrame if True, else a DataFrame.
+            metadata (bool, optional): Include metadata in the output. Default is False.
 
         Returns:
-            pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame]: Polars DataFrame or LazyFrame.
-
+            pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame] | tuple[pl.DataFrame | pl.LazyFrame
+                | list[pl.DataFrame] | list[pl.LazyFrame], dict[str, any]]: Polars DataFrame or LazyFrame and optional
+                metadata.
         """
         if lazy:
             return self._to_polars_lazyframe(**kwargs)
@@ -370,11 +423,17 @@ class BaseFileReader(BaseFileIO):
             yield from self._iter_polars_lazyframe(batch_size=batch_size, **kwargs)
         yield from self._iter_polars_dataframe(batch_size=batch_size, **kwargs)
 
-    def to_pyarrow_table(self, **kwargs) -> pa.Table | list[pa.Table]:
+    def to_pyarrow_table(
+        self, metadata: bool = False, **kwargs
+    ) -> pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, any]]:
         """Convert data to PyArrow Table(s).
 
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+
         Returns:
-            pa.Table | list[pa.Table]: PyArrow Table or list of Tables.
+            pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, any]]: PyArrow Table or list of
+                Tables and optional metadata.
         """
         self.load(**kwargs)
         if isinstance(self._data, list):
@@ -382,12 +441,17 @@ class BaseFileReader(BaseFileIO):
                 df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
                 for df in self._data
             ]
-            return pa.concat_tables(df) if self.concat else df
-        return (
-            self._data.to_arrow(**kwargs)
-            if isinstance(self._data, pl.DataFrame)
-            else self._data
-        )
+            df = pa.concat_tables(df) if self.concat else df
+        else:
+            df = (
+                self._data.to_arrow(**kwargs)
+                if isinstance(self._data, pl.DataFrame)
+                else self._data
+            )
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
     def iter_pyarrow_table(
         self, batch_size: int = 1, **kwargs
@@ -599,10 +663,14 @@ class BaseDatasetReader(BaseFileReader):
 
     def to_pyarrow_dataset(
         self,
+        metadata: bool = False,
         **kwargs,
-    ) -> pds.Dataset:
+    ) -> pds.Dataset | tuple[pds.Dataset, dict[str, any]]:
         """
         Convert data to PyArrow Dataset.
+
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
 
         Returns:
             pds.Dataset: PyArrow Dataset.
@@ -615,7 +683,9 @@ class BaseDatasetReader(BaseFileReader):
                 partitioning=self.partitioning,
                 **kwargs,
             )
-            self._metadata = get_pyarrow_dataset_metadata(self._dataset)
+            self._metadata = get_pyarrow_dataset_metadata(
+                self._dataset, path=self._path, format=self.format
+            )
         elif self.format == "parquet":
             if self.fs.exists(posixpath.join(self._path, "_metadata")):
                 self._dataset = self.fs.parquet_dataset(
@@ -635,57 +705,104 @@ class BaseDatasetReader(BaseFileReader):
             self._metadata = get_pyarrow_dataset_metadata(self._dataset)
         else:
             raise ValueError(f"Unsupported format: {self.format}")
+        if metadata:
+            return self._dataset, self._metadata
         return self._dataset
 
-    def to_pandas(self, **kwargs) -> pd.DataFrame:
+    def to_pandas(
+        self, metadata: bool = False, **kwargs
+    ) -> pd.DataFrame | tuple[pd.DataFrame, dict[str, any]]:
         """
         Convert data to Pandas DataFrame.
 
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+
         Returns:
-            pd.DataFrame: Pandas DataFrame.
+            pd.DataFrame | tuple[pd.DataFrame, dict[str, any]]: Pandas DataFrame and optional metadata.
         """
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
-        return self._dataset.to_table().to_pandas()
+        df = self._dataset.to_table().to_pandas()
+        if metadata:
+            metadata = get_dataframe_metadata(self._dataset)
+            return df, metadata
+        return df
 
-    def _to_polars_dataframe(self, **kwargs) -> pl.DataFrame:
+    def _to_polars_dataframe(
+        self, metadata: bool = False, **kwargs
+    ) -> pl.DataFrame | tuple[pl.DataFrame, dict[str, any]]:
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
-        return pl.from_arrow(self._dataset.to_table())
+        df = pl.from_arrow(self._dataset.to_table())
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
-    def _to_polars_lazyframe(self, **kwargs) -> pl.LazyFrame:
+    def _to_polars_lazyframe(
+        self, metadata: bool = False, **kwargs
+    ) -> pl.LazyFrame | tuple[pl.LazyFrame, dict[str, any]]:
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
-        return pl.scan_pyarrow_dataset(self._dataset)
+        df = pl.scan_pyarrow_dataset(self._dataset)
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
-    def to_polars(self, lazy: bool = True, **kwargs) -> pl.DataFrame | pl.LazyFrame:
+    def to_polars(
+        self, lazy: bool = True, metadata: bool = False, **kwargs
+    ) -> (
+        pl.DataFrame | pl.LazyFrame | tuple[pl.DataFrame | pl.LazyFrame, dict[str, any]]
+    ):
         """
         Convert data to Polars DataFrame or LazyFrame.
 
         Args:
             lazy (bool, optional): Return a LazyFrame if True, else a DataFrame.
+            metadata (bool, optional): Include metadata in the output. Default is False.
 
         Returns:
-            pl.DataFrame | pl.LazyFrame: Polars DataFrame or LazyFrame.
+            pl.DataFrame | pl.LazyFrame | tuple[pl.DataFrame | pl.LazyFrame, dict[str, any]]: Polars DataFrame or
+                LazyFrame and optional metadata.
         """
-        return (
+        df = (
             self._to_polars_lazyframe(**kwargs)
             if lazy
             else self._to_polars_dataframe(**kwargs)
         )
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
-    def to_pyarrow_table(self, **kwargs) -> pa.Table:
+    def to_pyarrow_table(
+        self, metadata: bool = False, **kwargs
+    ) -> pa.Table | tuple[pa.Table, dict]:
         """Convert data to PyArrow Table.
 
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+
         Returns:
-            pa.Table: PyArrow Table.
+            pa.Table | tuple[pa.Table, dict]: PyArrow Table and optional metadata.
         """
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
-        return self._dataset.to_table()
+        df = self._dataset.to_table()
+        if metadata:
+            metadata = get_dataframe_metadata(df, path=self._path, format=self.format)
+            return df, metadata
+        return df
 
-    def to_pydala_dataset(self, **kwargs) -> "ParquetDataset":  # type: ignore
+    def to_pydala_dataset(
+        self, metadata: bool = False, **kwargs
+    ) -> "ParquetDataset" | tuple["ParquetDataset", dict[str, any]]:  # type: ignore
         """Convert data to Pydala ParquetDataset.
+
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
 
         Returns:
             ParquetDataset: Pydala ParquetDataset.
@@ -705,6 +822,8 @@ class BaseDatasetReader(BaseFileReader):
             self._metadata = get_pyarrow_dataset_metadata(
                 self._pydala_dataset._arrow_dataset
             )
+        if metadata:
+            return self._pydala_dataset, self._metadata
         return self._pydala_dataset
 
     def to_duckdb_relation(
@@ -811,7 +930,7 @@ class BaseFileWriter(BaseFileIO):
     Args:
         path (str | list[str]): Path or list of paths to file(s).
         storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
-                             GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+                             GitHubStorageOptions | GitLabStorageOptions | dict[str, any] |  None, optional):
                              Storage-specific options for accessing remote filesystems.
         fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
         format (str, optional): File format extension (without dot).
@@ -855,9 +974,9 @@ class BaseFileWriter(BaseFileIO):
             | pl.LazyFrame
             | pa.Table
             | pd.DataFrame
-            | dict[str, Any]
+            | dict[str, any]
             | list[
-                pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]
+                pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]
             ]
         ),
         basename: str | None = None,
@@ -865,7 +984,22 @@ class BaseFileWriter(BaseFileIO):
         unique: bool | list[str] | str | None = None,
         mode: str | None = None,
         **kwargs,
-    ):
+    ) -> dict[str, any]:
+        """
+        Write data to file.
+
+        Args:
+            data (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any] | list[pl.DataFrame |
+                pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]] | None, optional): Data to write.
+            basename (str, optional): Basename for the output file(s).
+            concat (bool, optional): Concatenate multiple files into a single DataFrame.
+            unique (bool | list[str] | str, optional): Unique columns for deduplication.
+            mode (str, optional): Write mode (append, overwrite, delete_matching, error_if_exists).
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict[str, any]: Metadata for the written data
+        """
         if isinstance(data, list):
             if isinstance(data[0], dict):
                 data = _dict_to_dataframe(data)
@@ -885,6 +1019,7 @@ class BaseFileWriter(BaseFileIO):
             mode=mode or self.mode,
             **kwargs,
         )
+        return self._metadata
 
     @property
     def metadata(self):
@@ -903,7 +1038,7 @@ class BaseDatasetWriter(BaseFileWriter):
         path (str | list[str]): Path or list of paths to file(s).
         format (str, optional): File format extension (without dot).
         storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
-                                GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
+                                GitHubStorageOptions | GitLabStorageOptions | dict[str, any] |  None, optional):
             Storage-specific options for accessing remote filesystems.
         fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
         basename (str, optional): Basename for the output file(s).
@@ -972,7 +1107,7 @@ class BaseDatasetWriter(BaseFileWriter):
             | pa.RecordBatch
             | pa.RecordBatchReader
             | pd.DataFrame
-            | dict[str, Any]
+            | dict[str, any]
             | list[
                 pl.DataFrame
                 | pl.LazyFrame
@@ -980,7 +1115,7 @@ class BaseDatasetWriter(BaseFileWriter):
                 | pa.RecordBatch
                 | pa.RecordBatchReader
                 | pd.DataFrame
-                | dict[str, Any]
+                | dict[str, any]
             ]
         ),
         concat: bool | None = None,
@@ -992,14 +1127,14 @@ class BaseDatasetWriter(BaseFileWriter):
         timestamp_column: str | None = None,
         verbose: bool = False,
         **kwargs,
-    ):
+    ) -> dict[str, any]:
         """
         Write data to dataset.
 
         Args:
             data (pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader | pd.DataFrame |
-                dict[str, Any] | list[pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader |
-                pd.DataFrame | dict[str, Any]] | None, optional): Data to write.
+                dict[str, any] | list[pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader |
+                pd.DataFrame | dict[str, any]] | None, optional): Data to write.
             unique (bool | list[str] | str, optional): Unique columns for deduplication.
             delta_subset (str | None, optional): Delta subset for incremental updates.
             alter_schema (bool, optional): Alter schema for compatibility.
@@ -1007,6 +1142,9 @@ class BaseDatasetWriter(BaseFileWriter):
             timestamp_column (str | None, optional): Timestamp column for updates.
             verbose (bool, optional): Verbose output.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict[str, any]: Metadata of the written data.
         """
         basename = kwargs.pop("basename", self.basename)
         schema = kwargs.pop("schema", self.schema_)
@@ -1066,6 +1204,7 @@ class BaseDatasetWriter(BaseFileWriter):
                 verbose=verbose,
                 **kwargs,
             )
+        return self._metadata
 
     @property
     def metadata(self):
@@ -1165,7 +1304,7 @@ class BaseDatabaseIO(BaseModel):
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | dict[str, Any],
+        | dict[str, any],
     ) -> pd.DataFrame | list[pd.DataFrame]:
         # convert data to pandas DataFrame if needed
         if isinstance(data, pl.DataFrame):
@@ -1231,12 +1370,12 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | dict[str, Any]
-        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        | dict[str, any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]],
         mode: str | None = None,
         concat: bool | None = None,
         unique: bool | list[str] | str | None = None,
-    ) -> None:
+    ) -> dict[str, any]:
         if not self.path:
             raise ValueError("SQLite requires a file path.")
 
@@ -1259,6 +1398,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             df.to_sql(self.table_name, conn, if_exists=mode or self.mode, index=False)
 
         conn.close()
+        return self._metadata
 
     def _write_duckdb(
         self,
@@ -1268,12 +1408,12 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | dict[str, Any]
-        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        | dict[str, any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]],
         mode: str | None = None,
         concat: bool | None = None,
         unique: bool | list[str] | str | None = None,
-    ) -> None:
+    ) -> dict[str, any]:
         if not self.path:
             raise ValueError("DuckDB requires a file path.")
 
@@ -1313,6 +1453,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             conn.execute(f"DROP TABLE temp_{self.table_name};")
 
         conn.close()
+        return self._metadata
 
     def _write_sqlalchemy(
         self,
@@ -1322,12 +1463,12 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | dict[str, Any]
-        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        | dict[str, any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]],
         mode: str | None = None,
         concat: bool | None = None,
         unique: bool | list[str] | str | None = None,
-    ) -> None:
+    ) -> dict[str, any]:
         if not self.connection_string:
             raise ValueError(f"{self.type_} requires a connection string.")
 
@@ -1347,6 +1488,8 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             df.to_sql(self.table_name, engine, if_exists=mode or self.mode, index=False)
         engine.dispose()
 
+        return self._metadata
+
     def write(
         self,
         data: pl.DataFrame
@@ -1355,19 +1498,39 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         | pa.RecordBatch
         | pa.RecordBatchReader
         | pd.DataFrame
-        | dict[str, Any]
-        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, Any]],
+        | dict[str, any]
+        | list[pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict[str, any]],
         mode: str | None = None,
         concat: bool | None = None,
         unique: bool | list[str] | str | None = None,
-    ) -> None:
+    ) -> dict[str, any]:
+        """
+        Write data to database.
+
+        Args:
+            data (pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader | pd.DataFrame |
+                dict[str, any] | list[pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader |
+                pd.DataFrame | dict[str, any]] | None, optional): Data to write.
+            mode (str, optional): Write mode (append, replace, fail).
+            concat (bool, optional): Concatenate multiple files into a single DataFrame.
+            unique (bool | list[str] | str, optional): Unique columns for deduplication.
+
+        Returns:
+            dict[str, any]: Metadata of the written data
+        """
         db = self.type_.lower()
         if db == "sqlite":
-            self._write_sqlite(data=data, mode=mode, concat=concat, unique=unique)
+            return self._write_sqlite(
+                data=data, mode=mode, concat=concat, unique=unique
+            )
         elif db == "duckdb":
-            self._write_duckdb(data=data, mode=mode, concat=concat, unique=unique)
+            return self._write_duckdb(
+                data=data, mode=mode, concat=concat, unique=unique
+            )
         elif db in ["postgres", "mysql", "mssql", "oracle"]:
-            self._write_sqlalchemy(data=data, mode=mode, concat=concat, unique=unique)
+            return self._write_sqlalchemy(
+                data=data, mode=mode, concat=concat, unique=unique
+            )
         else:
             raise ValueError(f"Unsupported database type: {self.type_}")
 
@@ -1467,6 +1630,7 @@ class BaseDatabaseReader(BaseDatabaseIO):
                     pl.read_database_uri(
                         query=query,
                         uri=cs,
+                        engine=engine,
                         **kwargs,
                     )
                 ).to_arrow()
@@ -1477,66 +1641,91 @@ class BaseDatabaseReader(BaseDatabaseIO):
         )
 
     def to_polars(
-        self, query: str | None = None, reload: bool = False, **kwargs
-    ) -> pl.DataFrame:
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        metadata: bool = False,
+        **kwargs,
+    ) -> pl.DataFrame | tuple[pl.DataFrame, dict[str, any]]:
         """Convert data to Polars DataFrame.
 
         Args:
             query (str, optional): SQL query to execute. If None, loads all data from the table.
             reload (bool, optional): Reload data if True.
+            metadata (bool, optional): Include metadata in the output. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
-            pl.DataFrame: Polars DataFrame.
+            pl.DataFrame | tuple[pl.DataFrame, dict[str, any]]: Polars DataFrame or tuple of DataFrame and metadata.
         """
         self.load(query=query, reload=reload, **kwargs)
-        return pl.from_arrow(self._data)
+        df = pl.from_arrow(self._data)
+        if metadata:
+            return df, self.metadata
+        return df
 
     def to_pandas(
-        self, query: str | None = None, reload: bool = False, **kwargs
-    ) -> pd.DataFrame:
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        metadata: bool = False,
+        **kwargs,
+    ) -> pd.DataFrame | tuple[pd.DataFrame, dict[str, any]]:
         """Convert data to Pandas DataFrame.
 
         Args:
             query (str, optional): SQL query to execute. If None, loads all data from the table.
             reload (bool, optional): Reload data if True.
+            metadata (bool, optional): Include metadata in the output. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
-            pd.DataFrame: Pandas DataFrame.
+            pd.DataFrame | tuple[pd.DataFrame, dict[str, any]]: Pandas DataFrame or tuple of DataFrame and metadata.
         """
         self.load(query=query, reload=reload, **kwargs)
-        return self._data.to_pandas()
+        df = self._data.to_pandas()
+        if metadata:
+            return df, self.metadata
+        return df
 
     def to_pyarrow_table(
-        self, query: str | None = None, reload: bool = False, **kwargs
+        self,
+        query: str | None = None,
+        reload: bool = False,
+        metadata: bool = False,
+        **kwargs,
     ) -> pa.Table:
         """Convert data to PyArrow Table.
 
         Args:
             query (str, optional): SQL query to execute. If None, loads all data from the table.
             reload (bool, optional): Reload data if True.
+            metadata (bool, optional): Include metadata in the output. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
-            pa.Table: PyArrow Table.
+            pa.Table | tuple[pa.Table, dict[str, any]]: PyArrow Table or tuple of Table and metadata.
         """
         self.load(query=query, reload=reload, **kwargs)
+        if metadata:
+            return self._data, self.metadata
         return self._data
 
     def to_duckdb_relation(
         self,
         query: str | None = None,
         reload: bool = False,
+        metadata: bool = False,
         conn: duckdb.DuckDBPyConnection | None = None,
         **kwargs,
-    ) -> duckdb.DuckDBPyRelation:
+    ) -> duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, any]]:
         """Convert data to DuckDB relation.
 
         Args:
             query (str, optional): SQL query to execute. If None, loads all data from the table.
             reload (bool, optional): Reload data if True.
             conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            metadata (bool, optional): Include metadata in the output. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -1547,7 +1736,8 @@ class BaseDatabaseReader(BaseDatabaseIO):
             if conn is None:
                 conn = duckdb.connect()
             self.conn = conn
-
+        if metadata:
+            return self.conn.from_arrow(self._data), self.metadata
         return self.conn.from_arrow(self._data)
 
     def register_in_duckdb(

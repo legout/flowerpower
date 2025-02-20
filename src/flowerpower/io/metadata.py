@@ -194,9 +194,10 @@ def get_delta_metadata(
         "format": "delta",
         "timestamp": dt.datetime.now().timestamp(),
         "schema": dict(zip(dt_schema.names, [str(x) for x in dt_schema.types])),
-        "partition_columns": dt_meta.partition_columns,
+        "partition_columns": dt_meta.partition_columns
+        if hasattr(dt_meta, "partition_columns")
+        else None,
         "num_columns": len(dt_schema),
-        "num_rows": None,
         "num_files": len(dtable.files()),
         "name": dt_meta.name or kwargs.get("name", None),
         "description": dt_meta.description or kwargs.get("description", None),

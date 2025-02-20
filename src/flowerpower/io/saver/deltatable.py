@@ -8,6 +8,7 @@ from deltalake.writer import WriterProperties, write_deltalake
 
 from ...utils.misc import _dict_to_dataframe
 from ..base import BaseDatasetWriter
+from ..metadata import get_dataframe_metadata
 from sherlock import RedisLock
 from redis import StrictRedis, Redis
 
@@ -78,7 +79,37 @@ class DeltaTableWriter(BaseDatasetWriter):
         statistics_truncate_length: int | None = None,
         default_column_properties: ColumnProperties | None = None,
         column_properties: dict[str, ColumnProperties] | None = None,
-    ):
+    ) -> dict[str, Any]:
+        """
+        Write data to a Delta table.
+
+        Args:
+            data: Data to write
+            mode: Write mode
+            schema: Schema of the data
+            schema_mode: Schema mode
+            partition_by: Columns to partition by
+            partition_filters: Filters to apply to the partitions
+            predicate: Predicate to apply to the data
+            target_file_size: Target file size
+            large_dtypes: Whether to use large dtypes
+            custom_metadata: Custom metadata
+            post_commithook_properties: Post-commit hook properties
+            commit_properties: Commit properties
+            data_page_size_limit: Data page size limit
+            dictionary_page_size_limit: Dictionary page size limit
+            data_page_row_count_limit: Data page row count limit
+            write_batch_size: Write batch size
+            max_row_group_size: Maximum row group size
+            compression: Compression method
+            compression_level: Compression level
+            statistics_truncate_length: Statistics truncate length
+            default_column_properties: Default column properties
+            column_properties: Column properties
+
+        Returns:
+            Metadata
+        """
         if data is None:
             data = self.data
         if isinstance(data, dict):
@@ -100,6 +131,8 @@ class DeltaTableWriter(BaseDatasetWriter):
             data = pa.Table.from_batches(data)
         if isinstance(data[0], pa.Table):
             data = pa.concat_tables(data, promote_options="permissive")
+
+        metadata = get_dataframe_metadata(data, path=self._raw_path, format=self.format)
 
         writer_properties = WriterProperties(
             data_page_size_limit=data_page_size_limit,
@@ -146,3 +179,4 @@ class DeltaTableWriter(BaseDatasetWriter):
                 _write()
         else:
             _write()
+        return metadata
