@@ -36,7 +36,11 @@ else:
     ParquetDataset = None
 import sqlite3
 
-from sqlalchemy import create_engine
+if importlib.util.find_spec("sqlalchemy"):
+    from sqlalchemy import create_engine, text
+else:
+    create_engine = None
+    text = None
 
 
 class BaseFileIO(BaseModel):
@@ -1392,8 +1396,9 @@ class BaseDatabaseIO(BaseModel):
     username: str | None = None
     password: str | None = None
     server: str | None = None
-    port: str | None = None
+    port: str | int | None = None
     database: str | None = None
+    ssl: bool = False
 
     def model_post_init(self, __context):
         db = self.type_.lower()
@@ -1409,29 +1414,42 @@ class BaseDatabaseIO(BaseModel):
                     "to build it."
                 )
             if db == "postgres":
+                ssl_mode = "?sslmode=require" if self.ssl else ""
                 self.connection_string = (
                     f"postgresql://{self.username}:{self.password}@{self.server}:{self.port}/"
-                    f"{self.database}"
+                    f"{self.database}{ssl_mode}"
                 )
             elif db == "mysql":
+                ssl_mode = "?ssl=true" if self.ssl else ""
                 self.connection_string = (
                     f"mysql+pymysql://{self.username}:{self.password}@{self.server}:{self.port}/"
-                    f"{self.database}"
+                    f"{self.database}{ssl_mode}"
                 )
             elif db == "mssql":
+                ssl_mode = ";Encrypt=yes;TrustServerCertificate=yes" if self.ssl else ""
                 self.connection_string = (
                     f"mssql+pyodbc://{self.username}:{self.password}@{self.server}:{self.port}/"
-                    f"{self.database}?driver=ODBC+Driver+17+for+SQL+Server"
+                    f"{self.database}?driver=ODBC+Driver+17+for+SQL+Server{ssl_mode}"
                 )
             elif db == "oracle":
+                ssl_mode = "?ssl=true" if self.ssl else ""
                 self.connection_string = (
                     f"oracle+cx_oracle://{self.username}:{self.password}@{self.server}:{self.port}/"
-                    f"{self.database}"
+                    f"{self.database}{ssl_mode}"
                 )
         if db in ["sqlite", "sqlite3"]:
             if not self.path:
                 raise ValueError("SQLite requires a file path.")
             self.connection_string = f"sqlite:///{self.path}"
+
+    def execute(self, query: str, **query_kwargs):
+        query = query.format(**query_kwargs)
+        if self.type_ == "sqlite" or self.type_ == "duckdb":
+            with self.connect() as conn:
+                return conn.execute(query)
+
+        with self.connect() as conn:
+            return conn.execute(text(query))
 
     def _to_pandas(
         self,
@@ -1457,6 +1475,19 @@ class BaseDatabaseIO(BaseModel):
         elif isinstance(data, dict):
             return pd.DataFrame(data)
         return data
+
+    def create_engine(self):
+        return create_engine(self.connection_string)
+
+    def connect(self):
+        if self.type_ == "sqlite":
+            conn = sqlite3.connect(self.path)
+            # Activate WAL mode:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            return conn
+        if self.type_ == "duckdb":
+            return duckdb.connect(database=self.path)
+        return self.create_engine().connect()
 
 
 class BaseDatabaseWriter(BaseDatabaseIO):
@@ -1740,6 +1771,8 @@ class BaseDatabaseReader(BaseDatabaseIO):
 
         if "engine" in kwargs:
             engine = kwargs.pop("engine", "connectorx")
+        else:
+            engine = "adbc"
 
         if query != self.query:
             reload = True
