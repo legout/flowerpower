@@ -18,6 +18,7 @@ from ..metadata import (
 
 
 # from ..utils import get_dataframe_metadata, get_delta_metadata
+from loguru import logger
 
 
 class DeltaTableReader(BaseDatasetReader):
@@ -35,15 +36,20 @@ class DeltaTableReader(BaseDatasetReader):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
+
+        self._init_dt()
+        if self.with_lock and self.redis is None:
+            raise ValueError("Redis connection is required when using locks.")
+
+    def _init_dt(self):
         try:
             self.delta_table = DeltaTable(
                 self._raw_path,
                 storage_options=self.storage_options.to_object_store_kwargs(),
             )
         except TableNotFoundError:
-            raise ValueError(f"Table {self._raw_path} not found.")
-        if self.with_lock and self.redis is None:
-            raise ValueError("Redis connection is required when using locks.")
+            logger.warning(f"Table {self._raw_path} not found.")
+            self.delta_table = None
 
     @property
     def dt(self) -> DeltaTable:
@@ -64,6 +70,11 @@ class DeltaTableReader(BaseDatasetReader):
         Returns:
             pds.Dataset | tuple[pds.Dataset, dict[str, any]]: PyArrow Dataset or tuple of PyArrow Dataset and metadata.
         """
+        if self.delta_table is None:
+            self._init_dt()
+            if self.delta_table is None:
+                return None
+
         if reload or not hasattr(self, "_dataset"):
             self._dataset = self.delta_table.to_pyarrow_dataset()
         if metadata:
@@ -85,6 +96,11 @@ class DeltaTableReader(BaseDatasetReader):
         Returns:
             pa.Table | tuple[pa.Table, dict[str, any]]: PyArrow Table or tuple of PyArrow Table and metadata.
         """
+        if self.delta_table is None:
+            self._init_dt()
+            if self.delta_table is None:
+                return None
+
         if reload or not hasattr(self, "_data"):
             self._data = self.delta_table.to_pyarrow_table()
         if metadata:
