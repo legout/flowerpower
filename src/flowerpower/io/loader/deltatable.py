@@ -49,18 +49,23 @@ class DeltaTableReader(BaseDatasetReader):
     def dt(self) -> DeltaTable:
         return self.delta_table
 
+    def _load(self, reload: bool = False):
+        self.to_pyarrow_table(reload=reload)
+
     def to_pyarrow_dataset(
-        self, metadata: bool = False
+        self, metadata: bool = False, reload: bool = False
     ) -> pds.Dataset | tuple[pds.Dataset, dict[str, any]]:
         """Converts the DeltaTable to a PyArrow Dataset.
 
         Args:
             metadata (bool, optional): Whether to include metadata. Defaults to False.
+            reload (bool, optional): Whether to reload the dataset. Defaults to False.
 
         Returns:
             pds.Dataset | tuple[pds.Dataset, dict[str, any]]: PyArrow Dataset or tuple of PyArrow Dataset and metadata.
         """
-        self._dataset = self.delta_table.to_pyarrow_dataset()
+        if reload or not hasattr(self, "_dataset"):
+            self._dataset = self.delta_table.to_pyarrow_dataset()
         if metadata:
             metadata = get_pyarrow_dataset_metadata(
                 self._dataset, self._raw_path, "parquet"
@@ -69,21 +74,23 @@ class DeltaTableReader(BaseDatasetReader):
         return self._dataset
 
     def to_pyarrow_table(
-        self, metadata: bool = False
+        self, metadata: bool = False, reload: bool = False
     ) -> pa.Table | tuple[pa.Table, dict[str, any]]:
         """Converts the DeltaTable to a PyArrow Table.
 
         Args:
             metadata (bool, optional): Whether to include metadata. Defaults to False.
+            reload (bool, optional): Whether to reload the table. Defaults to False.
 
         Returns:
             pa.Table | tuple[pa.Table, dict[str, any]]: PyArrow Table or tuple of PyArrow Table and metadata.
         """
-        table = self.delta_table.to_pyarrow_table()
+        if reload or not hasattr(self, "_data"):
+            self._data = self.delta_table.to_pyarrow_table()
         if metadata:
             metadata = get_dataframe_metadata(table, self._raw_path, "parquet")
-            return table, metadata
-        return table
+            return self._data, metadata
+        return self._data
 
     def compact(
         self,
