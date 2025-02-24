@@ -246,7 +246,7 @@ class BaseFileReader(BaseFileIO):
                 self._metadata = {}
 
     def to_pandas(
-        self, metadata: bool = False, **kwargs
+        self, metadata: bool = False, reload: bool = False, **kwargs
     ) -> (
         tuple[pd.DataFrame | list[pd.DataFrame], dict[str, any]]
         | pd.DataFrame
@@ -256,12 +256,13 @@ class BaseFileReader(BaseFileIO):
 
         Args:
             metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
             tuple[pd.DataFrame | list[pd.DataFrame], dict[str, any]] | pd.DataFrame | list[pd.DataFrame]: Pandas
                 DataFrame or list of DataFrames and optional metadata.
         """
-        self.load(**kwargs)
+        self.load(reload=reload, **kwargs)
         if isinstance(self._data, list):
             df = [
                 df if isinstance(df, pd.DataFrame) else df.to_pandas()
@@ -280,14 +281,18 @@ class BaseFileReader(BaseFileIO):
         return df
 
     def iter_pandas(
-        self, batch_size: int = 1, **kwargs
+        self, batch_size: int = 1, reload: bool = False, **kwargs
     ) -> Generator[pd.DataFrame, None, None]:
         """Iterate over Pandas DataFrames.
+
+        Args:
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
             Generator[pd.DataFrame, None, None]: Generator of Pandas DataFrames.
         """
-        self.load(batch_size=batch_size, **kwargs)
+        self.load(batch_size=batch_size, reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pd.DataFrame) else df.to_pandas()
@@ -299,13 +304,13 @@ class BaseFileReader(BaseFileIO):
             )
 
     def _to_polars_dataframe(
-        self, metadata: bool = False, **kwargs
+        self, metadata: bool = False, reload: bool = False, **kwargs
     ) -> (
         tuple[pl.DataFrame | list[pl.DataFrame], dict[str, any]]
         | pl.DataFrame
         | list[pl.DataFrame]
     ):
-        self.load(**kwargs)
+        self.load(reload=reload, **kwargs)
         if isinstance(self._data, list):
             df = [
                 df if isinstance(self._data, pl.DataFrame) else pl.from_arrow(df)
@@ -324,14 +329,14 @@ class BaseFileReader(BaseFileIO):
         return df
 
     def _iter_polars_dataframe(
-        self, batch_size: int = 1, **kwargs
+        self, batch_size: int = 1, reload: bool = False, **kwargs
     ) -> Generator[pl.DataFrame, None, None]:
         """Iterate over Polars DataFrames.
 
         Returns:
             Generator[pl.DataFrame, None, None]: Generator of Polars DataFrames.
         """
-        self.load(batch_size=batch_size, **kwargs)
+        self.load(batch_size=batch_size, reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pl.DataFrame) else pl.from_arrow(df)
@@ -343,13 +348,13 @@ class BaseFileReader(BaseFileIO):
             )
 
     def _to_polars_lazyframe(
-        self, metadata: bool = False, **kwargs
+        self, metadata: bool = False, reload: bool = False, **kwargs
     ) -> (
         tuple[pl.LazyFrame | list[pl.LazyFrame], dict[str, any]]
         | pl.LazyFrame
         | list[pl.LazyFrame]
     ):
-        self.load(**kwargs)
+        self.load(reload=reload, **kwargs)
         if not self.concat:
             df = [df.lazy() for df in self._to_polars_dataframe()]
 
@@ -361,14 +366,18 @@ class BaseFileReader(BaseFileIO):
         return df
 
     def _iter_polars_lazyframe(
-        self, batch_size: int = 1, **kwargs
+        self, batch_size: int = 1, reload: bool = False, **kwargs
     ) -> Generator[pl.LazyFrame, None, None]:
         """Iterate over Polars LazyFrames.
+
+        Args:
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
             Generator[pl.LazyFrame, None, None]: Generator of Polars LazyFrames.
         """
-        self.load(batch_size=batch_size, **kwargs)
+        self.load(batch_size=batch_size, reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield (
@@ -424,18 +433,19 @@ class BaseFileReader(BaseFileIO):
         yield from self._iter_polars_dataframe(batch_size=batch_size, **kwargs)
 
     def to_pyarrow_table(
-        self, metadata: bool = False, **kwargs
+        self, metadata: bool = False, reload: bool = False, **kwargs
     ) -> pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, any]]:
         """Convert data to PyArrow Table(s).
 
         Args:
             metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
             pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, any]]: PyArrow Table or list of
                 Tables and optional metadata.
         """
-        self.load(**kwargs)
+        self.load(reload=reload, **kwargs)
         if isinstance(self._data, list):
             df = [
                 df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
@@ -454,14 +464,14 @@ class BaseFileReader(BaseFileIO):
         return df
 
     def iter_pyarrow_table(
-        self, batch_size: int = 1, **kwargs
+        self, batch_size: int = 1, reload: bool = False, **kwargs
     ) -> Generator[pa.Table, None, None]:
         """Iterate over PyArrow Tables.
 
         Returns:
             Generator[pa.Table, None, None]: Generator of PyArrow Tables.
         """
-        self.load(batch_size=batch_size, **kwargs)
+        self.load(batch_size=batch_size, reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
@@ -473,39 +483,55 @@ class BaseFileReader(BaseFileIO):
             )
 
     def to_duckdb_relation(
-        self, conn: duckdb.DuckDBPyConnection | None = None, **kwargs
-    ) -> duckdb.DuckDBPyRelation:
+        self,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        metadata: bool = False,
+        reload: bool = False,
+        **kwargs,
+    ) -> duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, any]]:
         """Convert data to DuckDB relation.
 
         Args:
             conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
-
-            duckdb.DuckDBPyRelation: DuckDB relation.
+            duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, any]]: DuckDB relation and optional
+                metadata.
         """
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()
             self.conn = conn
 
-        if hasattr(self, "_data"):
-            return self.conn.from_arrow(self.to_pyarrow_table(concat=True))
-
-        else:
-            self.load(**kwargs)
-            return self.conn.from_arrow(self.to_pyarrow_table(concat=True))
+        if metadata:
+            return self.conn.from_arrow(
+                self.to_pyarrow_table(concat=True, reload=reload, **kwargs),
+            ), self._metadata
+        return self.conn.from_arrow(
+            self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
+        )
 
     def register_in_duckdb(
-        self, conn: duckdb.DuckDBPyConnection, name: str | None = None, **kwargs
-    ) -> None:
+        self,
+        conn: duckdb.DuckDBPyConnection,
+        name: str | None = None,
+        metadata: bool = False,
+        reload: bool = False,
+        **kwargs,
+    ) -> duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, any]]:
         """Register data in DuckDB.
 
         Args:
             conn (duckdb.DuckDBPyConnection): DuckDB connection instance.
+            name (str, optional): Name for the DuckDB table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
 
         Returns:
-            None
+            duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, any]]: DuckDB connection instance
+                or DuckDB connection instance and optional metadata.
         """
         if name is None:
             name = f"{self.format}:{self.path}"
@@ -515,18 +541,67 @@ class BaseFileReader(BaseFileIO):
                 conn = duckdb.connect()
             self.conn = conn
 
-        if hasattr(self, "_data"):
-            self.conn.register(name, self.to_pyarrow_table(concat=True))
-        else:
-            self.conn.register(name, self.to_duckdb_relation(self.conn, **kwargs))
+        self.conn.register(
+            name, self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
+        )
+        if metadata:
+            return self.conn, self._metadata
+        return self.conn
+
+    def to_duckdb(
+        self,
+        as_relation: bool = True,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        name: str | None = None,
+        metadata: bool = False,
+        reload: bool = False,
+        **kwargs,
+    ) -> (
+        duckdb.DuckDBPyRelation
+        | duckdb.DuckDBPyConnection
+        | tuple[duckdb.DuckDBPyRelation, dict[str, any]]
+        | tuple[duckdb.DuckDBPyConnection, dict[str, any]]
+    ):
+        """Convert data to DuckDB relation or register in DuckDB.
+
+        Args:
+            as_relation (bool, optional): Return a DuckDB relation if True, else register in DuckDB. Default is True.
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            name (str, optional): Name for the DuckDB table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            duckdb.DuckDBPyRelation | duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyRelation, dict[str, any]] |
+                tuple[duckdb.DuckDBPyConnection, dict[str, any]]: DuckDB relation or connection instance
+                or DuckDB relation or connection instance and optional metadata.
+
+        """
+        if as_relation:
+            return self.to_duckdb_relation(
+                conn=conn, metadata=metadata, reload=reload, **kwargs
+            )
+        return self.register_in_duckdb(
+            conn=conn, name=name, metadata=metadata, reload=reload, **kwargs
+        )
 
     def register_in_datafusion(
-        self, ctx: datafusion.SessionContext, name: str | None = None, **kwargs
-    ) -> None:
+        self,
+        ctx: datafusion.SessionContext,
+        name: str | None = None,
+        metadata: bool = False,
+        reload: bool = False,
+        **kwargs,
+    ) -> datafusion.SessionContext | tuple[datafusion.SessionContext, dict[str, any]]:
         """Register data in DataFusion.
 
         Args:
             ctx (datafusion.SessionContext): DataFusion session context instance.
+            name (str, optional): Name for the DataFusion table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             None
@@ -540,9 +615,12 @@ class BaseFileReader(BaseFileIO):
             self.ctx = ctx
 
         self.ctx.register_record_batches(
-            name, [self.to_pyarrow_table(concat=True).to_batches()]
+            name,
+            [self.to_pyarrow_table(concat=True, reload=reload, **kwargs).to_batches()],
         )
-        # return ctx
+        if metadata:
+            return self.ctx, self._metadata
+        return ctx
 
     def filter(
         self, filter_expr: str | pl.Expr | pa.compute.Expression
@@ -827,12 +905,16 @@ class BaseDatasetReader(BaseFileReader):
         return self._pydala_dataset
 
     def to_duckdb_relation(
-        self, conn: duckdb.DuckDBPyConnection | None = None, **kwargs
-    ) -> duckdb.DuckDBPyRelation:
+        self,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        metadata: bool = False,
+        **kwargs,
+    ) -> duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, any]]:
         """Convert data to DuckDB relation.
 
         Args:
             conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            metadata (bool, optional): Include metadata in the output. Default is False.
 
         Returns:
             duckdb.DuckDBPyRelation: DuckDB relation.
@@ -844,19 +926,27 @@ class BaseDatasetReader(BaseFileReader):
 
         if not hasattr(self, "_dataset"):
             self.to_pyarrow_dataset(**kwargs)
-
+        if metadata:
+            return self.conn.from_arrow(self._dataset), self._metadata
         return self.conn.from_arrow(self._dataset)
 
     def register_in_duckdb(
-        self, conn: duckdb.DuckDBPyConnection, name: str | None = None, **kwargs
-    ) -> None:
+        self,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        name: str | None = None,
+        metadata: bool = False,
+        **kwargs,
+    ) -> duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, any]]:
         """Register data in DuckDB.
 
         Args:
             conn (duckdb.DuckDBPyConnection): DuckDB connection instance.
+            name (str, optional): Name for the DuckDB table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            **kwargs: Additional keyword arguments.
 
         Returns:
-            None
+            duckdb.DuckDBPyConnection: DuckDB connection instance.
         """
         if name is None:
             name = f"{self.format}:{self.path}"
@@ -870,18 +960,60 @@ class BaseDatasetReader(BaseFileReader):
             self.to_pyarrow_dataset(**kwargs)
 
         self.conn.register(name, self._dataset)
-        # return conn
+        if metadata:
+            return self.conn, self._metadata
+        return self.conn
+
+    def to_duckdb(
+        self,
+        as_relation: bool = True,
+        conn: duckdb.DuckDBPyConnection | None = None,
+        name: str | None = None,
+        metadata: bool = False,
+        **kwargs,
+    ) -> (
+        duckdb.DuckDBPyRelation
+        | duckdb.DuckDBPyConnection
+        | tuple[duckdb.DuckDBPyRelation, dict[str, any]]
+        | tuple[duckdb.DuckDBPyConnection, dict[str, any]]
+    ):
+        """Convert data to DuckDB relation or register in DuckDB.
+
+        Args:
+            as_relation (bool, optional): Return a DuckDB relation if True, else register in DuckDB. Default is True.
+            conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
+            name (str, optional): Name for the DuckDB table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            duckdb.DuckDBPyRelation | duckdb.DuckDBPyConnection: DuckDB relation or connection instance.
+        """
+
+        if as_relation:
+            return self.to_duckdb_relation(conn=conn, metadata=metadata, **kwargs)
+        return self.register_in_duckdb(
+            conn=conn, name=name, metadata=metadata, **kwargs
+        )
 
     def register_in_datafusion(
-        self, ctx: datafusion.SessionContext, name: str | None = None, **kwargs
-    ) -> None:
+        self,
+        ctx: datafusion.SessionContext,
+        name: str | None = None,
+        metadata: bool = False,
+        **kwargs,
+    ) -> datafusion.SessionContext | tuple[datafusion.SessionContext, dict[str, any]]:
         """Register data in DataFusion.
 
         Args:
             ctx (datafusion.SessionContext): DataFusion session context instance.
+            name (str, optional): Name for the DataFusion table.
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            **kwargs: Additional keyword arguments.
 
         Returns:
-            None
+            datafusion.SessionContext | tuple[datafusion.SessionContext, dict[str, any]]: DataFusion session
+                context or instance and optional metadata.
         """
         if name is None:
             name = f"{self.format}:{self.path}"
@@ -895,6 +1027,11 @@ class BaseDatasetReader(BaseFileReader):
             self.to_pyarrow_dataset(**kwargs)
 
         self.ctx.register_dataset(name, self._dataset)
+
+        if metadata:
+            return self.ctx, self._metadata
+
+        return self.ctx
 
     def filter(self, filter_exp: str | pa.compute.Expression) -> pds.Dataset:
         """
