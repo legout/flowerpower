@@ -1460,10 +1460,16 @@ class BaseDatabaseIO(BaseModel):
         query = query.format(**query_kwargs)
         if self.type_ == "sqlite" or self.type_ == "duckdb":
             with self.connect() as conn:
-                return conn.execute(query)
+                cur = conn.cursor()
+                res = cur.execute(query)
+                conn.commit()
+                return res
 
         with self.connect() as conn:
-            return conn.execute(text(query))
+            cur = conn.cursor()
+            res = cur.execute(text(query))
+            conn.commit()
+            return res
 
     def _to_pandas(
         self,
