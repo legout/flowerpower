@@ -798,7 +798,7 @@ class BaseDatasetReader(BaseFileReader):
 
     def to_pydala_dataset(
         self, metadata: bool = False, **kwargs
-    ) -> "ParquetDataset" | tuple["ParquetDataset", dict[str, any]]:  # type: ignore
+    ) -> ParquetDataset | tuple[ParquetDataset, dict[str, any]]:  # type: ignore
         """Convert data to Pydala ParquetDataset.
 
         Args:
