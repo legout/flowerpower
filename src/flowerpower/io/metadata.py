@@ -68,6 +68,7 @@ def get_dataframe_metadata(
     format: str | None = None,
     topic: str | None = None,
     num_files: int | None = None,
+    partition_columns: list[str] | None = None,
     fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> dict:
@@ -97,13 +98,16 @@ def get_dataframe_metadata(
             path_ = path_to_glob(path=path, format=format)
             num_files = len(fs.glob(path_)) if fs is not None else None
 
+    if partition_columns is not None:
+        schema = {k: v for k, v in schema.items() if k not in partition_columns}
+
     metadata = {
         "path": path,
         "topic": topic,
         "format": format,
         "timestamp": int(dt.datetime.now().timestamp() * 1000),
         "schema": schema,
-        # "partition_columns": None,
+        "partition_columns": partition_columns,
         "num_columns": len(schema),
         "num_rows": num_rows,
         "num_files": num_files,
@@ -121,6 +125,7 @@ def get_duckdb_metadata(
     fs: AbstractFileSystem | None = None,
     include_shape: bool = False,
     include_num_files: bool = False,
+    partition_columns: list[str] | None = None,
     **kwargs,
 ) -> dict:
     """
@@ -143,12 +148,15 @@ def get_duckdb_metadata(
         shape = rel.shape
     else:
         shape = None
+    if partition_columns is not None:
+        schema = {k: v for k, v in schema.items() if k not in partition_columns}
 
     metadata = {
         "path": path,
         "format": format,
         "timestamp": dt.datetime.now().timestamp(),
         "schema": schema,
+        "partition_columns": partition_columns,
         "num_columns": shape[1] if shape else None,
         "num_rows": shape[0] if shape else None,
         "num_files": len(fs.glob(path)) if include_num_files else None,
