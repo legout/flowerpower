@@ -1456,12 +1456,24 @@ class BaseDatabaseIO(BaseModel):
                 raise ValueError("SQLite requires a file path.")
             self.connection_string = f"sqlite:///{self.path}"
 
-    def execute(self, query: str, **query_kwargs):
+    def execute(self, query: str, cursor: bool = True, **query_kwargs):
+        """Execute a SQL query.
+
+        Args:
+            query (str): SQL query.
+            cursor (bool, optional): Use cursor for execution. Default is True.
+            **query_kwargs: Additional keyword arguments.
+        """
         query = query.format(**query_kwargs)
         if self.type_ == "sqlite" or self.type_ == "duckdb":
             with self.connect() as conn:
-                cur = conn.cursor()
-                res = cur.execute(query)
+                if cursor:
+                    cur = conn.cursor()
+                    res = cur.execute(query)
+
+                else:
+                    res = conn.execute(query)
+
                 conn.commit()
                 return res
 
