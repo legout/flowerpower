@@ -201,7 +201,7 @@ def get_delta_metadata(
         "num_files": len(dtable.files()),
         "name": dt_meta.name or kwargs.get("name", None),
         "description": dt_meta.description or kwargs.get("description", None),
-        "id": dt_meta.metadata().id or kwargs.get("id", None),
+        "id": dt_meta.id or kwargs.get("id", None),
     }
 
     return {k: v for k, v in metadata.items() if v is not None}
