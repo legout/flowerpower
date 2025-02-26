@@ -10,6 +10,7 @@ import pyarrow.dataset as pds
 from pydantic import BaseModel, ConfigDict
 
 from ...utils.sql import sql2polars_filter
+from ..metadata import get_dataframe_metadata, get_duckdb_metadata
 
 
 class PayloadReader(BaseModel):
@@ -24,51 +25,96 @@ class PayloadReader(BaseModel):
         if isinstance(self.payload, bytes):
             self.payload = orjson.loads(self.payload)
 
-    def to_pyarrow_table(self) -> pa.Table:
+        self._metadata = {
+            "format": self.format,
+            "timestamp": pd.Timestamp.now(),
+            "topic": self.topic,
+        }
+
+    def to_pyarrow_table(
+        self, metadata: bool = False
+    ) -> pa.Table | tuple[pa.Table, dict[str, Any]]:
         try:
-            return pa.Table.from_pydict(self.payload)
+            df = pa.Table.from_pydict(self.payload)
         except pa.ArrowInvalid:
-            return pa.Table.from_pylist([self.payload])
+            df = pa.Table.from_pylist([self.payload])
+        if metadata:
+            self._metadata = get_dataframe_metadata(df, **self._metadata)
+            return df, self._metadata
+        return df
 
-    def to_pandas(self) -> pd.DataFrame:
+    def to_pandas(
+        self, metadata: bool = False
+    ) -> pd.DataFrame | tuple[pd.DataFrame, dict[str, Any]]:
         try:
-            return pd.DataFrame(self.payload)
+            df = pd.DataFrame(self.payload)
         except ValueError:
-            return pd.DataFrame([self.payload])
+            df = pd.DataFrame([self.payload])
+        if metadata:
+            self._metadata = get_dataframe_metadata(df, **self._metadata)
+            return df, self._metadata
+        return df
 
-    def _to_polars_dataframe(self) -> pl.DataFrame:
+    def _to_polars_dataframe(
+        self, metadata: bool = False
+    ) -> pl.DataFrame | tuple[pl.DataFrame, dict[str, Any]]:
         try:
-            return pl.DataFrame(self.payload)
+            df = pl.DataFrame(self.payload)
         except pl.exceptions.ShapeError:
-            return pl.DataFrame([self.payload])
+            df = pl.DataFrame([self.payload])
+        if metadata:
+            self._metadata = get_dataframe_metadata(df, **self._metadata)
+            return df, self._metadata
+        return df
 
-    def _to_polars_lazyframe(self) -> pl.LazyFrame:
+    def _to_polars_lazyframe(
+        self, metadata: bool = False
+    ) -> pl.LazyFrame | tuple[pl.LazyFrame, dict[str, Any]]:
         try:
-            return pl.LazyFrame(self.payload)
+            df = pl.LazyFrame(self.payload)
         except pl.exceptions.ShapeError:
-            return pl.LazyFrame([self.payload])
+            df = pl.LazyFrame([self.payload])
+        if metadata:
+            self._metadata = get_dataframe_metadata(df, **self._metadata)
+            return df, self._metadata
+        return df
 
-    def to_polars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
+    def to_polars(
+        self, lazy: bool = False, metadata: bool = False
+    ) -> (
+        pl.DataFrame | pl.LazyFrame | tuple[pl.DataFrame | pl.LazyFrame, dict[str, Any]]
+    ):
         if lazy:
-            return self._to_polars_lazyframe()
+            return self._to_polars_lazyframe(metadata=metadata)
         else:
-            return self._to_polars_dataframe()
+            return self._to_polars_dataframe(metadata=metadata)
 
-    def to_duckdb_relation(self, conn: duckdb.DuckDBPyConnection | None = None):
+    def to_duckdb_relation(
+        self, conn: duckdb.DuckDBPyConnection | None = None, metadata: bool = False
+    ) -> duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]:
         if self.conn is None:
             if conn is None:
                 conn = duckdb.connect()
             self.conn = conn
-        return self.conn.from_arrow(self.to_pyarrow_table())
+        rel = self.conn.from_arrow(self.to_pyarrow_table())
+        if metadata:
+            self._metadata = get_duckdb_metadata(rel, **self._metadata)
+            return rel, self._metadata
+        return rel
 
-    def to_pyarrow_dataset(self, **kwargs) -> pds.Dataset:
+    def to_pyarrow_dataset(
+        self, metadata: bool = False, **kwargs
+    ) -> pds.Dataset | tuple[pds.Dataset, dict[str, Any]]:
+        if metadata:
+            t, self._metadata = self.to_pyarrow_table(metadata=True)
+            return pds.dataset(t, **kwargs), self._metadata
         return pds.dataset(self.to_pyarrow_table(), **kwargs)
 
     def register_in_duckdb(
         self,
         conn: duckdb.DuckDBPyConnection | None = None,
         name: str | None = None,
-    ):
+    ) -> duckdb.DuckDBPyConnection:
         if name is None:
             name = f"mqtt:{self.topic}"
 
@@ -78,6 +124,7 @@ class PayloadReader(BaseModel):
             self.conn = conn
 
         self.conn.register(name, self.to_pyarrow_table())
+        return self.conn
 
     def register_in_datafusion(
         self,
@@ -92,9 +139,9 @@ class PayloadReader(BaseModel):
                 ctx = datafusion.SessionContext()
             self.ctx = ctx
 
-        ctx.register(name, [self.to_pyarrow_table()])
+        self.ctx.register(name, [self.to_pyarrow_table()])
 
-        return ctx
+        return self.ctx
 
     def filter(self, filter_expr: str | pl.Expr) -> pl.DataFrame | pl.LazyFrame:
         self._data = self.to_polars()
