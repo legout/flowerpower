@@ -21,7 +21,7 @@ print(Path(__file__).parents[1])
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""
-    time.sleep(2)
+    # time.sleep(2)
     return pd.Series(range(10_000)) * 10
 
 
@@ -36,7 +36,7 @@ def signups() -> pd.Series:
 )  # (**{"avg_x_wk_spend": {"rolling": value(3)}})  #
 def avg_x_wk_spend(spend: pd.Series, rolling: int) -> pd.Series:
     """Rolling x week average spend."""
-    time.sleep(2)
+    # time.sleep(2)
     return spend.rolling(rolling).mean()
 
 

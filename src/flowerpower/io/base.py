@@ -1802,7 +1802,7 @@ class BaseDatabaseReader(BaseDatabaseIO):
             query = query.replace("table", self.table_name)
 
         if "engine" in kwargs:
-            engine = kwargs.pop("engine", "connectorx")
+            engine = kwargs.pop("engine", "adbc")
         else:
             engine = "adbc"
 

@@ -666,25 +666,6 @@ wheels = [
 ]
 
 [[package]]
-name = "connectorx"
-version = "0.4.2"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/93/546de30f48b80779e9b59600116e6149cfc9d69a424966de17eee9a9641e/connectorx-0.4.2-cp311-cp311-macosx_10_7_x86_64.whl", hash = "sha256:22415c1dc6efb132409822f91ab90111535a507560b616f5bf1f88a64ae9c046", size = 35473179 },
-    { url = "https://files.pythonhosted.org/packages/ce/9d/57ff9c115b750d3a300bb67e192aa4d4a6f508f4597c45843e8aef1047b2/connectorx-0.4.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:5e7c8c0b8fd6b1a1e341c873256d995cd255fedfec6b84c79c0e89864866e75f", size = 33722864 },
-    { url = "https://files.pythonhosted.org/packages/6d/97/c7f5d64e0f2ba4dd36e9692d67d513daab6e2cada67588c2c5a3587dad89/connectorx-0.4.2-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:327dd33f11fa75e7c48195bea1702aafd0f59173d5798c8c9e2c487a7e0ebd98", size = 40729764 },
-    { url = "https://files.pythonhosted.org/packages/ee/27/0d670ef66a6af77ffc1d310d51b658a84442e82b6b2b394084d0fe30a370/connectorx-0.4.2-cp311-none-win_amd64.whl", hash = "sha256:1896d86d2397c1205a0d6adb2d8fbabc5fa0cc953a973c587c410efd04b1d09a", size = 32420605 },
-    { url = "https://files.pythonhosted.org/packages/b9/76/4038009d2765d3c1c347d41e065480f84076c03bf22236baa59942efc5bd/connectorx-0.4.2-cp312-cp312-macosx_10_7_x86_64.whl", hash = "sha256:0e23c5afcfba05cf841d5cca3f5bced4962be428eff50aefbdaa31778c7280c0", size = 35470367 },
-    { url = "https://files.pythonhosted.org/packages/85/e4/3e9aaa43a739a2e1e25902f303538ba119a72e900a39f94a1b261479aa71/connectorx-0.4.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:0f2eb4d52552f2d660ad8803243015b35869b705db6b4d560874850b9699e6ed", size = 33725420 },
-    { url = "https://files.pythonhosted.org/packages/b1/77/062aaf55c39b7eeb7f88b350ffb46e6e27247e09be6a551b68f201febba5/connectorx-0.4.2-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:61ff8b1d4d9fa80f246e6874f89221f64d6a8a8723cbbb4ac83ff1417416a0e4", size = 40733252 },
-    { url = "https://files.pythonhosted.org/packages/27/0c/4b88bac7f926ca74e960b607362440911e477d502dcb522311ac3939045e/connectorx-0.4.2-cp312-none-win_amd64.whl", hash = "sha256:ff3fad383d95fd3b8b45a9156895172cbed9f622ee9e957294df4ec22e3fe34c", size = 32423429 },
-    { url = "https://files.pythonhosted.org/packages/91/d9/2a91fcfae08a763b8e57eaeaf6d87322009df0f8db84cc62a105b255c3ea/connectorx-0.4.2-cp313-cp313-macosx_10_7_x86_64.whl", hash = "sha256:190bb9426bd46acb22d98ddaa7c362474338557f72e9c8fcf0a998d7aecb0ef5", size = 35460042 },
-    { url = "https://files.pythonhosted.org/packages/e6/81/d6414fe8d22aa483bdadadd4d3f541065aea301839b308663590a014bde7/connectorx-0.4.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:e6bdef6046a7e41de6fe1282024bb990a40281d1e104b803d82a928a443bb49a", size = 33723258 },
-    { url = "https://files.pythonhosted.org/packages/bf/27/2190fa12d29996298869276e3082ec63eb75216fdaac74aa150731174c10/connectorx-0.4.2-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:b337b44740fb68caff4c3c3ae667c09939ab9e5a2920ca675d9726f2321b8b9b", size = 40730949 },
-    { url = "https://files.pythonhosted.org/packages/3c/45/c368b4a6c4cf05666911714fd7b485d5035bd5f73e0ceb8497b61034230c/connectorx-0.4.2-cp313-none-win_amd64.whl", hash = "sha256:c33245810eac8abad05d6d089b89584013b8e03ac6f02dd50fb3655123eefa7b", size = 32420764 },
-]
-
-[[package]]
 name = "contourpy"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -967,7 +948,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.9.18"
+version = "0.9.9.23"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -989,7 +970,7 @@ dependencies = [
 
 [package.optional-dependencies]
 io = [
-    { name = "connectorx" },
+    { name = "adbc-driver-manager" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -1002,7 +983,6 @@ io = [
     { name = "sherlock" },
 ]
 io-legacy = [
-    { name = "connectorx" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -1085,12 +1065,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "adbc-driver-manager", marker = "extra == 'io'", specifier = ">=1.4.0" },
     { name = "aiobotocore", specifier = "<2.18.0" },
     { name = "aiosqlite", marker = "extra == 'scheduler'", specifier = ">=0.21.0" },
     { name = "apscheduler", marker = "extra == 'scheduler'", specifier = ">=4.0.0a5" },
     { name = "asyncpg", marker = "extra == 'scheduler'", specifier = ">=0.29.0" },
-    { name = "connectorx", marker = "extra == 'io'", specifier = ">=0.4.1" },
-    { name = "connectorx", marker = "extra == 'io-legacy'", specifier = ">=0.4.1" },
     { name = "datafusion", marker = "extra == 'io'", specifier = ">=43.1.0" },
     { name = "datafusion", marker = "extra == 'io-legacy'", specifier = ">=43.1.0" },
     { name = "deltalake", marker = "extra == 'io'", specifier = ">=0.24.0" },

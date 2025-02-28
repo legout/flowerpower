@@ -432,7 +432,7 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool"]
+                    if executor in ["async", "threadpool", "processpool", None]
                     else "threadpool"
                 ),
             )
@@ -511,7 +511,7 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool"]
+                    if executor in ["async", "threadpool", "processpool", ""]
                     else "threadpool"
                 ),
                 result_expiration_time=result_expiration_time,
@@ -653,7 +653,7 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool"]
+                    if executor in ["async", "threadpool", "processpool", None]
                     else "threadpool"
                 ),
                 **schedule_kwargs,
