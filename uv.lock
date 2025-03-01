@@ -625,7 +625,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -948,7 +948,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.9.23"
+version = "0.9.9.24"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -983,6 +983,7 @@ io = [
     { name = "sherlock" },
 ]
 io-legacy = [
+    { name = "adbc-driver-manager" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -1066,6 +1067,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "adbc-driver-manager", marker = "extra == 'io'", specifier = ">=1.4.0" },
+    { name = "adbc-driver-manager", marker = "extra == 'io-legacy'", specifier = ">=1.4.0" },
     { name = "aiobotocore", specifier = "<2.18.0" },
     { name = "aiosqlite", marker = "extra == 'scheduler'", specifier = ">=0.21.0" },
     { name = "apscheduler", marker = "extra == 'scheduler'", specifier = ">=4.0.0a5" },
@@ -1484,7 +1486,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "sys_platform == 'darwin'" },
+    { name = "appnope", marker = "platform_system == 'Darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -4071,7 +4073,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
@@ -4159,7 +4161,7 @@ name = "tzlocal"
 version = "5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
+    { name = "tzdata", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/cc/11360404b20a6340b9b4ed39a3338c4af47bc63f87f6cea94dbcbde07029/tzlocal-5.3.tar.gz", hash = "sha256:2fafbfc07e9d8b49ade18f898d6bcd37ae88ce3ad6486842a2e4f03af68323d2", size = 30480 }
 wheels = [
