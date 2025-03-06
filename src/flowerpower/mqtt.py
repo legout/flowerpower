@@ -150,8 +150,8 @@ class MQTTManager:
     def publish(self, topic, payload):
         if self._client is None:
             self.connect()
-        elif self._client.is_connected() is False:
-            self.reconnect()
+        # elif self._client.is_connected() is False:
+        #    self.reconnect()
         self._client.publish(topic, payload)
 
     def subscribe(self, topic: str | None = None):
