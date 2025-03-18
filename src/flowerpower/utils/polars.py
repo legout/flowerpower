@@ -86,7 +86,9 @@ def unnest_with_prefix(
     return df
 
 
-def _opt_dtype(s: pl.Series, strict: bool = True) -> pl.Series:
+def _opt_dtype(
+    s: pl.Series, strict: bool = True, shrink_dtype: bool = True
+) -> pl.Series:
     if s.dtype == pl.Utf8():
         try:
             s = s.set(s == "-", None).set(s == "", None).set(s == "None", None)
@@ -105,10 +107,13 @@ def _opt_dtype(s: pl.Series, strict: bool = True) -> pl.Series:
                 )
                 s = s.set(s == "-", None).set(s == "", None).set(s == "None", None)
                 if s.str.contains(r"\.").any() | s.str.contains("NaN").any():
-                    s = s.cast(pl.Float64(), strict=True).shrink_dtype()
+                    if shrink_dtype:
+                        if s.min() >= -16777216 and s.max <= 16777216:
+                            s = s.cast(pl.Float32(), strict=True)
                 else:
-                    # if (s.str.lengths() > 0).all():
-                    s = s.cast(pl.Int64(), strict=True).shrink_dtype()
+                    s = s.cast(pl.Int64(), strict=True)
+                    if shrink_dtype:
+                        s = s.shrink_dtype()
 
             # cast str to datetime
 
@@ -148,7 +153,12 @@ def _opt_dtype(s: pl.Series, strict: bool = True) -> pl.Series:
                 )
                 raise e
     else:
-        s = s.shrink_dtype()
+        if shrink_dtype:
+            if s.dtype == pl.Float64():
+                if s.min() >= -16777216 and s.max <= 16777216:
+                    s = s.cast(pl.Float32(), strict=True)
+            else:
+                s = s.shrink_dtype()
 
     return s
 
