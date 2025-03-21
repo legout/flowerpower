@@ -19,9 +19,9 @@ else:
 def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
     shutdown = None
 
-    if mode == "processpool":
+    if mode == "processpool" or mode == "process" or mode == "multiprocessing":
         remote_executor = executors.MultiProcessingExecutor(max_tasks=max_tasks)
-    elif mode == "threadpool":
+    elif mode == "threadpool" or mode == "future_adapter" or mode == "threading":
         remote_executor = executors.MultiThreadingExecutor(max_tasks=max_tasks)
     elif mode == "dask":
         if distributed:

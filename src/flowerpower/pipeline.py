@@ -249,7 +249,7 @@ class PipelineManager:
         if with_progressbar:
             adapters.append(h_tqdm.ProgressBar(desc=f"{self.cfg.project.name}.{name}"))
 
-        if executor == "threadpool":
+        if executor == "future_adapter":
             adapters.append(FutureAdapter())
 
         if len(adapters):
@@ -434,6 +434,8 @@ class PipelineManager:
                     executor
                     if executor in ["async", "threadpool", "processpool", None]
                     else "threadpool"
+                    if executor == "future_adapter"
+                    else None
                 ),
             )
 
@@ -511,8 +513,10 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool", ""]
+                    if executor in ["async", "threadpool", "processpool", None]
                     else "threadpool"
+                    if executor == "future_adapter"
+                    else None
                 ),
                 result_expiration_time=result_expiration_time,
             )
@@ -655,6 +659,8 @@ class PipelineManager:
                     executor
                     if executor in ["async", "threadpool", "processpool", None]
                     else "threadpool"
+                    if executor == "future_adapter"
+                    else None
                 ),
                 **schedule_kwargs,
             )
