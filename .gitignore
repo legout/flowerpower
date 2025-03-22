@@ -29,3 +29,4 @@ test3.db
 test4.db*
 .gitignore
 flowerpower.db*
+.sesskey
