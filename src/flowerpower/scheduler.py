@@ -120,6 +120,7 @@ class SchedulerManager(Scheduler):
         self._data_store, self._sqla_engine = setup_data_store(
             type=self.cfg.project.worker.data_store.get("type", "memory"),
             engine_or_uri=self.cfg.project.worker.data_store.get("uri", None),
+            schema=self.cfg.project.worker.data_store.get("schema", "flowerpower"),
         )
 
     def _setup_event_broker(self):

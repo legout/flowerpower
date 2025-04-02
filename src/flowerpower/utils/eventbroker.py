@@ -41,11 +41,11 @@ class EventBroker:
             raise ValueError(f"Event broker type `{type} requires an `engine` or `uri`")
         if type == "mqtt" and not ((host and port) or uri):
             raise ValueError(
-                f"Event broker type `mqtt` requires a `host` and `port` or `uri`"
+                "Event broker type `mqtt` requires a `host` and `port` or `uri`"
             )
         if type == "redis" and not (uri or (host and port)):
             raise ValueError(
-                f"Event broker type `redis` requires a `uri` or `host` and `port`"
+                "Event broker type `redis` requires a `uri` or `host` and `port`"
             )
 
     def _setup_asyncpg_event_broker(self):

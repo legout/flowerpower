@@ -10,10 +10,16 @@ ALL_DATA_STORES = [
 
 
 class DataStore:
-    def __init__(self, type: str | None = None, engine_or_uri: str | None = None):
+    def __init__(
+        self,
+        type: str | None = None,
+        engine_or_uri: str | None = None,
+        schema: str | None = "flowerpower",
+    ):
         self.type = type or "memory"
         self.engine_or_uri = engine_or_uri
         self.sqla_engine = None
+        self._schema = schema
 
         if self.type not in ALL_DATA_STORES:
             raise ValueError(
@@ -30,12 +36,12 @@ class DataStore:
         from sqlalchemy.ext.asyncio import create_async_engine
 
         self.sqla_engine = create_async_engine(self.engine_or_uri)
-        self._data_store = SQLAlchemyDataStore(self.sqla_engine)
+        self._data_store = SQLAlchemyDataStore(self.sqla_engine, schema=self._schema)
 
     def _setup_mongodb(self, uri: str):
         from apscheduler.datastores.mongodb import MongoDBDataStore
 
-        self._data_store = MongoDBDataStore(self.engine_or_uri)
+        self._data_store = MongoDBDataStore(self.engine_or_uri, database=self._schema)
 
     def _setup_memory(self):
         from apscheduler.datastores.memory import MemoryDataStore
@@ -56,7 +62,9 @@ class DataStore:
         return self._data_store, self.sqla_engine
 
 
-def setup_data_store(type: str, engine_or_uri: str) -> tuple:
-    ds = DataStore(type=type, engine_or_uri=engine_or_uri)
+def setup_data_store(
+    type: str, engine_or_uri: str, schema: str | None = "flowerpower"
+) -> tuple:
+    ds = DataStore(type=type, engine_or_uri=engine_or_uri, schema=schema)
     ds.setup()
     return ds.get()
