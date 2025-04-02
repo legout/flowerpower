@@ -174,6 +174,7 @@ class PipelineManager:
         with_progressbar: bool = False,
         config: dict = {},
         reload: bool = False,
+        verify: bool = False,
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
         """
@@ -189,6 +190,7 @@ class PipelineManager:
                 Defaults to None.
             with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
             reload (bool, optional): Whether to reload the module. Defaults to False.
+            verify (bool, optional): Whether to verify ssl certificates. Defaults to False.
             **kwargs: Additional keyword arguments.
 
         Keyword Args:
@@ -234,7 +236,7 @@ class PipelineManager:
                     "Please provide a project_id if you want to use the tracker"
                 )
 
-            tracker = HamiltonTracker(**tracker_kwargs)
+            tracker = HamiltonTracker(verify=verify, **tracker_kwargs)
             adapters.append(tracker)
 
         if with_opentelemetry and h_opentelemetry is not None:
@@ -433,9 +435,7 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool"
-                    if executor == "future_adapter"
-                    else "threadpool"
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
             )
 
@@ -514,9 +514,7 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool"
-                    if executor == "future_adapter"
-                    else "threadpool"
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
                 result_expiration_time=result_expiration_time,
             )
@@ -658,9 +656,7 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool"
-                    if executor == "future_adapter"
-                    else "threadpool"
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
                 **schedule_kwargs,
             )
