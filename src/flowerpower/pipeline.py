@@ -261,7 +261,10 @@ class PipelineManager:
         )
 
         if executor_ is not None:
-            dr = dr.with_remote_executor(executor_)
+
+            dr = dr.enable_dynamic_execution(
+                allow_experimental_mode=True
+            ).with_remote_executor(executor_)
 
         if len(adapters):
             dr = dr.with_adapters(*adapters)
