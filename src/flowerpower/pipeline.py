@@ -255,6 +255,7 @@ class PipelineManager:
 
         dr = (
             driver.Builder()
+            .enable_dynamic_execution(allow_experimental_mode=True)
             .with_modules(self._module)
             .with_config(config)
             .with_local_executor(executors.SynchronousLocalTaskExecutor())
@@ -262,9 +263,7 @@ class PipelineManager:
 
         if executor_ is not None:
 
-            dr = dr.enable_dynamic_execution(
-                allow_experimental_mode=True
-            ).with_remote_executor(executor_)
+            dr = dr.with_remote_executor(executor_)
 
         if len(adapters):
             dr = dr.with_adapters(*adapters)
