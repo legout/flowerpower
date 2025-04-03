@@ -336,6 +336,7 @@ class MQTTManager:
             logger.info(f"Received message on topic {topic}")
 
             inputs["payload"] = msg.payload
+            inputs["topic"] = msg.topic
 
             with Pipeline(
                 name=name, storage_options=storage_options, fs=fs, base_dir=base_dir
