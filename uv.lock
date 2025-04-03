@@ -369,6 +369,18 @@ wheels = [
 ]
 
 [[package]]
+name = "asyncer"
+version = "0.0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/67/7ea59c3e69eaeee42e7fc91a5be67ca5849c8979acac2b920249760c6af2/asyncer-0.0.8.tar.gz", hash = "sha256:a589d980f57e20efb07ed91d0dbe67f1d2fd343e7142c66d3a099f05c620739c", size = 18217 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/04/15b6ca6b7842eda2748bda0a0af73f2d054e9344320f8bba01f994294bcb/asyncer-0.0.8-py3-none-any.whl", hash = "sha256:5920d48fc99c8f8f0f1576e1882f5022885589c5fcbc46ce4224ec3e53776eeb", size = 9209 },
+]
+
+[[package]]
 name = "asyncpg"
 version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -960,7 +972,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.9.10.1"
+version = "0.9.11"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
@@ -1051,6 +1063,7 @@ dev = [
     { name = "adbc-driver-sqlite" },
     { name = "apscheduler" },
     { name = "arro3-core" },
+    { name = "asyncer" },
     { name = "asyncpg" },
     { name = "datafusion" },
     { name = "datamodel-code-generator" },
@@ -1069,6 +1082,7 @@ dev = [
     { name = "paho-mqtt" },
     { name = "panel" },
     { name = "polars" },
+    { name = "psycopg" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "sanic" },
@@ -1144,6 +1158,7 @@ dev = [
     { name = "adbc-driver-sqlite", specifier = ">=1.4.0" },
     { name = "apscheduler", specifier = ">=4.0.0a5" },
     { name = "arro3-core", specifier = ">=0.4.5" },
+    { name = "asyncer", specifier = ">=0.0.8" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "datafusion", specifier = ">=42.0.0" },
     { name = "datamodel-code-generator", specifier = ">=0.27.2" },
@@ -1162,6 +1177,7 @@ dev = [
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "panel", specifier = ">=1.6.0" },
     { name = "polars", specifier = ">=1.12.0" },
+    { name = "psycopg", specifier = ">=3.2.6" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "ruff", specifier = ">=0.7.1" },
     { name = "sanic", specifier = ">=24.12.0" },
@@ -2918,6 +2934,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/a2/709e0fe2f093556c17fbafda93ac032257242cabcc7ff3369e2cb76a97aa/psutil-7.0.0-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a5f098451abc2828f7dc6b58d44b532b22f2088f4999a937557b603ce72b1993", size = 279544 },
     { url = "https://files.pythonhosted.org/packages/50/e6/eecf58810b9d12e6427369784efe814a1eec0f492084ce8eb8f4d89d6d61/psutil-7.0.0-cp37-abi3-win32.whl", hash = "sha256:ba3fcef7523064a6c9da440fc4d6bd07da93ac726b5733c29027d7dc95b39d99", size = 241053 },
     { url = "https://files.pythonhosted.org/packages/50/1b/6921afe68c74868b4c9fa424dad3be35b095e16687989ebbb50ce4fceb7c/psutil-7.0.0-cp37-abi3-win_amd64.whl", hash = "sha256:4cf3d4eb1aa9b348dec30105c55cd9b7d4629285735a102beb4441e38db90553", size = 244885 },
+]
+
+[[package]]
+name = "psycopg"
+version = "3.2.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/67/97/eea08f74f1c6dd2a02ee81b4ebfe5b558beb468ebbd11031adbf58d31be0/psycopg-3.2.6.tar.gz", hash = "sha256:16fa094efa2698f260f2af74f3710f781e4a6f226efe9d1fd0c37f384639ed8a", size = 156322 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/7d/0ba52deff71f65df8ec8038adad86ba09368c945424a9bd8145d679a2c6a/psycopg-3.2.6-py3-none-any.whl", hash = "sha256:f3ff5488525890abb0566c429146add66b329e20d6d4835662b920cbbf90ac58", size = 199077 },
 ]
 
 [[package]]

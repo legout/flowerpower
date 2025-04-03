@@ -6,19 +6,22 @@ tracker:
   api_key: null
   api_url: http://localhost:8241
   ui_url: https://localhost:8242
-  username: volker@lorrmann.de
+  username: user@flowerpower.de
 worker:
   cleanup_interval: 900
   data_store:
-    type: sqlalchemy
-    uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
-    #uri: postgresql+asyncpg://postgres:password@localhost/flowerpower
+    type: asyncpg
+    #uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
+    uri: postgresql+asyncpg://localhost:5432/flowerpower
+    username: postgres
+    password: password
+    ssl: true
+    schema: "hello_world"
   event_broker:
-    #type: redis
-    #uri: redis://localhost:6379
-    type: mqtt
-    host: localhost
-    port: 1883
-    username: null
-    password: null
-  max_concurrent_jobs: 100
+    type: asyncpg
+    #uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
+    #uri: postgresql+asyncpg://lodl.nes.siemens.de/flowerpower
+    #username: postgres
+    #password: jfA8*@b#PL5OR@u&hiCClZEokQen9X
+    #ssl: true
+  max_concurrent_jobs: 10
