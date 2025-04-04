@@ -14,6 +14,7 @@ from .pipeline.tracker import PipelineTrackerConfig
 from .project.open_telemetry import ProjectOpenTelemetryConfig
 from .project.tracker import ProjectTrackerConfig
 from .project.worker import ProjectWorkerConfig
+from .project.scheduler import SchedulerConfig
 
 
 class PipelineConfig(BaseConfig):
@@ -123,6 +124,7 @@ class ProjectConfig(BaseConfig):
     open_telemetry: ProjectOpenTelemetryConfig = Field(
         default_factory=ProjectOpenTelemetryConfig
     )
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
 
 
 class Config(BaseConfig):

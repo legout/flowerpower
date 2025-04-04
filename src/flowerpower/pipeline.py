@@ -31,19 +31,19 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config,
-    PipelineConfig,
-)
+from .cfg import Config, PipelineConfig
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
+from .scheduler.adapters.base import BaseSchedulerAdapter
+from .scheduler.factory import create_scheduler_adapter
 from .utils.misc import view_img
 from .utils.templates import PIPELINE_PY_TEMPLATE
 
-if importlib.util.find_spec("apscheduler"):
-    from .scheduler import SchedulerManager
-else:
-    SchedulerManager = None
+# Conditional import check for scheduler components might still be needed
+# if create_scheduler_adapter itself relies on optional imports,
+# but the factory pattern should handle internal checks.
+# We assume factory raises appropriate errors if dependencies are missing.
+
 from pathlib import Path
 from types import TracebackType
 
@@ -87,6 +87,7 @@ class PipelineManager:
 
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
+        self._adapter: BaseSchedulerAdapter | None = None  # Initialize adapter holder
 
         try:
             self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
@@ -95,7 +96,8 @@ class PipelineManager:
             logger.error(f"Error creating directories: {e}")
 
         self._sync_fs()
-        self.load_config()
+        # Config is loaded lazily or when needed by adapter/other methods
+        # self.load_config() # Removed eager loading
 
     def __enter__(self) -> "PipelineManager":
         return self
@@ -109,12 +111,25 @@ class PipelineManager:
         # Add any cleanup code here if needed
         pass
 
+    def _get_adapter(self) -> BaseSchedulerAdapter:
+        """Lazily initializes and returns the scheduler adapter."""
+        if self._adapter is None:
+            if not hasattr(self, "cfg"):
+                # Load base project config if not already loaded
+                self.load_config()
+            try:
+                self._adapter = create_scheduler_adapter(self.cfg)
+            except ImportError as e:
+                logger.error(f"Failed to create scheduler adapter: {e}")
+                raise ImportError(
+                    "Scheduler components not available or configuration error. "
+                    "Install with 'flowerpower[scheduler]' and check config."
+                ) from e
+        return self._adapter
+
     def _get_schedules(self):
-        with SchedulerManager(
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            return sm.get_schedules()
+        adapter = self._get_adapter()
+        return adapter.get_schedules()
 
     def _sync_fs(self):
         """
@@ -395,42 +410,33 @@ class PipelineManager:
             final_vars = pm.run_job("my_job")
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
-
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
-            )
-            return sm.run_job(
-                self.run,
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-            )
+        adapter = self._get_adapter()
+        # Pass necessary arguments to the adapter's run_job method
+        # The adapter interface needs to define what arguments it expects.
+        # Assuming it takes the function, args, kwargs, and potentially job_id/name.
+        run_kwargs = {
+            # Capture all relevant run parameters for the pipeline execution
+            "name": name,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "executor": executor,
+            "with_tracker": with_tracker,
+            "with_opentelemetry": with_opentelemetry,
+            "with_progressbar": with_progressbar,
+            "reload": reload,
+            **kwargs, # Pass through any extra kwargs
+        }
+        # The adapter's run_job should handle the execution logic (e.g., using an executor)
+        # We pass the pipeline's run method and its arguments.
+        # The adapter might need a specific executor configuration from self.cfg.
+        # The original code determined job_executor based on the pipeline executor,
+        # let's assume the adapter handles this internally based on config or defaults.
+        return adapter.run_job(
+            func=self.run,
+            kwargs=run_kwargs,
+            job_id=f"{self.cfg.project.name}.{name}.run_job", # Provide a unique ID
+        )
 
     def add_job(
         self,
@@ -474,48 +480,34 @@ class PipelineManager:
             job_id = pm.add_job("my_job")
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
-
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
-            )
-            id_ = sm.add_job(
-                self.run,
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-                result_expiration_time=result_expiration_time,
-            )
-            rich.print(
-                f"✅ Successfully added job for "
-                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
-            )
-            return id_
+        adapter = self._get_adapter()
+        # Prepare arguments for the pipeline run function
+        run_kwargs = {
+            "name": name,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "executor": executor,
+            "with_tracker": with_tracker,
+            "with_opentelemetry": with_opentelemetry,
+            "with_progressbar": with_progressbar,
+            "reload": reload,
+            **kwargs, # Pass through any extra kwargs
+        }
+        # Call the adapter's add_job method
+        # Assuming the adapter interface takes func, kwargs, job_id, and result_ttl
+        job_id = adapter.add_job(
+            func=self.run,
+            kwargs=run_kwargs,
+            job_id=f"{self.cfg.project.name}.{name}.add_job", # Provide a unique ID
+            result_ttl=result_expiration_time,
+        )
+        # Keep the success message for user feedback
+        rich.print(
+            f"✅ Successfully added job for "
+            f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{job_id}[/green]"
+        )
+        return job_id
 
     def schedule(
         self,
@@ -580,84 +572,95 @@ class PipelineManager:
             schedule_id = pm.schedule("my_pipeline")
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
+        adapter = self._get_adapter()
 
-        if not self.cfg.pipeline.name == name:
-            self.load_config(name=name)
+        # Load pipeline-specific config if not already loaded
+        if not hasattr(self, "cfg") or not self.cfg.pipeline.name == name:
+             self.load_config(name=name)
 
-        schedule_cfg = self.cfg.pipeline.schedule  # .copy()
+        # Merge config and passed arguments
+        schedule_cfg = self.cfg.pipeline.schedule
         run_cfg = self.cfg.pipeline.run
 
-        kwargs.update(
-            {arg: eval(arg) or getattr(run_cfg, arg) for arg in run_cfg.to_dict()}
+        # Prepare kwargs for the self.run function, merging defaults from config
+        run_kwargs = {
+            "name": name,
+            "inputs": inputs if inputs is not None else run_cfg.inputs,
+            "final_vars": final_vars if final_vars is not None else run_cfg.final_vars,
+            "config": {**(run_cfg.config or {}), **(config or {})},
+            "executor": executor if executor is not None else run_cfg.executor,
+            "with_tracker": with_tracker if with_tracker is not None else run_cfg.with_tracker,
+            "with_opentelemetry": with_opentelemetry if with_opentelemetry is not None else run_cfg.with_opentelemetry,
+            "with_progressbar": with_progressbar if with_progressbar is not None else run_cfg.with_progressbar,
+            "reload": reload, # reload is not typically configured, pass directly
+             # Pass through any extra kwargs not explicitly handled or part of run_cfg
+            **{k: v for k, v in kwargs.items() if k not in run_cfg.to_dict()},
+        }
+
+        # Determine trigger type and arguments
+        effective_trigger_type = trigger_type or schedule_cfg.trigger.type_
+        trigger_config = getattr(schedule_cfg.trigger, effective_trigger_type, Munch())
+        trigger_run_kwargs = {
+            key: kwargs.pop(key, None) or getattr(trigger_config, key, None)
+            for key in trigger_config.to_dict() if key != "type_"
+        }
+        # Add any remaining kwargs passed directly that might be trigger args
+        trigger_run_kwargs.update({k: v for k, v in kwargs.items() if k not in run_kwargs})
+
+
+        # Determine schedule ID using the existing logic
+        def _get_id(current_id, pipeline_name, should_overwrite) -> str:
+            if current_id:
+                return current_id
+            if should_overwrite:
+                 # Simple overwrite ID, adapter should handle replacement
+                return f"{pipeline_name}-schedule" # Use a consistent base name
+
+            # Generate new ID based on existing ones
+            try:
+                existing_ids = [s.id for s in self._get_schedules() if pipeline_name in s.id]
+                if existing_ids:
+                    nums = [int(id_str.split('-')[-1]) for id_str in existing_ids if id_str.split('-')[-1].isdigit()]
+                    next_num = max(nums) + 1 if nums else 1
+                    return f"{pipeline_name}-{next_num}"
+            except Exception as e:
+                 logger.warning(f"Could not reliably determine next schedule ID suffix: {e}. Using default.")
+            return f"{pipeline_name}-1" # Default if no existing or error
+
+        schedule_id = _get_id(id_, name, overwrite)
+
+        # Get the trigger object
+        trigger_instance = get_trigger(effective_trigger_type, **trigger_run_kwargs)
+
+        # Extract schedule-specific options (like paused, coalesce, etc.)
+        # These might need to be passed explicitly to the adapter's schedule_job method
+        # depending on its signature. Assuming they can be passed in schedule_options dict.
+        schedule_options = {
+             "paused": paused,
+             "coalesce": coalesce,
+             "misfire_grace_time": misfire_grace_time,
+             "max_jitter": max_jitter,
+             "max_running_jobs": max_running_jobs,
+             "conflict_policy": conflict_policy,
+             "replace_existing": overwrite, # Let adapter handle replacement logic
+             # Add other relevant options from schedule_cfg.run if needed by adapter
+        }
+
+
+        # Call the adapter's schedule_job method
+        final_schedule_id = adapter.schedule_job(
+            func=self.run,
+            trigger=trigger_instance,
+            kwargs=run_kwargs,
+            id=schedule_id,
+            **schedule_options # Pass scheduling options
         )
-        trigger_type = trigger_type or schedule_cfg.trigger.type_
 
-        trigger_kwargs = {
-            key: kwargs.pop(key, None)
-            or getattr(getattr(schedule_cfg.trigger, trigger_type), key)
-            for key in getattr(schedule_cfg.trigger, trigger_type).to_dict()
-        }
-
-        trigger_kwargs.pop("type_", None)
-
-        schedule_kwargs = {
-            arg: eval(arg) or getattr(schedule_cfg.run, arg)
-            for arg in schedule_cfg.run.to_dict()
-        }
-        executor = executor or schedule_cfg.run.executor
-        # id_ = id_ or schedule_cfg.run.id_
-
-        def _get_id() -> str:
-            if id_:
-                return id_
-
-            if overwrite:
-                return f"{name}-1"
-
-            ids = [schedule.id for schedule in self._get_schedules()]
-            if any([name in id_ for id_ in ids]):
-                id_num = sorted([id_ for id_ in ids if name in id_])[-1].split("-")[-1]
-                return f"{name}-{int(id_num) + 1}"
-            return f"{name}-1"
-
-        id_ = _get_id()
-
-        schedule_kwargs.pop("executor", None)
-        schedule_kwargs.pop("id_", None)
-
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
-
-            if overwrite:
-                sm.remove_schedule(id_)
-
-            id_ = sm.add_schedule(
-                func_or_task_id=self.run,
-                trigger=trigger,
-                id=id_,
-                args=(name,),  # inputs, final_vars, config, executor, with_tracker),
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-                **schedule_kwargs,
-            )
-            rich.print(
-                f"✅ Successfully added schedule for "
-                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
-            )
-            return id_
+        rich.print(
+            f"✅ Successfully added schedule for "
+            f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{final_schedule_id}[/green]"
+        )
+        return final_schedule_id
 
     def schedule_all(
         self,
