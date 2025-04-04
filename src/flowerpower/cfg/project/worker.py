@@ -7,13 +7,12 @@ from ..base import BaseConfig
 
 
 class ProjectWorkerConfig(BaseConfig):
-    data_store: dict | Munch = Field(default_factory=dict)
-    event_broker: dict | Munch = Field(default_factory=dict)
-    cleanup_interval: int | float | dt.timedelta = Field(default=300)  # int in secods
-    max_concurrent_jobs: int = Field(default=10)
+    # Removed APScheduler specific fields: data_store, event_broker
+    # cleanup_interval: int | float | dt.timedelta = Field(default=300) # Note: RQ doesn't have a direct equivalent cleanup interval concept
+    # max_concurrent_jobs: int = Field(default=10) # Note: Concurrency is managed by the number of RQ workers run
 
-    def model_post_init(self, __context):
-        if isinstance(self.data_store, dict):
-            self.data_store = munchify(self.data_store)
-        if isinstance(self.event_broker, dict):
-            self.event_broker = munchify(self.event_broker)
+    # --- RQ Configuration ---
+    redis_url: str = Field(default="redis://localhost:6379/0")
+    default_queue: str = Field(default="default")
+
+    # Removed model_post_init related to data_store/event_broker

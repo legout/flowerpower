@@ -4,6 +4,8 @@ import importlib.util
 import os
 import posixpath
 import sys
+import time
+import uuid
 from typing import Any, Callable
 from uuid import UUID
 
@@ -40,10 +42,28 @@ from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img
 from .utils.templates import PIPELINE_PY_TEMPLATE
 
-if importlib.util.find_spec("apscheduler"):
-    from .scheduler import SchedulerManager
+# Removed APScheduler import
+# RQ/Redis imports will be added as needed
+if importlib.util.find_spec("redis"):
+    from redis import Redis
+    from redis.exceptions import ConnectionError as RedisConnectionError
 else:
-    SchedulerManager = None
+    Redis = None
+    RedisConnectionError = None
+
+if importlib.util.find_spec("rq"):
+    from rq import Queue
+    from rq.job import Job
+    from rq.exceptions import NoSuchJobError
+else:
+    Queue = None
+    Job = None
+    NoSuchJobError = None
+
+if importlib.util.find_spec("rq_scheduler"):
+    from rq_scheduler import Scheduler as RQScheduler
+else:
+    RQScheduler = None
 from pathlib import Path
 from types import TracebackType
 
@@ -54,7 +74,7 @@ from types import TracebackType
 from munch import Munch
 
 from .utils.executor import get_executor
-from .utils.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
+# from .utils.trigger import get_trigger # Removed, trigger logic will be handled by rq-scheduler
 
 
 class PipelineManager:
@@ -95,7 +115,13 @@ class PipelineManager:
             logger.error(f"Error creating directories: {e}")
 
         self._sync_fs()
-        self.load_config()
+        self.load_config() # Loads self.cfg
+
+        # --- RQ/Redis Initialization ---
+        self._redis_conn = None
+        self.default_queue = None
+        self.scheduler = None
+        self._setup_rq()
 
     def __enter__(self) -> "PipelineManager":
         return self
@@ -109,12 +135,34 @@ class PipelineManager:
         # Add any cleanup code here if needed
         pass
 
-    def _get_schedules(self):
-        with SchedulerManager(
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            return sm.get_schedules()
+    # Removed _get_schedules method (APScheduler specific)
+
+    def _setup_rq(self):
+        """Initializes Redis connection, RQ Queue, and RQ Scheduler."""
+        redis_url = self.cfg.project.get("redis", {}).get("url", "redis://localhost:6379/0")
+        default_queue_name = self.cfg.project.get("worker", {}).get("default_queue", "default")
+
+        if Redis is None or Queue is None or RQScheduler is None:
+            logger.warning("rq, rq-scheduler, or redis not installed. Scheduling/Job features disabled.")
+            return
+
+        try:
+            self._redis_conn = Redis.from_url(redis_url)
+            self._redis_conn.ping() # Test connection
+            self.default_queue = Queue(default_queue_name, connection=self._redis_conn)
+            # Note: RQScheduler connects lazily, no ping needed here.
+            self.scheduler = RQScheduler(queue_name=default_queue_name, connection=self._redis_conn)
+            logger.info(f"Connected to Redis and initialized RQ Queue '{default_queue_name}' and Scheduler.")
+        except RedisConnectionError as e:
+            logger.error(f"Failed to connect to Redis at {redis_url}: {e}")
+            self._redis_conn = None
+            self.default_queue = None
+            self.scheduler = None
+        except Exception as e:
+            logger.error(f"Error initializing RQ/Redis: {e}")
+            self._redis_conn = None
+            self.default_queue = None
+            self.scheduler = None
 
     def _sync_fs(self):
         """
@@ -363,74 +411,117 @@ class PipelineManager:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
+        executor: str | None = None, # Note: Less relevant in RQ
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
         with_progressbar: bool | None = None,
         reload: bool = False,
+        job_timeout: int | dt.timedelta | None = None, # RQ job execution timeout
+        wait_timeout: float = 300.0, # Max seconds to wait for result
+        poll_interval: float = 0.5, # Seconds between status checks
+        queue_name: str | None = None, # Specify queue or use default
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Add a job to run the pipeline with the given parameters to the worker.
-        Executes the job immediatly and returns the result of the execution.
+        Enqueue a pipeline run as a job in RQ and wait for its completion.
+
+        This method enqueues the job and then blocks, polling the job's status
+        until it finishes or fails, or until the `wait_timeout` is reached.
 
         Args:
-            name (str): The name of the job.
-            executor (str | None, optional): The executor to use for the job. Defaults to None.
-            inputs (dict | None, optional): The inputs for the job. Defaults to None.
-            final_vars (list | None, optional): The final variables for the job. Defaults to None.
-            config (dict | None, optional): The configuration for the job. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
-            with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
-            reload (bool, optional): Whether to reload the job. Defaults to False.
-            **kwargs: Additional keyword arguments.
+            name (str): The name of the pipeline to run.
+            inputs (dict | None, optional): Inputs for the pipeline run. Defaults to None.
+            final_vars (list | None, optional): Final variables for the pipeline run. Defaults to None.
+            config (dict | None, optional): Configuration for the Hamilton driver. Defaults to None.
+            executor (str | None, optional): Executor name (Note: Less relevant in RQ). Defaults to None.
+            with_tracker (bool | None, optional): Enable Hamilton tracker. Defaults to None.
+            with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+            with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+            reload (bool, optional): Reload pipeline module before run. Defaults to False.
+            job_timeout (int | dt.timedelta | None, optional): Max execution time for the job in the worker. Defaults to None (RQ default).
+            wait_timeout (float, optional): Maximum seconds to wait for the job to complete. Defaults to 300.0.
+            poll_interval (float, optional): Seconds to sleep between checking job status. Defaults to 0.5.
+            queue_name (str | None, optional): Name of the RQ queue to use. Defaults to the configured default queue.
+            **kwargs: Additional keyword arguments passed to the pipeline's `run` method.
 
         Returns:
-            dict[str,Any]: The result of the job execution.
+            dict[str, Any]: The result dictionary from the completed pipeline run.
+
+        Raises:
+            TimeoutError: If the job does not complete within `wait_timeout`.
+            Exception: If the job fails during execution (raises the exception from the worker).
+            ValueError: If RQ or Redis connection is not available.
 
         Examples:
             ```python
             pm = PipelineManager()
-            final_vars = pm.run_job("my_job")
+            try:
+                result = pm.run_job("my_pipeline", wait_timeout=60)
+                print("Job completed:", result)
+            except Exception as e:
+                print(f"Job failed or timed out: {e}")
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
+        if Job is None or self._redis_conn is None:
+             raise ValueError("RQ or Redis connection not available. Cannot run job synchronously.")
 
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
+        # Enqueue the job using the refactored add_job logic (but without printing success)
+        run_kwargs = {
+            "name": name, "inputs": inputs, "final_vars": final_vars, "config": config,
+            "executor": executor, "with_tracker": with_tracker, "with_opentelemetry": with_opentelemetry,
+            "with_progressbar": with_progressbar, "reload": reload, **kwargs
+        }
+
+        target_queue = self.default_queue
+        if queue_name:
+            target_queue = Queue(queue_name, connection=self._redis_conn)
+
+        if target_queue is None:
+             raise ValueError("Target RQ queue could not be determined.")
+
+        try:
+            job = target_queue.enqueue(
+                f=self.run,
+                kwargs=run_kwargs,
+                job_timeout=job_timeout,
+                result_ttl=int(wait_timeout) + 60, # Keep result slightly longer than wait time
+                description=f"Run flowerpower pipeline (sync wait): {self.cfg.project.name}.{name}"
             )
-            return sm.run_job(
-                self.run,
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-            )
+            logger.info(f"Enqueued job {job.id} for synchronous wait.")
+        except Exception as e:
+            logger.exception(f"Failed to enqueue job for pipeline {name}: {e}")
+            raise # Re-raise the enqueueing error
+
+        # Wait for completion
+        start_time = time.time()
+        while time.time() - start_time < wait_timeout:
+            # Fetch fresh job status
+            try:
+                job = Job.fetch(job.id, connection=self._redis_conn)
+            except NoSuchJobError:
+                 raise RuntimeError(f"Job {job.id} disappeared unexpectedly.")
+            except Exception as e:
+                 logger.warning(f"Error fetching job status for {job.id}: {e}")
+                 # Continue polling, maybe a temporary Redis issue
+
+            if job.is_finished:
+                logger.success(f"Job {job.id} finished successfully.")
+                return job.result
+            elif job.is_failed:
+                logger.error(f"Job {job.id} failed.")
+                # Re-raise the exception from the worker
+                # job.exc_info contains the traceback string
+                raise Exception(f"Job {job.id} failed in worker: {job.exc_info}")
+            elif job.is_canceled:
+                 raise RuntimeError(f"Job {job.id} was canceled.")
+            elif job.is_stopped:
+                 raise RuntimeError(f"Job {job.id} was stopped.")
+
+
+            time.sleep(poll_interval)
+
+        # Timeout reached
+        raise TimeoutError(f"Job {job.id} did not complete within {wait_timeout} seconds.")
 
     def add_job(
         self,
@@ -438,269 +529,235 @@ class PipelineManager:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
+        executor: str | None = None, # Note: RQ doesn't use named executors like APScheduler
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
         with_progressbar: bool | None = None,
         reload: bool = False,
-        result_expiration_time: float | dt.timedelta = 0,
+        result_ttl: int | dt.timedelta | None = None, # Renamed from result_expiration_time
+        job_timeout: int | dt.timedelta | None = None, # RQ specific timeout
+        queue_name: str | None = None, # Specify queue or use default
+        job_id: str | None = None, # Allow specifying job ID
         **kwargs,
-    ) -> UUID:
+    ) -> str | None:
         """
-        Add a job to run the pipeline with the given parameters to the worker data store.
-        Executes the job immediatly and returns the job id (UUID). The job result will be stored in the data store
-        for the given `result_expiration_time` and can be fetched using the job id (UUID).
+        Enqueue a pipeline run as a job in RQ.
 
         Args:
-            name (str): The name of the job.
-            executor (str | None, optional): The executor for the job. Defaults to None.
-            inputs (dict | None, optional): The inputs for the job. Defaults to None.
-            final_vars (list | None, optional): The final variables for the job. Defaults to None.
-            config (dict | None, optional): The configuration for the job. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
-            with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
-            reload (bool, optional): Whether to reload the job. Defaults to False.
-            result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
-                Defaults to None.
-            **kwargs: Additional keyword arguments.
+            name (str): The name of the pipeline to run.
+            inputs (dict | None, optional): Inputs for the pipeline run. Defaults to None.
+            final_vars (list | None, optional): Final variables for the pipeline run. Defaults to None.
+            config (dict | None, optional): Configuration for the Hamilton driver. Defaults to None.
+            executor (str | None, optional): Executor name (Note: Less relevant in RQ, workers handle execution). Defaults to None.
+            with_tracker (bool | None, optional): Enable Hamilton tracker. Defaults to None.
+            with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+            with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+            reload (bool, optional): Reload pipeline module before run. Defaults to False.
+            result_ttl (int | dt.timedelta | None, optional): How long (in seconds or timedelta) successful job results are kept in Redis. Defaults to None (RQ default).
+            job_timeout (int | dt.timedelta | None, optional): Max execution time (in seconds or timedelta) before job is failed. Defaults to None (RQ default).
+            queue_name (str | None, optional): Name of the RQ queue to use. Defaults to the configured default queue.
+            job_id (str | None, optional): Custom job ID. Defaults to None (RQ generates one).
+            **kwargs: Additional keyword arguments passed to the pipeline's `run` method.
 
         Returns:
-            UUID: The UUID of the added job.
+            str | None: The ID of the enqueued job, or None if queuing failed (e.g., Redis connection error).
 
         Examples:
             ```python
             pm = PipelineManager()
-            job_id = pm.add_job("my_job")
+            job_id = pm.add_job("my_pipeline", result_ttl=3600) # Keep result for 1 hour
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
+        if Queue is None or self.default_queue is None and queue_name is None:
+             logger.error("RQ or Redis connection not available. Cannot enqueue job.")
+             return None
 
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
-            )
-            id_ = sm.add_job(
-                self.run,
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-                result_expiration_time=result_expiration_time,
+        # Determine the target queue
+        target_queue = self.default_queue
+        if queue_name:
+             if self._redis_conn:
+                 target_queue = Queue(queue_name, connection=self._redis_conn)
+             else:
+                 logger.error(f"Cannot use queue '{queue_name}' without Redis connection.")
+                 return None
+
+        if target_queue is None:
+             logger.error("Target RQ queue could not be determined.")
+             return None
+
+        # Prepare arguments for the self.run method
+        run_kwargs = {
+            "name": name,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "executor": executor, # Pass along, though less critical for RQ
+            "with_tracker": with_tracker,
+            "with_opentelemetry": with_opentelemetry,
+            "with_progressbar": with_progressbar,
+            "reload": reload,
+            **kwargs,
+        }
+
+        try:
+            job = target_queue.enqueue(
+                f=self.run, # The function to call in the worker
+                kwargs=run_kwargs,
+                job_timeout=job_timeout,
+                result_ttl=result_ttl,
+                job_id=job_id,
+                description=f"Run flowerpower pipeline: {self.cfg.project.name}.{name}" # Optional description
             )
             rich.print(
-                f"✅ Successfully added job for "
-                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
+                f"✅ Successfully enqueued job for "
+                f"[blue]{self.cfg.project.name}.{name}[/blue] on queue '{target_queue.name}' with ID [green]{job.id}[/green]"
             )
-            return id_
+            return job.id
+        except Exception as e:
+            logger.exception(f"Failed to enqueue job for pipeline {name}: {e}")
+            return None
 
     def schedule(
         self,
         name: str,
+        trigger_type: str, # E.g., 'cron', 'interval', 'date'/'at'
+        trigger_args: dict, # Arguments for the trigger type
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
+        executor: str | None = None, # Less relevant for RQ
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
         with_progressbar: bool | None = None,
-        trigger_type: str | None = None,
-        id_: str | None = None,
-        paused: bool = False,
-        coalesce: str = "latest",
-        misfire_grace_time: float | dt.timedelta | None = None,
-        max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
-        conflict_policy: str = "do_nothing",
-        overwrite: bool = False,
-        **kwargs,
-    ) -> str:
+        reload: bool = False,
+        job_id: str | None = None, # RQ uses job_id for uniqueness
+        overwrite: bool = False, # If True, cancel existing job with same ID
+        result_ttl: int | dt.timedelta | None = None,
+        job_timeout: int | dt.timedelta | None = None,
+        queue_name: str | None = None, # Target queue for the job
+        **kwargs, # Additional kwargs for self.run
+    ) -> str | None:
         """
-        Schedule a pipeline for execution.
+        Schedule a pipeline run using RQ-Scheduler.
 
         Args:
-            name (str): The name of the pipeline.
-            executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
-            trigger_type (str | None, optional): The type of trigger for the pipeline. Defaults to None.
-            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
-                Defaults to None.
-            with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
-                Defaults to None.
-            with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
-            id_ (str | None, optional): The ID of the scheduled pipeline. Defaults to None.
-            paused (bool, optional): Whether the pipeline should be initially paused. Defaults to False.
-            coalesce (str, optional): The coalesce strategy for the pipeline. Defaults to "latest".
-            misfire_grace_time (float | dt.timedelta | None, optional): The grace time for misfired jobs.
-                Defaults to None.
-            max_jitter (float | dt.timedelta | None, optional): The maximum number of seconds to randomly add to the
-                scheduled. Defaults to None.
-            max_running_jobs (int | None, optional): The maximum number of running jobs for the pipeline.
-                Defaults to None.
-            conflict_policy (str, optional): The conflict policy for the pipeline. Defaults to "do_nothing".
-            job_result_expiration_time (float | dt.timedelta | None, optional): The result expiration time for the job.
-                Defaults to None.
-            overwrite (bool, optional): Whether to overwrite an existing schedule with the same name. Defaults to False.
-            **kwargs: Additional keyword arguments for the trigger.
+            name (str): Name of the pipeline to run.
+            trigger_type (str): Type of schedule ('cron', 'interval', 'date', 'at').
+            trigger_args (dict): Arguments for the chosen trigger type.
+                - 'cron': {'cron_string': '...', 'is_async': bool, ...}
+                - 'interval': {'seconds': int|timedelta, 'start_time': datetime|None, 'repeat': int|None, ...}
+                - 'date'/'at': {'scheduled_time': datetime, ...}
+            inputs (dict | None, optional): Inputs for the pipeline run. Defaults to None.
+            final_vars (list | None, optional): Final variables for the pipeline run. Defaults to None.
+            config (dict | None, optional): Configuration for the Hamilton driver. Defaults to None.
+            executor (str | None, optional): Executor name (Note: Less relevant in RQ). Defaults to None.
+            with_tracker (bool | None, optional): Enable Hamilton tracker. Defaults to None.
+            with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+            with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+            reload (bool, optional): Reload pipeline module before run. Defaults to False.
+            job_id (str | None, optional): Unique ID for the scheduled job. If None, RQ-Scheduler generates one. Defaults to None.
+            overwrite (bool, optional): If True and job_id exists, cancel the old job before scheduling. Defaults to False.
+            result_ttl (int | dt.timedelta | None, optional): How long successful job results are kept. Defaults to None.
+            job_timeout (int | dt.timedelta | None, optional): Max execution time for the job. Defaults to None.
+            queue_name (str | None, optional): Name of the RQ queue where the job will be enqueued when due. Defaults to the configured default queue.
+            **kwargs: Additional keyword arguments passed to the pipeline's `run` method.
+
 
         Returns:
-            str: The ID of the scheduled pipeline.
+            str | None: The ID of the scheduled job, or None if scheduling failed.
 
         Raises:
-            ValueError: If APScheduler4 is not installed.
+            ValueError: If RQ-Scheduler or Redis connection is not available, or if trigger_type is invalid.
+            TypeError: If trigger_args are incorrect for the trigger_type.
 
         Examples:
             ```python
             pm = PipelineManager()
-            schedule_id = pm.schedule("my_pipeline")
+            # Schedule cron job
+            job_id = pm.schedule("my_pipeline", "cron", {"cron_string": "0 * * * *"}, job_id="my_cron_job", overwrite=True)
+            # Schedule interval job (every hour)
+            job_id = pm.schedule("my_pipeline", "interval", {"seconds": 3600})
+            # Schedule job to run once at a specific time
+            run_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            job_id = pm.schedule("my_pipeline", "date", {"scheduled_time": run_time})
             ```
         """
-        if SchedulerManager is None:
-            raise ValueError(
-                "APScheduler4 not installed. Please install it first. "
-                "Run `pip install 'flowerpower[scheduler]'`."
-            )
+        if RQScheduler is None or self.scheduler is None:
+            raise ValueError("RQ-Scheduler or Redis connection not available. Cannot schedule job.")
 
-        if not self.cfg.pipeline.name == name:
-            self.load_config(name=name)
+        # Generate job ID if not provided
+        effective_job_id = job_id or f"flowerpower:{name}:{uuid.uuid4()}"
 
-        schedule_cfg = self.cfg.pipeline.schedule  # .copy()
-        run_cfg = self.cfg.pipeline.run
+        # Handle overwrite: Cancel existing job if it exists
+        if overwrite:
+            try:
+                self.scheduler.cancel(effective_job_id)
+                logger.info(f"Canceled existing scheduled job with ID: {effective_job_id}")
+            except NoSuchJobError:
+                pass # Job doesn't exist, nothing to cancel
+            except Exception as e:
+                logger.warning(f"Could not cancel job {effective_job_id} during overwrite: {e}")
 
-        kwargs.update(
-            {arg: eval(arg) or getattr(run_cfg, arg) for arg in run_cfg.to_dict()}
-        )
-        trigger_type = trigger_type or schedule_cfg.trigger.type_
 
-        trigger_kwargs = {
-            key: kwargs.pop(key, None)
-            or getattr(getattr(schedule_cfg.trigger, trigger_type), key)
-            for key in getattr(schedule_cfg.trigger, trigger_type).to_dict()
+        # Prepare arguments for the self.run method
+        run_kwargs = {
+            "name": name, "inputs": inputs, "final_vars": final_vars, "config": config,
+            "executor": executor, "with_tracker": with_tracker, "with_opentelemetry": with_opentelemetry,
+            "with_progressbar": with_progressbar, "reload": reload, **kwargs
         }
 
-        trigger_kwargs.pop("type_", None)
-
-        schedule_kwargs = {
-            arg: eval(arg) or getattr(schedule_cfg.run, arg)
-            for arg in schedule_cfg.run.to_dict()
+        # Common arguments for most scheduler methods
+        schedule_common_args = {
+            "func": self.run,
+            "kwargs": run_kwargs,
+            "job_id": effective_job_id,
+            "result_ttl": result_ttl,
+            "timeout": job_timeout, # Note: RQ uses 'timeout' for job_timeout
+            "queue_name": queue_name or self.scheduler.queue_name, # Use specified or scheduler's default
+            "description": f"Scheduled run: {self.cfg.project.name}.{name}"
         }
-        executor = executor or schedule_cfg.run.executor
-        # id_ = id_ or schedule_cfg.run.id_
 
-        def _get_id() -> str:
-            if id_:
-                return id_
+        try:
+            job = None
+            if trigger_type == "cron":
+                cron_string = trigger_args.pop("cron_string")
+                job = self.scheduler.cron(cron_string, **schedule_common_args, **trigger_args)
+            elif trigger_type == "interval":
+                interval = trigger_args.pop("seconds", trigger_args.pop("interval", None))
+                if interval is None:
+                    raise TypeError("Missing 'seconds' or 'interval' in trigger_args for interval schedule")
+                job = self.scheduler.schedule(
+                    scheduled_time=trigger_args.pop("start_time", dt.datetime.utcnow()), # Default start now
+                    interval=interval,
+                    **schedule_common_args,
+                    **trigger_args # repeat, etc.
+                )
+            elif trigger_type in ("date", "at"):
+                scheduled_time = trigger_args.pop("scheduled_time")
+                job = self.scheduler.enqueue_at(scheduled_time, **schedule_common_args, **trigger_args)
+            else:
+                raise ValueError(f"Unsupported trigger_type: '{trigger_type}'. Use 'cron', 'interval', 'date', or 'at'.")
 
-            if overwrite:
-                return f"{name}-1"
-
-            ids = [schedule.id for schedule in self._get_schedules()]
-            if any([name in id_ for id_ in ids]):
-                id_num = sorted([id_ for id_ in ids if name in id_])[-1].split("-")[-1]
-                return f"{name}-{int(id_num) + 1}"
-            return f"{name}-1"
-
-        id_ = _get_id()
-
-        schedule_kwargs.pop("executor", None)
-        schedule_kwargs.pop("id_", None)
-
-        with SchedulerManager(
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            role="scheduler",
-        ) as sm:
-            trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
-
-            if overwrite:
-                sm.remove_schedule(id_)
-
-            id_ = sm.add_schedule(
-                func_or_task_id=self.run,
-                trigger=trigger,
-                id=id_,
-                args=(name,),  # inputs, final_vars, config, executor, with_tracker),
-                kwargs=kwargs,
-                job_executor=(
-                    executor
-                    if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
-                ),
-                **schedule_kwargs,
-            )
             rich.print(
-                f"✅ Successfully added schedule for "
-                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
+                f"✅ Successfully scheduled job for "
+                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{job.id}[/green] ({trigger_type})"
             )
-            return id_
+            return job.id
 
-    def schedule_all(
-        self,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
-        trigger_type: str | None = None,
-        id_: str | None = None,
-        paused: bool = False,
-        coalesce: str = "latest",
-        misfire_grace_time: float | dt.timedelta | None = None,
-        max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
-        conflict_policy: str = "do_nothing",
-        overwrite: bool = False,
-        **kwargs,
-    ):
-        pipelines = self._get_names()
-        for name in pipelines:
-            self.schedule(
-                name=name,
-                inputs=inputs,
-                final_vars=final_vars,
-                config=config,
-                executor=executor,
-                with_tracker=with_tracker,
-                with_opentelemetry=with_opentelemetry,
-                with_progressbar=with_progressbar,
-                trigger_type=trigger_type,
-                id_=id_,
-                paused=paused,
-                coalesce=coalesce,
-                misfire_grace_time=misfire_grace_time,
-                max_jitter=max_jitter,
-                max_running_jobs=max_running_jobs,
-                conflict_policy=conflict_policy,
-                overwrite=overwrite,
-                **kwargs,
-            )
+        except TypeError as e:
+             logger.error(f"Incorrect arguments for trigger type '{trigger_type}': {e}")
+             raise
+        except Exception as e:
+            logger.exception(f"Failed to schedule job for pipeline {name}: {e}")
+            # Attempt to clean up if job was partially created (though RQ-Scheduler might handle this)
+            if effective_job_id:
+                try: self.scheduler.cancel(effective_job_id)
+                except: pass
+            return None
+
+    # Removed schedule_all method (APScheduler specific logic)
+    # TODO: Reimplement schedule_all if needed for RQ, iterating through pipeline configs
+    # and calling the new self.schedule with appropriate RQ trigger_type/trigger_args.
 
     def new(
         self,
@@ -1719,51 +1776,57 @@ class Pipeline:
 
     def schedule(
         self,
-        trigger_type: str | None = None,
+        trigger_type: str,
+        trigger_args: dict,
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool = False,
-        with_opentelemetry: bool = False,
-        with_progressbar: bool = False,
-        paused: bool = False,
-        coalesce: str = "latest",
-        misfire_grace_time: float | dt.timedelta | None = None,
-        max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
-        conflict_policy: str = "do_nothing",
+        executor: str | None = None, # Less relevant for RQ
+        with_tracker: bool | None = None,
+        with_opentelemetry: bool | None = None,
+        with_progressbar: bool | None = None,
+        reload: bool = False, # Added reload parameter
+        job_id: str | None = None,
+        overwrite: bool = False,
+        result_ttl: int | dt.timedelta | None = None,
+        job_timeout: int | dt.timedelta | None = None,
+        queue_name: str | None = None,
         **kwargs,
-    ) -> str:
-        """Schedule the pipeline.
+    ) -> str | None:
+        """
+        Schedule the pipeline run using RQ-Scheduler.
 
         Args:
-            trigger_type (str | None, optional): The trigger type for the schedule. Defaults to None.
-            inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-            final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
-                Defaults to None.
-            executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
-            with_tracker (bool, optional): Whether to include a tracker for the pipeline. Defaults to False.
-            with_opentelemetry (bool, optional): Whether to include OpenTelemetry for the pipeline. Defaults to False.
-            with_progressbar (bool, optional): Whether to include a progress bar for the pipeline. Defaults to False.
-            paused (bool, optional): Whether to pause the schedule. Defaults to False.
-            coalesce (str, optional): The coalesce strategy. Defaults to "latest".
-            misfire_grace_time (float | dt.timedelta | None, optional): The misfire grace time. Defaults to None.
-            max_jitter (float | dt.timedelta | None, optional): The max jitter. Defaults to None.
-            max_running_jobs (int | None, optional): The max running jobs. Defaults to None.
-            conflict_policy (str, optional): The conflict policy. Defaults to "do_nothing".
-            **kwargs: Additional keyword arguments.
+            trigger_type (str): Type of schedule ('cron', 'interval', 'date', 'at').
+            trigger_args (dict): Arguments for the chosen trigger type.
+            inputs (dict | None, optional): Inputs for the pipeline. Defaults to None.
+            final_vars (list | None, optional): Final variables. Defaults to None.
+            config (dict | None, optional): Hamilton driver config. Defaults to None.
+            executor (str | None, optional): Executor name (Less relevant for RQ). Defaults to None.
+            with_tracker (bool | None, optional): Enable tracker. Defaults to None.
+            with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+            with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+            reload (bool, optional): Reload pipeline module. Defaults to False.
+            job_id (str | None, optional): Unique ID for the scheduled job. Defaults to None.
+            overwrite (bool, optional): If True, cancel existing job with same ID. Defaults to False.
+            result_ttl (int | dt.timedelta | None, optional): How long job results are kept. Defaults to None.
+            job_timeout (int | dt.timedelta | None, optional): Max execution time in worker. Defaults to None.
+            queue_name (str | None, optional): Target RQ queue. Defaults to None (uses default).
+            **kwargs: Additional keyword arguments for the pipeline run.
 
         Returns:
-            str: The schedule ID.
+            str | None: The ID of the scheduled job, or None if scheduling failed.
+
+        Raises:
+            ValueError: If RQ-Scheduler or Redis connection is not available, or trigger_type invalid.
+            TypeError: If trigger_args are incorrect.
 
         Examples:
             ```python
             p = Pipeline("my_pipeline")
-            schedule_id = p.schedule()
+            # Schedule cron job
+            job_id = p.schedule("cron", {"cron_string": "0 1 * * *"}, job_id="my_cron", overwrite=True)
             ```
-
         """
         with PipelineManager(
             base_dir=self._base_dir,
@@ -1771,19 +1834,21 @@ class Pipeline:
         ) as pm:
             return pm.schedule(
                 name=self.name,
-                executor=executor,
                 trigger_type=trigger_type,
+                trigger_args=trigger_args,
                 inputs=inputs,
                 final_vars=final_vars,
+                config=config,
+                executor=executor,
                 with_tracker=with_tracker,
                 with_opentelemetry=with_opentelemetry,
                 with_progressbar=with_progressbar,
-                paused=paused,
-                coalesce=coalesce,
-                misfire_grace_time=misfire_grace_time,
-                max_jitter=max_jitter,
-                max_running_jobs=max_running_jobs,
-                conflict_policy=conflict_policy,
+                reload=reload,
+                job_id=job_id,
+                overwrite=overwrite,
+                result_ttl=result_ttl,
+                job_timeout=job_timeout,
+                queue_name=queue_name,
                 **kwargs,
             )
 
@@ -1994,45 +2059,67 @@ def run_job(
     inputs: dict | None = None,
     final_vars: list | None = None,
     config: dict | None = None,
-    executor: str | None = None,
+    executor: str | None = None, # Less relevant for RQ
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
     with_progressbar: bool | None = None,
-    # result_expiration_time: float | dt.timedelta = 0,
+    reload: bool = False, # Added reload
+    job_timeout: int | dt.timedelta | None = None,
+    wait_timeout: float = 300.0,
+    poll_interval: float = 0.5,
+    queue_name: str | None = None,
     storage_options: dict | Munch | BaseStorageOptions = {},
     fs: AbstractFileSystem | None = None,
     **kwargs,
 ) -> dict[str, Any]:
-    """Run a pipeline as a job with the given parameters.
+    """
+    Run a pipeline as a job and wait for completion (synchronous).
 
     Args:
         name (str): The name of the pipeline.
-        base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
-            Defaults to None.
-        executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
-        with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
-            Defaults to None.
-        with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
-        storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
-        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
-        **kwargs: Additional keyword arguments.
+        base_dir (str | None, optional): Base path. Defaults to None.
+        inputs (dict | None, optional): Pipeline inputs. Defaults to None.
+        final_vars (list | None, optional): Final variables. Defaults to None.
+        config (dict | None, optional): Hamilton driver config. Defaults to None.
+        executor (str | None, optional): Executor name (Less relevant for RQ). Defaults to None.
+        with_tracker (bool | None, optional): Enable tracker. Defaults to None.
+        with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+        with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+        reload (bool, optional): Reload pipeline module. Defaults to False.
+        job_timeout (int | dt.timedelta | None, optional): Max execution time in worker. Defaults to None.
+        wait_timeout (float, optional): Max seconds to wait for result. Defaults to 300.0.
+        poll_interval (float, optional): Seconds between status checks. Defaults to 0.5.
+        queue_name (str | None, optional): Target RQ queue. Defaults to None (uses default).
+        storage_options (dict | Munch | BaseStorageOptions, optional): Storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): Filesystem instance. Defaults to None.
+        **kwargs: Additional keyword arguments for the pipeline run.
 
     Returns:
-        dict[str, Any]: The final variables for the pipeline.
+        dict[str, Any]: The result dictionary from the completed pipeline run.
+
+    Raises:
+        TimeoutError: If the job doesn't complete within `wait_timeout`.
+        Exception: If the job fails during execution.
+        ValueError: If RQ or Redis connection is not available.
 
     Examples:
         ```python
-        final_vars = run_job("my_pipeline", inputs={"param": 1}, base_dir="my_flowerpower_project")
+        result = run_job("my_pipeline", wait_timeout=60)
         ```
     """
     with Pipeline(
         base_dir=base_dir, name=name, storage_options=storage_options, fs=fs
     ) as p:
+        # Pass only the arguments specific to the run_job wrapper itself,
+        # let kwargs handle the rest for the underlying Pipeline.run_job
         return p.run_job(
+            reload=reload,
+            job_timeout=job_timeout,
+            wait_timeout=wait_timeout,
+            poll_interval=poll_interval,
+            queue_name=queue_name,
+            # Pass through all other arguments received by the wrapper
+            **kwargs,
             inputs=inputs,
             final_vars=final_vars,
             config=config,
@@ -2051,142 +2138,148 @@ def add_job(
     inputs: dict | None = None,
     final_vars: list | None = None,
     config: dict | None = None,
-    executor: str | None = None,
+    executor: str | None = None, # Less relevant for RQ
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
     with_progressbar: bool | None = None,
-    result_expiration_time: float | dt.timedelta = 0,
+    reload: bool = False, # Added reload
+    result_ttl: int | dt.timedelta | None = None,
+    job_timeout: int | dt.timedelta | None = None,
+    queue_name: str | None = None,
+    job_id: str | None = None,
     storage_options: dict | Munch | BaseStorageOptions = {},
     fs: AbstractFileSystem | None = None,
     **kwargs,
-) -> UUID:
+) -> str | None:
     """
-    Add a job to run the pipeline with the given parameters to the worker data store.
-    Executes the job immediatly and returns the job id (UUID). The job result will be stored in
-    the data store for the given `result_expiration_time` and can be fetched using the job id (UUID).
+    Enqueue a pipeline run as a job in RQ (asynchronous).
 
     Args:
-        name (str): The name of the job.
-        executor (str | None, optional): The executor to use for the job. Defaults to None.
-        inputs (dict | None, optional): The inputs for the job. Defaults to None.
-        final_vars (list | None, optional): The final variables for the job. Defaults to None.
-        config (dict | None, optional): The config for the hamilton driver that executes the job.
-            Defaults to None.
-        with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
-        with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
-        storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
-        result_expiration_time (float | dt.timedelta | None, optional): The expiration time for the job result.
-            Defaults to None.
-        storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
-        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
-
-        **kwargs: Additional keyword arguments.
+        name (str): The name of the pipeline.
+        base_dir (str | None, optional): Base path. Defaults to None.
+        inputs (dict | None, optional): Pipeline inputs. Defaults to None.
+        final_vars (list | None, optional): Final variables. Defaults to None.
+        config (dict | None, optional): Hamilton driver config. Defaults to None.
+        executor (str | None, optional): Executor name (Less relevant for RQ). Defaults to None.
+        with_tracker (bool | None, optional): Enable tracker. Defaults to None.
+        with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+        with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+        reload (bool, optional): Reload pipeline module. Defaults to False.
+        result_ttl (int | dt.timedelta | None, optional): How long job results are kept. Defaults to None.
+        job_timeout (int | dt.timedelta | None, optional): Max execution time in worker. Defaults to None.
+        queue_name (str | None, optional): Target RQ queue. Defaults to None (uses default).
+        job_id (str | None, optional): Custom job ID. Defaults to None.
+        storage_options (dict | Munch | BaseStorageOptions, optional): Storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): Filesystem instance. Defaults to None.
+        **kwargs: Additional keyword arguments for the pipeline run.
 
     Returns:
-        UUID: The UUID of the added job.
+        str | None: The ID of the enqueued job, or None if queuing failed.
 
     Examples:
         ```python
-        job_id = add_job("my_job")
+        job_id = add_job("my_pipeline", result_ttl=3600)
         ```
     """
+    # Note: Pipeline context manager isn't strictly needed here as add_job uses PipelineManager internally
     p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
     return p.add_job(
-        executor=executor,
         inputs=inputs,
         final_vars=final_vars,
         config=config,
+        executor=executor,
         with_tracker=with_tracker,
         with_opentelemetry=with_opentelemetry,
         with_progressbar=with_progressbar,
-        result_expiration_time=result_expiration_time,
+        reload=reload,
+        result_ttl=result_ttl,
+        job_timeout=job_timeout,
+        queue_name=queue_name,
+        job_id=job_id,
         **kwargs,
     )
 
 
 def schedule(
     name: str,
+    trigger_type: str,
+    trigger_args: dict,
     base_dir: str | None = None,
     inputs: dict | None = None,
     final_vars: list | None = None,
-    executor: str | None = None,
     config: dict | None = None,
+    executor: str | None = None, # Less relevant for RQ
     with_tracker: bool | None = None,
     with_opentelemetry: bool | None = None,
     with_progressbar: bool | None = None,
-    trigger_type: str | None = None,
-    id_: str | None = None,
-    paused: bool = False,
-    coalesce: str = "latest",
-    misfire_grace_time: float | dt.timedelta | None = None,
-    max_jitter: float | dt.timedelta | None = None,
-    max_running_jobs: int | None = None,
-    conflict_policy: str = "do_nothing",
+    reload: bool = False, # Added reload
+    job_id: str | None = None,
     overwrite: bool = False,
+    result_ttl: int | dt.timedelta | None = None,
+    job_timeout: int | dt.timedelta | None = None,
+    queue_name: str | None = None,
     storage_options: dict | Munch | BaseStorageOptions = {},
     fs: AbstractFileSystem | None = None,
     **kwargs,
-) -> str:
-    """Schedule a pipeline with the given parameters.
+) -> str | None:
+    """
+    Schedule a pipeline run using RQ-Scheduler.
 
     Args:
-        name (str): The name of the pipeline.
-        base_dir (str | None, optional): The base path for the pipeline. Defaults to None.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
-            Defaults to None.
-        executor (str | None, optional): The executor to use for running the pipeline. Defaults to None.
-        with_tracker (bool | None, optional): Whether to include a tracker for the pipeline. Defaults to None.
-        with_opentelemetry (bool | None, optional): Whether to include OpenTelemetry for the pipeline.
-            Defaults to None.
-        with_progressbar (bool | None, optional): Whether to include a progress bar for the pipeline.
-        trigger_type (str | None, optional): The trigger type for the schedule. Defaults to None.
-        id_ (str | None, optional): The schedule ID. Defaults to None.
-        paused (bool, optional): Whether to pause the schedule. Defaults to False.
-        coalesce (str, optional): The coalesce strategy. Defaults to "latest".
-        misfire_grace_time (float | dt.timedelta | None, optional): The misfire grace time. Defaults to None.
-        max_jitter (float | dt.timedelta | None, optional): The max jitter. Defaults to None.
-        max_running_jobs (int | None, optional): The max running jobs. Defaults to None.
-        conflict_policy (str, optional): The conflict policy. Defaults to "do_nothing".
-        overwrite (bool, optional): Whether to overwrite an existing schedule. Defaults to False.
-        storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
-        fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
-        **kwargs: Additional keyword arguments.
+        name (str): Name of the pipeline.
+        trigger_type (str): Type of schedule ('cron', 'interval', 'date', 'at').
+        trigger_args (dict): Arguments for the chosen trigger type.
+        base_dir (str | None, optional): Base path. Defaults to None.
+        inputs (dict | None, optional): Pipeline inputs. Defaults to None.
+        final_vars (list | None, optional): Final variables. Defaults to None.
+        config (dict | None, optional): Hamilton driver config. Defaults to None.
+        executor (str | None, optional): Executor name (Less relevant for RQ). Defaults to None.
+        with_tracker (bool | None, optional): Enable tracker. Defaults to None.
+        with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to None.
+        with_progressbar (bool | None, optional): Enable progress bar. Defaults to None.
+        reload (bool, optional): Reload pipeline module. Defaults to False.
+        job_id (str | None, optional): Unique ID for the scheduled job. Defaults to None.
+        overwrite (bool, optional): If True, cancel existing job with same ID. Defaults to False.
+        result_ttl (int | dt.timedelta | None, optional): How long job results are kept. Defaults to None.
+        job_timeout (int | dt.timedelta | None, optional): Max execution time in worker. Defaults to None.
+        queue_name (str | None, optional): Target RQ queue. Defaults to None (uses default).
+        storage_options (dict | Munch | BaseStorageOptions, optional): Storage options. Defaults to {}.
+        fs (AbstractFileSystem | None, optional): Filesystem instance. Defaults to None.
+        **kwargs: Additional keyword arguments for the pipeline run.
 
     Returns:
-        str: The schedule ID.
+        str | None: The ID of the scheduled job, or None if scheduling failed.
+
+    Raises:
+        ValueError: If RQ-Scheduler or Redis connection is not available, or trigger_type invalid.
+        TypeError: If trigger_args are incorrect.
 
     Examples:
         ```python
-        schedule_id = schedule("my_pipeline", trigger_type="interval", seconds=60)
+        # Schedule cron job
+        job_id = schedule("my_pipeline", "cron", {"cron_string": "0 1 * * *"}, job_id="my_cron", overwrite=True)
         ```
     """
-    with Pipeline(
-        base_dir=base_dir,
-        name=name,
-        storage_options=storage_options,
-        fs=fs,
-    ) as p:
-        return p.schedule(
-            executor=executor,
-            trigger_type=trigger_type,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            with_tracker=with_tracker,
-            with_opentelemetry=with_opentelemetry,
-            with_progressbar=with_progressbar,
-            paused=paused,
-            coalesce=coalesce,
-            misfire_grace_time=misfire_grace_time,
-            max_jitter=max_jitter,
-            max_running_jobs=max_running_jobs,
-            conflict_policy=conflict_policy,
-            overwrite=overwrite,
-            **kwargs,
-        )
+    # Note: Pipeline context manager isn't strictly needed here as schedule uses PipelineManager internally
+    p = Pipeline(name=name, base_dir=base_dir, storage_options=storage_options, fs=fs)
+    return p.schedule(
+        trigger_type=trigger_type,
+        trigger_args=trigger_args,
+        inputs=inputs,
+        final_vars=final_vars,
+        config=config,
+        executor=executor,
+        with_tracker=with_tracker,
+        with_opentelemetry=with_opentelemetry,
+        with_progressbar=with_progressbar,
+        reload=reload,
+        job_id=job_id,
+        overwrite=overwrite,
+        result_ttl=result_ttl,
+        job_timeout=job_timeout,
+        queue_name=queue_name,
+        **kwargs,
+    )
 
 
 def new(
@@ -2417,3 +2510,4 @@ def list_pipelines(
         fs=fs,
     ) as pm:
         return pm.list_pipelines()
+

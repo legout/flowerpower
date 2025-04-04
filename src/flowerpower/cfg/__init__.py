@@ -9,7 +9,7 @@ from pydantic import Field
 from ..fs import get_filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
-from .pipeline.schedule import PipelineScheduleConfig
+# from .pipeline.schedule import PipelineScheduleConfig # Removed as scheduling is now configured via method args
 from .pipeline.tracker import PipelineTrackerConfig
 from .project.open_telemetry import ProjectOpenTelemetryConfig
 from .project.tracker import ProjectTrackerConfig
@@ -19,7 +19,7 @@ from .project.worker import ProjectWorkerConfig
 class PipelineConfig(BaseConfig):
     name: str | None = None
     run: PipelineRunConfig = Field(default_factory=PipelineRunConfig)
-    schedule: PipelineScheduleConfig = Field(default_factory=PipelineScheduleConfig)
+    # schedule: PipelineScheduleConfig = Field(default_factory=PipelineScheduleConfig) # Removed - scheduling configured via method args
     params: dict | Munch = {}
     tracker: PipelineTrackerConfig = Field(default_factory=PipelineTrackerConfig)
     h_params: dict | Munch = {}
