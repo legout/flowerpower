@@ -110,5 +110,9 @@ dev-dependencies = [
   "adbc-driver-sqlite>=1.4.0",
   "psycopg>=3.2.6",
   "asyncer>=0.0.8",
+  "rq>=2.3.1",
+  "rq-scheduler>=0.14.0",
+  "dramatiq>=1.17.1",
+  "spinach>=0.0.25",
 ]
 package = true

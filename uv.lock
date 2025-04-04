@@ -498,6 +498,15 @@ css = [
 ]
 
 [[package]]
+name = "blinker"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/28/9b3f50ce0e048515135495f198351908d99540d69bfdc8c1d15b73dc55ce/blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf", size = 22460 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/cb/f2ad4230dc2eb1a74edf38f1a38b9b52277f75bef262d8908e60d957e13c/blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc", size = 8458 },
+]
+
+[[package]]
 name = "bokeh"
 version = "3.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -731,6 +740,12 @@ wheels = [
 ]
 
 [[package]]
+name = "crontab"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ae/13/696cac391e97fa47ec7323936838a540a610894a1d516a6b0cefbb1e495b/crontab-1.0.1.tar.gz", hash = "sha256:89477e3f93c81365e738d5ee2659509e6373bb2846de13922663e79aa74c6b91", size = 19616 }
+
+[[package]]
 name = "datafusion"
 version = "46.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -912,6 +927,18 @@ wheels = [
 ]
 
 [[package]]
+name = "dramatiq"
+version = "1.17.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "prometheus-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c6/7a/6792ddc64a77d22bfd97261b751a7a76cf2f9d62edc59aafb679ac48b77d/dramatiq-1.17.1.tar.gz", hash = "sha256:2675d2f57e0d82db3a7d2a60f1f9c536365349db78c7f8d80a63e4c54697647a", size = 99071 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/36/925c7afd5db4f1a3f00676b9c3c58f31ff7ae29a347282d86c8d429280a5/dramatiq-1.17.1-py3-none-any.whl", hash = "sha256:951cdc334478dff8e5150bb02a6f7a947d215ee24b5aedaf738eff20e17913df", size = 120382 },
+]
+
+[[package]]
 name = "duckdb"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1068,6 +1095,7 @@ dev = [
     { name = "datafusion" },
     { name = "datamodel-code-generator" },
     { name = "deltalake" },
+    { name = "dramatiq" },
     { name = "duckdb" },
     { name = "greenlet" },
     { name = "ipython" },
@@ -1084,10 +1112,13 @@ dev = [
     { name = "polars" },
     { name = "psycopg" },
     { name = "pytest" },
+    { name = "rq" },
+    { name = "rq-scheduler" },
     { name = "ruff" },
     { name = "sanic" },
     { name = "sanic-ext" },
     { name = "scikit-learn" },
+    { name = "spinach" },
     { name = "sqlalchemy" },
 ]
 
@@ -1163,6 +1194,7 @@ dev = [
     { name = "datafusion", specifier = ">=42.0.0" },
     { name = "datamodel-code-generator", specifier = ">=0.27.2" },
     { name = "deltalake", specifier = ">=0.21.0" },
+    { name = "dramatiq", specifier = ">=1.17.1" },
     { name = "duckdb", specifier = ">=1.1.3" },
     { name = "greenlet", specifier = ">=3.1.1" },
     { name = "ipython", specifier = ">=8.24.0" },
@@ -1179,10 +1211,13 @@ dev = [
     { name = "polars", specifier = ">=1.12.0" },
     { name = "psycopg", specifier = ">=3.2.6" },
     { name = "pytest", specifier = ">=8.3.4" },
+    { name = "rq", specifier = ">=2.3.1" },
+    { name = "rq-scheduler", specifier = ">=0.14.0" },
     { name = "ruff", specifier = ">=0.7.1" },
     { name = "sanic", specifier = ">=24.12.0" },
     { name = "sanic-ext", specifier = ">=23.12.0" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
+    { name = "spinach", specifier = ">=0.0.25" },
     { name = "sqlalchemy", specifier = ">=2.0.37" },
 ]
 
@@ -1193,6 +1228,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/30/3e/a80a8c077fd798951169626cde3e239adeba7dab75deb3555716415bd9b0/fqdn-1.5.1.tar.gz", hash = "sha256:105ed3677e767fb5ca086a0c1f4bb66ebc3c100be518f0e0d755d9eae164d89f", size = 6015 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/58/8acf1b3e91c58313ce5cb67df61001fc9dcd21be4fadb76c1a2d540e09ed/fqdn-1.5.1-py3-none-any.whl", hash = "sha256:3a179af3761e4df6eb2e026ff9e1a3033d3587bf980a0b1b2e1e5d08d7358014", size = 9121 },
+]
+
+[[package]]
+name = "freezegun"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2c/ef/722b8d71ddf4d48f25f6d78aa2533d505bf3eec000a7cacb8ccc8de61f2f/freezegun-1.5.1.tar.gz", hash = "sha256:b29dedfcda6d5e8e083ce71b2b542753ad48cfec44037b3fc79702e2980a89e9", size = 33697 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/0b/0d7fee5919bccc1fdc1c2a7528b98f65c6f69b223a3fd8f809918c142c36/freezegun-1.5.1-py3-none-any.whl", hash = "sha256:bf111d7138a8abe55ab48a71755673dbaa4ab87f4cff5634a4442dfec34c15f1", size = 17569 },
 ]
 
 [[package]]
@@ -3628,6 +3675,34 @@ wheels = [
 ]
 
 [[package]]
+name = "rq"
+version = "2.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "redis" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8f/51/15482430f8774b6e22b24a1a51bdda52c2926ebaf8175a9936140317f56e/rq-2.3.1.tar.gz", hash = "sha256:9cb33be7a90c6b36c0d6b9a6524aaf85b8855251ace476d74a076e6dfc5684d6", size = 649084 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b4/4b/ae55d7ec548d5f77cb8cfee59d78725c4e26bdf9c052b9d0b4726ceca98c/rq-2.3.1-py3-none-any.whl", hash = "sha256:2bbd48b976fdd840865dcab4bed358eb94b4dd8a02e92add75a346a909c1793d", size = 100363 },
+]
+
+[[package]]
+name = "rq-scheduler"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "crontab" },
+    { name = "freezegun" },
+    { name = "python-dateutil" },
+    { name = "rq" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a0/4e/977bbcc1f3b25ed9ea60ec968b13f7147661defe5b2f9272b44fdb1c5549/rq-scheduler-0.14.0.tar.gz", hash = "sha256:2d5a14a1ab217f8693184ebaa1fe03838edcbc70b4f76572721c0b33058cd023", size = 16582 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/d0/28cedca9f3b321f30e69d644c2dcd7097ec21570ec9606fde56750621300/rq_scheduler-0.14.0-py2.py3-none-any.whl", hash = "sha256:d4ec221a3d8c11b3ff55e041f09d9af1e17f3253db737b6b97e86ab20fc3dc0d", size = 13874 },
+]
+
+[[package]]
 name = "ruff"
 version = "0.11.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3929,6 +4004,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/ce/fbaeed4f9fb8b2daa961f90591662df6a86c1abf25c548329a86920aedfb/soupsieve-2.6.tar.gz", hash = "sha256:e2e68417777af359ec65daac1057404a3c8a5455bb8abc36f1a9866ab1a51abb", size = 101569 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/c2/fe97d779f3ef3b15f05c94a2f1e3d21732574ed441687474db9d342a7315/soupsieve-2.6-py3-none-any.whl", hash = "sha256:e72c4ff06e4fb6e4b5a9f0f55fe6e81514581fca1515028625d0f299c602ccc9", size = 36186 },
+]
+
+[[package]]
+name = "spinach"
+version = "0.0.25"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "blinker" },
+    { name = "redis" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/d8/69d766db9890be8adc71793e8d840b02c3bc7bdd30bf5a11d5a2bd7569f5/spinach-0.0.25.tar.gz", hash = "sha256:727fa4b4fbd22e34aae79d60a86d82cf48106dd7e8df64e4e74fa98d2d45585e", size = 42136 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/38/1af9d7bcd50688ccb513c056117dcc6e7c825c70c5437cd52cf283be2deb/spinach-0.0.25-py3-none-any.whl", hash = "sha256:13e0730a535f16dbded708bf67e543a9ea0de948205931c4f849a6e8e3704b1c", size = 43900 },
 ]
 
 [[package]]
