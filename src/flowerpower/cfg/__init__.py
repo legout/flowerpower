@@ -6,7 +6,7 @@ from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 from pydantic import Field
 
-from ..fs import get_filesystem
+from ..io.fs import get_filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
 from .pipeline.schedule import PipelineScheduleConfig

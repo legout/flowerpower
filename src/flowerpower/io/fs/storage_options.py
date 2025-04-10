@@ -3,30 +3,35 @@ import os
 
 import yaml
 from fsspec import AbstractFileSystem, filesystem
-from pydantic import BaseModel
+from dataclasses import dataclass, asdict
 
 
-class BaseStorageOptions(BaseModel):
+@dataclass
+class BaseStorageOptions:
     protocol: str
 
     def to_dict(self, with_protocol: bool = False) -> dict:
-        items = self.model_dump().items()
+        items = asdict(self).items()
         if not with_protocol:
             return {k: v for k, v in items if k != "protocol" and v is not None}
         return {k: v for k, v in items if v is not None}
 
     @classmethod
     def from_yaml(
-        cls, path: str, fs: AbstractFileSystem = None
+        cls, path: str, fs: AbstractFileSystem | None = None
     ) -> "BaseStorageOptions":
+        if fs is None:
+            raise ValueError("fs (filesystem) must be provided for from_yaml")
         with fs.open(path, "r") as f:
             data = yaml.safe_load(f)
         return cls(**data)
 
-    def to_yaml(self, path: str, fs: AbstractFileSystem = None):
+    def to_yaml(self, path: str, fs: AbstractFileSystem | None = None):
         if fs is None:
             fs = filesystem("file")
         data = self.to_dict()
+        if fs is None:
+            raise ValueError("fs (filesystem) must be provided for to_yaml")
         with fs.open(path, "w") as f:
             yaml.safe_dump(data, f)
 
@@ -34,18 +39,29 @@ class BaseStorageOptions(BaseModel):
         return filesystem(**self.to_dict())
 
     def update(self, **kwargs):
-        self = self.model_copy(update=kwargs)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
+        raise NotImplementedError("to_object_store_kwargs is not implemented for this storage option")
 
 
+@dataclass
 class AzureStorageOptions(BaseStorageOptions):
     pass
 
 
+@dataclass
 class GcsStorageOptions(BaseStorageOptions):
     pass
 
 
+@dataclass
 class AwsStorageOptions(BaseStorageOptions):
+    """
+    Storage options for AWS S3-compatible backends.
+    Provides methods for instantiation from environment variables or AWS credentials/profile,
+    and for conversion to fsspec and object store kwargs.
+    """
     protocol: str = "s3"
     access_key_id: str | None = None
     secret_access_key: str | None = None
@@ -56,16 +72,6 @@ class AwsStorageOptions(BaseStorageOptions):
     allow_http: bool | None = None
     profile: str | None = None
 
-    def model_post_init(self, __context):
-        if self.profile is not None:
-            super().__init__(
-                **self.from_aws_credentials(
-                    profile=self.profile,
-                    allow_invalid_certificates=self.allow_invalid_certificates,
-                    allow_http=self.allow_http,
-                ).to_dict()
-            )
-
     @classmethod
     def from_aws_credentials(
         cls,
@@ -74,59 +80,69 @@ class AwsStorageOptions(BaseStorageOptions):
         allow_http: bool = False,
     ) -> "AwsStorageOptions":
         cp = configparser.ConfigParser()
-        cp.read(os.path.expanduser("~/.aws/credentials"))
-        cp.read(os.path.expanduser("~/.aws/config"))
+        credentials_path = os.path.expanduser("~/.aws/credentials")
+        config_path = os.path.expanduser("~/.aws/config")
+        read_files = cp.read([credentials_path, config_path])
+        if not read_files:
+            raise FileNotFoundError(
+                f"Could not find AWS credentials/config files at {credentials_path} or {config_path}"
+            )
         if profile not in cp:
-            raise ValueError(f"Profile '{profile}' not found in AWS credentials file")
+            raise ValueError(f"Profile '{profile}' not found in AWS credentials/config files")
+
+        region = cp[profile].get("region")
+        if not region and f"profile {profile}" in cp:
+            region = cp[f"profile {profile}"].get("region")
 
         return cls(
             protocol="s3",
-            access_key_id=cp[profile].get("aws_access_key_id", None),
-            secret_access_key=cp[profile].get("aws_secret_access_key", None),
-            session_token=cp[profile].get("aws_session_token", None),
-            endpoint_url=cp[profile].get("aws_endpoint_url", None)
-            or cp[profile].get("endpoint_url", None)
-            or cp[profile].get("aws_endpoint", None)
-            or cp[profile].get("endpoint", None),
-            region=(
-                cp[profile].get("region", None)
-                or cp[f"profile {profile}"].get("region", None)
-                if f"profile {profile}" in cp
-                else None
+            access_key_id=cp[profile].get("aws_access_key_id"),
+            secret_access_key=cp[profile].get("aws_secret_access_key"),
+            session_token=cp[profile].get("aws_session_token"),
+            endpoint_url=(
+                cp[profile].get("aws_endpoint_url")
+                or cp[profile].get("endpoint_url")
+                or cp[profile].get("aws_endpoint")
+                or cp[profile].get("endpoint")
             ),
+            region=region,
             allow_invalid_certificates=allow_invalid_certificates,
             allow_http=allow_http,
         )
 
     @classmethod
     def from_env(cls) -> "AwsStorageOptions":
+        def _env_bool(var: str, default: str = "False") -> bool:
+            return os.getenv(var, default).strip().lower() == "true"
+
         return cls(
             access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             session_token=os.getenv("AWS_SESSION_TOKEN"),
             endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
             region=os.getenv("AWS_DEFAULT_REGION"),
-            allow_invalid_certificates="true"
-            == (os.getenv("ALLOW_INVALID_CERTIFICATES", "False").lower()),
-            allow_http="true" == (os.getenv("AWS_ALLOW_HTTP", "False").lower()),
+            allow_invalid_certificates=_env_bool("ALLOW_INVALID_CERTIFICATES"),
+            allow_http=_env_bool("AWS_ALLOW_HTTP"),
         )
 
     def to_fsspec_kwargs(self) -> dict:
+        client_kwargs = {}
+        if self.region is not None:
+            client_kwargs["region_name"] = self.region
+        if self.allow_invalid_certificates is not None:
+            client_kwargs["verify"] = not self.allow_invalid_certificates
+        if self.allow_http is not None:
+            client_kwargs["use_ssl"] = not self.allow_http
+
         fsspec_kwargs = {
             "key": self.access_key_id,
             "secret": self.secret_access_key,
             "token": self.session_token,
             "endpoint_url": self.endpoint_url,
-            "client_kwargs": {
-                "region_name": self.region,
-                "verify": (
-                    not self.allow_invalid_certificates
-                    if self.allow_invalid_certificates is not None
-                    else False
-                ),
-                "use_ssl": not self.allow_http if self.allow_http is not None else True,
-            },
         }
+        if client_kwargs:
+            fsspec_kwargs["client_kwargs"] = client_kwargs  # type: ignore
+
         return {k: v for k, v in fsspec_kwargs.items() if v is not None}
 
     def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
@@ -156,6 +172,7 @@ class AwsStorageOptions(BaseStorageOptions):
         return filesystem(self.protocol, **self.to_fsspec_kwargs())
 
 
+@dataclass
 class GitHubStorageOptions(BaseStorageOptions):
     protocol: str = "github"
     org: str | None = None
@@ -172,11 +189,15 @@ class GitHubStorageOptions(BaseStorageOptions):
         )
 
     def to_env(self) -> None:
-        os.environ.update(
-            {"GITHUB_ORG": self.org, "GITHUB_REPO": self.repo, "GITHUB_SHA": self.sha}
-        )
+        env = {k: v for k, v in {
+            "GITHUB_ORG": self.org,
+            "GITHUB_REPO": self.repo,
+            "GITHUB_SHA": self.sha
+        }.items() if v is not None}
+        os.environ.update(env)
 
 
+@dataclass
 class GitLabStorageOptions(BaseStorageOptions):
     protocol: str = "gitlab"
     base_url: str = "https://gitlab.com"
@@ -188,17 +209,18 @@ class GitLabStorageOptions(BaseStorageOptions):
     def from_env(cls) -> "GitLabStorageOptions":
         return cls(
             protocol="gitlab",
-            base_url=os.getenv("GITLAB_BASE_URL"),
+            base_url=os.getenv("GITLAB_BASE_URL") or "https://gitlab.com",
             access_token=os.getenv("GITLAB_ACCESS_TOKEN"),
             project_id=os.getenv("GITLAB_PROJECT_ID"),
             project_name=os.getenv("GITLAB_PROJECT_NAME"),
         )
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if self.project_id is None and self.project_name is None:
             raise ValueError("Either 'project_id' or 'project_name' must be provided")
 
 
+@dataclass
 class LocalStorageOptions(BaseStorageOptions):
     protocol: str = "file"
 
@@ -251,36 +273,14 @@ def from_env(
         raise ValueError(f"Unsupported protocol: {protocol}")
 
 
-class StorageOptions(BaseModel):
+@dataclass
+class StorageOptions:
     storage_options: BaseStorageOptions
 
-    def __init__(self, **data):
-        protocol = data.get("protocol")
-        if protocol is None and "storage_options" not in data:
-            raise ValueError("protocol must be specified")
-
-        if "storage_options" not in data:
-            if protocol == "s3":
-                storage_options = AwsStorageOptions(**data)
-            elif protocol == "github":
-                storage_options = GitHubStorageOptions(**data)
-            elif protocol == "gitlab":
-                storage_options = GitLabStorageOptions(**data)
-            elif protocol in ["az", "abfs", "adl"]:
-                storage_options = AzureStorageOptions(**data)
-            elif protocol in ["gs", "gcs"]:
-                storage_options = GcsStorageOptions(**data)
-            elif protocol == "file":
-                storage_options = LocalStorageOptions(**data)
-            else:
-                raise ValueError(f"Unsupported protocol: {protocol}")
-
-            super().__init__(storage_options=storage_options)
-        else:
-            super().__init__(**data)
-
     @classmethod
-    def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
+    def from_yaml(cls, path: str, fs: AbstractFileSystem | None = None) -> "StorageOptions":
+        if fs is None:
+            raise ValueError("fs (filesystem) must be provided for from_yaml")
         with fs.open(path, "r") as f:
             data = yaml.safe_load(f)
         return cls(**data)
@@ -302,9 +302,12 @@ class StorageOptions(BaseModel):
         return self.storage_options.to_filesystem()
 
     def to_dict(self, protocol: bool = False) -> dict:
-        return self.storage_options.to_dict(protocol=protocol)
+        return self.storage_options.to_dict(with_protocol=protocol)
 
     def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
-        return self.storage_options.to_object_store_kwargs(
-            with_conditional_put=with_conditional_put
-        )
+        # Ensure the method exists for all storage options
+        if hasattr(self.storage_options, "to_object_store_kwargs"):
+            return self.storage_options.to_object_store_kwargs(
+                with_conditional_put=with_conditional_put
+            )
+        raise AttributeError("to_object_store_kwargs is not implemented for this storage option")

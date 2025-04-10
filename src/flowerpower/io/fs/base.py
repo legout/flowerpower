@@ -2,9 +2,8 @@ import base64
 import inspect
 import os
 import posixpath
-import urllib
 from pathlib import Path
-
+from urllib import parse
 import fsspec
 import requests
 from fsspec import filesystem
@@ -67,90 +66,63 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         [self.open(f).close() for f in content if self.isfile(f)]
 
     def __getattribute__(self, item):
-        if item in {
-            # new items
-            "size",
-            "glob",
-            "sync",
-            # previous
-            "load_cache",
-            "_open",
-            "save_cache",
-            "close_and_update",
-            "__init__",
-            "__getattribute__",
-            "__reduce__",
-            "_make_local_details",
-            "open",
-            "cat",
-            "cat_file",
-            "cat_ranges",
-            "get",
-            "read_block",
-            "tail",
-            "head",
-            "info",
-            "ls",
-            "exists",
-            "isfile",
-            "isdir",
-            "_check_file",
-            "_check_cache",
-            "_mkcache",
-            "clear_cache",
-            "clear_expired_cache",
-            "pop_from_cache",
-            "local_file",
-            "_paths_from_path",
-            "get_mapper",
-            "open_many",
-            "commit_many",
-            "hash_name",
-            "__hash__",
-            "__eq__",
-            "to_json",
-            "to_dict",
-            "cache_size",
-            "pipe_file",
-            "pipe",
-            "start_transaction",
-            "end_transaction",
-        }:
-            # all the methods defined in this class. Note `open` here, since
-            # it calls `_open`, but is actually in superclass
-            return lambda *args, **kw: getattr(type(self), item).__get__(self)(
-                *args, **kw
-            )
-        if item in ["__reduce_ex__"]:
-            raise AttributeError
-        if item in ["transaction"]:
-            # property
+        """
+        Custom attribute access to delegate to the underlying filesystem or class as needed.
+        Optimized for clarity, reduced redundancy, and robust error handling.
+        """
+        _special_methods = {
+            "size", "glob", "sync", "load_cache", "_open", "save_cache", "close_and_update",
+            "__init__", "__getattribute__", "__reduce__", "_make_local_details", "open",
+            "cat", "cat_file", "cat_ranges", "get", "read_block", "tail", "head", "info",
+            "ls", "exists", "isfile", "isdir", "_check_file", "_check_cache", "_mkcache",
+            "clear_cache", "clear_expired_cache", "pop_from_cache", "local_file",
+            "_paths_from_path", "get_mapper", "open_many", "commit_many", "hash_name",
+            "__hash__", "__eq__", "to_json", "to_dict", "cache_size", "pipe_file", "pipe",
+            "start_transaction", "end_transaction"
+        }
+        if item in _special_methods:
+            method = getattr(type(self), item, None)
+            if method is None:
+                raise AttributeError(f"'{type(self).__name__}' object has no attribute '{item}'")
+            return lambda *args, **kw: method.__get__(self)(*args, **kw)
+
+        if item == "__reduce_ex__":
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{item}'")
+
+        if item == "transaction":
             return type(self).transaction.__get__(self)
-        if item in ["_cache", "transaction_type"]:
-            # class attributes
+
+        if item in {"_cache", "transaction_type"}:
             return getattr(type(self), item)
+
         if item == "__class__":
             return type(self)
+
         d = object.__getattribute__(self, "__dict__")
-        fs = d.get("fs", None)  # fs is not immediately defined
+        fs = d.get("fs", None)
+
         if item in d:
             return d[item]
-        elif fs is not None:
-            if item in fs.__dict__:
-                # attribute of instance
+
+        if fs is not None:
+            if hasattr(fs, "__dict__") and item in fs.__dict__:
                 return fs.__dict__[item]
-            # attributed belonging to the target filesystem
             cls = type(fs)
-            m = getattr(cls, item)
-            if (inspect.isfunction(m) or inspect.isdatadescriptor(m)) and (
-                not hasattr(m, "__self__") or m.__self__ is None
-            ):
-                # instance method
-                return m.__get__(fs, cls)
-            return m  # class method or attribute
-        else:
-            # attributes of the superclass, while target is being set up
+            if hasattr(cls, item):
+                m = getattr(cls, item)
+                # Only bind if m is a function or descriptor and has __get__ attribute
+                if (inspect.isfunction(m) or inspect.isdatadescriptor(m)):
+                    if (not hasattr(m, "__self__") or getattr(m, "__self__", None) is None) and hasattr(m, "__get__"):
+                        return m.__get__(fs, cls)  # type: ignore[attr-defined]
+                return m
+            if hasattr(fs, item):
+                return getattr(fs, item)
+            raise AttributeError(f"'{type(fs).__name__}' object has no attribute '{item}'")
+
+        try:
             return super().__getattribute__(item)
+        except AttributeError as e:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{item}'") from e
 
 
 class GitLabFileSystem(AbstractFileSystem):
@@ -192,13 +164,14 @@ class GitLabFileSystem(AbstractFileSystem):
         else:
             response.raise_for_status()
 
-    def _open(self, path, mode="rb", **kwargs):
+    def _open(self, path, mode="rb", block_size=None, autocommit=True, *args, **kwargs):  # type: ignore[override]
+        # Signature matches AbstractFileSystem._open (ignore static type checker)
         if mode != "rb":
             raise NotImplementedError("Only read mode is supported")
 
         url = (
             f"{self.base_url}/api/v4/projects/{self.project_id}/repository/files/"
-            f"{urllib.parse.quote_plus(path)}?ref={self.branch}"
+            f"{parse.quote_plus(path)}?ref={self.branch}"
         )
         headers = {"PRIVATE-TOKEN": self.access_token}
         response = requests.get(url, headers=headers)
@@ -259,45 +232,55 @@ def get_filesystem(
     **storage_options_kwargs,
 ) -> AbstractFileSystem:
     """
-    Get a filesystem based on the given path.
+    Get a filesystem based on the given path and storage options.
 
     Args:
-        path: (str, optional) Path to the filesystem. Defaults to None.
-        storage_options: (AwsStorageOptions | GitHubStorageOptions | GitLabStorageOptions |
-            GcsStorageOptions | AzureStorageOptions | dict[str, str], optional) Storage options.
-            Defaults to None.
-        dirfs: (bool, optional) If True, return a DirFileSystem. Defaults to True.
-        cached: (bool, optional) If True, use a cached filesystem. Defaults to False.
-        cache_storage: (str, optional) Path to the cache storage. Defaults to None.
+        path: Path to the filesystem.
+        storage_options: Storage options as a dataclass or dict.
+        dirfs: If True, return a DirFileSystem.
+        cached: If True, use a cached filesystem.
+        cache_storage: Path to the cache storage.
+        fs: An existing filesystem instance.
         **storage_options_kwargs: Additional keyword arguments for the storage options.
 
+    Returns:
+        An fsspec-compatible filesystem instance.
+
+    Raises:
+        ValueError: If path or protocol is not provided or cannot be inferred.
     """
     if fs is not None:
         if cached:
-            if fs.is_cache_fs:
+            if hasattr(fs, "is_cache_fs") and getattr(fs, "is_cache_fs", False):
                 return fs
             return MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
 
         if dirfs:
-            if fs.protocol == "dir":
+            if hasattr(fs, "protocol") and getattr(fs, "protocol", None) == "dir":
                 return fs
             return DirFileSystem(path=path, fs=fs)
 
+    if path is None:
+        raise ValueError("Path must be provided to infer storage options.")
+
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = pp.get("protocol")
+    if protocol is None:
+        raise ValueError("Protocol could not be inferred from the path.")
 
-    if protocol == "file" or protocol == "local":
+    if protocol in {"file", "local"}:
         fs = filesystem(protocol)
-        fs.is_cache_fs = False
+        # Mark as cache fs only if attribute exists
         if dirfs:
             fs = DirFileSystem(path=path, fs=fs)
-            fs.is_cache_fs = False
+        if fs is None:
+            raise RuntimeError("Failed to create a filesystem instance.")
         return fs
 
     host = pp.get("host", "")
-    path = pp.get("path", "").lstrip("/")
-    if len(host) and host not in path:
-        path = posixpath.join(host, path)
+    subpath = pp.get("path", "").lstrip("/")
+    if len(host) and host not in subpath:
+        subpath = posixpath.join(host, subpath)
 
     if isinstance(storage_options, dict):
         storage_options = storage_options_from_dict(protocol, storage_options)
@@ -306,14 +289,15 @@ def get_filesystem(
         storage_options = storage_options_from_dict(protocol, storage_options_kwargs)
 
     fs = storage_options.to_filesystem()
-    fs.is_cache_fs = False
-    if dirfs and len(path):
-        fs = DirFileSystem(path=path, fs=fs)
-        fs.is_cache_fs = False
+    # Only set is_cache_fs if it exists (for custom cache fs)
+    if dirfs and len(subpath):
+        fs = DirFileSystem(path=subpath, fs=fs)
     if cached:
         if cache_storage is None:
-            cache_storage = (Path.cwd() / path).as_posix()
+            cache_storage = (Path.cwd() / (subpath or "")).as_posix()
         fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
-        fs.is_cache_fs = True
+
+    if fs is None:
+        raise RuntimeError("Failed to create a filesystem instance.")
 
     return fs

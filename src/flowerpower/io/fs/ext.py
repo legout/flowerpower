@@ -1,5 +1,5 @@
 import datetime as dt
-import importlib
+import importlib.util
 import posixpath
 import uuid
 from typing import Generator
@@ -11,13 +11,13 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..utils.misc import (
+from ...utils.misc import (
     _dict_to_dataframe,
     convert_large_types_to_standard,
     run_parallel,
     to_pyarrow_table,
 )
-from ..utils.polars import pl
+from ...utils.polars import pl
 
 if importlib.util.find_spec("duckdb") is not None:
     import duckdb
@@ -31,38 +31,48 @@ else:
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:
+    """
+    Convert a file or directory path to a glob pattern for the given format.
+    """
     path = path.rstrip("/")
     if format is None:
-        if ".json" in path:
+        if path.endswith(".json"):
             format = "json"
-        elif ".csv" in path:
+        elif path.endswith(".csv"):
             format = "csv"
-        elif ".parquet" in path:
+        elif path.endswith(".parquet"):
             format = "parquet"
+        else:
+            raise ValueError("Format could not be inferred from path and was not provided.")
 
-    if format in path:
+    # If the path already ends with the format, return as is
+    if path.endswith(f".{format}"):
         return path
-    else:
-        if path.endswith("**"):
-            return posixpath.join(path, f"*.{format}")
-        elif path.endswith("*"):
-            if path.endswith("*/*"):
-                return path + f".{format}"
-            return posixpath.join(path.rstrip("/*"), f"*.{format}")
-        return posixpath.join(path, f"**/*.{format}")
+
+    # Handle recursive and wildcard globs
+    if path.endswith("**"):
+        return posixpath.join(path, f"*.{format}")
+    elif path.endswith("*"):
+        if path.endswith("*/*"):
+            return path + f".{format}"
+        return posixpath.join(path.rstrip("/*"), f"*.{format}")
+    return posixpath.join(path, f"**/*.{format}")
 
 
 def _read_json_file(
     path, self, include_file_path: bool = False, jsonlines: bool = False
 ) -> dict | list[dict]:
-    with self.open(path) as f:
-        if jsonlines:
-            data = [orjson.loads(line) for line in f.readlines()]
-        else:
-            data = orjson.loads(f.read())
-    if include_file_path:
-        return {path: data}
-    return data
+    try:
+        with self.open(path) as f:
+            if jsonlines:
+                data = [orjson.loads(line) for line in f.readlines()]
+            else:
+                data = orjson.loads(f.read())
+        if include_file_path:
+            return {path: data}
+        return data
+    except Exception as e:
+        raise RuntimeError(f"Failed to read JSON file '{path}': {e}")
 
 
 def read_json_file(
@@ -301,12 +311,14 @@ def read_json(
 def _read_csv_file(
     path, self, include_file_path: bool = False, **kwargs
 ) -> pl.DataFrame:
-    print(path)
-    with self.open(path) as f:
-        df = pl.read_csv(f, **kwargs)
-    if include_file_path:
-        return df.with_columns(pl.lit(path).alias("file_path"))
-    return df
+    try:
+        with self.open(path) as f:
+            df = pl.read_csv(f, **kwargs)
+        if include_file_path:
+            return df.with_columns(pl.lit(path).alias("file_path"))
+        return df
+    except Exception as e:
+        raise RuntimeError(f"Failed to read CSV file '{path}': {e}")
 
 
 def read_csv_file(
@@ -328,25 +340,14 @@ def _read_csv(
 ) -> pl.DataFrame | list[pl.DataFrame]:
     """
     Read a CSV file or a list of CSV files into a polars DataFrame.
-
-    Args:
-        path: (str | list[str]) Path to the CSV file(s).
-        include_file_path: (bool, optional) If True, return a DataFrame with a 'file_path' column.
-            Defaults to False.
-        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
-        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
-        verbose: (bool, optional) If True, print verbose output. Defaults to False.
-        **kwargs: Additional keyword arguments.
-
-    Returns:
-        (pl.DataFrame | list[pl.DataFrame]): Polars DataFrame or list of DataFrames.
     """
+    # Resolve paths
     if isinstance(path, str):
         path = path_to_glob(path, format="csv")
         path = self.glob(path)
 
     if isinstance(path, list):
-        if use_threads:
+        if use_threads and len(path) > 1:
             dfs = run_parallel(
                 _read_csv_file,
                 path,
@@ -357,15 +358,16 @@ def _read_csv(
                 verbose=verbose,
                 **kwargs,
             )
-        dfs = [
-            _read_csv_file(p, self=self, include_file_path=include_file_path, **kwargs)
-            for p in path
-        ]
+        else:
+            dfs = [
+                _read_csv_file(p, self=self, include_file_path=include_file_path, **kwargs)
+                for p in path
+            ]
     else:
         dfs = _read_csv_file(
             path, self=self, include_file_path=include_file_path, **kwargs
         )
-    if concat:
+    if concat and isinstance(dfs, list):
         return pl.concat(dfs, how="diagonal_relaxed")
     return dfs
 
@@ -494,10 +496,16 @@ def read_csv(
 def _read_parquet_file(
     path, self, include_file_path: bool = False, **kwargs
 ) -> pa.Table:
-    table = pq.read_table(path, filesystem=self, **kwargs)
-    if include_file_path:
-        return table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
-    return table
+    try:
+        table = pq.read_table(path, filesystem=self, **kwargs)
+        if include_file_path:
+            # Use pyarrow's add_column for file_path
+            import pyarrow as pa
+            file_path_array = pa.array([path] * table.num_rows)
+            table = table.append_column("file_path", file_path_array)
+        return table
+    except Exception as e:
+        raise RuntimeError(f"Failed to read Parquet file '{path}': {e}")
 
 
 def read_parquet_file(
@@ -519,53 +527,46 @@ def _read_parquet(
 ) -> pa.Table | list[pa.Table]:
     """
     Read a Parquet file or a list of Parquet files into a pyarrow Table.
-
-    Args:
-        path: (str | list[str]) Path to the Parquet file(s).
-        include_file_path: (bool, optional) If True, return a Table with a 'file_path' column.
-            Defaults to False.
-        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
-        concat: (bool, optional) If True, concatenate the Tables. Defaults to True.
-        **kwargs: Additional keyword arguments.
-
-    Returns:
-        (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
     """
-    if not include_file_path and concat:
-        if isinstance(path, str):
-            path = path.replace("**", "").replace("*.parquet", "")
-        return pq.read_table(path, filesystem=self, **kwargs)
-    else:
-        if isinstance(path, str):
-            path = path_to_glob(path, format="parquet")
-            path = self.glob(path)
+    # Fast path for single file, no file_path, concat
+    if not include_file_path and concat and isinstance(path, str):
+        path_simple = path.replace("**", "").replace("*.parquet", "")
+        try:
+            return pq.read_table(path_simple, filesystem=self, **kwargs)
+        except Exception as e:
+            raise RuntimeError(f"Failed to read Parquet file '{path_simple}': {e}")
 
-        if isinstance(path, list):
-            if use_threads:
-                table = run_parallel(
-                    _read_parquet_file,
-                    path,
-                    self=self,
-                    include_file_path=include_file_path,
-                    n_jobs=-1,
-                    backend="threading",
-                    verbose=verbose,
-                    **kwargs,
-                )
-            else:
-                table = [
-                    _read_parquet_file(
-                        p, self=self, include_file_path=include_file_path, **kwargs
-                    )
-                    for p in path
-                ]
-        else:
-            table = _read_parquet_file(
-                path=path, self=self, include_file_path=include_file_path, **kwargs
+    # Otherwise, resolve paths and read
+    if isinstance(path, str):
+        path = path_to_glob(path, format="parquet")
+        path = self.glob(path)
+
+    if isinstance(path, list):
+        if use_threads and len(path) > 1:
+            tables = run_parallel(
+                _read_parquet_file,
+                path,
+                self=self,
+                include_file_path=include_file_path,
+                n_jobs=-1,
+                backend="threading",
+                verbose=verbose,
+                **kwargs,
             )
-    if concat:
-        return pa.concat_tables(table, promote_options="permissive")
-    return table
+        else:
+            tables = [
+                _read_parquet_file(
+                    p, self=self, include_file_path=include_file_path, **kwargs
+                )
+                for p in path
+            ]
+    else:
+        tables = _read_parquet_file(
+            path=path, self=self, include_file_path=include_file_path, **kwargs
+        )
+    if concat and isinstance(tables, list):
+        return pa.concat_tables(tables, promote_options="permissive")
+    return tables
 
 
 def _read_parquet_batches(
@@ -854,7 +855,7 @@ def pyarrow_parquet_dataset(
     Returns:
         (pds.Dataset): Pyarrow dataset.
     """
-    if not self.is_file(path):
+    if not self.isfile(path):
         path = posixpath.join(path, "_metadata")
     return pds.dataset(
         path,

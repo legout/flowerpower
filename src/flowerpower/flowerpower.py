@@ -7,7 +7,7 @@ import rich
 from fsspec.spec import AbstractFileSystem
 
 from .cfg import Config
-from .fs import get_filesystem
+from .io.fs import get_filesystem
 
 
 def init(

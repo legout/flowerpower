@@ -8,7 +8,17 @@ from typing import Callable
 from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import CallbackAPIVersion, Client
+
+import importlib.util
+
+if importlib.util.find_spec("paho"):
+    from paho.mqtt.client import Client # CallbackAPIVersion
+
+else:
+    raise ImportError(
+        "paho is not installed. Please install it with `pip install paho-mqtt` "
+    )
+
 
 from .cfg import Config
 from .pipeline import Pipeline

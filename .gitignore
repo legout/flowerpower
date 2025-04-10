@@ -30,3 +30,5 @@ test4.db*
 .gitignore
 flowerpower.db*
 .sesskey
+.roomodes
+memory-bank/**

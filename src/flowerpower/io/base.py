@@ -1,6 +1,7 @@
-import importlib
+import importlib.util
 import posixpath
-from typing import Generator, Any
+from typing import Generator, Any, Union, Optional, List, Dict
+from dataclasses import dataclass, field
 
 import datafusion
 import duckdb
@@ -11,9 +12,9 @@ from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
-from ..fs import get_filesystem
-from ..fs.ext import path_to_glob, _dict_to_dataframe
-from ..fs.storage_options import (
+from .fs import get_filesystem
+from .fs.ext import path_to_glob, _dict_to_dataframe
+from .fs.storage_options import (
     AwsStorageOptions,
     AzureStorageOptions,
     GcsStorageOptions,
@@ -43,19 +44,28 @@ else:
     text = None
 
 
-class BaseFileIO(BaseModel):
+
+@dataclass
+class BaseFileIO:
     """
     Base class for file I/O operations supporting various storage backends.
     This class provides a foundation for file operations across different storage systems
     including AWS S3, Google Cloud Storage, Azure Blob Storage, GitHub, and GitLab.
 
     Args:
-        path (str | list[str]): Path or list of paths to file(s).
-        storage_options (AwsStorageOptions | GcsStorageOptions | AzureStorageOptions |
-                             GitHubStorageOptions | GitLabStorageOptions | dict[str, Any] |  None, optional):
-            Storage-specific options for accessing remote filesystems.
-        fs (AbstractFileSystem, optional): Filesystem instance for handling file operations.
-        format (str, optional): File format extension (without dot).
+        path (Union[str, List[str]]): Path or list of paths to file(s).
+        storage_options (Union[
+            StorageOptions,
+            AwsStorageOptions,
+            GcsStorageOptions,
+            AzureStorageOptions,
+            GitHubStorageOptions,
+            GitLabStorageOptions,
+            Dict[str, Any],
+            None
+        ], optional): Storage-specific options for accessing remote filesystems.
+        fs (Optional[AbstractFileSystem], optional): Filesystem instance for handling file operations.
+        format (Optional[str], optional): File format extension (without dot).
 
     Notes:
         ```python
@@ -71,88 +81,93 @@ class BaseFileIO(BaseModel):
         - Automatically handles filesystem initialization based on path protocol
         - Supports both single path and multiple path inputs
         - Can read credentials from environment variables when using from_env() methods
-
     """
+    path: Union[str, List[str]]
+    storage_options: Union[
+        StorageOptions,
+        AwsStorageOptions,
+        AzureStorageOptions,
+        GcsStorageOptions,
+        GitLabStorageOptions,
+        GitHubStorageOptions,
+        Dict[str, Any],
+        None
+    ] = None
+    fs: Optional[AbstractFileSystem] = None
+    format: Optional[str] = None
+    _raw_path: Union[str, List[str]] = field(init=False)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-    path: str | list[str]
-    storage_options: (
-        StorageOptions
-        | AwsStorageOptions
-        | AzureStorageOptions
-        | GcsStorageOptions
-        | GitLabStorageOptions
-        | GitHubStorageOptions
-        | dict[str, Any]
-        | None
-    ) = None
-    fs: AbstractFileSystem | None = None
-    format: str | None = None
-
-    def model_post_init(self, __context):
+    def __post_init__(self):
         self._raw_path = self.path
-        if isinstance(self.storage_options, dict):
-            if "protocol" not in self.storage_options:
-                self.storage_options["protocol"] = get_protocol(self.path)
-            self.storage_options = StorageOptions(
-                **self.storage_options
-            ).storage_options
-        if isinstance(self.storage_options, StorageOptions):
-            self.storage_options = self.storage_options.storage_options
 
+        # Normalize path to str or list[str]
+        if not isinstance(self.path, (str, list)):
+            raise TypeError(f"path must be str or list[str], got {type(self.path)}")
+
+        # Ensure storage_options is a dict
+        storage_opts = self.storage_options or {}
+        if not isinstance(storage_opts, dict):
+            raise TypeError(
+                "storage_options must be a dict at runtime. "
+                "If using a storage options class, pass as dict(storage_options_instance)."
+            )
+
+        # Set protocol if missing
+        if "protocol" not in storage_opts:
+            path = self.path[0] if isinstance(self.path, list) else self.path
+            storage_opts["protocol"] = get_protocol(path)
+        self.storage_options = storage_opts
+
+        # Initialize filesystem if not provided
         if self.fs is None:
+            fs_path = self.path if isinstance(self.path, str) else self.path[0]
             self.fs = get_filesystem(
-                path=self.path if isinstance(self.path, str) else self.path[0],
+                path=fs_path,
                 storage_options=self.storage_options,
-                fs=self.fs,
+                fs=None,
                 dirfs=True,
             )
 
-        if hasattr(self.storage_options, "protocol"):
-            protocol = self.storage_options.protocol
-        else:
+        # Normalize protocol and path
+        protocol = self.storage_options.get("protocol")
+        if protocol is None and hasattr(self.fs, "protocol"):
             protocol = self.fs.protocol
-            if protocol == "dir":
-                protocol = (
-                    self.fs.fs.protocol
-                    if isinstance(self.fs.fs.protocol, str)
-                    else self.fs.fs.protocol[0]
-                )
-            if isinstance(protocol, list | tuple):
+            if isinstance(protocol, (list, tuple)):
                 protocol = protocol[0]
 
-        if isinstance(self.path, str):
-            self.path = (
-                self.path.replace(protocol + "://", "")
-                .replace(f"**/*.{self.format}", "")
-                .replace("**", "")
-                .replace("*", "")
-                .rstrip("/")
-            )
+        # Clean up path if protocol is present
+        if protocol and isinstance(protocol, str) and isinstance(self.path, str):
+            clean_path = self.path
+            if clean_path.startswith(protocol + "://"):
+                clean_path = clean_path[len(protocol) + 3 :]
+            if self.format:
+                clean_path = clean_path.replace(f"**/*.{self.format}", "")
+            clean_path = clean_path.replace("**", "").replace("*", "").rstrip("/")
+            self.path = clean_path
 
     @property
     def _path(self):
-        if self.fs.protocol == "dir":
-            if isinstance(self.path, list):
-                return [
-                    p.replace(self.fs.path.lstrip("/"), "").lstrip("/")
-                    for p in self.path
-                ]
-            else:
-                return self.path.replace(self.fs.path.lstrip("/"), "").lstrip("/")
+        if getattr(self.fs, "protocol", None) == "dir":
+            # Do not access self.fs.path, just return the path as is
+            return self.path
         return self.path
 
     @property
     def _glob_path(self):
-        return path_to_glob(self._path, self.format)
+        # path_to_glob expects a str, not a list
+        path = self._path
+        if isinstance(path, list):
+            path = path[0]
+        return path_to_glob(path, self.format)
 
     def list_files(self):
         if isinstance(self._path, list):
             return self._path
+        if self.fs is not None and hasattr(self.fs, "glob"):
+            return self.fs.glob(self._glob_path)
+        raise NotImplementedError("Filesystem is not initialized or does not support glob. Implement glob in your custom filesystem.")
 
-        return self.fs.glob(self._glob_path)
-
-
+@dataclass
 class BaseFileReader(BaseFileIO):
     """
     Base class for file loading operations supporting various file formats.
@@ -196,35 +211,23 @@ class BaseFileReader(BaseFileIO):
     partitioning: str | list[str] | pds.Partitioning | None = None
 
     def _load(self, reload: bool = False, **kwargs):
-        if "include_file_path" in kwargs:
-            if self.include_file_path != kwargs["include_file_path"]:
-                reload = True
-                self.include_file_path = kwargs.pop("include_file_path")
-            else:
-                kwargs.pop("include_file_path")
+        # Helper to update attributes from kwargs and trigger reload if changed
+        def _update_attr(attr):
+            if attr in kwargs:
+                val = kwargs[attr]
+                if getattr(self, attr) != val:
+                    nonlocal reload
+                    reload = True
+                    setattr(self, attr, kwargs.pop(attr))
+                else:
+                    kwargs.pop(attr)
 
-        if "concat" in kwargs:
-            if self.concat != kwargs["concat"]:
-                reload = True
-                self.concat = kwargs.pop("concat")
-            else:
-                kwargs.pop("concat")
-
-        if "batch_size" in kwargs:
-            if self.batch_size != kwargs["batch_size"]:
-                reload = True
-                self.batch_size = kwargs.pop("batch_size")
-            else:
-                kwargs.pop("batch_size")
-
-        if "partitioning" in kwargs:
-            if self.partitioning != kwargs["partitioning"]:
-                reload = True
-                self.partitioning = kwargs.pop("partitioning")
-            else:
-                kwargs.pop("partitioning")
+        for attr in ("include_file_path", "concat", "batch_size", "partitioning"):
+            _update_attr(attr)
 
         if not hasattr(self, "_data") or self._data is None or reload:
+            if self.fs is None or not hasattr(self.fs, "read_files"):
+                raise NotImplementedError("Your filesystem must implement a read_files method and be initialized.")
             self._data = self.fs.read_files(
                 path=self._glob_path,
                 format=self.format,
@@ -235,19 +238,18 @@ class BaseFileReader(BaseFileIO):
                 partitioning=self.partitioning,
                 **kwargs,
             )
+            self._metadata = {}
             if not isinstance(self._data, Generator):
-                self._metadata = get_dataframe_metadata(
+                meta = get_dataframe_metadata(
                     df=self._data,
-                    path=self.path,
-                    format=self.format,
-                    num_files=pl.from_arrow(self._data.select(["file_path"])).select(
-                        pl.n_unique("file_path")
-                    )[0, 0],
+                    path=self.path[0] if isinstance(self.path, list) else self.path,
+                    format=self.format or "",
+                    num_files=1,
                 )
-                if not self.include_file_path:
+                if isinstance(meta, dict):
+                    self._metadata = meta
+                if not self.include_file_path and hasattr(self._data, "drop"):
                     self._data = self._data.drop("file_path")
-            else:
-                self._metadata = {}
 
     def to_pandas(
         self, metadata: bool = False, reload: bool = False, **kwargs
@@ -280,8 +282,10 @@ class BaseFileReader(BaseFileIO):
                 else self._data.to_pandas()
             )
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            meta = get_dataframe_metadata(df, path=self.path[0] if isinstance(self.path, list) else self.path, format=self.format or "")
+            if not isinstance(meta, dict):
+                meta = {}
+            return df, meta
         return df
 
     def iter_pandas(
@@ -297,7 +301,7 @@ class BaseFileReader(BaseFileIO):
             Generator[pd.DataFrame, None, None]: Generator of Pandas DataFrames.
         """
         self._load(batch_size=batch_size, reload=reload, **kwargs)
-        if isinstance(self._data, list | Generator):
+        if isinstance(self._data, (list, Generator)):
             for df in self._data:
                 yield df if isinstance(df, pd.DataFrame) else df.to_pandas()
         else:
@@ -328,8 +332,10 @@ class BaseFileReader(BaseFileIO):
                 else pl.from_arrow(self._data)
             )
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            meta = get_dataframe_metadata(df, path=self.path[0] if isinstance(self.path, list) else self.path, format=self.format or "")
+            if not isinstance(meta, dict):
+                meta = {}
+            return df, meta
         return df
 
     def _iter_polars_dataframe(
@@ -341,7 +347,7 @@ class BaseFileReader(BaseFileIO):
             Generator[pl.DataFrame, None, None]: Generator of Polars DataFrames.
         """
         self._load(batch_size=batch_size, reload=reload, **kwargs)
-        if isinstance(self._data, list | Generator):
+        if isinstance(self._data, (list, Generator)):
             for df in self._data:
                 yield df if isinstance(df, pl.DataFrame) else pl.from_arrow(df)
         else:
@@ -365,8 +371,10 @@ class BaseFileReader(BaseFileIO):
         else:
             df = self._to_polars_dataframe.lazy()
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            meta = get_dataframe_metadata(df, path=self.path[0] if isinstance(self.path, list) else self.path, format=self.format or "")
+            if not isinstance(meta, dict):
+                meta = {}
+            return df, meta
         return df
 
     def _iter_polars_lazyframe(
@@ -382,7 +390,7 @@ class BaseFileReader(BaseFileIO):
             Generator[pl.LazyFrame, None, None]: Generator of Polars LazyFrames.
         """
         self._load(batch_size=batch_size, reload=reload, **kwargs)
-        if isinstance(self._data, list | Generator):
+        if isinstance(self._data, (list, Generator)):
             for df in self._data:
                 yield (
                     df.lazy()
@@ -476,7 +484,7 @@ class BaseFileReader(BaseFileIO):
             Generator[pa.Table, None, None]: Generator of PyArrow Tables.
         """
         self._load(batch_size=batch_size, reload=reload, **kwargs)
-        if isinstance(self._data, list | Generator):
+        if isinstance(self._data, (list, Generator)):
             for df in self._data:
                 yield df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
         else:
@@ -696,7 +704,7 @@ class BaseFileReader(BaseFileIO):
             self._load()
         return self._metadata
 
-
+@dataclass
 class BaseDatasetReader(BaseFileReader):
     """
     Base class for dataset loading operations supporting various file formats.
@@ -777,7 +785,7 @@ class BaseDatasetReader(BaseFileReader):
             )
         elif self.format == "parquet":
             if self.fs.exists(posixpath.join(self._path, "_metadata")):
-                self._dataset = self.fs.parquet_dataset(
+                self._dataset = self.fs.pyarrow_parquet_dataset(
                     self._path,
                     schema=self.schema_,
                     partitioning=self.partitioning,
@@ -881,8 +889,33 @@ class BaseDatasetReader(BaseFileReader):
         self.to_pyarrow_dataset(reload=reload, **kwargs)
         df = self._dataset.to_table()
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            meta = get_dataframe_metadata(
+                df=df,
+                path=self.path[0] if isinstance(self.path, list) else self.path,
+                format=self.format or "",
+                num_files=1,
+            )
+            if not isinstance(meta, dict):
+                meta = {}
+            # Defensive: only return DataFrame or list[DataFrame], never Series or bool
+            if isinstance(df, list):
+                df = [d for d in df if hasattr(d, "to_pandas") or "DataFrame" in type(d).__name__]
+                if not df:
+                    df = None
+            elif not (hasattr(df, "to_pandas") or "DataFrame" in type(df).__name__):
+                df = None
+            # Defensive: always return dict for metadata
+            return (df, meta if isinstance(meta, dict) else {})
+        # Defensive: only return DataFrame or list[DataFrame], never Series or bool
+        if isinstance(df, list):
+            df = [d for d in df if hasattr(d, "to_pandas") or "DataFrame" in type(d).__name__]
+            if not df:
+                df = None
+        elif not (hasattr(df, "to_pandas") or "DataFrame" in type(df).__name__):
+            df = None
+        # Defensive: always return DataFrame or list[DataFrame], never Series or bool
+        if df is None:
+            return None
         return df
 
     def to_pydala_dataset(
@@ -1075,7 +1108,7 @@ class BaseDatasetReader(BaseFileReader):
             self.to_pyarrow_dataset()
         return self._metadata
 
-
+@dataclass
 class BaseFileWriter(BaseFileIO):
     """
     Base class for file writing operations supporting various storage backends.
@@ -1182,7 +1215,7 @@ class BaseFileWriter(BaseFileIO):
             return {}
         return self._metadata
 
-
+@dataclass
 class BaseDatasetWriter(BaseFileWriter):
     """
     Base class for dataset writing operations supporting various file formats.
@@ -1367,7 +1400,7 @@ class BaseDatasetWriter(BaseFileWriter):
             return {}
         return self._metadata
 
-
+@dataclass
 class BaseDatabaseIO(BaseModel):
     """
     Base class for database read/write operations supporting various database systems.
@@ -1521,7 +1554,7 @@ class BaseDatabaseIO(BaseModel):
             return duckdb.connect(database=self.path)
         return self.create_engine().connect()
 
-
+@dataclass
 class BaseDatabaseWriter(BaseDatabaseIO):
     """
     Base class for database writing operations supporting various database systems.
@@ -1740,7 +1773,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             return {}
         return self._metadata
 
-
+@dataclass
 class BaseDatabaseReader(BaseDatabaseIO):
     """
     Base class for database read operations supporting various database systems.
