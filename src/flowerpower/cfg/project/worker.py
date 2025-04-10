@@ -6,6 +6,7 @@ from pydantic import Field
 from ..base import BaseConfig
 
 
+
 class ProjectWorkerConfig(BaseConfig):
     data_store: dict | Munch = Field(default_factory=dict)
     event_broker: dict | Munch = Field(default_factory=dict)

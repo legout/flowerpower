@@ -54,7 +54,7 @@ from types import TracebackType
 from munch import Munch
 
 from .utils.executor import get_executor
-from .utils.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
+from .scheduler.apscheduler.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
 
 
 class PipelineManager:

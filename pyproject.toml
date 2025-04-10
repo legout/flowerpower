@@ -10,6 +10,7 @@ dependencies = [
   'aiobotocore<2.18.0',
   'dill>=0.3.8',
   'fsspec>=2024.10.0',
+  "msgspec>=0.19.0",
   'munch>=4.0.0',
   "orjson>=3.10.15",
   'pendulum>=3.0.0',
@@ -114,5 +115,7 @@ dev-dependencies = [
   "rq-scheduler>=0.14.0",
   "dramatiq>=1.17.1",
   "spinach>=0.0.25",
+  "huey>=2.5.3",
+  "cloudpickle>=3.1.1",
 ]
 package = true
