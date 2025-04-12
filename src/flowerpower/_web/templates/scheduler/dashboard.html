@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Scheduler | FlowerPower{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Scheduler
+            </h2>
+        </div>
+        <div class="flex mt-4 md:mt-0 md:ml-4 space-x-3">
+            {% if worker_running %}
+            <button type="button" data-ds-fetch="/scheduler/stop-worker" data-ds-method="POST" data-ds-target="#workerStatus" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                Stop Worker
+            </button>
+            {% else %}
+            <button type="button" data-ds-fetch="/scheduler/start-worker" data-ds-method="POST" data-ds-target="#workerStatus" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Start Worker
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Worker Status -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Worker Status
+            </h3>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5">
+            <div id="workerStatus" class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="h-4 w-4 rounded-full {% if worker_running %}bg-green-500{% else %}bg-gray-300{% endif %}"></div>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-gray-900">{% if worker_running %}Worker is running{% else %}Worker is not running{% endif %}</h3>
+                    <div class="mt-1 text-sm text-gray-500">
+                        {% if worker_running %}
+                        The scheduler worker is currently active and will process scheduled jobs.
+                        {% else %}
+                        Start the worker to process scheduled jobs.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedules -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Schedules
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Pipelines scheduled for execution.
+            </p>
+        </div>
+        <div class="border-t border-gray-200">
+            {% if schedules %}
+            <ul class="divide-y divide-gray-200">
+                {% for schedule in schedules %}
+                <li class="px-4 py-4 sm:px-6">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ schedule.id }}
+                        </p>
+                        <div class="ml-2 flex-shrink-0 flex space-x-2">
+                            {% if schedule.paused %}
+                            <button data-ds-fetch="/scheduler/resume-schedule/{{ schedule.id }}" data-ds-method="POST" data-ds-target="#status-{{ schedule.id }}" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                                Resume
+                            </button>
+                            {% else %}
+                            <button data-ds-fetch="/scheduler/pause-schedule/{{ schedule.id }}" data-ds-method="POST" data-ds-target="#status-{{ schedule.id }}" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200">
+                                Pause
+                            </button>
+                            {% endif %}
+                            <button data-ds-fetch="/scheduler/remove-schedule/{{ schedule.id }}" data-ds-method="DELETE" data-ds-target="closest li" data-ds-swap="outerHTML" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 hover:bg-red-200">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <div>
+                            <span class="text-xs text-gray-500">Pipeline:</span>
+                            <a href="/pipelines/{{ schedule.pipeline_name }}" class="text-sm text-indigo-600">
+                                {{ schedule.pipeline_name }}
+                            </a>
+                        </div>
+                        <div class="mt-1">
+                            <span id="status-{{ schedule.id }}" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if schedule.paused %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ "Paused" if schedule.paused else "Active" }}
+                            </span>
+                            <span class="text-xs text-gray-500">Trigger: {{ schedule.trigger }}</span>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-4 py-5 text-center text-gray-500">
+                No scheduled tasks. Create a schedule by opening a pipeline and clicking "Schedule".
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Jobs -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Recent Jobs
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Recently executed jobs.
+            </p>
+        </div>
+        <div class="border-t border-gray-200">
+            {% if jobs %}
+            <ul class="divide-y divide-gray-200">
+                {% for job in jobs %}
+                <li class="px-4 py-4 sm:px-6">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-900 truncate">
+                            {{ job.id }}
+                        </p>
+                        <div class="ml-2 flex-shrink-0">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {{ 'bg-green-100 text-green-800' if job.status == 'success' else 
+                                   'bg-red-100 text-red-800' if job.status == 'error' else 
+                                   'bg-yellow-100 text-yellow-800' if job.status == 'running' else 
+                                   'bg-gray-100 text-gray-800' }}">
+                                {{ job.status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-1">
+                        <span class="text-xs text-gray-500">Schedule ID:</span>
+                        <span class="text-sm">{{ job.schedule_id }}</span>
+                    </div>
+                    <div class="mt-1">
+                        <span class="text-xs text-gray-500">Run at:</span>
+                        <span class="text-sm">{{ job.run_time }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-4 py-5 text-center text-gray-500">
+                No recent jobs.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

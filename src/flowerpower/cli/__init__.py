@@ -5,11 +5,13 @@ from loguru import logger
 
 from ..flowerpower import init as init_
 from .pipeline import app as pipeline_app
+from .web import web_app  # Import the web app
 
 app = typer.Typer()
 
 
 app.add_typer(pipeline_app, name="pipeline")
+app.add_typer(web_app, name="web") # Add the web app as a command
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import app as scheduler_app

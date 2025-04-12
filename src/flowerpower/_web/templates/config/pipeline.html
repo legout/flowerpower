@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ pipeline }} Configuration | FlowerPower{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Pipeline Configuration: {{ pipeline }}
+            </h2>
+        </div>
+        <div class="flex mt-4 md:mt-0 md:ml-4 space-x-3">
+            <a href="/pipelines/{{ pipeline }}">
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    View Pipeline
+                </button>
+            </a>
+            <a href="/pipelines/{{ pipeline }}/edit">
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Edit Code
+                </button>
+            </a>
+            <button type="button" id="saveButton" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <!-- Configuration Editor -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Edit Pipeline Configuration
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Modify the YAML configuration for this pipeline.
+            </p>
+        </div>
+        <div class="border-t border-gray-200">
+            <div class="p-4">
+                <div id="monaco-editor" class="code-editor"></div>
+                <form id="configForm" data-ds-fetch="/config/pipeline/{{ pipeline }}/update" data-ds-method="POST">
+                    <input type="hidden" name="config_content" id="configInput">
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Reference -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Configuration Guide
+            </h3>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5">
+            <p class="mb-4">
+                Common pipeline configuration settings:
+            </p>
+            <ul class="list-disc pl-5 space-y-2">
+                <li><span class="font-medium">params</span>: Define pipeline parameters</li>
+                <li><span class="font-medium">run</span>: Configure execution settings like final_vars and stages</li>
+                <li><span class="font-medium">executor</span>: Override the default executor for this pipeline</li>
+                <li><span class="font-medium">logging</span>: Customize logging for this pipeline</li>
+                <li><span class="font-medium">dependencies</span>: Define package and module dependencies</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Monaco editor for YAML
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            const editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: {{ config_content|tojson }},
+                language: 'yaml',
+                theme: 'vs',
+                automaticLayout: true,
+                minimap: {
+                    enabled: true
+                },
+                scrollBeyondLastLine: false,
+                lineNumbers: 'on',
+                tabSize: 2,
+                insertSpaces: true,
+            });
+            
+            // Save button functionality
+            document.getElementById('saveButton').addEventListener('click', function() {
+                const code = editor.getValue();
+                document.getElementById('configInput').value = code;
+                document.getElementById('configForm').submit();
+            });
+            
+            // Auto-save on Ctrl+S
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                const code = editor.getValue();
+                document.getElementById('configInput').value = code;
+                document.getElementById('configForm').submit();
+            });
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}
