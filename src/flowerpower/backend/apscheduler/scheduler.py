@@ -29,8 +29,8 @@ from apscheduler.executors.thread import ThreadPoolJobExecutor
 
 from ...cfg import Config
 from ...fs import get_filesystem
-from .datastore import setup_data_store, APSchedulerDataStore
-from .eventbroker import setup_event_broker
+from .setup.datastore import setup_data_store, APSDataStore
+from .setup.eventbroker import setup_event_broker, APSEventBroker
 from .utils import display_jobs, display_schedules
 
 from ..base import BaseDataStore, BaseEventBroker, BaseScheduler, BaseTrigger
@@ -42,37 +42,6 @@ try:
     patch_pickle()
 except Exception as e:
     logger.warning(f"Failed to patch pickle: {e}")
-
-
-
-
-class APSchedulerEventBroker(BaseEventBroker):
-    """Implementation of BaseEventBroker for APScheduler."""
-    
-    def __init__(self, aps_event_broker=None, **kwargs):
-        """
-        Initialize the APScheduler event broker.
-        
-        Args:
-            aps_event_broker: The APScheduler event broker to use
-            **kwargs: Additional parameters
-        """
-        self._event_broker = aps_event_broker
-    
-    def publish(self, event_type: str, event_data: Dict[str, Any]) -> None:
-        """Publish an event using APScheduler's event broker."""
-        # APScheduler handles this internally
-        pass
-    
-    def subscribe(self, event_type: str, callback: Callable[[Dict[str, Any]], None]) -> None:
-        """Subscribe to an event using APScheduler's event broker."""
-        # APScheduler handles this internally
-        pass
-    
-    def close(self) -> None:
-        """Close the event broker."""
-        # APScheduler handles this
-        pass
 
 
 class APSchedulerBackend(BaseScheduler):
@@ -118,13 +87,13 @@ class APSchedulerBackend(BaseScheduler):
         if not data_store:
             self._setup_data_store()
         else:
-            self._data_store = data_store._data_store if isinstance(data_store, APSchedulerDataStore) else data_store
+            self._data_store = data_store._data_store if isinstance(data_store, APSDataStore) else data_store
         
         # Set up event broker
         if not event_broker:
             self._setup_event_broker()
         else:
-            self._event_broker = event_broker._event_broker if isinstance(event_broker, APSchedulerEventBroker) else event_broker
+            self._event_broker = event_broker._event_broker if isinstance(event_broker, APSEventBroker) else event_broker
         
         # Set up job executors
         self._setup_job_executors()

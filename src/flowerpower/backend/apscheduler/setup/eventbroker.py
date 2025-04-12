@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict
 from sqlalchemy.ext.asyncio import AsyncEngine
 from apscheduler.eventbrokers.base import BaseEventBroker
-from ..base import BaseBackendType, BaseBackend
+from ...base import BaseBackendType, BaseBackend
 
 class APSEventBrokerType(BaseBackendType):
     POSTGRESQL = "postgresql"
