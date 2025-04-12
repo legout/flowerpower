@@ -45,15 +45,15 @@ services:
   redis:
     image: valkey/valkey
     ports:
-      - 6379:6379
+      - 6381:6379
 
-  # dragonfly:
-  #   image: docker.dragonflydb.io/dragonflydb/dragonfly
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
   #   network_mode: host
   #   ulimits:
   #     memlock: -1
-  #   ports:
-  #     - 6379:6379
+    ports:
+      - 6380:6379
   
   mongodb:
     image: mongo

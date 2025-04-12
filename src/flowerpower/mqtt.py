@@ -150,8 +150,8 @@ class MQTTManager:
     def publish(self, topic, payload):
         if self._client is None:
             self.connect()
-        elif self._client.is_connected() is False:
-            self.reconnect()
+        # elif self._client.is_connected() is False:
+        #    self.reconnect()
         self._client.publish(topic, payload)
 
     def subscribe(self, topic: str | None = None):
@@ -336,6 +336,7 @@ class MQTTManager:
             logger.info(f"Received message on topic {topic}")
 
             inputs["payload"] = msg.payload
+            inputs["topic"] = msg.topic
 
             with Pipeline(
                 name=name, storage_options=storage_options, fs=fs, base_dir=base_dir

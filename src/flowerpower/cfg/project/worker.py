@@ -9,8 +9,8 @@ from ..base import BaseConfig
 class ProjectWorkerConfig(BaseConfig):
     data_store: dict | Munch = Field(default_factory=dict)
     event_broker: dict | Munch = Field(default_factory=dict)
-    cleanup_interval: int | float | dt.timedelta = Field(default=900)  # int in secods
-    max_concurrent_jobs: int = Field(default=100)
+    cleanup_interval: int | float | dt.timedelta = Field(default=300)  # int in secods
+    max_concurrent_jobs: int = Field(default=10)
 
     def model_post_init(self, __context):
         if isinstance(self.data_store, dict):

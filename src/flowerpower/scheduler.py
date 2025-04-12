@@ -116,10 +116,14 @@ class SchedulerManager(Scheduler):
         Returns:
             None
         """
-
         self._data_store, self._sqla_engine = setup_data_store(
             type=self.cfg.project.worker.data_store.get("type", "memory"),
             engine_or_uri=self.cfg.project.worker.data_store.get("uri", None),
+            schema=self.cfg.project.worker.data_store.get("schema", "flowerpower"),
+            username=self.cfg.project.worker.data_store.get("username", None),
+            password=self.cfg.project.worker.data_store.get("password", None),
+            ssl=self.cfg.project.worker.data_store.get("ssl", False),
+            **self.cfg.project.worker.data_store.get("kwargs", {}),
         )
 
     def _setup_event_broker(self):

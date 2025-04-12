@@ -1,0 +1,16 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Welcome to FlowerPower Dashboard</h2>
+    <p>Use the navigation to manage your pipelines and schedules.</p>
+    
+    <div class="section">
+        <h3>Quick Links</h3>
+        <div class="nav-links">
+            <a href="{{ url_for('list_pipelines') }}">View All Pipelines</a>
+            <a href="{{ url_for('list_schedules') }}">View All Schedules</a>
+            <a href="{{ url_for('new_pipeline') }}">Create New Pipeline</a>
+        </div>
+    </div>
+{% endblock %}

@@ -3,7 +3,7 @@ from sqlalchemy.engine import Engine
 ALL_EVENT_BROKERS = [
     "sqlalchemy",
     "asyncpg",
-    "psycopg3",
+    "psycopg2",
     "postgresql",
     "mqtt",
     "redis",
@@ -38,14 +38,16 @@ class EventBroker:
         if type in ["sqlalchemy", "asyncpg", "psycopg3", "postgresql"] and not (
             sqla_engine or uri
         ):
-            raise ValueError(f"Event broker type `{type} requires an `engine` or `uri`")
+            raise ValueError(
+                f"Event broker type `{type} requires an `sqla_engine` or `uri`"
+            )
         if type == "mqtt" and not ((host and port) or uri):
             raise ValueError(
-                f"Event broker type `mqtt` requires a `host` and `port` or `uri`"
+                "Event broker type `mqtt` requires a `host` and `port` or `uri`"
             )
         if type == "redis" and not (uri or (host and port)):
             raise ValueError(
-                f"Event broker type `redis` requires a `uri` or `host` and `port`"
+                "Event broker type `redis` requires a `uri` or `host` and `port`"
             )
 
     def _setup_asyncpg_event_broker(self):

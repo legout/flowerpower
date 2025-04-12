@@ -1,0 +1,85 @@
+
+{% extends "base.html" %}
+
+{% block title %}Pipeline: {{ n }} - FlowerPower{% endblock %}
+
+{% block content %}
+    <h2>Pipeline: {{ n }}</h2>
+    
+    <div class="section">
+        <h3>Configuration</h3>
+        <ul>
+            {% for key, value in info.cfg.items() %}
+                {% if value is mapping %}
+                    <li>{{ key }}:
+                        <ul>
+                            {% for subkey, subvalue in value.items() %}
+                                <li>{{ subkey }}: {{ subvalue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% else %}
+                    <li>{{ key }}: {{ value }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h3>Module</h3>
+        <pre><code>{{ info.module }}</code></pre>
+    </div>
+    
+    <div class="actions">
+        <form id="run-form" action="{{ url_for('run_pipeline', n=n) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn">Run Pipeline</button>
+        </form>
+        
+        <a href="{{ url_for('schedule_pipeline', n=n) }}" class="btn">Schedule Pipeline</a>
+        
+        <form id="delete-form" action="{{ url_for('delete_pipeline', n=n) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this pipeline?');">Delete Pipeline</button>
+        </form>
+    </div>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('run-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            fetch(this.action, {
+                method: 'POST',
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h3>Pipeline Execution Result</h3>
+                            <p>${data.message}</p>
+                            <pre><code>${data.result}</code></pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h3>Pipeline Execution Failed</h3>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h3>Pipeline Execution Failed</h3>
+                        <p>An error occurred: ${error}</p>
+                    </div>
+                `;
+            });
+        });
+    </script>
+{% endblock %}

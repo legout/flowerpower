@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fsspec.spec import AbstractFileSystem
 from hamilton import driver
+from hamilton.execution import executors
 from hamilton.telemetry import disable_telemetry
 
 if importlib.util.find_spec("opentelemetry"):
@@ -249,31 +250,25 @@ class PipelineManager:
         if with_progressbar:
             adapters.append(h_tqdm.ProgressBar(desc=f"{self.cfg.project.name}.{name}"))
 
-        if executor == "threadpool":
+        if executor == "future_adapter":
             adapters.append(FutureAdapter())
 
+        dr = (
+            driver.Builder()
+            .enable_dynamic_execution(allow_experimental_mode=True)
+            .with_modules(self._module)
+            .with_config(config)
+            .with_local_executor(executors.SynchronousLocalTaskExecutor())
+        )
+
+        if executor_ is not None:
+
+            dr = dr.with_remote_executor(executor_)
+
         if len(adapters):
-            # print("adapters len:", len(adapters))
+            dr = dr.with_adapters(*adapters)
 
-            dr = (
-                driver.Builder()
-                .with_modules(self._module)
-                .enable_dynamic_execution(allow_experimental_mode=True)
-                .with_adapters(*adapters)
-                .with_remote_executor(executor_)
-                .with_config(config)
-                .build()
-            )
-        else:
-            dr = (
-                driver.Builder()
-                .with_modules(self._module)
-                .enable_dynamic_execution(allow_experimental_mode=True)
-                .with_remote_executor(executor_)
-                .with_config(config)
-                .build()
-            )
-
+        dr = dr.build()
         return dr, shutdown
 
     def run(
@@ -432,8 +427,8 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool", None]
-                    else "threadpool"
+                    if executor in ["async", "threadpool", "processpool", ""]
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
             )
 
@@ -512,7 +507,7 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool"
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
                 result_expiration_time=result_expiration_time,
             )
@@ -653,8 +648,8 @@ class PipelineManager:
                 kwargs=kwargs,
                 job_executor=(
                     executor
-                    if executor in ["async", "threadpool", "processpool", None]
-                    else "threadpool"
+                    if executor in ["async", "threadpool", "processpool", ""]
+                    else "threadpool" if executor == "future_adapter" else "threadpool"
                 ),
                 **schedule_kwargs,
             )

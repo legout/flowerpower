@@ -19,9 +19,9 @@ else:
 def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
     shutdown = None
 
-    if mode == "processpool":
+    if mode == "processpool" or mode == "process" or mode == "multiprocessing":
         remote_executor = executors.MultiProcessingExecutor(max_tasks=max_tasks)
-    elif mode == "threadpool":
+    elif mode == "threadpool" or mode == "future_adapter" or mode == "threading":
         remote_executor = executors.MultiThreadingExecutor(max_tasks=max_tasks)
     elif mode == "dask":
         if distributed:
@@ -38,7 +38,7 @@ def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
                 "'conda install dask'"
                 "`pip install flowerpower[dask]`"
             )
-            remote_executor = executors.SynchronousLocalTaskExecutor()
+            remote_executor = None  # executors.SynchronousLocalTaskExecutor()
     elif mode == "ray":
         if ray:
             from hamilton.plugins import h_ray
@@ -52,7 +52,7 @@ def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
                 "'conda install ray'"
                 "`pip install flowerpower[ray]`"
             )
-            remote_executor = executors.SynchronousLocalTaskExecutor()
+            remote_executor = None  # executors.SynchronousLocalTaskExecutor()
     else:
-        remote_executor = executors.SynchronousLocalTaskExecutor()
+        remote_executor = None  # executors.SynchronousLocalTaskExecutor()
     return remote_executor, shutdown

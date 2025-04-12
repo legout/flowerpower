@@ -4,7 +4,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.9.9.24"
+version = "0.9.12.4"
 keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
 dependencies = [
   'aiobotocore<2.18.0',
@@ -12,6 +12,7 @@ dependencies = [
   'dill>=0.3.8',
   'fsspec>=2024.10.0',
   'munch>=4.0.0',
+  "orjson>=3.10.15",
   'pendulum>=3.0.0',
   'pyarrow<19.0.0',
   'pydantic>=2.10.2',
@@ -118,5 +119,11 @@ dev-dependencies = [
   "arro3-core>=0.4.5",
   "adbc-driver-manager>=1.4.0",
   "adbc-driver-sqlite>=1.4.0",
+  "psycopg>=3.2.6",
+  "asyncer>=0.0.8",
+  "rq>=2.3.1",
+  "rq-scheduler>=0.14.0",
+  "dramatiq>=1.17.1",
+  "spinach>=0.0.25",
 ]
 package = true
