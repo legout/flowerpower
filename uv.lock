@@ -1121,6 +1121,9 @@ dev = [
     { name = "spinach" },
     { name = "sqlalchemy" },
 ]
+io = [
+    { name = "orjson" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1220,6 +1223,7 @@ dev = [
     { name = "spinach", specifier = ">=0.0.25" },
     { name = "sqlalchemy", specifier = ">=2.0.37" },
 ]
+io = [{ name = "orjson", specifier = ">=3.10.16" }]
 
 [[package]]
 name = "fqdn"

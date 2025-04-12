@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib import parse
 import fsspec
 import requests
-from fsspec import filesystem
+from fsspec import filesystem as fsspec_filesystem
 from fsspec.implementations.cache_mapper import AbstractCacheMapper
 from fsspec.implementations.cached import SimpleCacheFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
@@ -222,7 +222,7 @@ DirFileSystem.ls = dir_ls_p
 MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
 
 
-def get_filesystem(
+def filesystem(
     path: str | Path | None = None,
     storage_options: BaseStorageOptions | dict[str, str] | None = None,
     dirfs: bool = True,
@@ -269,7 +269,7 @@ def get_filesystem(
         raise ValueError("Protocol could not be inferred from the path.")
 
     if protocol in {"file", "local"}:
-        fs = filesystem(protocol)
+        fs = fsspec_filesystem(protocol)
         # Mark as cache fs only if attribute exists
         if dirfs:
             fs = DirFileSystem(path=path, fs=fs)

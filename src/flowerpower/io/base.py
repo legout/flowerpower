@@ -12,7 +12,7 @@ from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
-from .fs import get_filesystem
+from .fs import filesystem
 from .fs.ext import path_to_glob, _dict_to_dataframe
 from .fs.storage_options import (
     AwsStorageOptions,
@@ -121,7 +121,7 @@ class BaseFileIO:
         # Initialize filesystem if not provided
         if self.fs is None:
             fs_path = self.path if isinstance(self.path, str) else self.path[0]
-            self.fs = get_filesystem(
+            self.fs = filesystem(
                 path=fs_path,
                 storage_options=self.storage_options,
                 fs=None,

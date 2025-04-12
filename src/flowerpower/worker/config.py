@@ -3,11 +3,43 @@ from typing import Optional, Dict
 import yaml
 import urllib.parse
 from .utils import build_url
+from ..io.fs.base import AbstractFileSystem
 
-class TaskQueueConfig(msgspec.Struct, kw_only=True):
+class BaseConfig(msgspec.Struct, kw_only=False):
+    @classmethod
+    def from_yaml(cls, path: str, fs:AbstractFileSystem) -> "BaseConfig":
+        """
+        Load configuration from a YAML file and create an instance of the class.
+
+        Args:
+            path (str): Path to the YAML file.
+
+        Returns:
+            BaseConfig: An instance of the class with the loaded configuration. 
+        """
+        with fs.open(path, "r") as f:
+            return msgspec.yaml.decode(f, type=cls, strict=False)
+    
+    @classmethod
+    def from_dict(cls, config_dict: Dict) -> "BaseConfig":
+        """
+        Create an instance of the class from a dictionary.
+
+        Args:
+            config_dict (Dict): Dictionary containing configuration values.
+
+        Returns:
+            BaseConfig: An instance of the class with the provided configuration.
+        """
+        return cls(**config_dict)
+    
+
+
+
+class BackendConfig(BaseConfig):
     type: str
     url: str | None = None
-    host: str |None = None
+    host: str | None = None
     port: int | None = None
     username: str | None = None
     password: str | None = None
@@ -18,17 +50,7 @@ class TaskQueueConfig(msgspec.Struct, kw_only=True):
     key_file: str | None = None
     verify_ssl: bool = True
 
-    @classmethod
-    def from_yaml(cls, path: str) -> "TaskQueueConfig":
-        with open(path, "r") as f:
-            config_dict = yaml.safe_load(f)
-        return cls.from_dict(config_dict)
-
-    @classmethod
-    def from_dict(cls, config_dict: Dict) -> "TaskQueueConfig":
-        return cls(**config_dict)
-    
-    def post_init(self):
+    def __post__init__(self):
         # Perform any necessary post-initialization here
         if not self.url:
             self.url = build_url(
@@ -44,6 +66,20 @@ class TaskQueueConfig(msgspec.Struct, kw_only=True):
                 key_file=self.key_file,
                 verify_ssl=self.verify_ssl
             )
+        else:
+            # If URL is provided, parse it to extract components
+            parsed_url = urllib.parse.urlparse(self.url)
+            self.type = parsed_url.scheme
+            self.host = parsed_url.hostname
+            self.port = parsed_url.port
+            self.username = parsed_url.username
+            self.password = parsed_url.password
+            self.database = parsed_url.path.lstrip('/')
+
+class TaskQueueConfig(BaseConfig):
+    type: str
+    backend: BackendConfig | dict[str, BackendConfig] | None = None
+
 
 class RQConfig(TaskQueueConfig):
     type: str = "rq"

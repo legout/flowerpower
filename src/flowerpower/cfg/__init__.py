@@ -6,7 +6,7 @@ from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 from pydantic import Field
 
-from ..io.fs import get_filesystem
+from ..io.fs import filesystem
 from .base import BaseConfig
 from .pipeline.run import PipelineRunConfig
 from .pipeline.schedule import PipelineScheduleConfig
@@ -142,7 +142,7 @@ class Config(BaseConfig):
         storage_options: dict | Munch = Munch(),
     ):
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+            fs = filesystem(base_dir, cached=True, dirfs=True, **storage_options)
         if fs.exists("conf/project.yml"):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:

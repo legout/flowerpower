@@ -275,7 +275,7 @@ def from_env(
 
 @dataclass
 class StorageOptions:
-    storage_options: BaseStorageOptions
+    _storage_options: BaseStorageOptions
 
     @classmethod
     def from_yaml(cls, path: str, fs: AbstractFileSystem | None = None) -> "StorageOptions":
@@ -299,15 +299,17 @@ class StorageOptions:
             raise ValueError(f"Unsupported protocol: {protocol}")
 
     def to_filesystem(self) -> AbstractFileSystem:
-        return self.storage_options.to_filesystem()
+        return self._storage_options.to_filesystem()
 
     def to_dict(self, protocol: bool = False) -> dict:
-        return self.storage_options.to_dict(with_protocol=protocol)
+        return self._storage_options.to_dict(with_protocol=protocol)
 
     def to_object_store_kwargs(self, with_conditional_put: bool = False) -> dict:
         # Ensure the method exists for all storage options
-        if hasattr(self.storage_options, "to_object_store_kwargs"):
-            return self.storage_options.to_object_store_kwargs(
+        if hasattr(self._storage_options, "to_object_store_kwargs"):
+            return self._storage_options.to_object_store_kwargs(
                 with_conditional_put=with_conditional_put
             )
         raise AttributeError("to_object_store_kwargs is not implemented for this storage option")
+
+S3StorageOptions = AwsStorageOptions

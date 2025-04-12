@@ -7,7 +7,7 @@ import rich
 from fsspec.spec import AbstractFileSystem
 
 from .cfg import Config
-from .io.fs import get_filesystem
+from .io.fs import filesystem
 
 
 def init(
@@ -23,7 +23,7 @@ def init(
     if base_dir is None:
         base_dir = str(Path.cwd())
 
-    fs = get_filesystem(posixpath.join(base_dir, name), **storage_options)
+    fs = filesystem(posixpath.join(base_dir, name), **storage_options)
 
     fs.makedirs("conf/pipelines", exist_ok=True)
     fs.makedirs("pipelines", exist_ok=True)
