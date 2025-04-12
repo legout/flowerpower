@@ -29,11 +29,11 @@ from apscheduler.executors.thread import ThreadPoolJobExecutor
 
 from ...cfg import Config
 from ...fs import get_filesystem
-from .setup.datastore import setup_data_store, APSDataStore
-from .setup.eventbroker import setup_event_broker, APSEventBroker
+from .setup.datastore import  APSDataStore
+from .setup.eventbroker import  APSEventBroker
 from .utils import display_jobs, display_schedules
 
-from ..base import BaseDataStore, BaseEventBroker, BaseScheduler, BaseTrigger
+from ..base import BaseDataStore, BaseEventBroker, BaseTrigger
 from .trigger import APSchedulerTrigger
 
 # Patch pickle if needed
@@ -44,7 +44,7 @@ except Exception as e:
     logger.warning(f"Failed to patch pickle: {e}")
 
 
-class APSchedulerBackend(BaseScheduler):
+class APSchedulerBackend(Scheduler):
     """Implementation of BaseScheduler using APScheduler."""
     
     def __init__(
@@ -87,7 +87,7 @@ class APSchedulerBackend(BaseScheduler):
         if not data_store:
             self._setup_data_store()
         else:
-            self._data_store = data_store._data_store if isinstance(data_store, APSDataStore) else data_store
+            self._data_store = data_store.client if isinstance(data_store, APSDataStore) else data_store
         
         # Set up event broker
         if not event_broker:
@@ -110,47 +110,95 @@ class APSchedulerBackend(BaseScheduler):
         }
         super_kwargs.update(kwargs)
         
-        self._scheduler = Scheduler(**super_kwargs)
+        self._client = super().__init__(**super_kwargs)
         
         # Add pipelines path to sys.path
         sys.path.append(self._pipelines_path)
     
-    # def _sync_fs(self) -> None:
-    #     """Sync the filesystem."""
-    #     if self._fs.is_cache_fs:
-    #         self._fs.sync()
-        
-    #     modules_path = posixpath.join(self._fs.path, self._pipelines_path)
-    #     if modules_path not in sys.path:
-    #         sys.path.append(modules_path)
     
     def _load_config(self) -> None:
         """Load the configuration."""
         self.cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
     
     def _setup_data_store(self) -> None:
-        """Set up the data store."""
-        self._data_store, self._sqla_engine = setup_data_store(
-            type=self.cfg.project.worker.data_store.get("type", "memory"),
-            engine_or_uri=self.cfg.project.worker.data_store.get("uri", None),
-            schema=self.cfg.project.worker.data_store.get("schema", "flowerpower"),
-            username=self.cfg.project.worker.data_store.get("username", None),
-            password=self.cfg.project.worker.data_store.get("password", None),
-            ssl=self.cfg.project.worker.data_store.get("ssl", False),
-            **self.cfg.project.worker.data_store.get("kwargs", {})
-        )
+        """
+        Set up the data store and SQLAlchemy engine for the scheduler.
+
+        This method initializes the data store and SQLAlchemy engine using configuration
+        values. It validates configuration, handles errors, and logs the setup process.
+
+        Raises:
+            RuntimeError: If the data store setup fails due to misconfiguration or connection errors.
+        """
+        # Validate configuration
+        data_store_cfg = getattr(self.cfg.project.worker, "data_store", None)
+        if not data_store_cfg:
+            logger.error("Data store configuration is missing in project.worker.data_store.")
+            raise RuntimeError("Data store configuration is missing.")
+
+        try:
+            asp_datastore = APSDataStore(
+                type=data_store_cfg.get("type", "memory"),
+                engine_or_uri=data_store_cfg.get("uri", None),
+                schema=data_store_cfg.get("schema", "flowerpower"),
+                username=data_store_cfg.get("username", None),
+                password=data_store_cfg.get("password", None),
+                ssl=data_store_cfg.get("ssl", False),
+                **data_store_cfg.get("kwargs", {})
+            )
+            logger.info(
+                "Data store setup successful (type=%r, uri=%r)",
+                data_store_cfg.get("type", "memory"),
+                data_store_cfg.get("uri", None)
+            )
+            self._client = asp_datastore.client
+            self._sqla_engine = asp_datastore.sqla_engine
+
+
+        except Exception as exc:
+            logger.exception(
+                "Failed to set up data store (type=%r, uri=%r): %s",
+                data_store_cfg.get("type", "memory"),
+                data_store_cfg.get("uri", None),
+                exc
+            )
+            raise RuntimeError(f"Failed to set up data store: {exc}") from exc
     
     def _setup_event_broker(self) -> None:
-        """Set up the event broker."""
-        self._event_broker = setup_event_broker(
-            type=self.cfg.project.worker.event_broker.get("type", "memory"),
-            uri=self.cfg.project.worker.event_broker.get("uri", None),
-            sqla_engine=getattr(self, "_sqla_engine", None),
-            host=self.cfg.project.worker.event_broker.get("host", None),
-            port=self.cfg.project.worker.event_broker.get("port", 0),
-            username=self.cfg.project.worker.event_broker.get("username", None),
-            password=self.cfg.project.worker.event_broker.get("password", None),
-        )
+        """
+        Set up the event broker for the scheduler.
+
+        This method initializes the event broker based on configuration settings.
+        It ensures the broker is properly configured and ready for use.
+        Raises:
+            RuntimeError: If the event broker cannot be initialized or configured.
+        """
+        try:
+           
+            # Extract event broker configuration from project settings
+            event_broker_config = self.cfg.project.worker.event_broker
+
+            # Create the event broker instance using the factory function
+            aps_eventbroker = APSEventBroker(
+                type=event_broker_config.get("type", "memory"),
+                uri=event_broker_config.get("uri"),
+                sqla_engine=getattr(self, "_sqla_engine", None),
+                host=event_broker_config.get("host"),
+                port=event_broker_config.get("port", 0),
+                username=event_broker_config.get("username"),
+                password=event_broker_config.get("password"),
+            )
+
+            # Assign the event broker client to the instance attribute
+            self._event_broker = aps_eventbroker.client
+
+            # Validate the event broker is ready for use
+            if not self._event_broker.is_ready():
+                raise RuntimeError("Event broker failed readiness check.")
+
+        except Exception as e:
+            # Catch-all for other initialization errors with context
+            raise RuntimeError(f"Failed to set up event broker: {e}") from e
     
     def _setup_job_executors(self) -> None:
         """Set up job executors."""

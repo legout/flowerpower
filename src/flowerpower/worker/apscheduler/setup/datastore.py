@@ -19,6 +19,7 @@ class APSDataStore(BaseBackend):
     """Data store for APScheduler."""
     def __post_init__(self):
         super().__post_init__(backend_type=APSDataStoreType)
+        self._validate_inputs()
 
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "APSDataStore":
@@ -104,25 +105,3 @@ class APSDataStore(BaseBackend):
         if self._sqla_engine is None:
             self.setup()
         return self._sqla_engine
-
-
-# def setup_data_store(
-#     type: str,
-#     engine_or_uri: str,
-#     schema: str | None = "flowerpower",
-#     username: str | None = None,
-#     password: str | None = None,
-#     ssl: bool = False,
-#     **kwargs,
-# ) -> tuple:
-#     ds = APSDataStore(
-#         type=type,
-#         engine_or_uri=engine_or_uri,
-#         schema=schema,
-#         username=username,
-#         password=password,
-#         ssl=ssl,
-#         **kwargs,
-#     )
-#     ds.setup()
-#     return ds.client, ds.sqla_engine

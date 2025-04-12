@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict
+
 from sqlalchemy.ext.asyncio import AsyncEngine
 from apscheduler.eventbrokers.base import BaseEventBroker
 from ...base import BaseBackendType, BaseBackend
@@ -89,23 +89,3 @@ class APSEventBroker(BaseBackend):
             self.setup()
         return self._sqla_engine
 
-
-# def setup_event_broker(
-#     type: str,
-#     uri: str | None = None,
-#     sqla_engine: Engine | None = None,
-#     host: str | None = None,
-#     port: int = 0,
-#     username: str | None = None,
-#     password: str | None = None,
-# ):
-#     eb = EventBroker(
-#         type=type,
-#         uri=uri,
-#         sqla_engine=sqla_engine,
-#         host=host,
-#         port=port,
-#         username=username,
-#         password=password,
-#     )
-#     return eb.get()

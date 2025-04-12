@@ -17,14 +17,95 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from dataclasses import dataclass, field
 
 
-class BaseBackendType(Enum):
+# Define backend properties in a dictionary for easier maintenance
+BACKEND_PROPERTIES = {
+    "postgresql": {
+        "uri_prefix": "postgresql+asyncpg://",
+        "default_port": 5432,
+        "default_host": "localhost",
+        "default_database": "postgres",
+        "is_sqla_type": True,
+    },
+    "mysql": {
+        "uri_prefix": "mysql+aiomysql://",
+        "default_port": 3306,
+        "default_host": "localhost",
+        "default_database": "msql",
+        "is_sqla_type": True,
+    },
+    "sqlite": {
+        "uri_prefix": "sqlite+aiosqlite://",
+        "default_port": None,
+        "default_host": "",
+        "default_database": "",
+        "is_sqla_type": True,
+        "is_sqlite_type": True,
+    },
+    "mongodb": {
+        "uri_prefix": "mongodb://",
+        "default_port": 27017,
+        "default_host": "localhost",
+        "default_database": "admin",
+    },
+    "mqtt": {
+        "uri_prefix": "mqtt://",
+        "default_port": 1883,
+        "default_host": "localhost",
+        "default_database": "mqtt",
+    },
+    "redis": {
+        "uri_prefix": "redis://",
+        "default_port": 6379,
+        "default_host": "localhost",
+        "default_database": "0",
+    },
+    "nats_kv": {
+        "uri_prefix": "nats://",
+        "default_port": 4222,
+        "default_host": "localhost",
+        "default_database": "default",
+    },
+    "memory": {
+        "uri_prefix": "memory://",
+        "default_port": None,
+        "default_host": "",
+        "default_database": "",
+    },
+}
+
+class BaseBackendType(str, Enum):
+    POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
+    SQLITE = "sqlite"
+    MONGODB = "mongodb"
+    MQTT = "mqtt"
+    REDIS = "redis"
+    NATS_KV = "nats_kv"
+    MEMORY = "memory"
+
+    @property
+    def properties(self):
+        return BACKEND_PROPERTIES[self.value]
+
+    @property
+    def uri_prefix(self) -> str:
+        return self.properties.get("uri_prefix", "")
+
+    @property
+    def default_port(self) -> int | None:
+        return self.properties.get("default_port")
+
+    @property
+    def default_host(self) -> str:
+        return self.properties.get("default_host", "")
+
+    @property
+    def default_database(self) -> str:
+        return self.properties.get("default_database", "")
+
     @property
     def is_sqla_type(self) -> bool:
-        return self.value in {
-            "postgresql",
-            "mysql",
-            "sqlite",
-        }
+        return self.properties.get("is_sqla_type", False)
 
     @property
     def is_mongodb_type(self) -> bool:
@@ -44,103 +125,11 @@ class BaseBackendType(Enum):
 
     @property
     def is_memory_type(self) -> bool:
-        return self.value in {"memory"}
+        return self.value == "memory"
 
     @property
     def is_sqlite_type(self) -> bool:
-        return self.value in {"sqlite"}
-
-    @property
-    def uri_prefix(self) -> str:
-        if self.is_sqla_type:
-            if self.value == "sqlite":
-                return "sqlite+aiosqlite://"
-            if self.value == "mysql":
-                return "mysql+aiomysql://"
-            elif self.value == "postgresql":
-                return "postgresql+asyncpg://"
-            return ""
-        elif self.is_mongodb_type:
-            return "mongodb://"
-        elif self.is_mqtt_type:
-            return "mqtt://"
-        elif self.is_redis_type:
-            return "redis://"
-        elif self.is_nats_kv_type:
-            return "nats://"
-        elif self.is_memory_type:
-            return "memory://"
-        else:
-            return ""
-
-    @property
-    def default_port(self) -> int | None:
-        if self.is_sqla_type:
-            if self.value == "sqlite":
-                return
-            elif self.value == "mysql":
-                return 3306
-            elif self.value == "postgresql":
-                return 5432
-            return
-        elif self.is_mongodb_type:
-            return 27017
-        elif self.is_mqtt_type:
-            return 1883
-        elif self.is_redis_type:
-            return 6379
-        elif self.is_nats_kv_type:
-            return 4222
-        elif self.is_memory_type:
-            return
-        else:
-            return
-
-    @property
-    def default_host(self) -> str:
-        if self.is_sqla_type:
-            if self.value == "sqlite":
-                return ""
-            elif self.value == "mysql":
-                return "localhost"
-            elif self.value == "postgresql":
-                return "localhost"
-            return ""
-        elif self.is_mongodb_type:
-            return "localhost"
-        elif self.is_mqtt_type:
-            return "localhost"
-        elif self.is_redis_type:
-            return "localhost"
-        elif self.is_nats_kv_type:
-            return "localhost"
-        elif self.is_memory_type:
-            return ""
-        else:
-            return ""
-
-    @property
-    def default_database(self) -> str:
-        if self.is_sqla_type:
-            if self.value == "sqlite":
-                return ""
-            elif self.value == "mysql":
-                return "msql"
-            elif self.value == "postgresql":
-                return "postgres"
-            return ""
-        elif self.is_mongodb_type:
-            return "admin"
-        elif self.is_mqtt_type:
-            return "mqtt"
-        elif self.is_redis_type:
-            return "0"
-        elif self.is_nats_kv_type:
-            return "default"
-        elif self.is_memory_type:
-            return ""
-        else:
-            return ""
+        return self.value == "sqlite"
 
     def gen_uri(
         self,
@@ -151,20 +140,6 @@ class BaseBackendType(Enum):
         database: str = None,
         ssl: bool = False,
     ) -> str:
-        """
-        Generate a URI for the backend type.
-
-        Args:
-            host: Hostname
-            port: Port number
-            username: Username
-            password: Password
-            database: Database name
-            ssl: Whether to use SSL/TLS
-
-        Returns:
-            str: The generated URI
-        """
         import urllib.parse
 
         host = host or self.default_host
@@ -288,7 +263,7 @@ class BaseBackend:
                 ssl=self.ssl,
             )
 
-        self._validate_inputs()
+        #self._validate_inputs()
         self.setup()
 
     @classmethod
@@ -320,101 +295,6 @@ class BaseTrigger(abc.ABC):
         pass
 
 
-class BaseDataStore(abc.ABC):
-    """
-    Abstract base class for data stores.
-
-    A data store persists job and schedule information.
-    """
-
-    @abc.abstractmethod
-    def __init__(self, **kwargs):
-        """
-        Initialize the data store.
-
-        Args:
-            **kwargs: Backend-specific initialization parameters
-        """
-        pass
-
-    @abc.abstractmethod
-    def store_job_result(
-        self, job_id: str, result: Any, expiration_time: Optional[dt.timedelta] = None
-    ) -> None:
-        """
-        Store a job result.
-
-        Args:
-            job_id: The ID of the job
-            result: The result of the job execution
-            expiration_time: How long to keep the result
-        """
-        pass
-
-    @abc.abstractmethod
-    def get_job_result(self, job_id: str) -> Any:
-        """
-        Get a job result.
-
-        Args:
-            job_id: The ID of the job
-
-        Returns:
-            Any: The result of the job execution
-        """
-        pass
-
-    @abc.abstractmethod
-    def close(self) -> None:
-        """Close the data store connection."""
-        pass
-
-
-class BaseEventBroker(abc.ABC):
-    """
-    Abstract base class for event brokers.
-
-    An event broker handles message passing between distributed components.
-    """
-
-    @abc.abstractmethod
-    def __init__(self, **kwargs):
-        """
-        Initialize the event broker.
-
-        Args:
-            **kwargs: Backend-specific initialization parameters
-        """
-        pass
-
-    @abc.abstractmethod
-    def publish(self, event_type: str, event_data: Dict[str, Any]) -> None:
-        """
-        Publish an event.
-
-        Args:
-            event_type: The type of the event
-            event_data: The data associated with the event
-        """
-        pass
-
-    @abc.abstractmethod
-    def subscribe(
-        self, event_type: str, callback: Callable[[Dict[str, Any]], None]
-    ) -> None:
-        """
-        Subscribe to an event.
-
-        Args:
-            event_type: The type of the event
-            callback: The callback to invoke when the event occurs
-        """
-        pass
-
-    @abc.abstractmethod
-    def close(self) -> None:
-        """Close the event broker connection."""
-        pass
 
 
 class BaseScheduler(abc.ABC):
@@ -506,11 +386,11 @@ class BaseScheduler(abc.ABC):
         **schedule_kwargs,
     ) -> str:
         """
-        Schedule a job for repeated execution.
+        Add a schedule.
 
         Args:
             func: The function to execute
-            trigger: The trigger defining when to execute the function
+            trigger: The trigger for the schedule
             id: Optional schedule ID
             args: Positional arguments to pass to the function
             kwargs: Keyword arguments to pass to the function
@@ -530,25 +410,20 @@ class BaseScheduler(abc.ABC):
             schedule_id: The ID of the schedule to remove
 
         Returns:
-            bool: True if the schedule was removed, False otherwise
+            bool: Whether the schedule was removed
         """
-        pass
-
-    @abc.abstractmethod
-    def remove_all_schedules(self) -> None:
-        """Remove all schedules."""
         pass
 
     @abc.abstractmethod
     def get_job_result(self, job_id: str) -> Any:
         """
-        Get the result of a job.
+        Get a job result.
 
         Args:
             job_id: The ID of the job
 
         Returns:
-            Any: The result of the job
+            Any: The result of the job execution
         """
         pass
 
@@ -576,20 +451,4 @@ class BaseScheduler(abc.ABC):
         Returns:
             List[Any]: A list of jobs
         """
-        pass
-
-    @abc.abstractmethod
-    def show_schedules(self) -> None:
-        """Display the schedules in a user-friendly format."""
-        pass
-
-    @abc.abstractmethod
-    def show_jobs(self) -> None:
-        """Display the jobs in a user-friendly format."""
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
         pass
