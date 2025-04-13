@@ -3,14 +3,15 @@ from typing import Any
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from deltalake.table import ColumnProperties, CommitProperties, PostCommitHookProperties
+from deltalake.table import (ColumnProperties, CommitProperties,
+                             PostCommitHookProperties)
 from deltalake.writer import WriterProperties, write_deltalake
+from redis import Redis, StrictRedis
+from sherlock import RedisLock
 
 from ...utils.misc import _dict_to_dataframe
 from ..base import BaseDatasetWriter
 from ..metadata import get_dataframe_metadata
-from sherlock import RedisLock
-from redis import StrictRedis, Redis
 
 
 class DeltaTableWriter(BaseDatasetWriter):

@@ -11,12 +11,8 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..utils.misc import (
-    _dict_to_dataframe,
-    convert_large_types_to_standard,
-    run_parallel,
-    to_pyarrow_table,
-)
+from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
+                          run_parallel, to_pyarrow_table)
 from ..utils.polars import pl
 
 if importlib.util.find_spec("duckdb") is not None:

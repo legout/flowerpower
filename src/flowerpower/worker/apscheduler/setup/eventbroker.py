@@ -1,23 +1,25 @@
-
-from sqlalchemy.ext.asyncio import AsyncEngine
 from apscheduler.eventbrokers.base import BaseEventBroker
-from ...base import BaseBackendType, BaseBackend
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-class APSEventBrokerType(BaseBackendType):
+from ...base import BackendType, BaseBackend
+
+
+class APSEventBrokerType(BackendType):
     POSTGRESQL = "postgresql"
     MEMORY = "memory"
     REDIS = "redis"
     MQTT = "mqtt"
 
-class APSEventBroker(BaseBackend):    
+
+class APSEventBroker(BaseBackend):
     """Data store for APScheduler."""
+
     def __post_init__(self):
         super().__post_init__(backend_type=APSEventBrokerType)
 
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "APSEventBroker":
         return cls(**d)
-
 
     def _validate_inputs(self) -> None:
         if self.type.value not in [ds.value for ds in APSEventBrokerType]:
@@ -36,17 +38,18 @@ class APSEventBroker(BaseBackend):
             )
 
     def _setup_mqtt_event_broker(self):
-        from apscheduler.eventbrokers.mqtt import MQTTEventBroker
         import urllib.parse
-    
+
+        from apscheduler.eventbrokers.mqtt import MQTTEventBroker
+
         # Parse the URI
-        parsed = urllib.parse.urlparse(self.uri) 
-        
+        parsed = urllib.parse.urlparse(self.uri)
+
         hostname = parsed.hostname
         port = parsed.port
         username = parsed.username
         password = parsed.password
-        use_ssl = parsed.scheme == 'mqtts'
+        use_ssl = parsed.scheme == "mqtts"
 
         self._event_broker = MQTTEventBroker(
             host=hostname, port=port, ssl=use_ssl, topic="flowerpower/scheduler"
@@ -82,10 +85,9 @@ class APSEventBroker(BaseBackend):
         if self._event_broker is None:
             self.setup()
         return self._event_broker
-    
+
     @property
     def sqla_engine(self) -> AsyncEngine | None:
         if self._sqla_engine is None:
             self.setup()
         return self._sqla_engine
-

@@ -1,10 +1,10 @@
-import typer
 import importlib
 import sys
-from ..mqtt import (
-    start_listener as start_listener_,
-    run_pipeline_on_message as run_pipeline_on_message_,
-)
+
+import typer
+
+from ..mqtt import run_pipeline_on_message as run_pipeline_on_message_
+from ..mqtt import start_listener as start_listener_
 from .utils import parse_dict_or_list_param
 
 app = typer.Typer(help="MQTT management commands")

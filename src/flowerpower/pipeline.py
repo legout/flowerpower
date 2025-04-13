@@ -22,8 +22,8 @@ else:
     init_tracer = None
 import rich
 from hamilton.plugins import h_tqdm
-from hamilton_sdk.adapters import HamiltonTracker
 from hamilton.plugins.h_threadpool import FutureAdapter
+from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
@@ -32,9 +32,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config,
-    PipelineConfig,
-)
+    Config, PipelineConfig)
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img
@@ -53,8 +51,8 @@ from types import TracebackType
 #     MQTTClient = None
 from munch import Munch
 
-from .utils.executor import get_executor
 from .scheduler.apscheduler.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
+from .utils.executor import get_executor
 
 
 class PipelineManager:
@@ -262,7 +260,6 @@ class PipelineManager:
         )
 
         if executor_ is not None:
-
             dr = dr.with_remote_executor(executor_)
 
         if len(adapters):
@@ -428,7 +425,9 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
+                    else "threadpool"
+                    if executor == "future_adapter"
+                    else "threadpool"
                 ),
             )
 
@@ -507,7 +506,9 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
+                    else "threadpool"
+                    if executor == "future_adapter"
+                    else "threadpool"
                 ),
                 result_expiration_time=result_expiration_time,
             )
@@ -649,7 +650,9 @@ class PipelineManager:
                 job_executor=(
                     executor
                     if executor in ["async", "threadpool", "processpool", ""]
-                    else "threadpool" if executor == "future_adapter" else "threadpool"
+                    else "threadpool"
+                    if executor == "future_adapter"
+                    else "threadpool"
                 ),
                 **schedule_kwargs,
             )

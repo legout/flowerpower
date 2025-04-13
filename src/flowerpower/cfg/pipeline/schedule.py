@@ -1,6 +1,6 @@
 import datetime as dt
 
-from pydantic import Field
+import msgspec
 
 from ..base import BaseConfig
 
@@ -49,16 +49,16 @@ class PipelineScheduleDateTriggerConfig(BaseConfig):
 
 
 class PipelineScheduleTriggerConfig(BaseConfig):
-    cron: PipelineScheduleCronTriggerConfig = Field(
+    cron: PipelineScheduleCronTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleCronTriggerConfig
     )
-    interval: PipelineScheduleIntervalTriggerConfig = Field(
+    interval: PipelineScheduleIntervalTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleIntervalTriggerConfig
     )
-    calendar: PipelineScheduleCalendarTriggerConfig = Field(
+    calendar: PipelineScheduleCalendarTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleCalendarTriggerConfig
     )
-    date: PipelineScheduleDateTriggerConfig = Field(
+    date: PipelineScheduleDateTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleDateTriggerConfig
     )
     type_: str | None = None
@@ -78,7 +78,7 @@ class PipelineScheduleRunConfig(BaseConfig):
 
 
 class PipelineScheduleConfig(BaseConfig):
-    run: PipelineScheduleRunConfig = Field(default_factory=PipelineScheduleRunConfig)
-    trigger: PipelineScheduleTriggerConfig = Field(
+    run: PipelineScheduleRunConfig = msgspec.field(default_factory=PipelineScheduleRunConfig)
+    trigger: PipelineScheduleTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleTriggerConfig
     )

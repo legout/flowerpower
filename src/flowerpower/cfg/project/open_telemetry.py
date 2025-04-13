@@ -1,8 +1,8 @@
-from pydantic import Field
+import msgspec
 
 from ..base import BaseConfig
 
 
 class ProjectOpenTelemetryConfig(BaseConfig):
-    host: str = Field(default="localhost")
-    port: int = Field(default=6831)
+    host: str = msgspec.field(default="localhost")
+    port: int = msgspec.field(default=6831)

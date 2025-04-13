@@ -117,5 +117,6 @@ dev-dependencies = [
   "spinach>=0.0.25",
   "huey>=2.5.3",
   "cloudpickle>=3.1.1",
+  "aiosqlite>=0.21.0",
 ]
 package = true

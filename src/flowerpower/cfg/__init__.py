@@ -4,7 +4,7 @@ import yaml
 from fsspec import AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
-from pydantic import Field
+import msgspec
 
 from ..fs import get_filesystem
 from .base import BaseConfig
@@ -18,13 +18,13 @@ from .project.worker import ProjectWorkerConfig
 
 class PipelineConfig(BaseConfig):
     name: str | None = None
-    run: PipelineRunConfig = Field(default_factory=PipelineRunConfig)
-    schedule: PipelineScheduleConfig = Field(default_factory=PipelineScheduleConfig)
+    run: PipelineRunConfig = msgspec.field(default_factory=PipelineRunConfig)
+    schedule: PipelineScheduleConfig = msgspec.field(default_factory=PipelineScheduleConfig)
     params: dict | Munch = {}
-    tracker: PipelineTrackerConfig = Field(default_factory=PipelineTrackerConfig)
+    tracker: PipelineTrackerConfig = msgspec.field(default_factory=PipelineTrackerConfig)
     h_params: dict | Munch = {}
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if isinstance(self.params, dict):
             self.h_params = munchify(self.to_h_params(self.params))
             self.params = munchify(self.params)
@@ -118,19 +118,19 @@ class PipelineConfig(BaseConfig):
 
 class ProjectConfig(BaseConfig):
     name: str | None = None
-    worker: ProjectWorkerConfig = Field(default_factory=ProjectWorkerConfig)
-    tracker: ProjectTrackerConfig = Field(default_factory=ProjectTrackerConfig)
-    open_telemetry: ProjectOpenTelemetryConfig = Field(
+    worker: ProjectWorkerConfig = msgspec.field(default_factory=ProjectWorkerConfig)
+    tracker: ProjectTrackerConfig = msgspec.field(default_factory=ProjectTrackerConfig)
+    open_telemetry: ProjectOpenTelemetryConfig = msgspec.field(
         default_factory=ProjectOpenTelemetryConfig
     )
 
 
 class Config(BaseConfig):
-    pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
-    project: ProjectConfig = Field(default_factory=ProjectConfig)
+    pipeline: PipelineConfig = msgspec.field(default_factory=PipelineConfig)
+    project: ProjectConfig = msgspec.field(default_factory=ProjectConfig)
     fs: AbstractFileSystem | None = None
     base_dir: str | Path | None = None
-    storage_options: dict | Munch = Field(default_factory=Munch)
+    storage_options: dict | Munch = msgspec.field(default_factory=Munch)
 
     @classmethod
     def load(

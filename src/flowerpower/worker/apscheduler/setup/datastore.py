@@ -1,12 +1,11 @@
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from sqlalchemy import text
-
-from ...base import BaseBackendType, BaseBackend
 from apscheduler.datastores.base import BaseDataStore
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
+from ...base import BackendType, BaseBackend
 
 
-
-class APSDataStoreType(BaseBackendType):
+class APSDataStoreType(BackendType):
     POSTGRESQL = "postgresql"
     SQLITE = "sqlite"
     MYSQL = "mysql"
@@ -14,9 +13,9 @@ class APSDataStoreType(BaseBackendType):
     MEMORY = "memory"
 
 
-
-class APSDataStore(BaseBackend):    
+class APSDataStore(BaseBackend):
     """Data store for APScheduler."""
+
     def __post_init__(self):
         super().__post_init__(backend_type=APSDataStoreType)
         self._validate_inputs()
@@ -24,7 +23,6 @@ class APSDataStore(BaseBackend):
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "APSDataStore":
         return cls(**d)
-
 
     def _validate_inputs(self) -> None:
         if self.type.value not in [ds.value for ds in APSDataStoreType]:
@@ -45,7 +43,9 @@ class APSDataStore(BaseBackend):
             return
 
         async with engine.begin() as conn:
-            await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {self.schema_or_queue}"))
+            await conn.execute(
+                text(f"CREATE SCHEMA IF NOT EXISTS {self.schema_or_queue}")
+            )
             await conn.commit()
 
     async def _create_database_and_schema(self, engine: AsyncEngine) -> None:
@@ -71,10 +71,13 @@ class APSDataStore(BaseBackend):
 
     def _setup_sqlalchemy(self) -> None:
         from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
+
         if not self.type.is_sqlite_type:
             self.setup_db()
         self._sqla_engine = create_async_engine(self.uri)
-        self._client = SQLAlchemyDataStore(self._sqla_engine, schema=self.schema_or_queue)
+        self._client = SQLAlchemyDataStore(
+            self._sqla_engine, schema=self.schema_or_queue
+        )
 
     def _setup_mongodb(self) -> None:
         from apscheduler.datastores.mongodb import MongoDBDataStore
@@ -99,7 +102,7 @@ class APSDataStore(BaseBackend):
         if self._client is None:
             self.setup()
         return self._client
-    
+
     @property
     def sqla_engine(self) -> AsyncEngine | None:
         if self._sqla_engine is None:

@@ -1,19 +1,18 @@
 import datetime as dt
 
 from munch import Munch, munchify
-from pydantic import Field
+import msgspec
 
 from ..base import BaseConfig
 
 
-
 class ProjectWorkerConfig(BaseConfig):
-    data_store: dict | Munch = Field(default_factory=dict)
-    event_broker: dict | Munch = Field(default_factory=dict)
-    cleanup_interval: int | float | dt.timedelta = Field(default=300)  # int in secods
-    max_concurrent_jobs: int = Field(default=10)
+    data_store: dict | Munch = msgspec.field(default_factory=dict)
+    event_broker: dict | Munch = msgspec.field(default_factory=dict)
+    cleanup_interval: int | float | dt.timedelta = msgspec.field(default=300)  # int in secods
+    max_concurrent_jobs: int = msgspec.field(default=10)
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if isinstance(self.data_store, dict):
             self.data_store = munchify(self.data_store)
         if isinstance(self.event_broker, dict):

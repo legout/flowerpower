@@ -7,15 +7,16 @@ that can be implemented by different backend providers (APScheduler, RQ, etc.).
 
 import abc
 import datetime as dt
-
+import sys
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from fsspec.spec import AbstractFileSystem
-
-from enum import Enum
 from sqlalchemy.ext.asyncio import AsyncEngine
-from dataclasses import dataclass, field
 
+from ..fs import AbstractFileSystem, get_filesystem
 
 # Define backend properties in a dictionary for easier maintenance
 BACKEND_PROPERTIES = {
@@ -73,7 +74,8 @@ BACKEND_PROPERTIES = {
     },
 }
 
-class BaseBackendType(str, Enum):
+
+class BackendType(str, Enum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     SQLITE = "sqlite"
@@ -233,7 +235,7 @@ class BaseBackendType(str, Enum):
 
 @dataclass(slots=True)
 class BaseBackend:
-    type: BaseBackendType | str | None = None
+    type: BackendType | str | None = None
     uri: str | None = None
     schema_or_queue: str | None = "flowerpower"
     username: str | None = None
@@ -246,12 +248,17 @@ class BaseBackend:
     _sqla_engine: AsyncEngine | None = None
     _client: any = None
 
-    def __post_init__(self, backend_type: BaseBackendType):
+    def __post_init__(self):
         if self.type is None:
             self.type = "memory"
 
         elif isinstance(self.type, str):
-            self.type = backend_type[self.type.upper()]
+            try:
+                self.type = BackendType[self.type.upper()]
+            except KeyError:
+                raise ValueError(
+                    f"Invalid backend type: {self.type}. Valid types: {[bt.value for bt in BackendType]}"
+                )
 
         if not self.uri:
             self.uri = self.type.gen_uri(
@@ -263,8 +270,7 @@ class BaseBackend:
                 ssl=self.ssl,
             )
 
-        #self._validate_inputs()
-        self.setup()
+        # self.setup()
 
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "BaseBackend":
@@ -295,59 +301,52 @@ class BaseTrigger(abc.ABC):
         pass
 
 
-
-
-class BaseScheduler(abc.ABC):
+class BaseWorker(abc.ABC):
     """
-    Abstract base class for schedulers.
-
-    A scheduler manages jobs and their execution schedule.
+    Abstract base class for scheduler workers (APScheduler, RQ, etc.).
+    Defines the required interface for all scheduler backends.
     """
 
-    @abc.abstractmethod
     def __init__(
         self,
-        name: Optional[str] = None,
-        base_dir: Optional[str] = None,
-        data_store: Optional[BaseDataStore] = None,
-        event_broker: Optional[BaseEventBroker] = None,
-        storage_options: Dict[str, Any] = None,
-        fs: Optional[AbstractFileSystem] = None,
+        name: str | None = None,
+        base_dir: str | None = None,
+        backend: BaseBackend | None = None,
+        storage_options: dict[str, Any] = None,
+        fs: AbstractFileSystem | None = None,
         **kwargs,
     ):
         """
-        Initialize the scheduler.
+        Initialize the APScheduler backend.
 
         Args:
-            name: The name of the scheduler
+            name: Name of the scheduler
             base_dir: Base directory for the FlowerPower project
-            data_store: The data store to use
-            event_broker: The event broker to use
+            backend: APSBackend instance with data store and event broker
             storage_options: Storage options for filesystem access
             fs: Filesystem to use
-            **kwargs: Additional backend-specific arguments
+            **kwargs: Additional parameters
         """
-        pass
+        self.name = name or ""
+        self._base_dir = base_dir or str(Path.cwd())
+        self._storage_options = storage_options or {}
+        self._backend = backend
 
-    @abc.abstractmethod
-    def _load_config(self) -> None:
-        """Load the scheduler configuration."""
-        pass
+        if fs is None:
+            fs = get_filesystem(self._base_dir, **(self._storage_options or {}))
+        self._fs = fs
 
-    @abc.abstractmethod
-    def start_worker(self, background: bool = False) -> None:
-        """
-        Start a worker to process jobs.
+        self._conf_path = "conf"
+        self._pipelines_path = "pipelines"
 
-        Args:
-            background: Whether to run the worker in the background
-        """
-        pass
+        # Add pipelines path to sys.path
+        sys.path.append(self._pipelines_path)
 
-    @abc.abstractmethod
-    def stop_worker(self) -> None:
-        """Stop the worker."""
-        pass
+        # self._sync_fs()
+        self._load_config()
+
+        if not backend:
+            self._setup_backend()
 
     @abc.abstractmethod
     def add_job(
@@ -360,18 +359,8 @@ class BaseScheduler(abc.ABC):
         **job_kwargs,
     ) -> str:
         """
-        Add a job for immediate execution.
-
-        Args:
-            func: The function to execute
-            args: Positional arguments to pass to the function
-            kwargs: Keyword arguments to pass to the function
-            id: Optional job ID
-            result_ttl: How long to keep the result
-            **job_kwargs: Additional backend-specific job parameters
-
-        Returns:
-            str: The ID of the added job
+        Add a one-off job to the scheduler.
+        Returns the job ID.
         """
         pass
 
@@ -379,76 +368,78 @@ class BaseScheduler(abc.ABC):
     def add_schedule(
         self,
         func: Callable,
-        trigger: BaseTrigger,
+        trigger: "BaseTrigger",
         id: Optional[str] = None,
         args: Optional[Tuple] = None,
         kwargs: Optional[Dict[str, Any]] = None,
         **schedule_kwargs,
     ) -> str:
         """
-        Add a schedule.
-
-        Args:
-            func: The function to execute
-            trigger: The trigger for the schedule
-            id: Optional schedule ID
-            args: Positional arguments to pass to the function
-            kwargs: Keyword arguments to pass to the function
-            **schedule_kwargs: Additional backend-specific schedule parameters
-
-        Returns:
-            str: The ID of the added schedule
+        Add a scheduled (recurring) job to the scheduler.
+        Returns the schedule ID.
         """
         pass
 
     @abc.abstractmethod
     def remove_schedule(self, schedule_id: str) -> bool:
         """
-        Remove a schedule.
+        Remove a scheduled job by its schedule ID.
+        Returns True if removed, False if not found.
+        """
+        pass
 
-        Args:
-            schedule_id: The ID of the schedule to remove
-
-        Returns:
-            bool: Whether the schedule was removed
+    @abc.abstractmethod
+    def remove_all_schedules(self) -> None:
+        """
+        Remove all scheduled jobs.
         """
         pass
 
     @abc.abstractmethod
     def get_job_result(self, job_id: str) -> Any:
         """
-        Get a job result.
-
-        Args:
-            job_id: The ID of the job
-
-        Returns:
-            Any: The result of the job execution
+        Retrieve the result of a completed job by its job ID.
         """
         pass
 
     @abc.abstractmethod
-    def get_schedules(self, as_dict: bool = False) -> List[Any]:
+    def get_schedules(self, as_dict: bool = False) -> list:
         """
-        Get all schedules.
-
-        Args:
-            as_dict: Whether to return schedules as dictionaries
-
-        Returns:
-            List[Any]: A list of schedules
+        Get a list of all scheduled jobs.
         """
         pass
 
     @abc.abstractmethod
-    def get_jobs(self, as_dict: bool = False) -> List[Any]:
+    def get_jobs(self, as_dict: bool = False) -> list:
         """
-        Get all jobs.
+        Get a list of all jobs (scheduled and one-off).
+        """
+        pass
 
-        Args:
-            as_dict: Whether to return jobs as dictionaries
+    @abc.abstractmethod
+    def show_schedules(self) -> None:
+        """
+        Print or log all current schedules.
+        """
+        pass
 
-        Returns:
-            List[Any]: A list of jobs
+    @abc.abstractmethod
+    def show_jobs(self) -> None:
+        """
+        Print or log all current jobs.
+        """
+        pass
+
+    @abc.abstractmethod
+    def start_worker(self, background: bool = False) -> None:
+        """
+        Start the worker process/thread.
+        """
+        pass
+
+    @abc.abstractmethod
+    def stop_worker(self) -> None:
+        """
+        Stop the worker process/thread.
         """
         pass

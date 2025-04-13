@@ -2,18 +2,20 @@ import datetime as dt
 from enum import Enum
 from typing import Any, Dict, Type
 
+from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.triggers.calendarinterval import CalendarIntervalTrigger
 
 from ..base import BaseTrigger
+
 
 class TriggerType(Enum):
     CRON = "cron"
     INTERVAL = "interval"
     CALENDARINTERVAL = "calendarinterval"
     DATE = "date"
+
 
 # Mapping of trigger type to its class and allowed kwargs
 TRIGGER_CONFIG: Dict[TriggerType, Dict[str, Any]] = {
@@ -70,7 +72,8 @@ TRIGGER_CONFIG: Dict[TriggerType, Dict[str, Any]] = {
     },
 }
 
-class APSchedulerTrigger(BaseTrigger):
+
+class APSTrigger(BaseTrigger):
     """
     Implementation of BaseTrigger for APScheduler.
 
@@ -161,5 +164,6 @@ class APSchedulerTrigger(BaseTrigger):
         else:
             # This should never be reached due to Enum validation in __init__
             raise ValueError(f"Unknown trigger type: {self.trigger_type.value}")
+
 
 # End of file
