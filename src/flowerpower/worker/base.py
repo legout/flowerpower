@@ -11,9 +11,8 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from fsspec.spec import AbstractFileSystem
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from ..fs import AbstractFileSystem, get_filesystem
@@ -434,6 +433,9 @@ class BaseWorker(abc.ABC):
     def start_worker(self, background: bool = False) -> None:
         """
         Start the worker process/thread.
+        
+        Args:
+            background: Whether to run the worker in the background or in the current process
         """
         pass
 
@@ -441,5 +443,23 @@ class BaseWorker(abc.ABC):
     def stop_worker(self) -> None:
         """
         Stop the worker process/thread.
+        """
+        pass
+        
+    @abc.abstractmethod
+    def start_worker_pool(self, num_workers: int = None, background: bool = True) -> None:
+        """
+        Start a pool of worker processes to handle jobs in parallel.
+        
+        Args:
+            num_workers: Number of worker processes to start (defaults to CPU count)
+            background: Whether to run the workers in the background
+        """
+        pass
+        
+    @abc.abstractmethod
+    def stop_worker_pool(self) -> None:
+        """
+        Stop all worker processes in the pool.
         """
         pass

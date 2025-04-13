@@ -78,7 +78,7 @@ class APSWorker(BaseWorker):
         # Set up job executors
         self._setup_job_executors()
 
-        self._client = Scheduler(
+        self._worker = Scheduler(
             job_executors=self._job_executors,
             event_broker=self._backend.event_broker.client,
             data_store=self._backend.data_store.client,
@@ -182,13 +182,13 @@ class APSWorker(BaseWorker):
             background: Whether to run in the background
         """
         if background:
-            self._scheduler.start_in_background()
+            self._worker.start_in_background()
         else:
-            self._scheduler.run_until_stopped()
+            self._worker.run_until_stopped()
 
     def stop_worker(self) -> None:
         """Stop the worker."""
-        self._scheduler.stop()
+        self._worker.stop()
 
     def add_job(
         self,
@@ -221,7 +221,7 @@ class APSWorker(BaseWorker):
 
         id = id or str(uuid.uuid4())
 
-        job = self._scheduler.add_job(
+        job = self._worker.add_job(
             func,
             args=args or (),
             kwargs=kwargs or {},
@@ -265,7 +265,7 @@ class APSWorker(BaseWorker):
             # If it's not an APSchedulerTrigger, we assume it's already a trigger instance
             trigger_instance = trigger
 
-        schedule = self._scheduler.add_schedule(
+        schedule = self._worker.add_schedule(
             func,
             trigger=trigger_instance,
             id=id,
@@ -288,7 +288,7 @@ class APSWorker(BaseWorker):
             bool: True if the schedule was removed, False otherwise
         """
         try:
-            self._scheduler.remove_schedule(schedule_id)
+            self._worker.remove_schedule(schedule_id)
             return True
         except Exception as e:
             logger.error(f"Failed to remove schedule {schedule_id}: {e}")
@@ -296,8 +296,8 @@ class APSWorker(BaseWorker):
 
     def remove_all_schedules(self) -> None:
         """Remove all schedules."""
-        for sched in self._scheduler.get_schedules():
-            self._scheduler.remove_schedule(sched.id)
+        for sched in self._worker.get_schedules():
+            self._worker.remove_schedule(sched.id)
 
     def get_job_result(self, job_id: str) -> Any:
         """
@@ -309,7 +309,7 @@ class APSWorker(BaseWorker):
         Returns:
             Any: Result of the job
         """
-        return self._scheduler.get_job_result(job_id)
+        return self._worker.get_job_result(job_id)
 
     def get_schedules(self, as_dict: bool = False) -> list[Any]:
         """
@@ -321,7 +321,7 @@ class APSWorker(BaseWorker):
         Returns:
             List[Any]: List of schedules
         """
-        schedules = self._scheduler.get_schedules()
+        schedules = self._worker.get_schedules()
         if as_dict:
             return [sched.to_dict() for sched in schedules]
         return schedules
@@ -336,15 +336,51 @@ class APSWorker(BaseWorker):
         Returns:
             List[Any]: List of jobs
         """
-        jobs = self._scheduler.get_jobs()
+        jobs = self._worker.get_jobs()
         if as_dict:
             return [job.to_dict() for job in jobs]
         return jobs
 
     def show_schedules(self) -> None:
         """Display the schedules in a user-friendly format."""
-        display_schedules(self._scheduler.get_schedules())
+        display_schedules(self._worker.get_schedules())
 
     def show_jobs(self) -> None:
         """Display the jobs in a user-friendly format."""
-        display_jobs(self._scheduler.get_jobs())
+        display_jobs(self._worker.get_jobs())
+
+    def start_worker_pool(self, num_workers: int = None, background: bool = True) -> None:
+        """
+        Start a pool of worker processes to handle jobs in parallel.
+        
+        APScheduler 4.0 already handles concurrency internally through its executors,
+        so this method simply starts a single worker with the appropriate configuration.
+        
+        Args:
+            num_workers: Number of worker processes (affects executor pool sizes)
+            background: Whether to run in background
+        """
+        import multiprocessing
+        
+        # If num_workers not specified, use CPU count
+        if num_workers is None:
+            num_workers = multiprocessing.cpu_count()
+            
+        # Adjust thread and process pool executor sizes
+        if 'processpool' in self._job_executors:
+            self._job_executors['processpool'].max_workers = num_workers
+        if 'threadpool' in self._job_executors:
+            self._job_executors['threadpool'].max_workers = num_workers * 2  # Threads can be more than cores
+            
+        logger.info(f"Configured worker pool with {num_workers} workers")
+        
+        # Start a single worker which will use the configured executors
+        self.start_worker(background=background)
+        
+    def stop_worker_pool(self) -> None:
+        """
+        Stop the worker pool.
+        
+        Since APScheduler manages concurrency internally, this just stops the worker.
+        """
+        self.stop_worker()

@@ -302,3 +302,119 @@ class RQWorker(BaseWorker):
     def show_jobs(self) -> None:
         """Display the jobs in a user-friendly format."""
         show_jobs(self._queue)
+        
+    def start_worker(self, background: bool = False) -> None:
+        """
+        Start a worker process for processing jobs from the queue.
+        
+        Args:
+            background: Whether to run the worker in the background or in the current process
+        """
+        from rq import Worker
+        import multiprocessing
+        
+        # Create a worker instance
+        worker = Worker([self._backend.queue], connection=self._backend.client)
+        
+        if background:
+            # Start worker in a separate process
+            process = multiprocessing.Process(
+                target=worker.work,
+                kwargs={"with_scheduler": True},  # Enable the scheduler
+                name=f"rq-worker-{self.name}"
+            )
+            process.daemon = True
+            process.start()
+            self._worker_process = process
+            logger.info(f"Started RQ worker in background process (PID: {process.pid})")
+        else:
+            # Start worker in the current process (blocking)
+            logger.info("Starting RQ worker in current process (blocking)")
+            worker.work(with_scheduler=True)
+            
+    def stop_worker(self) -> None:
+        """
+        Stop the worker process if running in the background.
+        """
+        if hasattr(self, "_worker_process") and self._worker_process is not None:
+            if self._worker_process.is_alive():
+                self._worker_process.terminate()
+                self._worker_process.join(timeout=5)
+                logger.info("RQ worker process terminated")
+            self._worker_process = None
+        else:
+            logger.warning("No worker process to stop")
+            
+    def start_worker_pool(self, num_workers: int = None, background: bool = True) -> None:
+        """
+        Start a pool of worker processes to handle jobs in parallel using RQ's built-in WorkerPool.
+        
+        This implementation uses RQ's WorkerPool class which provides robust worker management
+        with proper monitoring, restarting of crashed workers, and graceful shutdown.
+        
+        Args:
+            num_workers: Number of worker processes to start (defaults to CPU count)
+            background: Whether to run the workers in the background
+        """
+        import multiprocessing
+        from rq.worker_pool import WorkerPool
+        
+        if num_workers is None:
+            num_workers = multiprocessing.cpu_count()
+        
+        # Initialize RQ's WorkerPool
+        worker_pool = WorkerPool(
+            queues=[self._backend.queue],
+            connection=self._backend.client,
+            num_workers=num_workers
+        )
+        
+        self._worker_pool = worker_pool
+        
+        if background:
+            # Start the worker pool process
+            import threading
+            
+            def run_pool():
+                worker_pool.start(burst=False)
+            
+            self._pool_thread = threading.Thread(target=run_pool, daemon=True)
+            self._pool_thread.start()
+            logger.info(f"Worker pool started with {num_workers} workers in background")
+        else:
+            # Start the worker pool in the current process (blocking)
+            logger.info(f"Starting worker pool with {num_workers} workers in foreground (blocking)")
+            worker_pool.start(burst=False)
+            
+    def stop_worker_pool(self) -> None:
+        """
+        Stop all worker processes in the pool using RQ's built-in WorkerPool.
+        """
+        if hasattr(self, "_worker_pool"):
+            logger.info("Stopping RQ worker pool")
+            self._worker_pool.stop_workers()
+            
+            if hasattr(self, "_pool_thread") and self._pool_thread.is_alive():
+                # Wait for the pool thread to finish (with timeout)
+                self._pool_thread.join(timeout=10)
+                if self._pool_thread.is_alive():
+                    logger.warning("Worker pool thread did not terminate within timeout")
+            
+            self._worker_pool = None
+            
+            if hasattr(self, "_pool_thread"):
+                self._pool_thread = None
+        else:
+            logger.warning("No worker pool to stop")
+            
+    def _run_worker(self) -> None:
+        """
+        Helper method to run a worker process.
+        Used by the worker pool.
+        """
+        from rq import Worker
+        
+        # Create a worker instance
+        worker = Worker([self._backend.queue], connection=self._backend.client)
+        # Start the worker (blocking call)
+        worker.work(with_scheduler=True)

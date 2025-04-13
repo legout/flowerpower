@@ -139,6 +139,7 @@ class APSEventBroker(BaseBackend):
                     ]
                 }"
             )
+        
 
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "APSEventBroker":
@@ -148,9 +149,9 @@ class APSEventBroker(BaseBackend):
         from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 
         if self._sqla_engine is None:
-            self._event_broker = AsyncpgEventBroker.from_dsn(dsn=self.uri)
+            self._client = AsyncpgEventBroker.from_dsn(dsn=self.uri)
         else:
-            self._event_broker = AsyncpgEventBroker.from_async_sqla_engine(
+            self._client = AsyncpgEventBroker.from_async_sqla_engine(
                 engine=self._sqla_engine
             )
 
@@ -168,11 +169,11 @@ class APSEventBroker(BaseBackend):
         password = parsed.password
         use_ssl = parsed.scheme == "mqtts"
 
-        self._event_broker = MQTTEventBroker(
+        self._client = MQTTEventBroker(
             host=hostname, port=port, ssl=use_ssl, topic="flowerpower/scheduler"
         )
         if (self.username is not None) and (self.password is not None):
-            self._event_broker._client.username_pw_set(
+            self._client._client.username_pw_set(
                 username,
                 password,
             )
@@ -180,28 +181,28 @@ class APSEventBroker(BaseBackend):
     def _setup_redis_event_broker(self):
         from apscheduler.eventbrokers.redis import RedisEventBroker
 
-        self._event_broker = RedisEventBroker(self.uri)
+        self._client = RedisEventBroker(self.uri)
 
     def _setup_local_event_broker(self):
         from apscheduler.eventbrokers.local import LocalEventBroker
 
-        self._event_broker = LocalEventBroker()
+        self._client = LocalEventBroker()
 
     def setup(self):
-        if self.is_sqla_type:
+        if self.type.is_sqla_type:
             self._setup_asyncpg_event_broker()
-        elif self.is_mqtt_type:
+        elif self.type.is_mqtt_type:
             self._setup_mqtt_event_broker()
-        elif self.is_redis_type:
+        elif self.type.is_redis_type:
             self._setup_redis_event_broker()
         else:
             self._setup_local_event_broker()
 
     @property
     def client(self) -> BaseEventBroker:
-        if self._event_broker is None:
+        if self._client is None:
             self.setup()
-        return self._event_broker
+        return self._client
 
     @property
     def sqla_engine(self) -> AsyncEngine | None:
@@ -214,3 +215,9 @@ class APSEventBroker(BaseBackend):
 class APSBackend:
     data_store: APSDataStore | None = None
     event_broker: APSEventBroker | None = None
+    
+    def __post_init__(self):
+        if self.data_store is not None:
+            self.data_store.setup()
+        if self.event_broker is not None:
+            self.event_broker.setup()
