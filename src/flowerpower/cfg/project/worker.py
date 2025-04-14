@@ -40,9 +40,14 @@ class RQBackend(BaseConfig):
     queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])
 
 
+class HueyBackend(BaseConfig):
+    backend: WorkerBackend = msgspec.field(default_factory=WorkerBackend)
+
+
 class ProjectWorkerConfig(BaseConfig):
     aps_backend: APSBackend | None = msgspec.field(default_factory=APSBackend)
     rq_backend: RQBackend | None = msgspec.field(default_factory=RQBackend)
+    huey_backend: HueyBackend | None = msgspec.field(default_factory=HueyBackend)
     type: str | None = msgspec.field(default=None)
 
     def __post_init__(self):
@@ -50,9 +55,14 @@ class ProjectWorkerConfig(BaseConfig):
             self.type = self.type.lower()
             if self.type == "rq":
                 self.aps_backend = None
+                self.huey_backend = None
             elif self.type == "apscheduler":
+                self.rq_backend = None
+                self.huey_backend = None
+            elif self.type == "huey":
+                self.aps_backend = None
                 self.rq_backend = None
             else:
                 raise ValueError(
-                    f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler']}"
+                    f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"
                 )

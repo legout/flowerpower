@@ -1,5 +1,6 @@
 from .apscheduler import APSWorker
 from .rq import RQWorker
+from .huey import HueyWorker
 from .base import BaseBackend
 from typing import Any
 from ..fs import AbstractFileSystem
@@ -25,7 +26,18 @@ class Worker:
             return RQWorker(name, base_dir, backend, storage_options, fs, **kwargs)
         elif backend_type == "apscheduler":
             return APSWorker(name, base_dir, backend, storage_options, fs, **kwargs)
+        elif backend_type == "huey":
+            return HueyWorker(name, base_dir, backend, storage_options, fs, **kwargs)
         else:
             raise ValueError(
-                f"Invalid backend type: {backend_type}. Valid types: ['rq', 'apscheduler']"
+                f"Invalid backend type: {backend_type}. Valid types: ['rq', 'apscheduler', 'huey']"
             )
+
+
+__all__ = [
+    "Worker",
+    "RQWorker",
+    "APSWorker",
+    "HueyWorker",
+    "BaseBackend",
+]

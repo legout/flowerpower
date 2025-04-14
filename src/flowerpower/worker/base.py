@@ -134,11 +134,11 @@ class BackendType(str, Enum):
 
     def gen_uri(
         self,
-        host: str = None,
-        port: int = None,
-        username: str = None,
-        password: str = None,
-        database: str = None,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        database: str | None = None,
         ssl: bool = False,
     ) -> str:
         import urllib.parse
@@ -238,13 +238,13 @@ class BaseBackend:
     uri: str | None = None
     username: str | None = None
     password: str | None = None
-    host: str = None
+    host: str | None = None
     port: int | None = None
     database: str | None = None
     ssl: bool = False
     _kwargs: dict = field(default=dict)
     _sqla_engine: AsyncEngine | None = None
-    _client: any = None
+    _client: any | None = None
 
     def __post_init__(self):
         if self.type is None:
