@@ -236,7 +236,6 @@ class BackendType(str, Enum):
 class BaseBackend:
     type: BackendType | str | None = None
     uri: str | None = None
-    schema_or_queue: str | None = "flowerpower"
     username: str | None = None
     password: str | None = None
     host: str = None
@@ -304,7 +303,26 @@ class BaseWorker(abc.ABC):
     """
     Abstract base class for scheduler workers (APScheduler, RQ, etc.).
     Defines the required interface for all scheduler backends.
+
+    Can be used as a context manager:
+
+    ```python
+    with RQWorker(name="test") as worker:
+        worker.add_job(job1)
+    ```
     """
+
+    def __enter__(self):
+        """Context manager entry - returns self for use in with statement."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures workers are stopped."""
+        if hasattr(self, "_worker_process") and self._worker_process is not None:
+            self.stop_worker()
+        if hasattr(self, "_worker_pool") and self._worker_pool is not None:
+            self.stop_worker_pool()
+        return False  # Don't suppress exceptions
 
     def __init__(
         self,
@@ -340,12 +358,6 @@ class BaseWorker(abc.ABC):
 
         # Add pipelines path to sys.path
         sys.path.append(self._pipelines_path)
-
-        # self._sync_fs()
-        self._load_config()
-
-        if not backend:
-            self._setup_backend()
 
     @abc.abstractmethod
     def add_job(
@@ -433,7 +445,7 @@ class BaseWorker(abc.ABC):
     def start_worker(self, background: bool = False) -> None:
         """
         Start the worker process/thread.
-        
+
         Args:
             background: Whether to run the worker in the background or in the current process
         """
@@ -445,18 +457,20 @@ class BaseWorker(abc.ABC):
         Stop the worker process/thread.
         """
         pass
-        
+
     @abc.abstractmethod
-    def start_worker_pool(self, num_workers: int = None, background: bool = True) -> None:
+    def start_worker_pool(
+        self, num_workers: int = None, background: bool = True
+    ) -> None:
         """
         Start a pool of worker processes to handle jobs in parallel.
-        
+
         Args:
             num_workers: Number of worker processes to start (defaults to CPU count)
             background: Whether to run the workers in the background
         """
         pass
-        
+
     @abc.abstractmethod
     def stop_worker_pool(self) -> None:
         """

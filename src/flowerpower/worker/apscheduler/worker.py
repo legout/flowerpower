@@ -45,7 +45,7 @@ class APSWorker(BaseWorker):
 
     def __init__(
         self,
-        name: str | None = None,
+        name: str | None = "flowerpower_apscheduler",
         base_dir: str | None = None,
         backend: APSBackend | None = None,
         storage_options: dict[str, Any] = None,
@@ -75,6 +75,10 @@ class APSWorker(BaseWorker):
             **kwargs,
         )
 
+        self._load_config()
+        if backend is None:
+            self._setup_backend()
+
         # Set up job executors
         self._setup_job_executors()
 
@@ -84,14 +88,17 @@ class APSWorker(BaseWorker):
             data_store=self._backend.data_store.client,
             identity=self.name,
             logger=logger_,
-            cleanup_interval=self.cfg.project.worker.cleanup_interval,
-            max_concurrent_jobs=self.cfg.project.worker.max_concurrent_jobs,
+            cleanup_interval=self.cfg.project.worker.aps_backend.cleanup_interval,
+            max_concurrent_jobs=self.cfg.project.worker.aps_backend.max_concurrent_jobs,
             default_job_executor=default_job_executor,
         )
 
     def _load_config(self) -> None:
         """Load the configuration."""
         self.cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
+        if self.cfg.project.worker.type is None:
+            self.cfg.project.worker.type = "apscheduler"
+            self.cfg.project.worker.rq_backend = None
 
     def _setup_backend(self) -> None:
         """
@@ -104,66 +111,70 @@ class APSWorker(BaseWorker):
             RuntimeError: If the data store setup fails due to misconfiguration or connection errors.
         """
         # Validate configuration
-        backend_cfg = getattr(self.cfg.project.worker, "backend", None)
+        backend_cfg = getattr(self.cfg.project.worker, "aps_backend", None)
         if not backend_cfg:
-            logger.error("Backend configuration is missing in project.worker.backend.")
+            logger.error(
+                "Backend configuration is missing in project.worker.aps_backend."
+            )
             raise RuntimeError("Backend configuration is missing.")
 
-        data_store_cfg = backend_cfg.get("data_store", None)
+        data_store_cfg = backend_cfg.data_store
         if not data_store_cfg:
             logger.error(
-                "Data store configuration is missing in project.worker.backend.data_store."
+                "Data store configuration is missing in project.worker.aps_backend.data_store."
             )
             raise RuntimeError("Data store configuration is missing.")
 
-        event_broker_cfg = backend_cfg.get("event_broker", None)
+        event_broker_cfg = backend_cfg.event_broker
         if not event_broker_cfg:
             logger.error(
-                "Event broker configuration is missing in project.worker.backend.event_broker."
+                "Event broker configuration is missing in project.worker.aps_backend.event_broker."
             )
             raise RuntimeError("Event broker configuration is missing.")
 
         try:
-            asp_datastore = APSDataStore(
-                type=data_store_cfg.get("type", "memory"),
-                engine_or_uri=data_store_cfg.get("uri", None),
-                schema=data_store_cfg.get("schema", "flowerpower"),
-                username=data_store_cfg.get("username", None),
-                password=data_store_cfg.get("password", None),
-                ssl=data_store_cfg.get("ssl", False),
-                **data_store_cfg.get("kwargs", {}),
+            aps_datastore = APSDataStore(
+                type=data_store_cfg.type or "memory",
+                uri=data_store_cfg.uri,
+                schema=backend_cfg.schema or "flowerpower",
+                username=data_store_cfg.username,
+                password=data_store_cfg.password,
+                host=data_store_cfg.host,
+                port=data_store_cfg.port,
+                database=data_store_cfg.database,
+                ssl=data_store_cfg.ssl or False,
             )
-            logger.info(
-                "Data store setup successful (type=%r, uri=%r)",
-                data_store_cfg.get("type", "memory"),
-                data_store_cfg.get("uri", None),
-            )
+
         except Exception as exc:
             logger.exception(
-                "Failed to set up data store (type=%r, uri=%r): %s",
-                data_store_cfg.get("type", "memory"),
-                data_store_cfg.get("uri", None),
-                exc,
+                f"Failed to set up data store (type={aps_datastore.type}, "
+                f"uri={aps_datastore.uri}): {exc}"
             )
         try:
             aps_eventbroker = APSEventBroker(
-                type=event_broker_cfg.get("type", "memory"),
-                uri=event_broker_cfg.get("uri", None),
-                sqla_engine=asp_datastore.sqla_engine,
-                host=event_broker_cfg.get("host", None),
-                port=event_broker_cfg.get("port", 0),
-                username=event_broker_cfg.get("username", None),
-                password=event_broker_cfg.get("password", None),
+                type=event_broker_cfg.type or "memory",
+                uri=event_broker_cfg.uri,
+                host=event_broker_cfg.host,
+                port=event_broker_cfg.port or 0,
+                username=event_broker_cfg.username,
+                password=event_broker_cfg.password,
+                database=event_broker_cfg.database,
+                ssl=event_broker_cfg.ssl or False,
+                _sqla_engine=aps_datastore.sqla_engine,
             )
+
         except Exception as exc:
             logger.exception(
-                "Failed to set up event broker (type=%r, uri=%r): %s",
-                event_broker_cfg.get("type", "memory"),
-                event_broker_cfg.get("uri", None),
-                exc,
+                f"Failed to set up event broker (type={aps_eventbroker.type }, "
+                f"uri={aps_eventbroker.uri}): {exc}"
             )
+
         self._backend = APSBackend(
-            data_store=asp_datastore, event_broker=aps_eventbroker
+            data_store=aps_datastore, event_broker=aps_eventbroker
+        )
+        logger.info(
+            f"Data store and event broker set up successfully: data store type"
+            f" '{aps_datastore.type}', event broker type '{aps_eventbroker.type}'"
         )
 
     def _setup_job_executors(self) -> None:
@@ -349,38 +360,42 @@ class APSWorker(BaseWorker):
         """Display the jobs in a user-friendly format."""
         display_jobs(self._worker.get_jobs())
 
-    def start_worker_pool(self, num_workers: int = None, background: bool = True) -> None:
+    def start_worker_pool(
+        self, num_workers: int | None = None, background: bool = True
+    ) -> None:
         """
         Start a pool of worker processes to handle jobs in parallel.
-        
+
         APScheduler 4.0 already handles concurrency internally through its executors,
         so this method simply starts a single worker with the appropriate configuration.
-        
+
         Args:
             num_workers: Number of worker processes (affects executor pool sizes)
             background: Whether to run in background
         """
         import multiprocessing
-        
+
         # If num_workers not specified, use CPU count
         if num_workers is None:
             num_workers = multiprocessing.cpu_count()
-            
+
         # Adjust thread and process pool executor sizes
-        if 'processpool' in self._job_executors:
-            self._job_executors['processpool'].max_workers = num_workers
-        if 'threadpool' in self._job_executors:
-            self._job_executors['threadpool'].max_workers = num_workers * 2  # Threads can be more than cores
-            
+        if "processpool" in self._job_executors:
+            self._job_executors["processpool"].max_workers = num_workers
+        if "threadpool" in self._job_executors:
+            self._job_executors["threadpool"].max_workers = (
+                num_workers * 2
+            )  # Threads can be more than cores
+
         logger.info(f"Configured worker pool with {num_workers} workers")
-        
+
         # Start a single worker which will use the configured executors
         self.start_worker(background=background)
-        
+
     def stop_worker_pool(self) -> None:
         """
         Stop the worker pool.
-        
+
         Since APScheduler manages concurrency internally, this just stops the worker.
         """
         self.stop_worker()

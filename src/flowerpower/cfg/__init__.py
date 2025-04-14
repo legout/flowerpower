@@ -19,9 +19,13 @@ from .project.worker import ProjectWorkerConfig
 class PipelineConfig(BaseConfig):
     name: str | None = None
     run: PipelineRunConfig = msgspec.field(default_factory=PipelineRunConfig)
-    schedule: PipelineScheduleConfig = msgspec.field(default_factory=PipelineScheduleConfig)
+    schedule: PipelineScheduleConfig = msgspec.field(
+        default_factory=PipelineScheduleConfig
+    )
     params: dict | Munch = {}
-    tracker: PipelineTrackerConfig = msgspec.field(default_factory=PipelineTrackerConfig)
+    tracker: PipelineTrackerConfig = msgspec.field(
+        default_factory=PipelineTrackerConfig
+    )
     h_params: dict | Munch = {}
 
     def __post_init__(self):

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from apscheduler.datastores.base import BaseDataStore
 from apscheduler.eventbrokers.base import BaseEventBroker
@@ -7,14 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from ..base import BaseBackend
 
-@dataclass#(slots=True)
+
+@dataclass  # (slots=True)
 class APSDataStore(BaseBackend):
     """Data store for APScheduler."""
 
-    schema: str | None = None
+    schema: str | None = "flowerpower"
 
     def __post_init__(self):
+        if self.type is None:
+            self.type = "memory"
         super().__post_init__()
+
         if (
             not self.type.is_memory_type
             and not self.type.is_mongodb_type
@@ -115,12 +119,14 @@ class APSDataStore(BaseBackend):
             self.setup()
         return self._sqla_engine
 
-@dataclass#(slots=True)
+
+@dataclass  # (slots=True)
 class APSEventBroker(BaseBackend):
     """Data store for APScheduler."""
 
     def __post_init__(self):
-
+        if self.type is None:
+            self.type = "memory"
         super().__post_init__()
 
         if (
@@ -139,7 +145,6 @@ class APSEventBroker(BaseBackend):
                     ]
                 }"
             )
-        
 
     @classmethod
     def from_dict(cls, d: dict[str, any]) -> "APSEventBroker":
@@ -170,7 +175,7 @@ class APSEventBroker(BaseBackend):
         use_ssl = parsed.scheme == "mqtts"
 
         self._client = MQTTEventBroker(
-            host=hostname, port=port, ssl=use_ssl, topic="flowerpower/scheduler"
+            host=hostname, port=port, ssl=use_ssl, topic="flowerpower/worker"
         )
         if (self.username is not None) and (self.password is not None):
             self._client._client.username_pw_set(
@@ -213,9 +218,9 @@ class APSEventBroker(BaseBackend):
 
 @dataclass(frozen=True, slots=True)
 class APSBackend:
-    data_store: APSDataStore | None = None
-    event_broker: APSEventBroker | None = None
-    
+    data_store: APSDataStore | None = field(default_factory=APSDataStore)
+    event_broker: APSEventBroker | None = field(default_factory=APSEventBroker)
+
     def __post_init__(self):
         if self.data_store is not None:
             self.data_store.setup()

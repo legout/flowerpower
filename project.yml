@@ -1,0 +1,24 @@
+name: null
+worker:
+  rq_backend:
+    backend:
+      type: null
+      uri: null
+      username: null
+      password: null
+      host: null
+      port: null
+      #database: null
+      ssl: false
+    queues:
+    - default
+  type: apscheduler
+tracker:
+  username: null
+  api_url: http://localhost:8241
+  ui_url: http://localhost:8242
+  #api_key: null
+  verify: false
+open_telemetry:
+  host: localhost
+  port: 6831

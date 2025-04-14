@@ -1,30 +1,31 @@
 from .apscheduler import APSWorker
 from .rq import RQWorker
-from dataclasses import dataclass
+from .base import BaseBackend
+from typing import Any
+from ..fs import AbstractFileSystem
 
-@dataclass(frozen=True, slots=True)
-class WorkerFactory:
+
+class Worker:
     """
-    Factory class to create instances of different worker types.
+    Worker class for FlowerPower.
+    This class serves as a factory for creating worker instances based on the specified backend type.
     """
-    backend: str
-    
 
-    @staticmethod
-    def create_worker(worker_type: str, **kwargs) -> APSWorker | RQWorker:
-        """
-        Create a worker instance based on the specified type.
-
-        Args:
-            worker_type: Type of the worker ('apscheduler' or 'rq').
-            **kwargs: Additional parameters for the worker.
-
-        Returns:
-            An instance of the specified worker type.
-        """
-        if worker_type == "apscheduler":
-            return APSWorker(**kwargs)
-        elif worker_type == "rq":
-            return RQWorker(**kwargs)
+    def __new__(
+        cls,
+        name: str | None = None,
+        base_dir: str | None = None,
+        backend: BaseBackend | None = None,
+        storage_options: dict[str, Any] = None,
+        fs: AbstractFileSystem | None = None,
+        **kwargs,
+    ):
+        backend_type = kwargs.get("backend_type", None)
+        if backend_type == "rq":
+            return RQWorker(name, base_dir, backend, storage_options, fs, **kwargs)
+        elif backend_type == "apscheduler":
+            return APSWorker(name, base_dir, backend, storage_options, fs, **kwargs)
         else:
-            raise ValueError(f"Unknown worker type: {worker_type}")
+            raise ValueError(
+                f"Invalid backend type: {backend_type}. Valid types: ['rq', 'apscheduler']"
+            )

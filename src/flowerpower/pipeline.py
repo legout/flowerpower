@@ -32,7 +32,9 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config, PipelineConfig)
+    Config,
+    PipelineConfig,
+)
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img

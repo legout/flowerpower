@@ -78,7 +78,9 @@ class PipelineScheduleRunConfig(BaseConfig):
 
 
 class PipelineScheduleConfig(BaseConfig):
-    run: PipelineScheduleRunConfig = msgspec.field(default_factory=PipelineScheduleRunConfig)
+    run: PipelineScheduleRunConfig = msgspec.field(
+        default_factory=PipelineScheduleRunConfig
+    )
     trigger: PipelineScheduleTriggerConfig = msgspec.field(
         default_factory=PipelineScheduleTriggerConfig
     )

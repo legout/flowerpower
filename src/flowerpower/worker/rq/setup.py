@@ -1,6 +1,6 @@
 import datetime as dt
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import redis
 
@@ -11,16 +11,19 @@ from ..base import BaseBackend
 #    REDIS = "redis"
 #    MEMORY = "memory"
 
-@dataclass#(slots=True)
+
+@dataclass  # (slots=True)
 class RQBackend(BaseBackend):
     """
     RQ DataStore backend for job result storage.
     Inherits from BaseBackend and adapts Redis logic.
     """
 
-    queue: str | None = None
+    queues: str | list[str] | None = field(default_factory=lambda: ["default"])
 
     def __post_init__(self):
+        if self.type is None:
+            self.type = "memory"
         super().__post_init__()
 
         if not self.type.is_memory_type and not self.type.is_redis_type:
