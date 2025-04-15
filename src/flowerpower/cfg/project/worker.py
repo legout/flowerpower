@@ -23,45 +23,70 @@ class WorkerBackend(BaseConfig):
     port: int | None = msgspec.field(default=None)
     database: int | None = msgspec.field(default=None)
     ssl: bool = msgspec.field(default=False)
+    ssl_cert: str | None = msgspec.field(default=None)
+    ssl_key: str | None = msgspec.field(default=None)
+    ssl_ca: str | None = msgspec.field(default=None)
+    verify_ssl: bool = msgspec.field(default=False)
+
+
+class APSDataStore(WorkerBackend):
+    pass
+
+
+class APSEventBroker(WorkerBackend):
+    pass
 
 
 class APSBackend(BaseConfig):
-    data_store: WorkerBackend = msgspec.field(default_factory=WorkerBackend)
-    event_broker: WorkerBackend = msgspec.field(default_factory=WorkerBackend)
+    data_store: APSDataStore = msgspec.field(default_factory=APSDataStore)
+    event_broker: APSEventBroker = msgspec.field(default_factory=APSEventBroker)
     cleanup_interval: int | float | dt.timedelta = msgspec.field(
         default=300
     )  # int in secods
     max_concurrent_jobs: int = msgspec.field(default=10)
     schema: str | None = msgspec.field(default="flowerpower")
+    default_job_executor:str | None = msgspec.field(default="threadpool")
+    num_workers: int | None = msgspec.field(default=None)
 
-
-class RQBackend(BaseConfig):
-    backend: WorkerBackend = msgspec.field(default_factory=WorkerBackend)
+class RQBackend(WorkerBackend):
     queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])
 
 
-class HueyBackend(BaseConfig):
-    backend: WorkerBackend = msgspec.field(default_factory=WorkerBackend)
+class HueyBackend(WorkerBackend):
+    pass
 
 
 class ProjectWorkerConfig(BaseConfig):
-    aps_backend: APSBackend | None = msgspec.field(default_factory=APSBackend)
-    rq_backend: RQBackend | None = msgspec.field(default_factory=RQBackend)
-    huey_backend: HueyBackend | None = msgspec.field(default_factory=HueyBackend)
-    type: str | None = msgspec.field(default=None)
+    type: str | None = msgspec.field(default="rq")
+    backend: dict | None = msgspec.field(default=None)
 
     def __post_init__(self):
         if self.type is not None:
             self.type = self.type.lower()
             if self.type == "rq":
-                self.aps_backend = None
-                self.huey_backend = None
+                if self.backend is None:
+                    self.backend = RQBackend()
+                else:
+                    self.backend = RQBackend(**self.backend)
+                    if self.backend.type is None:
+                        self.backend.type = "redis"
             elif self.type == "apscheduler":
-                self.rq_backend = None
-                self.huey_backend = None
+                if self.backend is None:
+                    self.backend = APSBackend(
+                        data_store=APSDataStore(), event_broker=APSEventBroker()
+                    )
+                else:
+                    self.backend = APSBackend(
+                        data_store=APSDataStore(**self.backend.get("data_store", {})),
+                        event_broker=APSEventBroker(
+                            **self.backend.get("event_broker", {})
+                        ),
+                    )
             elif self.type == "huey":
-                self.aps_backend = None
-                self.rq_backend = None
+                if self.backend is None:
+                    self.backend = HueyBackend()
+                else:
+                    self.backend = HueyBackend(**self.backend)
             else:
                 raise ValueError(
                     f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"

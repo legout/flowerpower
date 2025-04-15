@@ -51,7 +51,7 @@ class RQWorker(BaseWorker):
         backend: RQBackend | None = None,
         storage_options: dict[str, Any] | None = None,
         fs: AbstractFileSystem | None = None,
-        **kwargs,
+        **cfg,
     ):
         """
         Initialize the RQScheduler backend.
@@ -71,9 +71,9 @@ class RQWorker(BaseWorker):
             backend=backend,
             fs=fs,
             storage_options=storage_options,
-            **kwargs,
+
         )
-        self._load_config()
+        self._load_config(**cfg)
         if self._backend is None:
             self._setup_backend()
         # Setup Redis connection for RQ
@@ -93,19 +93,12 @@ class RQWorker(BaseWorker):
         # Add pipelines path to sys.path
         sys.path.append(self._pipelines_path)
 
-    def _load_config(self) -> None:
-        """Load the configuration."""
-        self.cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
-
-        if self.cfg.project.worker.type is None:
-            self.cfg.project.worker.type = "rq"
-            self.cfg.project.worker.aps_backend = None
 
     def _setup_backend(self) -> None:
         """
         Set up the data store for the scheduler using config.
         """
-        backend_cfg = getattr(self.cfg.project.worker.rq_backend, "backend", None)
+        backend_cfg = getattr(self.cfg.rq_backend, "backend", None)
         if not backend_cfg:
             logger.error(
                 "Backend configuration is missing in project.worker.rq_backend.backend."
@@ -127,16 +120,62 @@ class RQWorker(BaseWorker):
                 f"RQ backend setup successful (type: {self._backend.type}, uri: {self._backend.uri})")
         except Exception as exc:
             logger.exception(
-                f"Failed to set up RQ backend (type: {self._backend.type}, uri: {self._backend.uri}): {exc}"
+                f"Failed to set up RQ backend (type: {getattr(self._backend, 'type', None)}, uri: {getattr(self._backend, 'uri', None)}): {exc}"
             )
             raise RuntimeError(f"Failed to set up RQ backend: {exc}") from exc
+
+    def _get_items(self, as_dict: bool = False, queue_name: str | None = None, getter=None) -> list:
+        """
+        Helper to get jobs or schedules as objects or dicts, optionally for a specific queue.
+        """
+        all_items = []
+        if queue_name is not None:
+            if getter and queue_name in getter:
+                all_items = getter[queue_name].get_jobs()
+            else:
+                logger.warning(f"Queue '{queue_name}' not found")
+        else:
+            if getter:
+                for obj in getter.values():
+                    all_items.extend(obj.get_jobs())
+        if as_dict:
+            return [item.to_dict() if hasattr(item, "to_dict") else item.__dict__ for item in all_items]
+        return all_items
+
+    def get_schedules(self, as_dict: bool = False, queue_name: str | None = None) -> list:
+        """
+        Get all schedules.
+
+        Args:
+            as_dict: Whether to return schedules as dictionaries
+            queue_name: Optional name of the queue to get schedules from.
+                        If None, gets schedules from all queues.
+
+        Returns:
+            list: List of scheduled jobs
+        """
+        return self._get_items(as_dict, queue_name, getter=self._schedulers)
+
+    def get_jobs(self, as_dict: bool = False, queue_name: str | None = None) -> list:
+        """
+        Get all jobs in the queue.
+
+        Args:
+            as_dict: Whether to return jobs as dictionaries
+            queue_name: Optional name of the queue to get jobs from.
+                        If None, gets jobs from all queues.
+
+        Returns:
+            list: List of jobs
+        """
+        return self._get_items(as_dict, queue_name, getter=self._queues)
 
     def add_job(
         self,
         func: Callable,
         args: tuple | None = None,
         kwargs: dict[str, Any] | None = None,
-        id: str | None = None,
+        job_id: str | None = None,
         result_ttl: float | dt.timedelta = 0,
         queue_name: str | None = None,
         **job_kwargs,
@@ -148,7 +187,7 @@ class RQWorker(BaseWorker):
             func: Function to execute
             args: Positional arguments for the function
             kwargs: Keyword arguments for the function
-            id: Optional job ID
+            job_id: Optional job ID
             result_ttl: How long to keep the result (seconds or timedelta)
             queue_name: Name of the queue to use (defaults to first queue)
             **job_kwargs: Additional job parameters
@@ -156,7 +195,7 @@ class RQWorker(BaseWorker):
         Returns:
             str: Job ID
         """
-        job_id = id or str(uuid.uuid4())
+        job_id = job_id or str(uuid.uuid4())
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
         args = args or ()
@@ -188,7 +227,7 @@ class RQWorker(BaseWorker):
         self,
         func: Callable,
         trigger: BaseTrigger,
-        id: str | None = None,
+        schedule_id: str | None = None,
         args: tuple | None = None,
         kwargs: dict[str, Any] | None = None,
         queue_name: str | None = None,
@@ -200,7 +239,7 @@ class RQWorker(BaseWorker):
         Args:
             func: Function to execute
             trigger: RQTrigger instance
-            id: Optional schedule ID
+            schedule_id: Optional schedule ID
             args: Positional arguments for the function
             kwargs: Keyword arguments for the function
             queue_name: Name of the queue to use (defaults to first queue)
@@ -209,7 +248,7 @@ class RQWorker(BaseWorker):
         Returns:
             str: Schedule ID
         """
-        schedule_id = id or str(uuid.uuid4())
+        schedule_id = schedule_id or str(uuid.uuid4())
         args = args or ()
         kwargs = kwargs or {}
 
@@ -271,21 +310,28 @@ class RQWorker(BaseWorker):
 
         Returns:
             bool: True if the schedule was removed, False otherwise
+
+        Raises:
+            RuntimeError: If removal fails
         """
+        found = False
         # Try to cancel the schedule in all schedulers
         for queue_name, scheduler in self._schedulers.items():
             try:
                 scheduler.cancel(schedule_id)
                 logger.info(f"Removed schedule {schedule_id} from queue '{queue_name}'")
-                return True
+                found = True
             except Exception as e:
                 # Only log as debug because it might just not be in this scheduler
                 logger.debug(
                     f"Schedule {schedule_id} not found in queue '{queue_name}': {e}"
                 )
 
-        logger.error(f"Failed to remove schedule {schedule_id}: not found in any queue")
-        return False
+        if not found:
+            logger.error(f"Failed to remove schedule {schedule_id}: not found in any queue")
+            raise RuntimeError(f"Failed to remove schedule {schedule_id}: not found in any queue")
+
+        return True
 
     def remove_all_schedules(self) -> None:
         """Remove all schedules from all queues."""
@@ -306,72 +352,6 @@ class RQWorker(BaseWorker):
             Any: Result of the job
         """
         return self._backend.get_job_result(job_id)
-
-    def get_schedules(
-        self, as_dict: bool = False, queue_name: str | None = None
-    ) -> list:
-        """
-        Get all schedules.
-
-        Args:
-            as_dict: Whether to return schedules as dictionaries
-            queue_name: Optional name of the queue to get schedules from.
-                        If None, gets schedules from all queues.
-
-        Returns:
-            list: List of scheduled jobs
-        """
-        all_jobs = []
-
-        # Get jobs from a specific queue or all queues
-        if queue_name is not None:
-            if queue_name in self._schedulers:
-                all_jobs = self._schedulers[queue_name].get_jobs()
-            else:
-                logger.warning(f"Queue '{queue_name}' not found")
-        else:
-            # Get jobs from all schedulers
-            for scheduler in self._schedulers.values():
-                all_jobs.extend(scheduler.get_jobs())
-
-        if as_dict:
-            return [
-                job.to_dict() if hasattr(job, "to_dict") else job.__dict__
-                for job in all_jobs
-            ]
-        return all_jobs
-
-    def get_jobs(self, as_dict: bool = False, queue_name: str | None = None) -> list:
-        """
-        Get all jobs in the queue.
-
-        Args:
-            as_dict: Whether to return jobs as dictionaries
-            queue_name: Optional name of the queue to get jobs from.
-                        If None, gets jobs from all queues.
-
-        Returns:
-            list: List of jobs
-        """
-        all_jobs = []
-
-        # Get jobs from a specific queue or all queues
-        if queue_name is not None:
-            if queue_name in self._queues:
-                all_jobs = self._queues[queue_name].get_jobs()
-            else:
-                logger.warning(f"Queue '{queue_name}' not found")
-        else:
-            # Get jobs from all queues
-            for queue in self._queues.values():
-                all_jobs.extend(queue.get_jobs())
-
-        if as_dict:
-            return [
-                job.to_dict() if hasattr(job, "to_dict") else job.__dict__
-                for job in all_jobs
-            ]
-        return all_jobs
 
     def show_schedules(self) -> None:
         """Display the schedules in a user-friendly format."""
@@ -483,7 +463,7 @@ class RQWorker(BaseWorker):
         with proper monitoring, restarting of crashed workers, and graceful shutdown.
 
         Args:
-            num_workers: Number of worker processes to start (defaults to CPU count)
+            num_workers: Number of worker processes to start (defaults to CPU count or config)
             background: Whether to run the workers in the background
             queue_names: List of queue names to process (defaults to all queues)
         """
@@ -491,7 +471,9 @@ class RQWorker(BaseWorker):
         from rq.worker_pool import WorkerPool
 
         if num_workers is None:
-            num_workers = multiprocessing.cpu_count()
+            num_workers = getattr(self.cfg.rq_backend, 'num_workers', None)
+            if num_workers is None:
+                num_workers = multiprocessing.cpu_count()
 
         # Determine which queues to process
         if queue_names is None:

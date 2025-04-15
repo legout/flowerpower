@@ -3,7 +3,8 @@ import os
 import subprocess
 import tempfile
 import time
-
+import collections
+import msgspec
 import tqdm
 
 if importlib.util.find_spec("pyarrow"):
@@ -410,3 +411,48 @@ def view_img(data: str | bytes, format: str = "svg"):
 
     time.sleep(2)  # Wait for viewer to open
     os.unlink(tmp_path)
+
+
+def update_config_from_dict(struct: msgspec.Struct, data: dict) -> None:
+    """Update a msgspec.Struct instance with values from a dictionary.
+    
+    Args:
+        struct: The msgspec.Struct instance to update
+        data: Dictionary containing new values (keys must match struct field names)
+        
+    Examples:
+        >>> from msgspec import Struct
+        >>> class Point(Struct):
+        ...     x: int
+        ...     y: int
+        >>> p = Point(x=1, y=2)
+        >>> update_struct_from_dict(p, {'x': 10})
+        >>> p
+        Point(x=10, y=2)
+    """
+    for field in msgspec.structs.fields(struct):
+        if field.name in data:
+            setattr(struct, field.name, data[field.name])
+
+
+def merge_config_with_kwargs(
+    config: dict[str, any] | msgspec.Struct, kwargs: dict[str, any]
+) -> dict[str, any]:
+    """
+    Merge configuration dictionary with keyword arguments.
+
+    Args:
+        config: Configuration dictionary
+        kwargs: Keyword arguments
+
+    Returns:
+        Merged dictionary
+    """
+    import collections
+    merged = config.copy()
+    for key, value in kwargs.items():
+        if isinstance(value, collections.abc.Mapping):
+            merged[key] = merge_config_with_kwargs(merged.get(key, {}), value)
+        else:
+            merged[key] = value
+    return merged

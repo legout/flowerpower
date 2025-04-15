@@ -25,7 +25,6 @@ from apscheduler.executors.async_ import AsyncJobExecutor
 from apscheduler.executors.subprocess import ProcessPoolJobExecutor
 from apscheduler.executors.thread import ThreadPoolJobExecutor
 
-from ...cfg import Config
 from ..base import BaseTrigger, BaseWorker
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
@@ -50,7 +49,7 @@ class APSWorker(BaseWorker):
         backend: APSBackend | None = None,
         storage_options: dict[str, Any] = None,
         fs: AbstractFileSystem | None = None,
-        **kwargs,
+        **cfg,
     ):
         """
         Initialize the APScheduler backend.
@@ -61,10 +60,8 @@ class APSWorker(BaseWorker):
             backend: APSBackend instance with data store and event broker
             storage_options: Storage options for filesystem access
             fs: Filesystem to use
-            **kwargs: Additional parameters
+            **cfg: Additional parameters
         """
-        logger_ = kwargs.pop("logger", logger)
-        default_job_executor = kwargs.pop("default_job_executor", "threadpool")
 
         super().__init__(
             name=name,
@@ -72,33 +69,30 @@ class APSWorker(BaseWorker):
             fs=fs,
             backend=backend,
             storage_options=storage_options,
-            **kwargs,
         )
 
-        self._load_config()
+        self._load_config(**cfg)
+
         if backend is None:
             self._setup_backend()
 
         # Set up job executors
-        self._setup_job_executors()
+        self._job_executors = {
+            "async": AsyncJobExecutor(),
+            "threadpool": ThreadPoolJobExecutor(),
+            "processpool": ProcessPoolJobExecutor(),
+        }
 
         self._worker = Scheduler(
             job_executors=self._job_executors,
             event_broker=self._backend.event_broker.client,
             data_store=self._backend.data_store.client,
             identity=self.name,
-            logger=logger_,
-            cleanup_interval=self.cfg.project.worker.aps_backend.cleanup_interval,
-            max_concurrent_jobs=self.cfg.project.worker.aps_backend.max_concurrent_jobs,
-            default_job_executor=default_job_executor,
+            logger=logger,
+            cleanup_interval=self.cfg.backend.cleanup_interval,
+            max_concurrent_jobs=self.cfg.backend.max_concurrent_jobs,
+            default_job_executor=self.cfg.backend.default_job_executor,
         )
-
-    def _load_config(self) -> None:
-        """Load the configuration."""
-        self.cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
-        if self.cfg.project.worker.type is None:
-            self.cfg.project.worker.type = "apscheduler"
-            self.cfg.project.worker.rq_backend = None
 
     def _setup_backend(self) -> None:
         """
@@ -110,25 +104,24 @@ class APSWorker(BaseWorker):
         Raises:
             RuntimeError: If the data store setup fails due to misconfiguration or connection errors.
         """
-        # Validate configuration
-        backend_cfg = getattr(self.cfg.project.worker, "aps_backend", None)
+        backend_cfg = getattr(self.cfg, "backend", None)
         if not backend_cfg:
             logger.error(
-                "Backend configuration is missing in project.worker.aps_backend."
+                "Backend configuration is missing in project.worker.backend."
             )
             raise RuntimeError("Backend configuration is missing.")
 
         data_store_cfg = backend_cfg.data_store
         if not data_store_cfg:
             logger.error(
-                "Data store configuration is missing in project.worker.aps_backend.data_store."
+                "Data store configuration is missing in project.worker.backend.data_store."
             )
             raise RuntimeError("Data store configuration is missing.")
 
         event_broker_cfg = backend_cfg.event_broker
         if not event_broker_cfg:
             logger.error(
-                "Event broker configuration is missing in project.worker.aps_backend.event_broker."
+                "Event broker configuration is missing in project.worker.backend.event_broker."
             )
             raise RuntimeError("Event broker configuration is missing.")
 
@@ -144,12 +137,11 @@ class APSWorker(BaseWorker):
                 database=data_store_cfg.database,
                 ssl=data_store_cfg.ssl or False,
             )
-
         except Exception as exc:
             logger.exception(
-                f"Failed to set up data store (type={aps_datastore.type}, "
-                f"uri={aps_datastore.uri}): {exc}"
+                f"Failed to set up data store: {exc}"
             )
+
         try:
             aps_eventbroker = APSEventBroker(
                 type=event_broker_cfg.type or "memory",
@@ -162,11 +154,9 @@ class APSWorker(BaseWorker):
                 ssl=event_broker_cfg.ssl or False,
                 _sqla_engine=aps_datastore.sqla_engine,
             )
-
         except Exception as exc:
             logger.exception(
-                f"Failed to set up event broker (type={aps_eventbroker.type }, "
-                f"uri={aps_eventbroker.uri}): {exc}"
+                f"Failed to set up event broker: {exc}"
             )
 
         self._backend = APSBackend(
@@ -177,116 +167,38 @@ class APSWorker(BaseWorker):
             f" '{aps_datastore.type}', event broker type '{aps_eventbroker.type}'"
         )
 
-    def _setup_job_executors(self) -> None:
-        """Set up job executors."""
-        self._job_executors = {
-            "async": AsyncJobExecutor(),
-            "threadpool": ThreadPoolJobExecutor(),
-            "processpool": ProcessPoolJobExecutor(),
-        }
-
-    def start_worker(self, background: bool = False) -> None:
+    def _get_items(self, as_dict: bool, getter) -> list[Any]:
         """
-        Start a worker.
+        Helper to get jobs or schedules as objects or dicts.
+        """
+        items = getter()
+        if as_dict:
+            return [item.to_dict() for item in items]
+        return items
+
+    def get_schedules(self, as_dict: bool = False) -> list[Any]:
+        """
+        Get all schedules.
 
         Args:
-            background: Whether to run in the background
-        """
-        if background:
-            self._worker.start_in_background()
-        else:
-            self._worker.run_until_stopped()
-
-    def stop_worker(self) -> None:
-        """Stop the worker."""
-        self._worker.stop()
-
-    def add_job(
-        self,
-        func: collections.abc.Callable,
-        args: tuple | None = None,
-        kwargs: dict[str, Any] | None = None,
-        id: str | None = None,
-        result_ttl: float | dt.timedelta = 0,
-        **job_kwargs,
-    ) -> str:
-        """
-        Add a job for immediate execution.
-
-        Args:
-            func: Function to execute
-            args: Positional arguments for the function
-            kwargs: Keyword arguments for the function
-            id: Optional job ID
-            result_expiration_time: How long to keep the result
-            **job_kwargs: Additional job parameters
+            as_dict: Whether to return schedules as dictionaries
 
         Returns:
-            str: Job ID
+            List[Any]: List of schedules
         """
-        job_executor = job_kwargs.pop("job_executor", "threadpool")
+        return self._get_items(as_dict, self._worker.get_schedules)
 
-        # Convert result_expiration_time to datetime.timedelta if it's not already
-        if isinstance(result_ttl, (int, float)):
-            result_ttl = dt.timedelta(seconds=result_ttl)
-
-        id = id or str(uuid.uuid4())
-
-        job = self._worker.add_job(
-            func,
-            args=args or (),
-            kwargs=kwargs or {},
-            # id=job_id,
-            job_executor=job_executor,
-            result_expiration_time=result_ttl,
-            **job_kwargs,
-        )
-
-        return job
-
-    def add_schedule(
-        self,
-        func: collections.abc.Callable,
-        trigger: BaseTrigger,
-        id: str | None = None,
-        args: tuple | None = None,
-        kwargs: dict[str, Any] | None = None,
-        **schedule_kwargs,
-    ) -> str:
+    def get_jobs(self, as_dict: bool = False) -> list[Any]:
         """
-        Schedule a job for repeated execution.
+        Get all jobs.
 
         Args:
-            func: Function to execute
-            trigger: Trigger defining when to execute the function
-            id: Optional schedule ID
-            args: Positional arguments for the function
-            kwargs: Keyword arguments for the function
-            **schedule_kwargs: Additional schedule parameters
+            as_dict: Whether to return jobs as dictionaries
 
         Returns:
-            str: Schedule ID
+            List[Any]: List of jobs
         """
-        job_executor = schedule_kwargs.pop("job_executor", "threadpool")
-
-        # Get the actual trigger instance
-        if isinstance(trigger, APSTrigger):
-            trigger_instance = trigger.get_trigger_instance()
-        else:
-            # If it's not an APSchedulerTrigger, we assume it's already a trigger instance
-            trigger_instance = trigger
-
-        schedule = self._worker.add_schedule(
-            func,
-            trigger=trigger_instance,
-            id=id,
-            args=args or (),
-            kwargs=kwargs or {},
-            job_executor=job_executor,
-            **schedule_kwargs,
-        )
-
-        return schedule
+        return self._get_items(as_dict, self._worker.get_jobs)
 
     def remove_schedule(self, schedule_id: str) -> bool:
         """
@@ -297,13 +209,15 @@ class APSWorker(BaseWorker):
 
         Returns:
             bool: True if the schedule was removed, False otherwise
+
+        Raises:
+            RuntimeError: If removal fails
         """
         try:
             self._worker.remove_schedule(schedule_id)
             return True
         except Exception as e:
-            logger.error(f"Failed to remove schedule {schedule_id}: {e}")
-            return False
+            logger.exception(f"Failed to remove schedule {schedule_id}: {e}")
 
     def remove_all_schedules(self) -> None:
         """Remove all schedules."""
@@ -321,36 +235,6 @@ class APSWorker(BaseWorker):
             Any: Result of the job
         """
         return self._worker.get_job_result(job_id)
-
-    def get_schedules(self, as_dict: bool = False) -> list[Any]:
-        """
-        Get all schedules.
-
-        Args:
-            as_dict: Whether to return schedules as dictionaries
-
-        Returns:
-            List[Any]: List of schedules
-        """
-        schedules = self._worker.get_schedules()
-        if as_dict:
-            return [sched.to_dict() for sched in schedules]
-        return schedules
-
-    def get_jobs(self, as_dict: bool = False) -> list[Any]:
-        """
-        Get all jobs.
-
-        Args:
-            as_dict: Whether to return jobs as dictionaries
-
-        Returns:
-            List[Any]: List of jobs
-        """
-        jobs = self._worker.get_jobs()
-        if as_dict:
-            return [job.to_dict() for job in jobs]
-        return jobs
 
     def show_schedules(self) -> None:
         """Display the schedules in a user-friendly format."""
@@ -374,20 +258,20 @@ class APSWorker(BaseWorker):
             background: Whether to run in background
         """
         import multiprocessing
-
-        # If num_workers not specified, use CPU count
+        # Allow configuration override for pool sizes
         if num_workers is None:
-            num_workers = multiprocessing.cpu_count()
+            num_workers = getattr(self.cfg.backend, 'num_workers', None)
+            if num_workers is None:
+                num_workers = multiprocessing.cpu_count()
 
         # Adjust thread and process pool executor sizes
         if "processpool" in self._job_executors:
             self._job_executors["processpool"].max_workers = num_workers
         if "threadpool" in self._job_executors:
-            self._job_executors["threadpool"].max_workers = (
-                num_workers * 2
-            )  # Threads can be more than cores
+            threadpool_size = getattr(self.cfg.backend, 'threadpool_size', num_workers * 2)
+            self._job_executors["threadpool"].max_workers = threadpool_size
 
-        logger.info(f"Configured worker pool with {num_workers} workers")
+        logger.info(f"Configured worker pool with {num_workers} workers (threadpool size: {self._job_executors['threadpool'].max_workers})")
 
         # Start a single worker which will use the configured executors
         self.start_worker(background=background)
@@ -399,3 +283,90 @@ class APSWorker(BaseWorker):
         Since APScheduler manages concurrency internally, this just stops the worker.
         """
         self.stop_worker()
+
+    def add_job(
+        self,
+        func: collections.abc.Callable,
+        args: tuple | None = None,
+        kwargs: dict[str, Any] | None = None,
+        job_id: str | None = None,
+        result_ttl: float | dt.timedelta = 0,
+        **job_kwargs,
+    ) -> str:
+        """
+        Add a job for immediate execution.
+
+        Args:
+            func: Function to execute
+            args: Positional arguments for the function
+            kwargs: Keyword arguments for the function
+            job_id: Optional job ID
+            result_expiration_time: How long to keep the result
+            **job_kwargs: Additional job parameters
+
+        Returns:
+            str: Job ID
+        """
+        job_executor = job_kwargs.pop("job_executor", "threadpool")
+
+        # Convert result_expiration_time to datetime.timedelta if it's not already
+        if isinstance(result_ttl, (int, float)):
+            result_ttl = dt.timedelta(seconds=result_ttl)
+
+        job_id = job_id or str(uuid.uuid4())
+
+        job_id = self._worker.add_job(
+            func,
+            args=args or (),
+            kwargs=kwargs or {},
+            id=job_id,
+            job_executor=job_executor,
+            result_expiration_time=result_ttl,
+            **job_kwargs,
+        )
+
+        return job_id
+
+    def add_schedule(
+        self,
+        func: collections.abc.Callable,
+        trigger: BaseTrigger,
+        schedule_id: str | None = None,
+        args: tuple | None = None,
+        kwargs: dict[str, Any] | None = None,
+        **schedule_kwargs,
+    ) -> str:
+        """
+        Schedule a job for repeated execution.
+
+        Args:
+            func: Function to execute
+            trigger: Trigger defining when to execute the function
+            schedule_id: Optional schedule ID
+            args: Positional arguments for the function
+            kwargs: Keyword arguments for the function
+            **schedule_kwargs: Additional schedule parameters
+
+        Returns:
+            str: Schedule ID
+        """
+        job_executor = schedule_kwargs.pop("job_executor", "threadpool")
+
+        # Get the actual trigger instance
+        if isinstance(trigger, APSTrigger):
+            trigger_instance = trigger.get_trigger_instance()
+        else:
+            # If it's not an APSchedulerTrigger, we assume it's already a trigger instance
+            trigger_instance = trigger
+
+        schedule_id = self._worker.add_schedule(
+            func,
+            trigger=trigger_instance,
+            id=schedule_id,
+            args=args or (),
+            kwargs=kwargs or {},
+            job_executor=job_executor,
+            **schedule_kwargs,
+        )
+
+        return schedule_id

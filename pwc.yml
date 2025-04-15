@@ -1,0 +1,31 @@
+type: apscheduler
+backend:
+  data_store:
+    type: null
+    uri: null
+    username: null
+    password: null
+    host: null
+    port: null
+    database: null
+    ssl: false
+    ssl_cert: null
+    ssl_key: null
+    ssl_ca: null
+    verify_ssl: false
+  event_broker:
+    type: null
+    uri: null
+    username: null
+    password: null
+    host: null
+    port: null
+    database: null
+    ssl: false
+    ssl_cert: null
+    ssl_key: null
+    ssl_ca: null
+    verify_ssl: false
+  cleanup_interval: 300
+  max_concurrent_jobs: 10
+  schema: flowerpower
