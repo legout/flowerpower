@@ -28,7 +28,7 @@ class MQTTManager:
         max_reconnect_delay: int = 60,
         transport: str = "tcp",
         clean_session: bool = True,
-        qos: int = 0,
+        client_id: str | None = None,
         **kwargs,
     ):
         if "user" in kwargs:
@@ -49,7 +49,7 @@ class MQTTManager:
         self._transport = transport
 
         self._clean_session = clean_session
-        self._qos = qos
+        self._client_id = client_id
 
         self._client = None
 
@@ -70,6 +70,7 @@ class MQTTManager:
     def _on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             logger.info(f"Connected to MQTT Broker {userdata.host}!")
+            logger.info(f"Connected as {userdata.client_id} with clean session {userdata.clean_session}")
         else:
             logger.error(f"Failed to connect, return code {rc}")
 
@@ -111,9 +112,11 @@ class MQTTManager:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
+        if self._client is None:
+            self._client_id = f"flowerpower-{random.randint(0, 10000)}"
         client = Client(
             CallbackAPIVersion.VERSION2,
-            client_id=f"flowerpower-{random.randint(0, 10000)}",
+            client_id=self._client_id,
             transport=self._transport,
             clean_session=self._clean_session,
             userdata=Munch(
@@ -127,6 +130,7 @@ class MQTTManager:
                 reconnect_rate=self._reconnect_rate,
                 max_reconnect_delay=self._max_reconnect_delay,
                 transport=self._transport,
+                client_id=self._client_id,
             ),
         )
         if self._password != "" and self._username != "":
@@ -180,6 +184,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
+        qos: int = 0,
     ) -> None:
         """
         Run the MQTT client in the background.
@@ -195,7 +200,7 @@ class MQTTManager:
             self.connect()
 
         if topic:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
         self._client.on_message = on_message
         self._client.loop_start()
@@ -204,6 +209,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
+        qos: int = 0,
     ):
         """
         Run the MQTT client until a break signal is received.
@@ -219,13 +225,13 @@ class MQTTManager:
             self.connect()
 
         if topic:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
         self._client.on_message = on_message
         self._client.loop_forever()
 
     def start_listener(
-        self, on_message: Callable, topic: str | None = None, background: bool = False
+        self, on_message: Callable, topic: str | None = None, background: bool = False, qos: int = 0
     ) -> None:
         """
         Start the MQTT listener.
@@ -239,9 +245,9 @@ class MQTTManager:
             None
         """
         if background:
-            self.run_in_background(on_message, topic)
+            self.run_in_background(on_message, topic, qos)
         else:
-            self.run_until_break(on_message, topic)
+            self.run_until_break(on_message, topic, qos)
 
     def stop_listener(
         self,
@@ -268,6 +274,7 @@ class MQTTManager:
                     host=event_broker_cfg.get("host", "localhost"),
                     port=event_broker_cfg.get("port", 1883),
                     transport=event_broker_cfg.get("transport", "tcp"),
+                    clean_session=event_broker_cfg.get("clean_session", True),
                 )
             raise ValueError("No event broker configuration found in config file.")
         else:
@@ -291,6 +298,7 @@ class MQTTManager:
             host=cfg.get("host", "localhost"),
             port=cfg.get("port", 1883),
             transport=cfg.get("transport", "tcp"),
+            clean_session=cfg.get("clean_session", True),
         )
 
     def run_pipeline_on_message(
@@ -311,6 +319,7 @@ class MQTTManager:
         storage_options: dict = {},
         fs: AbstractFileSystem | None = None,
         background: bool = False,
+        qos: int = 0,
         **kwargs,
     ):
         """
@@ -385,7 +394,7 @@ class MQTTManager:
 
                 logger.warning("Message processing failed")
 
-        self.start_listener(on_message=on_message, topic=topic, background=background)
+        self.start_listener(on_message=on_message, topic=topic, background=background, qos=qos)
 
 
 def start_listener(
@@ -508,6 +517,7 @@ def run_pipeline_on_message(
                 pw=password,
                 host=host,
                 port=port,
+                clean_session=clean_session,
             )
         else:
             raise ValueError(
@@ -532,5 +542,6 @@ def run_pipeline_on_message(
         storage_options=storage_options,
         fs=fs,
         background=background,
+        qos=qos,
         **kwargs,
     )
