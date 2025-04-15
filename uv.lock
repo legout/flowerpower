@@ -1300,7 +1300,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.12.3" },
 ]
-provides-extras = ["io", "io-legacy", "mongodb", "mqtt", "opentelemetry", "ray", "redis", "scheduler", "tui", "ui", "webserver"]
+provides-extras = ["io", "io-legacy", "mongodb", "mqtt", "opentelemetry", "ray", "redis", "scheduler", "tui", "ui", "webserver", "web"]
 
 [package.metadata.requires-dev]
 dev = [
