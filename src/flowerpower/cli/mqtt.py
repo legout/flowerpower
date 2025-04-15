@@ -74,6 +74,9 @@ def run_pipeline_on_message(
     port: int | None = None,
     username: str | None = None,
     password: str | None = None,
+    clean_session: bool = True,
+    qos: int = 0,
+    client_id: str | None = None,
 ):
     """Run a pipeline on a message
 
@@ -120,4 +123,7 @@ def run_pipeline_on_message(
         port=port,
         username=username,
         password=password,
+        clean_session=clean_session,
+        qos=qos,
+        client_id=client_id,
     )
