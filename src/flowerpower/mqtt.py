@@ -27,6 +27,8 @@ class MQTTManager:
         reconnect_rate: int = 2,
         max_reconnect_delay: int = 60,
         transport: str = "tcp",
+        clean_session: bool = True,
+        qos: int = 0,
         **kwargs,
     ):
         if "user" in kwargs:
@@ -45,6 +47,9 @@ class MQTTManager:
         self._reconnect_rate = reconnect_rate
         self._max_reconnect_delay = max_reconnect_delay
         self._transport = transport
+
+        self._clean_session = clean_session
+        self._qos = qos
 
         self._client = None
 
@@ -110,6 +115,7 @@ class MQTTManager:
             CallbackAPIVersion.VERSION2,
             client_id=f"flowerpower-{random.randint(0, 10000)}",
             transport=self._transport,
+            clean_session=self._clean_session,
             userdata=Munch(
                 user=self._username,
                 pw=self._password,
@@ -154,10 +160,13 @@ class MQTTManager:
         #    self.reconnect()
         self._client.publish(topic, payload)
 
-    def subscribe(self, topic: str | None = None):
+    def subscribe(self, topic: str | None = None, qos: int | None = None):
         if topic is not None:
             self.topic = topic
-        self._client.subscribe(self.topic)
+
+        if qos is not None:
+            self._qos = qos
+        self._client.subscribe(self.topic, qos=self._qos)
 
     def unsubscribe(self, topic: str | None = None):
         if topic is not None:
