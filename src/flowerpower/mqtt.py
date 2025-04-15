@@ -112,8 +112,10 @@ class MQTTManager:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
-        if self._client is None:
+        
+        if self._client_id is None:
             self._client_id = f"flowerpower-{random.randint(0, 10000)}"
+        logger.debug(f"Client ID: {self._client_id} - Clean session: {self._clean_session}")
         client = Client(
             CallbackAPIVersion.VERSION2,
             client_id=self._client_id,
@@ -131,6 +133,7 @@ class MQTTManager:
                 max_reconnect_delay=self._max_reconnect_delay,
                 transport=self._transport,
                 client_id=self._client_id,
+                clean_session=self._clean_session,
             ),
         )
         if self._password != "" and self._username != "":
@@ -268,6 +271,7 @@ class MQTTManager:
         event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":
+                logger.debug(f"{event_broker_cfg}")
                 return cls(
                     user=event_broker_cfg.get("username", None),
                     pw=event_broker_cfg.get("password", None),
@@ -275,6 +279,7 @@ class MQTTManager:
                     port=event_broker_cfg.get("port", 1883),
                     transport=event_broker_cfg.get("transport", "tcp"),
                     clean_session=event_broker_cfg.get("clean_session", True),
+                    client_id=event_broker_cfg.get("client_id", None),
                 )
             raise ValueError("No event broker configuration found in config file.")
         else:
@@ -299,6 +304,7 @@ class MQTTManager:
             port=cfg.get("port", 1883),
             transport=cfg.get("transport", "tcp"),
             clean_session=cfg.get("clean_session", True),
+            client_id=cfg.get("client_id", None),
         )
 
     def run_pipeline_on_message(
@@ -477,6 +483,7 @@ def run_pipeline_on_message(
     password: str | None = None,
     clean_session: bool = True,
     qos: int = 0,
+    client_id: str | None = None,
     **kwargs,
 ):
     """
@@ -518,6 +525,7 @@ def run_pipeline_on_message(
                 host=host,
                 port=port,
                 clean_session=clean_session,
+                client_id=client_id,
             )
         else:
             raise ValueError(
