@@ -8,6 +8,8 @@ import datetime as dt
 import sys
 import uuid
 from typing import Any, Callable
+import platform
+import multiprocessing
 
 from loguru import logger
 from rq import Queue
@@ -19,6 +21,22 @@ from ..base import BaseTrigger, BaseWorker
 from .setup import RQBackend
 from .trigger import RQTrigger
 from .utils import show_jobs, show_schedules
+
+
+if sys.platform == "darwin" and platform.machine() == "arm64":
+    try:
+        # Check if the start method has already been set to avoid errors
+        if multiprocessing.get_start_method(allow_none=True) is None:
+            multiprocessing.set_start_method("fork")
+            logger.info("Set multiprocessing start method to 'fork' for macOS ARM.")
+        elif multiprocessing.get_start_method() != "fork":
+            logger.warning(
+                f"Multiprocessing start method already set to '{multiprocessing.get_start_method()}'. "
+                f"Cannot set to 'fork'. This might cause issues on macOS ARM."
+            )
+    except RuntimeError as e:
+        # Handle cases where the context might already be started
+        logger.warning(f"Could not set multiprocessing start method to 'fork': {e}")
 
 
 class RQWorker(BaseWorker):

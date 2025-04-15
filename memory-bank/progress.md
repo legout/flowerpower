@@ -16,3 +16,4 @@
 *   [2025-04-15 09:54:17] - **Task Completed:** Enhanced `examples/workers/worker_example.py` to allow backend configuration via `typer` options (--backend-host, --backend-port, --backend-db, --backend-user, --password, --backend-ssl, --backend-uri). This enables testing workers with specific backend connection details.
 
 *   [2025-04-15 10:24:48] - **Task Completed:** Added `Backend` factory class to `src/flowerpower/worker/__init__.py` to configure `RQBackend` or `APSBackend`. Updated imports, `__all__`, and added type hints.
+*   [2025-04-15 10:51:49] - **Task Completed:** Refactored `src/flowerpower/pipeline.py` to replace `SchedulerManager` with the new unified `Worker` class. This involved updating imports, class instantiations, method calls (e.g., `add_job`, `add_schedule`), return types, and docstrings to align with the `BaseWorker` interface.

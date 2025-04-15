@@ -14,7 +14,7 @@ class Worker:
 
     def __new__(
         cls,
-        backend_type: str="rq",
+        type: str="rq",
         name: str | None = None,
         base_dir: str | None = None,
         backend: BaseBackend | None = None,
@@ -23,15 +23,15 @@ class Worker:
         **kwargs,
     )->BaseWorker:
 
-        if backend_type == "rq":
+        if type == "rq":
             return RQWorker(name, base_dir, backend, storage_options, fs, **kwargs)
-        elif backend_type == "apscheduler":
+        elif type == "apscheduler":
             return APSWorker(name, base_dir, backend, storage_options, fs, **kwargs)
-        elif backend_type == "huey":
+        elif type == "huey":
             return HueyWorker(name, base_dir, backend, storage_options, fs, **kwargs)
         else:
             raise ValueError(
-                f"Invalid backend type: {backend_type}. Valid types: ['rq', 'apscheduler', 'huey']"
+                f"Invalid backend type: {type}. Valid types: ['rq', 'apscheduler', 'huey']"
             )
 
 
@@ -43,16 +43,16 @@ class Backend:
 
     def __new__(
         cls,
-        backend_type: str,
+        worker_type: str,
         **kwargs,
     )->BaseBackend:
-        if backend_type == "rq":
+        if worker_type == "rq":
             return RQBackend(**kwargs)
-        elif backend_type == "apscheduler":
+        elif worker_type == "apscheduler":
             return APSBackend(**kwargs)
         else:
             raise ValueError(
-                f"Invalid backend type: {backend_type}. Valid types: ['rq', 'apscheduler']"
+                f"Invalid backend type: {worker_type}. Valid types: ['rq', 'apscheduler']"
             )
 
 
