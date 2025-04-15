@@ -23,7 +23,7 @@ class RQBackend(BaseBackend):
 
     def __post_init__(self):
         if self.type is None:
-            self.type = "memory"
+            self.type = "redis"
         super().__post_init__()
 
         if not self.type.is_memory_type and not self.type.is_redis_type:

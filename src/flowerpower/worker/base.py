@@ -11,12 +11,12 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from ..fs import AbstractFileSystem, get_filesystem
 from ..cfg import Config
-from ..cfg.project import update_config_from_dict
+from ..utils.misc import update_config_from_dict
 
 
 # Define backend properties in a dictionary for easier maintenance
@@ -175,7 +175,10 @@ class BackendType(str, Enum):
 
         # Handle host and port
         host = host or self.default_host
-        port_part = f":{port}" if port is not None else ""
+        port = port or self.default_port
+        database = database or self.default_database
+
+        port_part = f":{port}" #if port is not None else self.default_port
 
         # Special handling for SQLite and memory types
         if self.is_sqlite_type or self.is_memory_type:
@@ -242,7 +245,7 @@ class BackendType(str, Enum):
                 if key_file:
                     query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
 
-        # Compose query string if any params exist
+        # Compose query string if Any params exist
         query_string = ""
         if query_params:
             query_string = "?" + "&".join(query_params)
@@ -449,7 +452,7 @@ class BaseBackend:
     ssl: bool = False
     _kwargs: dict = field(default_factory=dict)
     _sqla_engine: AsyncEngine | None = None  # SQLAlchemy async engine instance for SQL backends
-    _client: any | None = None  # Native client instance for non-SQL backends
+    _client: Any | None = None  # Native client instance for non-SQL backends
 
     def __post_init__(self):
         if self.type is None:
@@ -491,7 +494,7 @@ class BaseTrigger(abc.ABC):
         self.trigger_type = trigger_type
 
     @abc.abstractmethod
-    def get_trigger_instance(self, **kwargs) -> any:
+    def get_trigger_instance(self, **kwargs) -> Any:
         """
         Get the backend-specific trigger instance.
 
@@ -499,7 +502,7 @@ class BaseTrigger(abc.ABC):
             **kwargs: Keyword arguments specific to the trigger type
 
         Returns:
-            any: A backend-specific trigger instance
+            Any: A backend-specific trigger instance
         """
         pass
 
@@ -536,6 +539,7 @@ class BaseWorker(abc.ABC):
         backend: BaseBackend | None = None,
         storage_options: dict = None,
         fs: AbstractFileSystem | None = None,
+        **cfg_updates: dict[str, Any],
 
     ):
         """
@@ -560,17 +564,20 @@ class BaseWorker(abc.ABC):
         self._conf_path = "conf"
         self._pipelines_path = "pipelines"
 
+        self._load_config(**cfg_updates)
+
         # Add pipelines path to sys.path
         sys.path.append(self._pipelines_path)
 
-    def _load_config(self, **cfg) -> None:
+
+    def _load_config(self, **cfg_updates) -> None:
         """Load the configuration.
         
         Args:
-            cfg: Configuration dictionary
+            cfg_updates: Configuration updates to apply
         """
         cfg = Config.load(base_dir=self._base_dir, fs=self._fs)
-        self.cfg = update_config_from_dict(cfg.project.worker, **cfg)
+        self.cfg = update_config_from_dict(cfg.project.worker, cfg_updates)
 
 
     @abc.abstractmethod
@@ -621,7 +628,7 @@ class BaseWorker(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_job_result(self, job_id: str) -> any:
+    def get_job_result(self, job_id: str) -> Any:
         """
         Retrieve the result of a completed job by its job ID.
         """

@@ -49,7 +49,7 @@ class APSWorker(BaseWorker):
         backend: APSBackend | None = None,
         storage_options: dict[str, Any] = None,
         fs: AbstractFileSystem | None = None,
-        **cfg,
+        **cfg_updates: dict[str, Any],
     ):
         """
         Initialize the APScheduler backend.
@@ -60,7 +60,7 @@ class APSWorker(BaseWorker):
             backend: APSBackend instance with data store and event broker
             storage_options: Storage options for filesystem access
             fs: Filesystem to use
-            **cfg: Additional parameters
+            **cfg_updates: Configuration updates for the scheduler
         """
 
         super().__init__(
@@ -69,9 +69,8 @@ class APSWorker(BaseWorker):
             fs=fs,
             backend=backend,
             storage_options=storage_options,
+            **cfg_updates,
         )
-
-        self._load_config(**cfg)
 
         if backend is None:
             self._setup_backend()
@@ -106,9 +105,7 @@ class APSWorker(BaseWorker):
         """
         backend_cfg = getattr(self.cfg, "backend", None)
         if not backend_cfg:
-            logger.error(
-                "Backend configuration is missing in project.worker.backend."
-            )
+            logger.error("Backend configuration is missing in project.worker.backend.")
             raise RuntimeError("Backend configuration is missing.")
 
         data_store_cfg = backend_cfg.data_store
@@ -138,9 +135,7 @@ class APSWorker(BaseWorker):
                 ssl=data_store_cfg.ssl or False,
             )
         except Exception as exc:
-            logger.exception(
-                f"Failed to set up data store: {exc}"
-            )
+            logger.exception(f"Failed to set up data store: {exc}")
 
         try:
             aps_eventbroker = APSEventBroker(
@@ -155,9 +150,7 @@ class APSWorker(BaseWorker):
                 _sqla_engine=aps_datastore.sqla_engine,
             )
         except Exception as exc:
-            logger.exception(
-                f"Failed to set up event broker: {exc}"
-            )
+            logger.exception(f"Failed to set up event broker: {exc}")
 
         self._backend = APSBackend(
             data_store=aps_datastore, event_broker=aps_eventbroker
@@ -258,9 +251,10 @@ class APSWorker(BaseWorker):
             background: Whether to run in background
         """
         import multiprocessing
+
         # Allow configuration override for pool sizes
         if num_workers is None:
-            num_workers = getattr(self.cfg.backend, 'num_workers', None)
+            num_workers = getattr(self.cfg.backend, "num_workers", None)
             if num_workers is None:
                 num_workers = multiprocessing.cpu_count()
 
@@ -268,10 +262,14 @@ class APSWorker(BaseWorker):
         if "processpool" in self._job_executors:
             self._job_executors["processpool"].max_workers = num_workers
         if "threadpool" in self._job_executors:
-            threadpool_size = getattr(self.cfg.backend, 'threadpool_size', num_workers * 2)
+            threadpool_size = getattr(
+                self.cfg.backend, "threadpool_size", num_workers * 2
+            )
             self._job_executors["threadpool"].max_workers = threadpool_size
 
-        logger.info(f"Configured worker pool with {num_workers} workers (threadpool size: {self._job_executors['threadpool'].max_workers})")
+        logger.info(
+            f"Configured worker pool with {num_workers} workers (threadpool size: {self._job_executors['threadpool'].max_workers})"
+        )
 
         # Start a single worker which will use the configured executors
         self.start_worker(background=background)
