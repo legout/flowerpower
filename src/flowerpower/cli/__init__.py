@@ -1,5 +1,5 @@
 import importlib
-
+import os
 import typer
 from loguru import logger
 
@@ -76,7 +76,7 @@ def ui(
 
     commands.run(
         port=port,
-        base_dir=base_dir,
+        base_dir=os.path.expanduser(base_dir),
         no_migration=no_migration,
         no_open=no_open,
         settings_file=settings_file,

@@ -35,8 +35,15 @@ services:
   #     - 1883:1883
   #   command: mosquitto -c /mosquitto/config/mosquitto.conf
   
-  mqtt:
+  mqtt-nanomq:
     image: emqx/nanomq
+    ports:
+      - 1884:1883
+      - 8084:8083
+      - 8884:8883
+
+  mqtt-mosquitto:
+    image: eclipse-mosquitto
     ports:
       - 1883:1883
       - 8083:8083
@@ -71,13 +78,20 @@ services:
     image: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  postgres-hamilton:
+    image: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=flowerpower
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+      - PGPORT=5433
     ports:
-      - 5432:5432
-
+      - 5433:5433
   backend:
     container_name: hamilton-ui-backend
     image: dagworks/ui-backend:latest
@@ -92,8 +106,8 @@ services:
       - 8241:8241
     #env_file: .env
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
+      - DB_HOST=postgres-hamilton
+      - DB_PORT=5433
       - DB_NAME=flowerpower
       - DB_USER=postgres
       - DB_PASSWORD=password # Purely for local! Do not deploy to production!

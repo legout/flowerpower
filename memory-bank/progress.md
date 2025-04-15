@@ -11,3 +11,8 @@
 *   [2025-04-13 18:43:22] - **Task Completed:** Refactored configuration classes in `src/flowerpower/cfg/` and subdirectories from pydantic (`Field`, `model_post_init`) to msgspec (`field`, `__post_init__`).
 *   [2025-04-14 16:37:45] - **Status:** Implemented Huey trigger classes (`HueyCronTrigger`, `HueyIntervalTrigger`, `HueyDateTrigger`) in `src/flowerpower/worker/huey/trigger.py` and updated `src/flowerpower/worker/huey/__init__.py` to export them. This maps FlowerPower's abstract triggers to Huey's scheduling mechanisms.
 *   [2025-04-14 22:49:46] - **Task Completed:** Reviewed, fixed, and optimized code in `src/flowerpower/worker/__init__.py` and `src/flowerpower/worker/base.py`. Improvements include type hints, URI generation logic (robustness, security), SSL handling, and code clarity.
+*   [2025-04-15 09:44:36] - **Task Started:** Create an example script to test different worker backends.
+*   [2025-04-15 09:48:38] - **Status:** Updated `examples/workers/worker_example.py` to use `typer` instead of `argparse` and assume `flowerpower` is installed.
+*   [2025-04-15 09:54:17] - **Task Completed:** Enhanced `examples/workers/worker_example.py` to allow backend configuration via `typer` options (--backend-host, --backend-port, --backend-db, --backend-user, --password, --backend-ssl, --backend-uri). This enables testing workers with specific backend connection details.
+
+*   [2025-04-15 10:24:48] - **Task Completed:** Added `Backend` factory class to `src/flowerpower/worker/__init__.py` to configure `RQBackend` or `APSBackend`. Updated imports, `__all__`, and added type hints.
