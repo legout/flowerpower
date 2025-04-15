@@ -2,7 +2,7 @@ from .apscheduler import APSWorker
 from .rq import RQWorker
 from .huey import HueyWorker
 from .base import BaseBackend
-from typing import Any
+from typing import Any, Optional
 from ..fs import AbstractFileSystem
 
 
@@ -17,7 +17,7 @@ class Worker:
         name: str | None = None,
         base_dir: str | None = None,
         backend: BaseBackend | None = None,
-        storage_options: dict[str, Any] = None,
+        storage_options: Optional[dict[str, Any]] = None,
         fs: AbstractFileSystem | None = None,
         **kwargs,
     ):

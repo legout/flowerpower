@@ -142,94 +142,63 @@ class BackendType(str, Enum):
         ssl: bool = False,
     ) -> str:
         import urllib.parse
+        from typing import List
 
-        host = host or self.default_host
-        port = port or self.default_port
-        database = database or self.default_database
-
+        # Build components conditionally
+        components: List[str] = []
+        
         # Get the appropriate URI prefix based on backend type and SSL setting
         if self.is_redis_type:
             uri_prefix = "rediss://" if ssl else "redis://"
         elif self.is_nats_kv_type:
             uri_prefix = "nats+tls://" if ssl else "nats://"
         elif self.is_mqtt_type:
-            uri_prefix = "mqtts://" if ssl else "mqtt://"  # Use mqtts:// for SSL
+            uri_prefix = "mqtts://" if ssl else "mqtt://"
+            # For MQTT, use standard SSL port if not specified
+            if ssl and port == 1883:
+                port = 8883
         else:
             uri_prefix = self.uri_prefix
 
-        # Handle authentication with proper URL escaping
-        auth_part = ""
+        # Handle authentication
         if username and password:
-            quoted_username = urllib.parse.quote(username)
-            quoted_password = urllib.parse.quote(password)
-            auth_part = f"{quoted_username}:{quoted_password}@"
+            auth = f"{urllib.parse.quote(username)}:{urllib.parse.quote(password)}@"
         elif username:
-            quoted_username = urllib.parse.quote(username)
-            auth_part = f"{quoted_username}@"
+            auth = f"{urllib.parse.quote(username)}@"
         elif password:
-            quoted_password = urllib.parse.quote(password)
-            auth_part = f":{quoted_password}@"
-
-        # Generate base URI without SSL params
-        if self.is_sqla_type:
-            if self.is_sqlite_type:
-                base_uri = f"{uri_prefix}{database}".replace("None", "")
-            else:
-                base_uri = (
-                    f"{uri_prefix}{auth_part}{host}:{port}/{database}".replace(
-                        "None", ""
-                    )
-                    .rstrip("/")
-                    .rstrip(":")
-                )
-        elif self.is_mongodb_type:
-            base_uri = (
-                f"{uri_prefix}{auth_part}{host}:{port}/{database}".replace("None", "")
-                .rstrip("/")
-                .rstrip(":")
-            )
-        elif self.is_redis_type:
-            base_uri = f"{uri_prefix}{auth_part}{host}:{port}/{database}"
-        elif self.is_nats_kv_type:
-            base_uri = f"{uri_prefix}{auth_part}{host}:{port}"
-        elif self.is_mqtt_type:
-            # For MQTT, port might change for SSL (8883 is standard for MQTT+SSL)
-            mqtt_port = 8883 if ssl and port == 1883 else port
-            base_uri = f"{uri_prefix}{auth_part}{host}:{mqtt_port}"
-        elif self.is_memory_type:
-            return "memory://"  # Memory doesn't need SSL
+            auth = f":{urllib.parse.quote(password)}@"
         else:
-            raise ValueError(f"Unsupported data store type: {self}")
+            auth = ""
 
-        # Add SSL parameters for different database types
-        if ssl:
-            if (
-                self.is_sqlite_type
-                or self.is_memory_type
-                or self.is_nats_kv_type
-                or self.is_redis_type
-                or self.is_mqtt_type
-            ):
-                # SQLite doesn't use SSL
-                return base_uri
-            else:
-                if "?" in base_uri:
-                    base_uri += "&"
-                else:
-                    base_uri += "?"
+        # Handle host and port
+        host = host or self.default_host
+        port_part = f":{port}" if port is not None else ""
 
-                if self.value == "postgresql":
-                    # PostgreSQL SSL parameters
-                    return f"{base_uri}ssl=allow"
-                elif self.value == "mysql":
-                    return f"{base_uri}ssl=true"
-                elif self.is_mongodb_type:
-                    return f"{base_uri}ssl=true&tlsAllowInvalidCertificates=true"
-                else:
-                    # Default SSL parameter
-                    return base_uri
-        else:
-            return base_uri
+        # Special handling for SQLite and memory types
+        if self.is_sqlite_type or self.is_memory_type:
+            if self.is_sqlite_type and database:
+                return f"{uri_prefix}{database}"
+            return "memory://"
+
+        # Build path component
+        database = database or self.default_database
+        path = f"/{database}" if database else ""
+
+        # Construct base URI
+        base_uri = f"{uri_prefix}{auth}{host}{port_part}{path}"
+
+        # Add SSL parameters if needed
+        if ssl and not (self.is_sqlite_type or self.is_memory_type or
+                       self.is_nats_kv_type or self.is_redis_type or self.is_mqtt_type):
+            sep = "&" if "?" in base_uri else "?"
+            if self.value == "postgresql":
+                return f"{base_uri}{sep}ssl=verify-full"  # More secure default
+            elif self.value == "mysql":
+                return f"{base_uri}{sep}ssl=true"
+            elif self.is_mongodb_type:
+                return f"{base_uri}{sep}ssl=true"  # Removed tlsAllowInvalidCertificates
+
+        return base_uri
 
 
 @dataclass(slots=True)
@@ -243,8 +212,8 @@ class BaseBackend:
     database: str | None = None
     ssl: bool = False
     _kwargs: dict = field(default=dict)
-    _sqla_engine: AsyncEngine | None = None
-    _client: any | None = None
+    _sqla_engine: AsyncEngine | None = None  # SQLAlchemy async engine instance for SQL backends
+    _client: Any | None = None  # Native client instance for non-SQL backends
 
     def __post_init__(self):
         if self.type is None:
@@ -268,10 +237,10 @@ class BaseBackend:
                 ssl=self.ssl,
             )
 
-        # self.setup()
+        # Setup is handled by backend-specific implementations
 
     @classmethod
-    def from_dict(cls, d: dict[str, any]) -> "BaseBackend":
+    def from_dict(cls, d: dict[str, Any]) -> "BaseBackend":
         return cls(**d)
 
 

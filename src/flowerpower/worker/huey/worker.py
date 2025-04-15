@@ -259,8 +259,12 @@ class HueyWorker(BaseWorker):
 
     def _start_consumer_process(self, worker_args: list[str]):
         """Helper to start a huey_consumer.py process."""
-        command = [sys.executable, '-m', 'huey.bin.huey_consumer']
-        command.append(self._get_huey_instance_path())
+        command = [
+            sys.executable,
+            "-m",
+            "huey.bin.huey_consumer",
+            self._get_huey_instance_path(),
+        ]
         command.extend(worker_args)
 
         cwd = self._base_dir
@@ -280,31 +284,33 @@ class HueyWorker(BaseWorker):
         if self._worker_processes:
             print("Worker already running.")
             return
+
         print("Starting single Huey worker...")
-        worker_args = ['-w', '1', '-k', 'thread'] # Default args for single worker
+        worker_args = ["-w", "1", "-k", "thread"]  # Default args for single worker
         self._start_consumer_process(worker_args)
-        print("Worker started in background.") # Popen is background
+        print("Worker started in background.")  # Popen is background
 
 
     def stop_worker(self) -> None:
         """
         Stop the single Huey worker process.
         """
-        # TODO: Implement stopping the subprocess (SIGINT/SIGTERM)
         print("Stopping Huey worker(s)...")
         for process in self._worker_processes:
             try:
                 print(f"Sending SIGINT to PID {process.pid}...")
-                process.send_signal(subprocess.SIGINT) # Graceful shutdown
-                process.wait(timeout=10) # Wait for graceful shutdown
+                process.send_signal(subprocess.SIGINT)  # Graceful shutdown
+                process.wait(timeout=10)  # Wait for graceful shutdown
                 print(f"Process {process.pid} terminated gracefully.")
             except subprocess.TimeoutExpired:
-                print(f"Process {process.pid} did not terminate gracefully, sending SIGTERM...")
-                process.terminate() # Force kill
+                print(
+                    f"Process {process.pid} did not terminate gracefully, sending SIGTERM..."
+                )
+                process.terminate()  # Force kill
                 process.wait()
                 print(f"Process {process.pid} terminated.")
             except Exception as e:
-                 print(f"Error stopping process {process.pid}: {e}")
+                print(f"Error stopping process {process.pid}: {e}")
 
         self._worker_processes = []
         print("Huey worker(s) stopped.")
@@ -321,17 +327,18 @@ class HueyWorker(BaseWorker):
             return
 
         num_workers = num_workers or os.cpu_count() or 1
-        worker_type = 'thread' # Default worker type, TODO: config
-        print(f"Starting Huey worker pool ({num_workers} {worker_type} workers)...")
-        worker_args = ['-w', str(num_workers), '-k', worker_type]
+        worker_type = "thread"  # Default worker type, TODO: config
+        print(
+            f"Starting Huey worker pool ({num_workers} {worker_type} workers)..."
+        )
+        worker_args = ["-w", str(num_workers), "-k", worker_type]
         self._start_consumer_process(worker_args)
-        print("Worker pool started in background.") # Popen is background
-        
+        print("Worker pool started in background.")  # Popen is background
+
     def stop_worker_pool(self) -> None:
         """
         Stop all Huey worker processes in the pool.
         """
-        # TODO: Same logic as stop_worker, as we start one consumer process
         self.stop_worker()
 
     def _create_huey_config_file(self):
@@ -389,37 +396,39 @@ class HueyWorker(BaseWorker):
                 f"huey = RedisHuey('{name}', connection_pool=pool)"
             )
             # Sqlite backend
-            elif backend_type_str == "sqlite":
-                # Database path should be relative to base_dir or absolute
-                db_path_str = getattr(backend, "database", f"{name}.db")
-                db_path = Path(db_path_str)
-                if not db_path.is_absolute():
-                    # Assume relative to base_dir if not absolute
-                    db_path = Path(self._base_dir) / db_path
-                # Ensure the directory for the SQLite file exists
-                db_dir = db_path.parent
-                if not self._fs.exists(str(db_dir)):
-                    self._fs.makedirs(str(db_dir), exist_ok=True)
+        elif backend_type_str == "sqlite":
+            # Database path should be relative to base_dir or absolute
+            db_path_str = getattr(backend, "database", f"{name}.db")
+            db_path = Path(db_path_str)
+            if not db_path.is_absolute():
+                # Assume relative to base_dir if not absolute
+                db_path = Path(self._base_dir) / db_path
+            # Ensure the directory for the SQLite file exists
+            db_dir = db_path.parent
+            if not self._fs.exists(str(db_dir)):
+                self._fs.makedirs(str(db_dir), exist_ok=True)
 
-                config_lines.append(f"db_file = r'{str(db_path)}'") # Use raw string for Windows paths
-                config_lines.append(f"huey = SqliteHuey('{name}', filename=db_file)")
+            config_lines.append(f"db_file = r'{str(db_path)}'")  # Use raw string for Windows paths
+            config_lines.append(f"huey = SqliteHuey('{name}', filename=db_file)")
 
             # File backend (useful for simple local testing)
-            elif backend_type_str == "file":
-                file_path_str = getattr(backend, "database", f"{name}_huey_storage") # Use 'database' field for path convention
-                file_path = Path(file_path_str)
-                if not file_path.is_absolute():
-                    file_path = Path(self._base_dir) / ".flowerpower" / file_path
-                # Ensure directory exists
-                file_dir = file_path.parent
-                if not self._fs.exists(str(file_dir)):
-                    self._fs.makedirs(str(file_dir), exist_ok=True)
-                config_lines.append(f"storage_path = r'{str(file_path)}'")
-                config_lines.append(f"huey = FileHuey('{name}', path=storage_path)")
+        elif backend_type_str == "file":
+            file_path_str = getattr(
+                backend, "database", f"{name}_huey_storage"
+            )  # Use 'database' field for path convention
+            file_path = Path(file_path_str)
+            if not file_path.is_absolute():
+                file_path = Path(self._base_dir) / ".flowerpower" / file_path
+            # Ensure directory exists
+            file_dir = file_path.parent
+            if not self._fs.exists(str(file_dir)):
+                self._fs.makedirs(str(file_dir), exist_ok=True)
+            config_lines.append(f"storage_path = r'{str(file_path)}'")
+            config_lines.append(f"huey = FileHuey('{name}', path=storage_path)")
 
             # Memory backend (default)
-            else: # Default to MemoryHuey
-                config_lines.append(f"huey = MemoryHuey('{name}')")
+        else:  # Default to MemoryHuey
+            config_lines.append(f"huey = MemoryHuey('{name}')")
 
             # Add generic Huey task definition
             config_lines.extend([
@@ -468,7 +477,8 @@ class HueyWorker(BaseWorker):
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             # Ensure workers are stopped on exiting context
-            self.stop_worker() # Handles both single and pool
+            self.stop_worker()  # Handles both single and pool
+
         def _get_function_path(self, func: Callable) -> tuple[str, str]:
             """
             Helper method to reliably get the module path and function name.
@@ -476,8 +486,3 @@ class HueyWorker(BaseWorker):
             module_path = func.__module__
             function_name = func.__name__
             return module_path, function_name
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            # Ensure workers are stopped on exiting context
-            self.stop_worker() # Handles both single and pool
-            return False # Don't suppress exceptions
