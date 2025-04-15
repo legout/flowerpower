@@ -533,6 +533,21 @@ def run_pipeline_on_message(
                 "or a FlowerPower project base directory, in which a event broker is "
                 "configured in the `config/project.yml` file."
             )
+        
+    if client._client_id is None and client_id is not None:
+        client._client_id = client_id
+    
+    '''
+    cli_clean_session | config_clean_session | result
+    TRUE		        TRUE		           TRUE
+    FALSE		        FALSE                  FALSE
+    FALSE               TRUE                   FALSE
+    TRUE                FALSE                  FALSE
+
+    Clean session should only use default value if neither cli nor config source says otherwise
+    '''
+    client._clean_session = client._clean_session and clean_session
+
     client.run_pipeline_on_message(
         name=name,
         topic=topic,
