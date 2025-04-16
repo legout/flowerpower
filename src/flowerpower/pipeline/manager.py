@@ -3,18 +3,18 @@ import importlib
 import importlib.util
 import posixpath
 import sys
-from typing import  Any
+from typing import Any
 
 from hamilton import driver
 
 from ..fs import AbstractFileSystem
 from .io import PipelineIOManager  # Add import for PipelineIOManager
+
 # Import the new registry class
 from .registry import PipelineRegistry
 from .runner import PipelineRunner  # Add import for PipelineRunner
 from .scheduler import PipelineScheduler  # Add import for PipelineScheduler
 from .visualizer import PipelineVisualizer  # Add import for PipelineVisualizer
-
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -25,21 +25,14 @@ else:
     h_opentelemetry = None
     init_tracer = None
 import rich
-
 from loguru import logger
 from rich.console import Console
-
 from rich.table import Table
 from rich.tree import Tree
 
-from ..cfg import (  
-    Config, PipelineConfig)
+from ..cfg import Config
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
-# Re-add view_img import for show_dag
-from ..utils.templates import \
-    PIPELINE_PY_TEMPLATE  # Keep if needed for other methods
-
 
 # Keep conditional import for opentelemetry and other plugins
 if importlib.util.find_spec("opentelemetry"):
@@ -52,9 +45,7 @@ from pathlib import Path
 from types import TracebackType
 from uuid import UUID
 
-
 from munch import Munch
-
 
 
 class PipelineManager:
@@ -65,8 +56,8 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str = "conf",
         pipelines_dir: str = "pipelines",
-        telemetry: bool = True,
-        worker_type: str = "apscheduler",  # New parameter for worker backend
+        telemetry: bool = False,
+        worker_type: str | None = None,  # New parameter for worker backend
     ):
         """
         Initializes the Pipeline object.
@@ -75,6 +66,11 @@ class PipelineManager:
             base_dir (str | None): The flowerpower base path. Defaults to None.
             storage_options (dict | Munch | BaseStorageOptions, optional): The storage options. Defaults to {}.
             fs (AbstractFileSystem | None, optional): The fsspec filesystem to use. Defaults to None.
+            cfg_dir (str, optional): The configuration directory. Defaults to "conf".
+            pipelines_dir (str, optional): The pipelines directory. Defaults to "pipelines".
+            telemetry (bool, optional): Whether to enable hamilton telemetry. Defaults to False.
+            worker_type (str | None, optional): The type of worker to use. If None, the worker type from the project config
+                will be used. Defaults to None.
 
         Returns:
             None
@@ -88,7 +84,7 @@ class PipelineManager:
 
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
-        self._worker_type = worker_type  # Store worker_type
+        # Store worker_type
 
         try:
             self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
@@ -98,6 +94,8 @@ class PipelineManager:
 
         self._sync_fs()
         self.load_config()  # Initial load for project config
+
+        self._worker_type = worker_type or self.cfg.project.worker.type
 
         # Instantiate the PipelineRegistry
         self._registry = PipelineRegistry(
@@ -139,8 +137,6 @@ class PipelineManager:
         # Instantiate the PipelineIOManager
         self._io_manager = PipelineIOManager(
             fs=self._fs,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
             registry=self._registry,  # Pass registry instance
         )
 
@@ -210,7 +206,9 @@ class PipelineManager:
             if reload:
                 importlib.reload(self._module)
 
-    def load_config(self, name: str | None = None, reload: bool = False):
+        return self._module
+
+    def load_config(self, name: str | None = None, reload: bool = False) -> Config:
         """
         Load the configuration file.
 
@@ -225,7 +223,14 @@ class PipelineManager:
         """
         if reload:
             del self.cfg
+            self.cfg = Config.load(
+                base_dir=self._base_dir, pipeline_name=name, fs=self._fs
+            )
+            return self.cfg
+
         self.cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
+
+        return self.cfg
 
     # _get_driver method removed, moved to PipelineRunner
 
@@ -361,7 +366,7 @@ class PipelineManager:
         Returns:
             UUID: The ID of the submitted job.
         """
-        
+
         return self._scheduler.add_job(
             name=name,
             inputs=inputs,
@@ -413,67 +418,20 @@ class PipelineManager:
         Adds a pipeline with the given name.
 
         Args:
-            name (str | None): The name of the pipeline.
-                Defaults to None.
-            overwrite (bool): Whether to overwrite an existing pipeline with the same name. Defaults to False.
-
-        Returns:
-            None
+            name (str): The name of the pipeline.
+            overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
+            worker_type (str | None): The type of worker to use. Defaults to None.
 
         Raises:
-            ValueError: If the configuration path or pipeline path does not exist.
+            ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
 
         Examples:
-            ```python
             pm = PipelineManager()
             pm.new("my_pipeline")
-            ```
         """
-        if not self._fs.exists(self._cfg_dir):
-            raise ValueError(
-                f"Configuration path {self._cfg_dir} does not exist. Please run flowerpower init first."
-            )
-        if not self._fs.exists(self._pipelines_dir):
-            raise ValueError(
-                f"Pipeline path {self._pipelines_dir} does not exist. Please run flowerpower init first."
-            )
-
-        if self._fs.exists(f"{self._pipelines_dir}/{name.replace('.', '/')}.py"):
-            if overwrite:
-                self._fs.rm(f"{self._pipelines_dir}/{name.replace('.', '/')}.py")
-            else:
-                raise ValueError(
-                    f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
-                    "Use `overwrite=True` to overwrite."
-                )
-        if self._fs.exists(f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"):
-            if overwrite:
-                self._fs.rm(f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml")
-            else:
-                raise ValueError(
-                    f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
-                    "Use `overwrite=True` to overwrite."
-                )
-
-        pipeline_path = f"{self._pipelines_dir}/{name.replace('.', '/')}.py"
-        cfg_path = f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"
-
-        self._fs.makedirs(pipeline_path.rsplit("/", 1)[0], exist_ok=True)
-        self._fs.makedirs(cfg_path.rsplit("/", 1)[0], exist_ok=True)
-
-        with self._fs.open(pipeline_path, "w") as f:
-            f.write(
-                PIPELINE_PY_TEMPLATE.format(
-                    name=name,
-                    date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                )
-            )
-
-        self.cfg.pipeline = PipelineConfig(name=name)
-        self.cfg.save()
-
-        rich.print(
-            f"🔧 Created new pipeline [bold blue]{self.cfg.project.name}.{name}[/bold blue]"
+        self._registry.new(
+            name=name,
+            overwrite=overwrite,
         )
 
     # --- Delegate Methods for IO Manager ---
@@ -481,7 +439,8 @@ class PipelineManager:
     def import_pipeline(
         self,
         name: str,
-        path: str,
+        base_dir: str,
+        src_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
@@ -490,12 +449,14 @@ class PipelineManager:
         # The new IOManager method takes these from its __init__.
         # We pass only the arguments relevant to the *delegated* call.
         return self._io_manager.import_pipeline(
-            name=name, path=path, storage_options=storage_options, overwrite=overwrite
+            name=name, base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
         )
 
     def import_many(
         self,
-        pipelines: dict[str, str],  # Changed from names: list[str], path: str
+        pipelines: dict[str, str] | list[str],
+        base_dir: str | None = None,
+        src_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
@@ -503,52 +464,57 @@ class PipelineManager:
         # Note: The original method had different args (names, path, cfg_dir, etc.).
         # The new IOManager method takes a dict {name: path}.
         return self._io_manager.import_many(
-            pipelines=pipelines, storage_options=storage_options, overwrite=overwrite
+            pipelines=pipelines, base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
         )
 
     def import_all(
         self,
-        path: str,
+        base_dir: str,
+        src_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates importing all pipelines to the PipelineIOManager."""
         return self._io_manager.import_all(
-            path=path, storage_options=storage_options, overwrite=overwrite
+           base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
         )
 
-    def export(
+    def export_pipeline(
         self,
         name: str,
-        path: str,
+        base_dir: str,
+        dest_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting a pipeline to the PipelineIOManager."""
-        return self._io_manager.export(
-            name=name, path=path, storage_options=storage_options, overwrite=overwrite
+        return self._io_manager.export_pipeline(
+            name=name, base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
         )
 
     def export_many(
         self,
-        pipelines: dict[str, str],  # Changed from names: list[str], path: str
+        pipelines: list[str],
+        base_dir: str,
+        dest_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting multiple pipelines to the PipelineIOManager."""
         return self._io_manager.export_many(
-            pipelines=pipelines, storage_options=storage_options, overwrite=overwrite
+            pipelines=pipelines, base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
         )
 
     def export_all(
         self,
-        path: str,
+        base_dir: str,
+        dest_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting all pipelines to the PipelineIOManager."""
         return self._io_manager.export_all(
-            path=path, storage_options=storage_options, overwrite=overwrite
+            base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
         )
 
     # --- End Delegate Methods ---

@@ -1,5 +1,5 @@
 import posixpath
-from typing import Any
+from typing import Any, Callable
 
 from fsspec.spec import AbstractFileSystem
 from hamilton import driver
@@ -17,9 +17,9 @@ class PipelineVisualizer:
         fs: AbstractFileSystem,
         base_dir: str,
         # Assuming the passed functions can handle the 'reload' parameter
-        load_config_func: callable[[str, bool], dict[str, Any]],
-        load_module_func: callable[[str, bool], Any],
-        get_driver_builder_func: callable[[Any, dict[str, Any]], driver.Builder],
+        load_config_func: Callable[[str, bool], dict[str, Any]],
+        load_module_func: Callable[[str, bool], Any],
+        get_driver_builder_func: Callable[[Any, dict[str, Any]], driver.Builder],
     ):
         """
         Initializes the PipelineVisualizer.

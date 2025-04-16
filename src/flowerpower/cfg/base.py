@@ -19,8 +19,8 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             raise NotImplementedError("The filesystem does not support writing files.")
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "BaseConfig":
-        return msgspec.convert(d, cls)
+    def from_dict(cls, data: dict[str, Any]) -> "BaseConfig":
+        return msgspec.convert(data, cls)
 
     @classmethod
     def from_yaml(cls, path: str, fs: AbstractFileSystem | None = None) -> "BaseConfig":

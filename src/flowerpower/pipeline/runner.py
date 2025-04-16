@@ -22,6 +22,7 @@ from hamilton.plugins import h_tqdm
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
+from munch import munchify
 
 # Assuming Config and PipelineConfig might be needed for type hints or logic
 # If not directly used, these can be removed later.
@@ -63,6 +64,7 @@ class PipelineRunner:
         self._load_config_func = load_config_func
         self._load_module_func = load_module_func
         self._get_project_name_func = get_project_name_func
+    
 
     def _resolve_parameters(
         self, method_args: dict, config_section: Any, keys: list[str]
@@ -129,7 +131,7 @@ class PipelineRunner:
                 "Pipeline module must be loaded and passed to _get_driver."
             )
 
-        if self._telemetry:
+        if not self._telemetry:
             disable_telemetry()
 
         max_tasks = kwargs.pop("max_tasks", 20)

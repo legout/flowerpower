@@ -1,27 +1,27 @@
 name: hello-world
+worker:
+  type: rq
+  backend:
+    type: null
+    uri: null
+    username: null
+    password: null
+    host: null
+    port: null
+    database: null
+    ssl: false
+    ssl_cert: null
+    ssl_key: null
+    ssl_ca: 123
+    verify_ssl: false
+    queues:
+    - default
+tracker:
+  username: user@flowerpower.de
+  api_url: http://localhost:8241
+  ui_url: https://localhost:8242
+  api_key: null
+  verify: false
 open_telemetry:
   host: localhost
   port: 6381
-tracker:
-  api_key: null
-  api_url: http://localhost:8241
-  ui_url: https://localhost:8242
-  username: user@flowerpower.de
-worker:
-  cleanup_interval: 900
-  data_store:
-    type: asyncpg
-    #uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
-    uri: postgresql+asyncpg://localhost:5432/flowerpower
-    username: postgres
-    password: password
-    ssl: true
-    schema: "hello_world"
-  event_broker:
-    type: asyncpg
-    #uri: sqlite+aiosqlite:///examples/hello-world/flowerpower.db
-    #uri: postgresql+asyncpg://lodl.nes.siemens.de/flowerpower
-    #username: postgres
-    #password: jfA8*@b#PL5OR@u&hiCClZEokQen9X
-    #ssl: true
-  max_concurrent_jobs: 10

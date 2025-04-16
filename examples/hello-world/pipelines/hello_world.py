@@ -16,8 +16,6 @@ PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
 
-print(Path(__file__).parents[1])
-
 
 def spend() -> pd.Series:
     """Returns a series of spend data."""
@@ -65,8 +63,9 @@ def spend_std_dev(spend: pd.Series) -> float:
 
 
 def spend_zero_mean_unit_variance(
-    spend_zero_mean: pd.Series, spend_std_dev: float
+    spend_zero_mean: pd.Series, spend_std_dev: float, verbose: bool = False
 ) -> pd.Series:
     """Function showing one way to make spend have zero mean and unit variance."""
-    logger.info(f"spend_zero_mean_unit_variance {spend_zero_mean / spend_std_dev}")
+    if verbose:
+        logger.info(f"spend_zero_mean_unit_variance {spend_zero_mean / spend_std_dev}")
     return spend_zero_mean / spend_std_dev

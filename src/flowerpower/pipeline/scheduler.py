@@ -5,6 +5,7 @@
 
 import datetime as dt
 import logging
+from typing import Any, Callable
 from uuid import UUID  # Add UUID import
 
 from fsspec.spec import AbstractFileSystem
@@ -15,9 +16,12 @@ from rich import print as rprint
 # from .cfg import PipelineConfig # May not be needed directly if using funcs
 from ..fs.base import BaseStorageOptions
 
-from ..utils.scheduler import get_trigger
+# The trigger function has siginificantly changed in the new version. 
+# We have to adjust the related code and imports accordingly
+# from ..utils.scheduler import get_trigger 
 from ..worker import Worker
-from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
+
+#from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
 
 log = logging.getLogger(__name__)
 
@@ -31,10 +35,10 @@ class PipelineScheduler:
         base_dir: str,
         storage_options: dict | Munch | BaseStorageOptions,
         worker_type: str,
-        load_config_func: callable,  # e.g., PipelineManager.load_config
-        get_project_name_func: callable,  # e.g., lambda: self.cfg.project.name
-        get_pipeline_run_func: callable,  # e.g., PipelineManager._runner.run
-        get_registry_func: callable,  # e.g., lambda: self._registry
+        load_config_func: Callable,  # e.g., PipelineManager.load_config
+        get_project_name_func: Callable,  # e.g., lambda: self.cfg.project.name
+        get_pipeline_run_func: Callable,  # e.g., PipelineManager._runner.run
+        get_registry_func: Callable,  # e.g., lambda: self._registry
     ):
         """Initialize PipelineScheduler.
 
@@ -82,7 +86,7 @@ class PipelineScheduler:
             )
         return self._worker_instance
 
-    def _get_schedules(self) -> list[BaseSchedule]:
+    def _get_schedules(self) -> list[Any]:
         """Get all schedules from the worker backend."""
         # TODO: Consider caching or optimizing if called frequently
         # Use the worker property directly

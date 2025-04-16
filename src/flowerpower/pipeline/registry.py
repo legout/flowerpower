@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
+import datetime as dt
 import logging
 import posixpath
+from typing import TYPE_CHECKING, Any, Callable
 
-from typing import TYPE_CHECKING, Any
-
-import jinja2
 import rich  # <-- Add this import
 from fsspec.spec import AbstractFileSystem
 from rich.console import Console
@@ -14,10 +13,10 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
-
 # Import necessary config types and utility functions
-from ..cfg.base import Config
- # Assuming view_img might be used indirectly or needed later
+from ..cfg import PipelineConfig
+
+# Assuming view_img might be used indirectly or needed later
 from ..utils.templates import PIPELINE_PY_TEMPLATE
 
 if TYPE_CHECKING:
@@ -37,7 +36,7 @@ class PipelineRegistry:
         base_dir: str,
         cfg_dir: str,
         pipelines_dir: str,
-        load_config_func: callable,
+        load_config_func: Callable,
     ):
         """
         Initializes the PipelineRegistry.
@@ -57,111 +56,60 @@ class PipelineRegistry:
         self._console = Console()
 
     # --- Methods moved from PipelineManager ---
-
-    def new(
-        self,
-        name: str,
-        cfg: "Config",  # Accept Config object directly
-        template: str | None = None,
-        template_kwargs: dict | None = None,
-        overwrite: bool = False,
-    ) -> None:
+    def new(self, name: str, overwrite: bool = False):
         """
-        Create a new pipeline.
+        Adds a pipeline with the given name.
 
         Args:
             name (str): The name of the pipeline.
-            cfg (Config): The loaded configuration object.
-            template (str | None, optional): The template to use. Defaults to None.
-            template_kwargs (dict | None, optional): The template keyword arguments. Defaults to None.
-            overwrite (bool, optional): Whether to overwrite existing files. Defaults to False.
-
-        Returns:
-            None
+            overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
+            worker_type (str | None): The type of worker to use. Defaults to None.
 
         Raises:
-            FileExistsError: If the pipeline already exists and overwrite is False.
+            ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
 
         Examples:
-            >>> pm = PipelineManager()
-            >>> pm.new("my_pipeline")
+            pm = PipelineManager()
+            pm.new("my_pipeline")
         """
-        pipeline_cfg_path = posixpath.join(self._cfg_dir, "pipelines", f"{name}.yml")
-        pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
+        cfg = self._load_config_func()
 
-        if self._fs.exists(pipeline_cfg_path) and not overwrite:
-            raise FileExistsError(
-                f"Pipeline config {pipeline_cfg_path} already exists."
+        for dir_path, label in ((self._cfg_dir, "configuration"), (self._pipelines_dir, "pipeline")):
+            if not self._fs.exists(dir_path):
+                raise ValueError(f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first.")
+
+        formatted_name = name.replace(".", "/")
+        pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
+        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
+
+        def check_and_handle(path: str):
+            if self._fs.exists(path):
+                if overwrite:
+                    self._fs.rm(path)
+                else:
+                    raise ValueError(
+                        f"Pipeline {cfg.project.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
+                    )
+
+        check_and_handle(pipeline_file)
+        check_and_handle(cfg_file)
+
+        # Ensure directories for the new files exist
+        for file_path in (pipeline_file, cfg_file):
+            self._fs.makedirs(file_path.rsplit("/", 1)[0], exist_ok=True)
+
+        with self._fs.open(pipeline_file, "w") as f:
+            f.write(
+                PIPELINE_PY_TEMPLATE.format(
+                    name=name,
+                    date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                )
             )
-        if self._fs.exists(pipeline_py_path) and not overwrite:
-            raise FileExistsError(f"Pipeline module {pipeline_py_path} already exists.")
-
-        # Create pipeline config file (minimal structure)
-        default_pipeline_cfg = {
-            "name": name,
-            "description": f"Pipeline {name}",
-            # Add other minimal default config sections if necessary
-            "run": {"final_vars": []},
-            "schedule": {"enabled": False},
-            "tracker": {},
-        }
-        # Use cfg.save_pipeline to ensure consistency if available, otherwise dump manually
-        # Assuming Config object has a way to save a specific pipeline config
-        # This part might need refinement based on Config class capabilities
-        try:
-            # Ideal scenario: Config object handles saving pipeline specifics
-            cfg.save_pipeline(name, default_pipeline_cfg, fs=self._fs)
-            logger.info(f"Created pipeline config: {pipeline_cfg_path}")
-        except AttributeError:
-            # Fallback: Manually dump YAML (less ideal)
-            import yaml  # Import locally if not standard
-
-            with self._fs.open(pipeline_cfg_path, "w") as f:
-                yaml.dump(default_pipeline_cfg, f, default_flow_style=False)
-            logger.warning(
-                f"Created pipeline config using basic YAML dump: {pipeline_cfg_path}"
-            )
-
-        # Create pipeline python module from template
-        if template is None:
-            template_content = PIPELINE_PY_TEMPLATE
-        else:
-            # Load custom template (assuming it's accessible via fs)
-            try:
-                with self._fs.open(template, "r") as f:
-                    template_content = f.read()
-            except FileNotFoundError:
-                logger.error(f"Custom template not found: {template}")
-                # Decide how to handle: raise error or fallback to default?
-                # For now, fallback to default
-                logger.warning("Falling back to default pipeline template.")
-                template_content = PIPELINE_PY_TEMPLATE
-            except Exception as e:
-                logger.error(f"Error loading custom template {template}: {e}")
-                logger.warning("Falling back to default pipeline template.")
-                template_content = PIPELINE_PY_TEMPLATE
-
-        template_kwargs = template_kwargs or {}
-        template_kwargs.setdefault("pipeline_name", name)  # Ensure name is available
-
-        try:
-            jinja_template = jinja2.Template(template_content)
-            rendered_code = jinja_template.render(**template_kwargs)
-        except Exception as e:
-            logger.error(f"Error rendering Jinja template for {name}: {e}")
-            # Handle error, maybe raise or use a very basic fallback
-            rendered_code = (
-                f"# Pipeline: {name}\n\n# Add your Hamilton functions here\n"
-            )
-            logger.warning("Using basic fallback code due to template rendering error.")
-
-        with self._fs.open(pipeline_py_path, "w") as f:
-            f.write(rendered_code)
-        logger.info(f"Created pipeline module: {pipeline_py_path}")
-
-        # Sync filesystem if needed
-        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
-            self._fs.sync()
+        
+        cfg.pipeline = PipelineConfig(name=name)
+        save_project = not self._fs.exists(f"{self._cfg_dir}/project.yml")
+        cfg.save(project=save_project, pipeline=True)
+        rich.print(f"🔧 Created new pipeline [bold blue]{cfg.project.name}.{name}[/bold blue]")
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
@@ -213,7 +161,7 @@ class PipelineRegistry:
             )
 
         # Sync filesystem if needed
-        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
+        if hasattr(self._fs, "sync") and Callable(getattr(self._fs, "sync")):
             self._fs.sync()
 
     def _get_files(self) -> list[str]:
@@ -261,7 +209,6 @@ class PipelineRegistry:
 
         summary_data = {
             "Name": cfg.pipeline.name,
-            "Description": cfg.pipeline.description,
             "Config Path": cfg.pipeline_cfg_path,
             "Module Path": posixpath.join(self._pipelines_dir, f"{name}.py"),
             "Run Config": cfg.pipeline.run.to_dict(),
