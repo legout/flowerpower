@@ -4,11 +4,12 @@ import time
 from pathlib import Path
 from types import TracebackType
 from typing import Callable
+import mmh3
 
 from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import CallbackAPIVersion, Client
+from paho.mqtt.client import CallbackAPIVersion, Client, convert_disconnect_error_code_to_reason_code
 
 from .cfg import Config
 from .pipeline import Pipeline
@@ -76,7 +77,8 @@ class MQTTManager:
 
     @staticmethod
     def _on_disconnect(client, userdata, disconnect_flags, rc, properties=None):
-        logger.info(f"Disconnected with result code: {rc}")
+        logger.info(f"Disconnected from MQTT Broker with {convert_disconnect_error_code_to_reason_code(rc)}")
+        logger.info(f"Disconnected with result code: {rc} and {disconnect_flags}")
         reconnect_count, reconnect_delay = 0, userdata.first_reconnect_delay
 
         if userdata.max_reconnect_count == 0:
@@ -112,9 +114,16 @@ class MQTTManager:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
-        
-        if self._client_id is None:
+        if self._client_id is None and self._clean_session:
+            #Random Client ID when clean session is True
             self._client_id = f"flowerpower-{random.randint(0, 10000)}"
+        elif self._client_id is None and not self._clean_session:
+            #Deterministic Client ID when clean session is False
+            self._client_id = f"flowerpower-{mmh3.hash_bytes(
+                str(self._host) + str(self._port) + str(self.topic) + str(self._clean_session)
+            ).hex()}"
+
+
         logger.debug(f"Client ID: {self._client_id} - Clean session: {self._clean_session}")
         client = Client(
             CallbackAPIVersion.VERSION2,
@@ -145,12 +154,12 @@ class MQTTManager:
         client.on_subscribe = self._on_subscribe
 
         client.connect(self._host, self._port)
-
+        self._client = clien
         # topic = topic or topic
         if self.topic:
             self.subscribe()
 
-        self._client = client
+        t
 
     def disconnect(self):
         self._max_reconnect_count = 0
@@ -280,6 +289,8 @@ class MQTTManager:
                     transport=event_broker_cfg.get("transport", "tcp"),
                     clean_session=event_broker_cfg.get("clean_session", True),
                     client_id=event_broker_cfg.get("client_id", None),
+                    topic=event_broker_cfg.get("topic", None),
+                    qos=event_broker_cfg.get("qos", 0),
                 )
             raise ValueError("No event broker configuration found in config file.")
         else:
@@ -305,6 +316,8 @@ class MQTTManager:
             transport=cfg.get("transport", "tcp"),
             clean_session=cfg.get("clean_session", True),
             client_id=cfg.get("client_id", None),
+            topic=cfg.get("topic", None),
+            qos=cfg.get("qos", 0),
         )
 
     def run_pipeline_on_message(
@@ -526,6 +539,8 @@ def run_pipeline_on_message(
                 port=port,
                 clean_session=clean_session,
                 client_id=client_id,
+                topic=topic,
+                qos=qos,
             )
         else:
             raise ValueError(
@@ -547,6 +562,9 @@ def run_pipeline_on_message(
     Clean session should only use default value if neither cli nor config source says otherwise
     '''
     client._clean_session = client._clean_session and clean_session
+
+    if client.topic is None and topic is not None:
+        client.topic = topic
 
     client.run_pipeline_on_message(
         name=name,
