@@ -63,6 +63,7 @@ from types import TracebackType
 # else:
 #     MQTTClient = None
 from munch import Munch
+from uuid import UUID
 
 # from .worker.apscheduler.trigger import get_trigger # No longer needed here
 from ..utils.executor import get_executor
@@ -490,7 +491,7 @@ class PipelineManager:
         self,
         name: str,
         path: str,
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates importing a pipeline to the PipelineIOManager."""
@@ -504,7 +505,7 @@ class PipelineManager:
     def import_many(
         self,
         pipelines: dict[str, str], # Changed from names: list[str], path: str
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates importing multiple pipelines to the PipelineIOManager."""
@@ -517,7 +518,7 @@ class PipelineManager:
     def import_all(
         self,
         path: str,
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates importing all pipelines to the PipelineIOManager."""
@@ -529,7 +530,7 @@ class PipelineManager:
         self,
         name: str,
         path: str,
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting a pipeline to the PipelineIOManager."""
@@ -540,7 +541,7 @@ class PipelineManager:
     def export_many(
         self,
         pipelines: dict[str, str], # Changed from names: list[str], path: str
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting multiple pipelines to the PipelineIOManager."""
@@ -551,7 +552,7 @@ class PipelineManager:
     def export_all(
         self,
         path: str,
-        storage_options: Optional[BaseStorageOptions] = None,
+        storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Delegates exporting all pipelines to the PipelineIOManager."""
