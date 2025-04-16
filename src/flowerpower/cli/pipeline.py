@@ -19,13 +19,13 @@ from loguru import logger
 #     show_summary as show_pipeline_summary_,
 #     # start_mqtt_listener as start_mqtt_listener_,
 # )
-from ..pipeline import Pipeline, PipelineManager
+from ..pipeline.manager import Pipeline, PipelineManager
 from .utils import parse_dict_or_list_param, parse_param_dict
 
 # Optional imports
 if importlib.util.find_spec("apscheduler"):
-    from ..scheduler import get_schedule_manager
-    from ..scheduler import start_worker as start_worker_
+    from ..pipeline.scheduler import get_schedule_manager
+    from ..pipeline.scheduler import start_worker as start_worker_
 else:
     get_schedule_manager = None
     start_worker_ = None

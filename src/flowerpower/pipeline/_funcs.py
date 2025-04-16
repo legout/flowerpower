@@ -54,7 +54,7 @@ from munch import Munch
 from ..worker.apscheduler.trigger import get_trigger  # Updated path
 
 
-from ..pipeline import PipelineManager
+from .manager import PipelineManager
 
 class Pipeline:
     def __init__(

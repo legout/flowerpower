@@ -18,7 +18,7 @@ from ..cfg.pipeline.params import PipelineConfig
 from ..cfg.pipeline.run import PipelineRunConfig
 from ..cfg.pipeline.schedule import PipelineScheduleConfig
 from ..cfg.pipeline.tracker import PipelineTrackerConfig
-from .cfg.project import ProjectConfig
+from ..cfg.project import ProjectConfig
 from ..fs.base import BaseStorageOptions, get_filesystem
 from .registry import PipelineRegistry  # Needed for type hints
 
