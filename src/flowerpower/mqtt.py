@@ -5,6 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Callable
 import mmh3
+import socket
 
 from fsspec import AbstractFileSystem
 from loguru import logger
@@ -30,6 +31,7 @@ class MQTTManager:
         transport: str = "tcp",
         clean_session: bool = True,
         client_id: str | None = None,
+        client_id_suffix: str | None = None,
         **kwargs,
     ):
         if "user" in kwargs:
@@ -51,6 +53,7 @@ class MQTTManager:
 
         self._clean_session = clean_session
         self._client_id = client_id
+        self._client_id_suffix = client_id_suffix
 
         self._client = None
 
@@ -116,13 +119,15 @@ class MQTTManager:
     def connect(self) -> Client:
         if self._client_id is None and self._clean_session:
             #Random Client ID when clean session is True
-            self._client_id = f"flowerpower-{random.randint(0, 10000)}"
+            self._client_id = f"flowerpower-client-{random.randint(0, 10000)}"
         elif self._client_id is None and not self._clean_session:
             #Deterministic Client ID when clean session is False
-            self._client_id = f"flowerpower-{mmh3.hash_bytes(
-                str(self._host) + str(self._port) + str(self.topic) + str(self._clean_session)
+            self._client_id = f"flowerpower-client-{mmh3.hash_bytes(
+                str(self._host) + str(self._port) + str(self.topic) + str(socket.gethostname())
             ).hex()}"
 
+        if self._client_id_suffix:
+            self._client_id = f"{self._client_id}-{self._client_id_suffix}"
 
         logger.debug(f"Client ID: {self._client_id} - Clean session: {self._clean_session}")
         client = Client(
@@ -154,12 +159,12 @@ class MQTTManager:
         client.on_subscribe = self._on_subscribe
 
         client.connect(self._host, self._port)
-        self._client = clien
+        self._client = client
         # topic = topic or topic
         if self.topic:
             self.subscribe()
 
-        t
+        
 
     def disconnect(self):
         self._max_reconnect_count = 0
@@ -176,13 +181,10 @@ class MQTTManager:
         #    self.reconnect()
         self._client.publish(topic, payload)
 
-    def subscribe(self, topic: str | None = None, qos: int | None = None):
+    def subscribe(self, topic: str | None = None, qos: int = 0):
         if topic is not None:
             self.topic = topic
-
-        if qos is not None:
-            self._qos = qos
-        self._client.subscribe(self.topic, qos=self._qos)
+        self._client.subscribe(self.topic, qos=qos)
 
     def unsubscribe(self, topic: str | None = None):
         if topic is not None:
@@ -289,6 +291,7 @@ class MQTTManager:
                     transport=event_broker_cfg.get("transport", "tcp"),
                     clean_session=event_broker_cfg.get("clean_session", True),
                     client_id=event_broker_cfg.get("client_id", None),
+                    client_id_suffix=event_broker_cfg.get("client_id_suffix", None),
                     topic=event_broker_cfg.get("topic", None),
                     qos=event_broker_cfg.get("qos", 0),
                 )
@@ -316,6 +319,7 @@ class MQTTManager:
             transport=cfg.get("transport", "tcp"),
             clean_session=cfg.get("clean_session", True),
             client_id=cfg.get("client_id", None),
+            client_id_suffix=cfg.get("client_id_suffix", None),
             topic=cfg.get("topic", None),
             qos=cfg.get("qos", 0),
         )
@@ -497,6 +501,7 @@ def run_pipeline_on_message(
     clean_session: bool = True,
     qos: int = 0,
     client_id: str | None = None,
+    client_id_suffix: str | None = None,
     **kwargs,
 ):
     """
@@ -541,6 +546,7 @@ def run_pipeline_on_message(
                 client_id=client_id,
                 topic=topic,
                 qos=qos,
+                client_id_suffix=client_id_suffix,
             )
         else:
             raise ValueError(
@@ -551,6 +557,9 @@ def run_pipeline_on_message(
         
     if client._client_id is None and client_id is not None:
         client._client_id = client_id
+
+    if client._client_id_suffix is None and client_id_suffix is not None:
+        client._client_id_suffix = client_id_suffix
     
     '''
     cli_clean_session | config_clean_session | result
