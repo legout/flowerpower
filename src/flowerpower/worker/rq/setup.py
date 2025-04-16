@@ -62,40 +62,40 @@ class RQBackend(BaseBackend):
             self.setup()
         return self._client
 
-    def store_job_result(
-        self, job_id: str, result: object, expiration_time: dt.timedelta | None = None
-    ) -> None:
-        """
-        Store a job result in Redis or memory.
-        """
-        key = f"{self.result_namespace}:{job_id}"
-        serialized_result = json.dumps(result) if result is not None else None
+    # def store_job_result(
+    #     self, job_id: str, result: object, expiration_time: dt.timedelta | None = None
+    # ) -> None:
+    #     """
+    #     Store a job result in Redis or memory.
+    #     """
+    #     key = f"{self.result_namespace}:{job_id}"
+    #     serialized_result = json.dumps(result) if result is not None else None
 
-        if self.type.is_redis_type:
-            self.client.set(key, serialized_result)
-            if expiration_time:
-                seconds = int(expiration_time.total_seconds())
-                if seconds > 0:
-                    self.client.expire(key, seconds)
-        elif self.type.is_memory_type:
-            self.client[key] = serialized_result
-        else:
-            raise ValueError(f"Unsupported RQBackend type: {self.type}")
+    #     if self.type.is_redis_type:
+    #         self.client.set(key, serialized_result)
+    #         if expiration_time:
+    #             seconds = int(expiration_time.total_seconds())
+    #             if seconds > 0:
+    #                 self.client.expire(key, seconds)
+    #     elif self.type.is_memory_type:
+    #         self.client[key] = serialized_result
+    #     else:
+    #         raise ValueError(f"Unsupported RQBackend type: {self.type}")
 
-    def get_job_result(self, job_id: str) -> object:
-        """
-        Get a job result from Redis or memory.
-        """
-        key = f"{self.result_namespace}:{job_id}"
-        if self.type.is_redis_type:
-            result = self.client.get(key)
-            if result:
-                return json.loads(result)
-            return None
-        elif self.type.is_memory_type:
-            result = self.client.get(key)
-            if result:
-                return json.loads(result)
-            return None
-        else:
-            raise ValueError(f"Unsupported RQBackend type: {self.type}")
+    # def get_job_result(self, job_id: str) -> object:
+    #     """
+    #     Get a job result from Redis or memory.
+    #     """
+    #     key = f"{self.result_namespace}:{job_id}"
+    #     if self.type.is_redis_type:
+    #         result = self.client.get(key)
+    #         if result:
+    #             return json.loads(result)
+    #         return None
+    #     elif self.type.is_memory_type:
+    #         result = self.client.get(key)
+    #         if result:
+    #             return json.loads(result)
+    #         return None
+    #     else:
+    #         raise ValueError(f"Unsupported RQBackend type: {self.type}")

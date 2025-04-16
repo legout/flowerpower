@@ -354,7 +354,13 @@ class RQWorker(BaseWorker):
         Returns:
             Any: Result of the job
         """
-        return self._backend.get_job_result(job_id)
+        #self._queues
+        raise NotImplementedError(
+            "get_job_result is not implemented in RQWorker."
+        )
+        #pass
+        
+
 
     def show_schedules(self) -> None:
         """Display the schedules in a user-friendly format."""
