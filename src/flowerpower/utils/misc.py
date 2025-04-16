@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import time
 from typing import Any
+
 import msgspec
 import tqdm
 
@@ -413,21 +414,23 @@ def view_img(data: str | bytes, format: str = "svg"):
     os.unlink(tmp_path)
 
 
-def update_config_from_dict(struct: msgspec.Struct, data: dict[str, Any]) -> msgspec.Struct:
+def update_config_from_dict(
+    struct: msgspec.Struct, data: dict[str, Any]
+) -> msgspec.Struct:
     """
     Updates a msgspec.Struct instance with values from a dictionary.
     Handles nested msgspec.Struct objects and nested dictionaries.
-    
+
     Args:
         obj: The msgspec.Struct object to update
         update_dict: Dictionary containing update values
-        
+
     Returns:
         Updated msgspec.Struct instance
     """
     # Convert the struct to a dictionary for easier manipulation
     obj_dict = msgspec.to_builtins(struct)
-    
+
     # Update the dictionary recursively
     for key, value in data.items():
         if key in obj_dict:
@@ -437,11 +440,14 @@ def update_config_from_dict(struct: msgspec.Struct, data: dict[str, Any]) -> msg
             else:
                 # Direct update for non-nested values
                 obj_dict[key] = value
-    
+
     # Convert back to the original struct type
     return msgspec.convert(obj_dict, type(struct))
 
-def update_nested_dict(original: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+
+def update_nested_dict(
+    original: dict[str, Any], updates: dict[str, Any]
+) -> dict[str, Any]:
     """Helper function to update nested dictionaries"""
     result = original.copy()
     for key, value in updates.items():

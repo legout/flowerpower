@@ -1,9 +1,10 @@
-from .apscheduler import APSWorker, APSBackend
-from .rq import RQWorker, RQBackend
-from .huey import HueyWorker
-from .base import BaseBackend, BaseWorker
 from typing import Any, Optional
+
 from ..fs import AbstractFileSystem
+from .apscheduler import APSBackend, APSWorker
+from .base import BaseBackend, BaseWorker
+from .huey import HueyWorker
+from .rq import RQBackend, RQWorker
 
 
 class Worker:
@@ -14,15 +15,14 @@ class Worker:
 
     def __new__(
         cls,
-        type: str="rq",
+        type: str = "rq",
         name: str | None = None,
         base_dir: str | None = None,
         backend: BaseBackend | None = None,
         storage_options: Optional[dict[str, Any]] = None,
         fs: AbstractFileSystem | None = None,
         **kwargs,
-    )->BaseWorker:
-
+    ) -> BaseWorker:
         if type == "rq":
             return RQWorker(name, base_dir, backend, storage_options, fs, **kwargs)
         elif type == "apscheduler":
@@ -45,7 +45,7 @@ class Backend:
         cls,
         worker_type: str,
         **kwargs,
-    )->BaseBackend:
+    ) -> BaseBackend:
         if worker_type == "rq":
             return RQBackend(**kwargs)
         elif worker_type == "apscheduler":

@@ -2,10 +2,11 @@
 # pylint: disable=logging-fstring-interpolation
 # flake8: noqa: E501
 """Pipeline Scheduler."""
+
 import datetime as dt
 import logging
 from typing import Any, Callable
-from uuid import UUID # Add UUID import
+from uuid import UUID  # Add UUID import
 
 from fsspec.spec import AbstractFileSystem
 from munch import Munch
@@ -14,10 +15,11 @@ from rich import print as rprint
 # Assuming Config structure is available or relevant parts passed via funcs
 # from .cfg import PipelineConfig # May not be needed directly if using funcs
 from ..fs.base import BaseStorageOptions
-from ..utils.misc import short_uuid # Keep if short_uuid is needed, otherwise remove
+from ..utils.misc import \
+    short_uuid  # Keep if short_uuid is needed, otherwise remove
 from ..utils.scheduler import get_trigger
 from ..worker import Worker
-from ..worker.base import BaseSchedule # Import BaseSchedule for type hinting
+from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
 
 log = logging.getLogger(__name__)
 
@@ -31,10 +33,10 @@ class PipelineScheduler:
         base_dir: str,
         storage_options: dict | Munch | BaseStorageOptions,
         worker_type: str,
-        load_config_func: Callable, # e.g., PipelineManager.load_config
-        get_project_name_func: Callable, # e.g., lambda: self.cfg.project.name
-        get_pipeline_run_func: Callable, # e.g., PipelineManager._runner.run
-        get_registry_func: Callable, # e.g., lambda: self._registry
+        load_config_func: Callable,  # e.g., PipelineManager.load_config
+        get_project_name_func: Callable,  # e.g., lambda: self.cfg.project.name
+        get_pipeline_run_func: Callable,  # e.g., PipelineManager._runner.run
+        get_registry_func: Callable,  # e.g., lambda: self._registry
     ):
         """Initialize PipelineScheduler.
 
@@ -61,15 +63,17 @@ class PipelineScheduler:
         self._get_pipeline_run_func = get_pipeline_run_func
         self._get_registry_func = get_registry_func
 
-        log.debug(f"Initialized PipelineScheduler with worker type: {self._worker_type}")
-        self._worker_instance = None # Initialize worker instance cache
+        log.debug(
+            f"Initialized PipelineScheduler with worker type: {self._worker_type}"
+        )
+        self._worker_instance = None  # Initialize worker instance cache
 
     @property
     def worker(self):
         """
         Lazily instantiate and cache a Worker instance.
         """
-        if not hasattr(self, '_worker_instance') or self._worker_instance is None:
+        if not hasattr(self, "_worker_instance") or self._worker_instance is None:
             # Use attributes passed during PipelineScheduler init
             log.debug(f"Instantiating worker of type: {self._worker_type}")
             self._worker_instance = Worker(
@@ -132,14 +136,14 @@ class PipelineScheduler:
             "with_opentelemetry": with_opentelemetry,
             "with_progressbar": with_progressbar,
             "reload": reload,
-            **kwargs  # Include any extra kwargs passed to run_job
+            **kwargs,  # Include any extra kwargs passed to run_job
         }
         # Filter out None values AFTER merging
         run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
         log.debug(f"Resolved run_kwargs for immediate job '{name}': {run_kwargs}")
 
-        job_id = self.worker.add_job( # Use the worker property
-            func=self._get_pipeline_run_func(), # Use the provided run function
+        job_id = self.worker.add_job(  # Use the worker property
+            func=self._get_pipeline_run_func(),  # Use the provided run function
             kwargs=run_kwargs,
             # Note: Worker-specific args might be needed here depending on the backend
         )
@@ -198,21 +202,21 @@ class PipelineScheduler:
             "with_opentelemetry": with_opentelemetry,
             "with_progressbar": with_progressbar,
             "reload": reload,
-            **kwargs  # Include any extra kwargs passed to add_job
+            **kwargs,  # Include any extra kwargs passed to add_job
         }
-         # Filter out None values AFTER merging
+        # Filter out None values AFTER merging
         run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
         log.debug(f"Resolved run_kwargs for immediate job (TTL) '{name}': {run_kwargs}")
 
-        id_ = self.worker.add_job( # Use the worker property
-            func=self._get_pipeline_run_func(), # Use the provided run function
+        id_ = self.worker.add_job(  # Use the worker property
+            func=self._get_pipeline_run_func(),  # Use the provided run function
             kwargs=run_kwargs,
             result_ttl=result_ttl,
             # Note: Worker-specific args might be needed here depending on the backend
         )
         rprint(
             f"✅ Successfully added job for "
-            f"[blue]{self._get_project_name_func()}.{name}[/blue] with ID [green]{id_}[/green]" # Use project name func
+            f"[blue]{self._get_project_name_func()}.{name}[/blue] with ID [green]{id_}[/green]"  # Use project name func
         )
         return id_
 
@@ -223,7 +227,7 @@ class PipelineScheduler:
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
-        config: dict | None = None, # Driver config
+        config: dict | None = None,  # Driver config
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
@@ -231,14 +235,14 @@ class PipelineScheduler:
         trigger_type: str | None = None,
         id_: str | None = None,
         paused: bool = False,
-        coalesce: str | None = None, # Default handled by worker
+        coalesce: str | None = None,  # Default handled by worker
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
         max_running_jobs: int | None = None,
-        conflict_policy: str | None = None, # Default handled by worker
+        conflict_policy: str | None = None,  # Default handled by worker
         overwrite: bool = False,
         # worker_type: str | None = None, # worker_type is fixed for the scheduler instance
-        **kwargs, # Trigger specific args + run specific args not explicitly listed
+        **kwargs,  # Trigger specific args + run specific args not explicitly listed
     ) -> str:
         """
         Schedule a pipeline for execution using the configured worker.
@@ -276,12 +280,16 @@ class PipelineScheduler:
         try:
             cfg = self._load_config_func(name=name)
             if not cfg or not cfg.pipeline:
-                 raise ValueError(f"Could not load valid configuration for pipeline '{name}'")
+                raise ValueError(
+                    f"Could not load valid configuration for pipeline '{name}'"
+                )
             schedule_cfg = cfg.pipeline.schedule
             run_cfg = cfg.pipeline.run
             project_name = self._get_project_name_func()
         except Exception as e:
-            log.error(f"Failed to load configuration or get project name for pipeline '{name}': {e}")
+            log.error(
+                f"Failed to load configuration or get project name for pipeline '{name}': {e}"
+            )
             raise ValueError(f"Configuration error for pipeline '{name}': {e}") from e
 
         # --- Resolve Parameters ---
@@ -289,55 +297,133 @@ class PipelineScheduler:
 
         # 1. Run Parameters (passed to the pipeline execution function)
         run_kwargs = {
-            "name": name, # Always pass the pipeline name
+            "name": name,  # Always pass the pipeline name
             "inputs": inputs if inputs is not None else run_cfg.get("inputs"),
-            "final_vars": final_vars if final_vars is not None else run_cfg.get("final_vars"),
+            "final_vars": final_vars
+            if final_vars is not None
+            else run_cfg.get("final_vars"),
             "config": config if config is not None else run_cfg.get("config"),
             "executor": executor if executor is not None else run_cfg.get("executor"),
-            "with_tracker": with_tracker if with_tracker is not None else run_cfg.get("with_tracker"),
-            "with_opentelemetry": with_opentelemetry if with_opentelemetry is not None else run_cfg.get("with_opentelemetry"),
-            "with_progressbar": with_progressbar if with_progressbar is not None else run_cfg.get("with_progressbar"),
+            "with_tracker": with_tracker
+            if with_tracker is not None
+            else run_cfg.get("with_tracker"),
+            "with_opentelemetry": with_opentelemetry
+            if with_opentelemetry is not None
+            else run_cfg.get("with_opentelemetry"),
+            "with_progressbar": with_progressbar
+            if with_progressbar is not None
+            else run_cfg.get("with_progressbar"),
             # Include any extra kwargs that aren't schedule/trigger related
-             **{k: v for k, v in kwargs.items() if k not in ['seconds', 'minutes', 'hours', 'days', 'weeks', 'start_date', 'end_date', 'timezone', 'jitter', 'year', 'month', 'day', 'week', 'day_of_week', 'hour', 'minute', 'second']} # Basic filter
+            **{
+                k: v
+                for k, v in kwargs.items()
+                if k
+                not in [
+                    "seconds",
+                    "minutes",
+                    "hours",
+                    "days",
+                    "weeks",
+                    "start_date",
+                    "end_date",
+                    "timezone",
+                    "jitter",
+                    "year",
+                    "month",
+                    "day",
+                    "week",
+                    "day_of_week",
+                    "hour",
+                    "minute",
+                    "second",
+                ]
+            },  # Basic filter
         }
         # Filter out None values AFTER merging, so explicit None overrides default
         run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
         log.debug(f"Resolved run_kwargs for '{name}': {run_kwargs}")
 
-
         # 2. Trigger Parameters
         trigger_type = trigger_type or schedule_cfg.trigger.type_
         if not trigger_type:
-            raise ValueError(f"Trigger type must be specified either in config or as argument for pipeline '{name}'")
+            raise ValueError(
+                f"Trigger type must be specified either in config or as argument for pipeline '{name}'"
+            )
 
         # Get defaults for the specified trigger type
-        trigger_defaults = getattr(schedule_cfg.trigger, trigger_type, Munch()).to_dict()
+        trigger_defaults = getattr(
+            schedule_cfg.trigger, trigger_type, Munch()
+        ).to_dict()
         trigger_kwargs = trigger_defaults.copy()
         # Overlay explicit kwargs passed to the function
-        trigger_kwargs.update({k: v for k, v in kwargs.items() if k in trigger_defaults or k in ['seconds', 'minutes', 'hours', 'days', 'weeks', 'start_date', 'end_date', 'timezone', 'jitter', 'year', 'month', 'day', 'week', 'day_of_week', 'hour', 'minute', 'second']}) # Heuristic filter
-        trigger_kwargs.pop("type_", None) # Remove internal type_ field
+        trigger_kwargs.update(
+            {
+                k: v
+                for k, v in kwargs.items()
+                if k in trigger_defaults
+                or k
+                in [
+                    "seconds",
+                    "minutes",
+                    "hours",
+                    "days",
+                    "weeks",
+                    "start_date",
+                    "end_date",
+                    "timezone",
+                    "jitter",
+                    "year",
+                    "month",
+                    "day",
+                    "week",
+                    "day_of_week",
+                    "hour",
+                    "minute",
+                    "second",
+                ]
+            }
+        )  # Heuristic filter
+        trigger_kwargs.pop("type_", None)  # Remove internal type_ field
         # Filter out None values
         trigger_kwargs = {k: v for k, v in trigger_kwargs.items() if v is not None}
-        log.debug(f"Resolved trigger_kwargs for '{name}' (type={trigger_type}): {trigger_kwargs}")
-
+        log.debug(
+            f"Resolved trigger_kwargs for '{name}' (type={trigger_type}): {trigger_kwargs}"
+        )
 
         # 3. Schedule Run Parameters (passed to the worker's add_schedule method)
         schedule_run_defaults = schedule_cfg.run.to_dict()
         schedule_run_kwargs = {
-            "paused": paused if paused is not None else schedule_run_defaults.get("paused", False), # Explicit False default
-            "coalesce": coalesce if coalesce is not None else schedule_run_defaults.get("coalesce"),
-            "misfire_grace_time": misfire_grace_time if misfire_grace_time is not None else schedule_run_defaults.get("misfire_grace_time"),
-            "max_jitter": max_jitter if max_jitter is not None else schedule_run_defaults.get("max_jitter"),
-            "max_running_jobs": max_running_jobs if max_running_jobs is not None else schedule_run_defaults.get("max_running_jobs"),
-            "conflict_policy": conflict_policy if conflict_policy is not None else schedule_run_defaults.get("conflict_policy", "do_nothing"), # Explicit default
+            "paused": paused
+            if paused is not None
+            else schedule_run_defaults.get("paused", False),  # Explicit False default
+            "coalesce": coalesce
+            if coalesce is not None
+            else schedule_run_defaults.get("coalesce"),
+            "misfire_grace_time": misfire_grace_time
+            if misfire_grace_time is not None
+            else schedule_run_defaults.get("misfire_grace_time"),
+            "max_jitter": max_jitter
+            if max_jitter is not None
+            else schedule_run_defaults.get("max_jitter"),
+            "max_running_jobs": max_running_jobs
+            if max_running_jobs is not None
+            else schedule_run_defaults.get("max_running_jobs"),
+            "conflict_policy": conflict_policy
+            if conflict_policy is not None
+            else schedule_run_defaults.get(
+                "conflict_policy", "do_nothing"
+            ),  # Explicit default
         }
-         # Filter out None values AFTER merging
-        schedule_run_kwargs = {k: v for k, v in schedule_run_kwargs.items() if v is not None}
+        # Filter out None values AFTER merging
+        schedule_run_kwargs = {
+            k: v for k, v in schedule_run_kwargs.items() if v is not None
+        }
         log.debug(f"Resolved schedule_run_kwargs for '{name}': {schedule_run_kwargs}")
 
-
         # --- Generate ID if not provided ---
-        def _generate_id(pipeline_name: str, explicit_id: str | None, force_overwrite_base: bool) -> str:
+        def _generate_id(
+            pipeline_name: str, explicit_id: str | None, force_overwrite_base: bool
+        ) -> str:
             if explicit_id:
                 log.debug(f"Using explicit schedule ID: {explicit_id}")
                 return explicit_id
@@ -352,29 +438,37 @@ class PipelineScheduler:
                 existing_ids = {schedule.id for schedule in existing_schedules}
                 log.debug(f"Existing schedule IDs: {existing_ids}")
 
-                if not any(id_val.startswith(f"{pipeline_name}-") for id_val in existing_ids):
-                     log.debug(f"No existing schedules found for '{pipeline_name}', using base ID: {base_id}")
-                     return base_id
+                if not any(
+                    id_val.startswith(f"{pipeline_name}-") for id_val in existing_ids
+                ):
+                    log.debug(
+                        f"No existing schedules found for '{pipeline_name}', using base ID: {base_id}"
+                    )
+                    return base_id
 
                 # Find highest existing number for this pipeline name
                 max_num = 0
                 for id_val in existing_ids:
                     if id_val.startswith(f"{pipeline_name}-"):
                         try:
-                            num_part = id_val.split('-')[-1]
+                            num_part = id_val.split("-")[-1]
                             num = int(num_part)
                             if num > max_num:
                                 max_num = num
                         except (ValueError, IndexError):
-                            log.warning(f"Could not parse number from existing schedule ID: {id_val}")
-                            continue # Skip malformed IDs
+                            log.warning(
+                                f"Could not parse number from existing schedule ID: {id_val}"
+                            )
+                            continue  # Skip malformed IDs
 
                 new_id = f"{pipeline_name}-{max_num + 1}"
                 log.debug(f"Generated new schedule ID: {new_id}")
                 return new_id
 
             except Exception as e:
-                log.error(f"Error getting existing schedules to generate ID: {e}. Falling back to base ID: {base_id}")
+                log.error(
+                    f"Error getting existing schedules to generate ID: {e}. Falling back to base ID: {base_id}"
+                )
                 # Fallback in case of error fetching schedules
                 return base_id
 
@@ -396,10 +490,10 @@ class PipelineScheduler:
 
                 added_id = worker.add_schedule(
                     func=pipeline_func,
-                    kwargs=run_kwargs, # Pass resolved run parameters
+                    kwargs=run_kwargs,  # Pass resolved run parameters
                     trigger=trigger,
                     id=schedule_id,
-                    **schedule_run_kwargs # Pass resolved schedule run parameters
+                    **schedule_run_kwargs,  # Pass resolved schedule run parameters
                 )
                 rprint(
                     f"✅ Successfully scheduled job for "
@@ -407,7 +501,9 @@ class PipelineScheduler:
                 )
                 return added_id
         except Exception as e:
-            log.error(f"Failed to add schedule '{schedule_id}' for pipeline '{name}': {e}")
+            log.error(
+                f"Failed to add schedule '{schedule_id}' for pipeline '{name}': {e}"
+            )
             rprint(f"[bold red]Error scheduling pipeline '{name}': {e}[/bold red]")
             # Re-raise the exception so the caller knows it failed
             raise
@@ -423,7 +519,7 @@ class PipelineScheduler:
         """
         try:
             registry = self._get_registry_func()
-            names = registry._get_names() # Use registry to find pipelines
+            names = registry._get_names()  # Use registry to find pipelines
             if not names:
                 rprint("[yellow]No pipelines found to schedule.[/yellow]")
                 return
@@ -436,10 +532,19 @@ class PipelineScheduler:
                     # Load config specifically for this pipeline to get defaults
                     # Note: schedule() will load it again, potential optimization later
                     cfg = self._load_config_func(name=name)
-                    if not cfg or not cfg.pipeline or not cfg.pipeline.schedule or not cfg.pipeline.schedule.enabled:
-                         log.info(f"Skipping scheduling for '{name}': Not configured or not enabled.")
-                         rprint(f"🟡 Skipping schedule for [cyan]{name}[/cyan]: Not configured or disabled in config.")
-                         continue
+                    if (
+                        not cfg
+                        or not cfg.pipeline
+                        or not cfg.pipeline.schedule
+                        or not cfg.pipeline.schedule.enabled
+                    ):
+                        log.info(
+                            f"Skipping scheduling for '{name}': Not configured or not enabled."
+                        )
+                        rprint(
+                            f"🟡 Skipping schedule for [cyan]{name}[/cyan]: Not configured or disabled in config."
+                        )
+                        continue
 
                     rprint(f"Scheduling [cyan]{name}[/cyan]...")
                     # Pass kwargs, allowing overrides of config defaults
@@ -451,10 +556,16 @@ class PipelineScheduler:
                     rprint(f"❌ Error scheduling [cyan]{name}[/cyan]: {e}")
 
             if errors:
-                rprint(f"\n[bold red]Finished scheduling with errors for: {', '.join(errors)}[/bold red]")
+                rprint(
+                    f"\n[bold red]Finished scheduling with errors for: {', '.join(errors)}[/bold red]"
+                )
             else:
-                rprint(f"\n[bold green]Successfully scheduled {len(scheduled_ids)} pipelines.[/bold green]")
+                rprint(
+                    f"\n[bold green]Successfully scheduled {len(scheduled_ids)} pipelines.[/bold green]"
+                )
 
         except Exception as e:
             log.error(f"An unexpected error occurred during schedule_all: {e}")
-            rprint(f"[bold red]An unexpected error occurred during schedule_all: {e}[/bold red]")
+            rprint(
+                f"[bold red]An unexpected error occurred during schedule_all: {e}[/bold red]"
+            )

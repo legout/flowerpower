@@ -3,19 +3,23 @@ import importlib
 import importlib.util
 import posixpath
 import sys
-from typing import Any, Callable, TYPE_CHECKING
-# from uuid import UUID # No longer needed here
+from typing import TYPE_CHECKING, Any, Callable
 
-from ..fs import AbstractFileSystem
-# Import the new registry class
-from .registry import PipelineRegistry
-from .runner import PipelineRunner # Add import for PipelineRunner
-from .scheduler import PipelineScheduler # Add import for PipelineScheduler
-from .io import PipelineIOManager # Add import for PipelineIOManager
-from .visualizer import PipelineVisualizer # Add import for PipelineVisualizer
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.telemetry import disable_telemetry
+
+from ..fs import AbstractFileSystem
+from .io import PipelineIOManager  # Add import for PipelineIOManager
+# Import the new registry class
+from .registry import PipelineRegistry
+from .runner import PipelineRunner  # Add import for PipelineRunner
+from .scheduler import PipelineScheduler  # Add import for PipelineScheduler
+from .visualizer import PipelineVisualizer  # Add import for PipelineVisualizer
+
+# from uuid import UUID # No longer needed here
+
+
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -37,33 +41,32 @@ from rich.table import Table
 from rich.tree import Tree
 
 from ..cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-    Config,
-    PipelineConfig,
-)
+    Config, PipelineConfig)
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
-from ..utils.misc import view_img # Re-add view_img import for show_dag
-from ..utils.templates import PIPELINE_PY_TEMPLATE # Keep if needed for other methods
-
+from ..utils.misc import view_img  # Re-add view_img import for show_dag
+from ..utils.templates import \
+    PIPELINE_PY_TEMPLATE  # Keep if needed for other methods
 # Import the new Worker class
-from ..worker import Worker #, BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
+from ..worker import \
+    Worker  # , BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
 
 # Keep conditional import for opentelemetry and other plugins
 if importlib.util.find_spec("opentelemetry"):
     # ... (rest of conditional imports remain the same)
-    pass # Placeholder, original code follows
+    pass  # Placeholder, original code follows
 
 # Remove the old SchedulerManager logic
 # SchedulerManager = None # Removed
 from pathlib import Path
 from types import TracebackType
+from uuid import UUID
 
 # if importlib.util.find_spec("paho"):
 #     from .mqtt import MQTTClient
 # else:
 #     MQTTClient = None
 from munch import Munch
-from uuid import UUID
 
 # from .worker.apscheduler.trigger import get_trigger # No longer needed here
 from ..utils.executor import get_executor
@@ -109,7 +112,7 @@ class PipelineManager:
             logger.error(f"Error creating directories: {e}")
 
         self._sync_fs()
-        self.load_config() # Initial load for project config
+        self.load_config()  # Initial load for project config
 
         # Instantiate the PipelineRegistry
         self._registry = PipelineRegistry(
@@ -117,7 +120,7 @@ class PipelineManager:
             base_dir=self._base_dir,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
-            load_config_func=self.load_config # Pass the method itself
+            load_config_func=self.load_config,  # Pass the method itself
         )
 
         # Instantiate the PipelineRunner
@@ -126,10 +129,12 @@ class PipelineManager:
             base_dir=self._base_dir,
             pipelines_dir=self._pipelines_dir,
             telemetry=self._telemetry,
-            load_config_func=self.load_config, # Pass the method
-            load_module_func=self.load_module, # Pass the method
+            load_config_func=self.load_config,  # Pass the method
+            load_module_func=self.load_module,  # Pass the method
             # Use lambda to access cfg after it's loaded
-            get_project_name_func=lambda: self.cfg.project.name if hasattr(self, 'cfg') and self.cfg else "unknown_project"
+            get_project_name_func=lambda: self.cfg.project.name
+            if hasattr(self, "cfg") and self.cfg
+            else "unknown_project",
         )
 
         # Instantiate the PipelineScheduler
@@ -138,10 +143,12 @@ class PipelineManager:
             base_dir=self._base_dir,
             storage_options=self._storage_options,
             worker_type=self._worker_type,
-            load_config_func=self.load_config, # Pass the method
-            get_project_name_func=lambda: self.cfg.project.name if hasattr(self, 'cfg') and self.cfg else "unknown_project", # Pass lambda
-            get_pipeline_run_func=self._runner.run, # Pass the runner's run method
-            get_registry_func=lambda: self._registry # Pass lambda to get registry
+            load_config_func=self.load_config,  # Pass the method
+            get_project_name_func=lambda: self.cfg.project.name
+            if hasattr(self, "cfg") and self.cfg
+            else "unknown_project",  # Pass lambda
+            get_pipeline_run_func=self._runner.run,  # Pass the runner's run method
+            get_registry_func=lambda: self._registry,  # Pass lambda to get registry
         )
 
         # Instantiate the PipelineIOManager
@@ -149,27 +156,27 @@ class PipelineManager:
             fs=self._fs,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
-            registry=self._registry # Pass registry instance
+            registry=self._registry,  # Pass registry instance
         )
 
         # Helper function for basic driver builder needed by visualizer
         def get_base_driver_builder(module, config):
-             # Basic builder needed for visualization
-             return (
-                 driver.Builder()
-                 .enable_dynamic_execution(allow_experimental_mode=True)
-                 .with_modules(module)
-                 .with_config(config)
-                 # No adapters or complex executors needed for display_all_functions
-             )
+            # Basic builder needed for visualization
+            return (
+                driver.Builder()
+                .enable_dynamic_execution(allow_experimental_mode=True)
+                .with_modules(module)
+                .with_config(config)
+                # No adapters or complex executors needed for display_all_functions
+            )
 
         # Instantiate the PipelineVisualizer
         self._visualizer = PipelineVisualizer(
             fs=self._fs,
             base_dir=self._base_dir,
-            load_config_func=self.load_config, # Pass the method
-            load_module_func=self.load_module, # Pass the method
-            get_driver_builder_func=get_base_driver_builder # Pass the helper function
+            load_config_func=self.load_config,  # Pass the method
+            load_module_func=self.load_module,  # Pass the method
+            get_driver_builder_func=get_base_driver_builder,  # Pass the helper function
         )
 
     def __enter__(self) -> "PipelineManager":
@@ -238,21 +245,21 @@ class PipelineManager:
     # _get_driver method removed, moved to PipelineRunner
 
     # _resolve_parameters method removed, moved to PipelineRunner
-    
+
     # worker property removed, moved to PipelineScheduler
-    
+
     def run(
         self,
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
-        config: dict | None = None, # Driver config
+        config: dict | None = None,  # Driver config
         executor: str | None = None,
         with_tracker: bool | None = None,
         with_opentelemetry: bool | None = None,
         with_progressbar: bool | None = None,
         reload: bool = False,
-        **kwargs, # Pass tracker/otel specific args here
+        **kwargs,  # Pass tracker/otel specific args here
     ) -> dict[str, Any]:
         """
         Run the pipeline by delegating to the PipelineRunner.
@@ -348,7 +355,7 @@ class PipelineManager:
         result_ttl: float | dt.timedelta = 0,
         # worker_type: str | None = None, # Override not directly supported here anymore
         **kwargs,
-    ) -> UUID: # Return type should be UUID as per scheduler's add_job
+    ) -> UUID:  # Return type should be UUID as per scheduler's add_job
         """
         Submit an immediate job run with result storage via the PipelineScheduler.
 
@@ -371,7 +378,9 @@ class PipelineManager:
         """
         # Delegate to the PipelineScheduler instance
         # Need to import UUID if not already imported
-        from uuid import UUID # Add import here if needed, or ensure it's at top
+        from uuid import \
+            UUID  # Add import here if needed, or ensure it's at top
+
         return self._scheduler.add_job(
             name=name,
             inputs=inputs,
@@ -385,6 +394,7 @@ class PipelineManager:
             result_ttl=result_ttl,
             **kwargs,
         )
+
     # --- End Delegate job submission ---
 
     def schedule(self, name: str, **kwargs) -> str:
@@ -501,10 +511,10 @@ class PipelineManager:
         return self._io_manager.import_pipeline(
             name=name, path=path, storage_options=storage_options, overwrite=overwrite
         )
-    
+
     def import_many(
         self,
-        pipelines: dict[str, str], # Changed from names: list[str], path: str
+        pipelines: dict[str, str],  # Changed from names: list[str], path: str
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
@@ -540,7 +550,7 @@ class PipelineManager:
 
     def export_many(
         self,
-        pipelines: dict[str, str], # Changed from names: list[str], path: str
+        pipelines: dict[str, str],  # Changed from names: list[str], path: str
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
@@ -599,9 +609,13 @@ class PipelineManager:
         """Delegates saving the DAG image to the PipelineVisualizer."""
         self._visualizer.save_dag(name=name, format=format, reload=reload)
 
-    def show_dag(self, name: str, format: str = "png", reload: bool = False, raw: bool = False):
+    def show_dag(
+        self, name: str, format: str = "png", reload: bool = False, raw: bool = False
+    ):
         """Delegates displaying or returning the DAG object to the PipelineVisualizer."""
-        return self._visualizer.show_dag(name=name, format=format, reload=reload, raw=raw)
+        return self._visualizer.show_dag(
+            name=name, format=format, reload=reload, raw=raw
+        )
 
     # --- Delegate Methods for Registry ---
 
@@ -610,33 +624,39 @@ class PipelineManager:
     ) -> dict[str, Any] | Table:
         """Gets the summary of a pipeline by delegating to the registry."""
         # The registry's get_summary now uses the load_config_func passed during init
-        return self._registry.get_summary(name=name, reload=reload, rich_render=rich_render)
+        return self._registry.get_summary(
+            name=name, reload=reload, rich_render=rich_render
+        )
 
     def show_summary(
         self,
         name: str,
         reload: bool = False,
         show_code: bool = False,
-        show_dag: bool = False, # Keep show_dag here as it needs driver
+        show_dag: bool = False,  # Keep show_dag here as it needs driver
         max_lines: int | None = None,
     ) -> None:
         """Shows the summary of a pipeline by delegating display logic."""
         # Delegate core summary display (config, code)
-        self._registry.show_summary(name=name, reload=reload, show_code=show_code, max_lines=max_lines)
+        self._registry.show_summary(
+            name=name, reload=reload, show_code=show_code, max_lines=max_lines
+        )
 
         # Keep DAG display within PipelineManager as it requires the driver
         if show_dag:
             # Ensure config is loaded for the correct pipeline before showing DAG
-            if reload or not hasattr(self, 'cfg') or self.cfg.pipeline.name != name:
-                 self.load_config(name=name, reload=reload)
-            self.show_dag(name=name, reload=False) # Call existing method, avoid double reload
+            if reload or not hasattr(self, "cfg") or self.cfg.pipeline.name != name:
+                self.load_config(name=name, reload=reload)
+            self.show_dag(
+                name=name, reload=False
+            )  # Call existing method, avoid double reload
 
         # Keep schedule display here for now, as it might interact with worker/config
         console = Console()
         try:
             # Ensure config is loaded for the correct pipeline before showing schedule
-            if reload or not hasattr(self, 'cfg') or self.cfg.pipeline.name != name:
-                 self.load_config(name=name, reload=reload)
+            if reload or not hasattr(self, "cfg") or self.cfg.pipeline.name != name:
+                self.load_config(name=name, reload=reload)
 
             schedule_cfg = self.cfg.pipeline.schedule
             if schedule_cfg.enabled:

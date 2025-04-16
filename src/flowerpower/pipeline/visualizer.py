@@ -77,7 +77,7 @@ class PipelineVisualizer:
             output_path,
             format=format,
             cleanup=True,
-            view=False, # Ensure it doesn't try to open the file
+            view=False,  # Ensure it doesn't try to open the file
         )
         print(
             f"📊 Saved graph for [bold blue]{name}[/bold blue] to [green]{output_path}.{format}[/green]"
@@ -107,4 +107,4 @@ class PipelineVisualizer:
             return dag
         # Use view_img utility to display the rendered graph
         view_img(dag.pipe(format=format), format=format)
-        return None # Explicitly return None when not raw
+        return None  # Explicitly return None when not raw

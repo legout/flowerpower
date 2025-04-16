@@ -1,10 +1,10 @@
 from pathlib import Path
 
+import msgspec
 import yaml
 from fsspec import AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
-import msgspec
 
 from ..fs import get_filesystem
 from .base import BaseConfig

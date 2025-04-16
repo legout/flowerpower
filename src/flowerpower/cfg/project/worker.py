@@ -1,7 +1,8 @@
 import datetime as dt
+from enum import Enum
 
 import msgspec
-from enum import Enum
+
 from ..base import BaseConfig
 
 # class Worker(Enum):
@@ -45,8 +46,9 @@ class APSBackend(BaseConfig):
     )  # int in secods
     max_concurrent_jobs: int = msgspec.field(default=10)
     schema: str | None = msgspec.field(default="flowerpower")
-    default_job_executor:str | None = msgspec.field(default="threadpool")
+    default_job_executor: str | None = msgspec.field(default="threadpool")
     num_workers: int | None = msgspec.field(default=None)
+
 
 class RQBackend(WorkerBackend):
     queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])

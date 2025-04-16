@@ -1,32 +1,28 @@
 import abc
 import datetime as dt
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+import importlib.util  # Added import
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
-import importlib.util # Added import
-
-from ..base import BaseWorker, BaseTrigger, BaseBackend, BackendType # Added BackendType
-from ...fs import AbstractFileSystem
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 # Huey imports for dynamic config generation and type hints
-from huey import ( # Added Huey base class
-    Huey,
-    RedisHuey,
-    SqliteHuey,
-    PriorityRedisHuey,
-    RedisExpireHuey,
-    PriorityRedisExpireHuey,
-    FileHuey,
-    MemoryHuey,
-)
+from huey import (FileHuey, Huey, MemoryHuey,  # Added Huey base class
+                  PriorityRedisExpireHuey, PriorityRedisHuey, RedisExpireHuey,
+                  RedisHuey, SqliteHuey)
 from redis import ConnectionPool
+
+from ...fs import AbstractFileSystem
+from ..base import (BackendType, BaseBackend, BaseTrigger,  # Added BackendType
+                    BaseWorker)
+
 
 class HueyWorker(BaseWorker):
     """
     Huey worker implementation for FlowerPower.
     """
+
     def __init__(
         self,
         name: str | None = None,
@@ -62,8 +58,9 @@ class HueyWorker(BaseWorker):
             # Attempt to recreate if missing (e.g., deleted manually)
             self._create_huey_config_file()
             if not self._fs.exists(str(config_path)):
-                 raise FileNotFoundError(f"Huey config file could not be found or created: {self._huey_config_path}")
-
+                raise FileNotFoundError(
+                    f"Huey config file could not be found or created: {self._huey_config_path}"
+                )
 
         # Dynamically import the config file and get the 'huey' variable
         module_name = config_path.stem
@@ -85,18 +82,23 @@ class HueyWorker(BaseWorker):
         except Exception as e:
             # Restore sys.path before raising
             sys.path = original_sys_path
-            raise ImportError(f"Failed to import Huey config from {self._huey_config_path}: {e}")
+            raise ImportError(
+                f"Failed to import Huey config from {self._huey_config_path}: {e}"
+            )
         finally:
             # Ensure sys.path is restored
-             sys.path = original_sys_path
-
+            sys.path = original_sys_path
 
         if not hasattr(module, "huey"):
-            raise AttributeError(f"'huey' variable not found in {self._huey_config_path}")
+            raise AttributeError(
+                f"'huey' variable not found in {self._huey_config_path}"
+            )
 
         self._huey_instance = getattr(module, "huey")
         if not isinstance(self._huey_instance, Huey):
-             raise TypeError(f"Variable 'huey' in {self._huey_config_path} is not a Huey instance.")
+            raise TypeError(
+                f"Variable 'huey' in {self._huey_config_path} is not a Huey instance."
+            )
 
         return self._huey_instance
 
@@ -158,11 +160,13 @@ class HueyWorker(BaseWorker):
         huey_schedule_options = trigger_instance
 
         # Combine schedule_kwargs with eta/delay options
-        huey_schedule_options.update({
-            k: schedule_kwargs.pop(k)
-            for k in ("priority", "retries", "retry_delay")
-            if k in schedule_kwargs
-        })
+        huey_schedule_options.update(
+            {
+                k: schedule_kwargs.pop(k)
+                for k in ("priority", "retries", "retry_delay")
+                if k in schedule_kwargs
+            }
+        )
 
         result = generic_task_wrapper.schedule(
             args=(module_path, function_name, args or (), kwargs or {}),
@@ -238,11 +242,12 @@ class HueyWorker(BaseWorker):
         print("Scheduled Tasks:")
         if schedules:
             for schedule in schedules:
-                print(f"- Task ID: {schedule.id}, ETA: {schedule.eta}")  # Improved format
+                print(
+                    f"- Task ID: {schedule.id}, ETA: {schedule.eta}"
+                )  # Improved format
             # TODO: More detailed formatting (function name, args)
         else:
             print("  No scheduled tasks.")
-
 
     def show_jobs(self) -> None:
         """
@@ -276,7 +281,6 @@ class HueyWorker(BaseWorker):
         except Exception as e:
             print(f"Error starting Huey consumer: {e}")
 
-
     def start_worker(self, background: bool = False) -> None:
         """
         Start a single Huey worker process.
@@ -289,7 +293,6 @@ class HueyWorker(BaseWorker):
         worker_args = ["-w", "1", "-k", "thread"]  # Default args for single worker
         self._start_consumer_process(worker_args)
         print("Worker started in background.")  # Popen is background
-
 
     def stop_worker(self) -> None:
         """
@@ -315,7 +318,6 @@ class HueyWorker(BaseWorker):
         self._worker_processes = []
         print("Huey worker(s) stopped.")
 
-
     def start_worker_pool(
         self, num_workers: int = None, background: bool = True
     ) -> None:
@@ -328,9 +330,7 @@ class HueyWorker(BaseWorker):
 
         num_workers = num_workers or os.cpu_count() or 1
         worker_type = "thread"  # Default worker type, TODO: config
-        print(
-            f"Starting Huey worker pool ({num_workers} {worker_type} workers)..."
-        )
+        print(f"Starting Huey worker pool ({num_workers} {worker_type} workers)...")
         worker_args = ["-w", str(num_workers), "-k", worker_type]
         self._start_consumer_process(worker_args)
         print("Worker pool started in background.")  # Popen is background
@@ -347,7 +347,7 @@ class HueyWorker(BaseWorker):
         based on the backend configuration.
         """
         backend = self._backend
-        name = self.name or "flowerpower_huey" # Huey needs a name
+        name = self.name or "flowerpower_huey"  # Huey needs a name
         config_lines = [
             "from huey import RedisHuey, SqliteHuey, PriorityRedisHuey, RedisExpireHuey, PriorityRedisExpireHuey, FileHuey, MemoryHuey",
             "from redis import ConnectionPool",
@@ -362,7 +362,7 @@ class HueyWorker(BaseWorker):
         elif isinstance(backend_type, BackendType):
             backend_type_str = backend_type.value
         else:
-            backend_type_str = "memory" # Default to memory if type is missing
+            backend_type_str = "memory"  # Default to memory if type is missing
 
         # Redis backend
         if backend_type_str == "redis":
@@ -370,7 +370,7 @@ class HueyWorker(BaseWorker):
             uri = getattr(backend, "uri", None)
             host = getattr(backend, "host", "localhost")
             port = getattr(backend, "port", 6379)
-            db = getattr(backend, "database", 0) # Redis DB is usually an int
+            db = getattr(backend, "database", 0)  # Redis DB is usually an int
             username = getattr(backend, "username", None)
             password = getattr(backend, "password", None)
             ssl = getattr(backend, "ssl", False)
@@ -379,7 +379,7 @@ class HueyWorker(BaseWorker):
             pool_args = [
                 f"host='{host}'",
                 f"port={port}",
-                f"db={int(db)}", # Ensure db is int
+                f"db={int(db)}",  # Ensure db is int
             ]
             if username:
                 pool_args.append(f"username='{username}'")
@@ -392,9 +392,7 @@ class HueyWorker(BaseWorker):
 
             config_lines.append(f"pool = ConnectionPool({', '.join(pool_args)})")
             # TODO: Add support for PriorityRedisHuey etc. based on config?
-            config_lines.append(
-                f"huey = RedisHuey('{name}', connection_pool=pool)"
-            )
+            config_lines.append(f"huey = RedisHuey('{name}', connection_pool=pool)")
             # Sqlite backend
         elif backend_type_str == "sqlite":
             # Database path should be relative to base_dir or absolute
@@ -408,7 +406,9 @@ class HueyWorker(BaseWorker):
             if not self._fs.exists(str(db_dir)):
                 self._fs.makedirs(str(db_dir), exist_ok=True)
 
-            config_lines.append(f"db_file = r'{str(db_path)}'")  # Use raw string for Windows paths
+            config_lines.append(
+                f"db_file = r'{str(db_path)}'"
+            )  # Use raw string for Windows paths
             config_lines.append(f"huey = SqliteHuey('{name}', filename=db_file)")
 
             # File backend (useful for simple local testing)
@@ -431,29 +431,31 @@ class HueyWorker(BaseWorker):
             config_lines.append(f"huey = MemoryHuey('{name}')")
 
             # Add generic Huey task definition
-            config_lines.extend([
-                "import importlib",
-                "",
-                "@huey.task(context=True)",
-                "def generic_huey_task(module_path, function_name, args, kwargs, task=None):",
-                '    """Generic Huey task to execute an arbitrary function."""',
-                "    try:",
-                "        module = importlib.import_module(module_path)",
-                "        func_to_run = getattr(module, function_name)",
-                "        print(f\"Executing {module_path}.{function_name} via Huey task {task.id if task else 'N/A'}\")",
-                "        return func_to_run(*args, **kwargs)",
-                "    except Exception as e:",
-                "        print(f\"Error in generic_huey_task executing {module_path}.{function_name}: {e}\")",
-                "        raise # Re-raise the exception so Huey handles retries/errors",
-                "",
-            ])
+            config_lines.extend(
+                [
+                    "import importlib",
+                    "",
+                    "@huey.task(context=True)",
+                    "def generic_huey_task(module_path, function_name, args, kwargs, task=None):",
+                    '    """Generic Huey task to execute an arbitrary function."""',
+                    "    try:",
+                    "        module = importlib.import_module(module_path)",
+                    "        func_to_run = getattr(module, function_name)",
+                    "        print(f\"Executing {module_path}.{function_name} via Huey task {task.id if task else 'N/A'}\")",
+                    "        return func_to_run(*args, **kwargs)",
+                    "    except Exception as e:",
+                    '        print(f"Error in generic_huey_task executing {module_path}.{function_name}: {e}")',
+                    "        raise # Re-raise the exception so Huey handles retries/errors",
+                    "",
+                ]
+            )
             config_content = "\n".join(config_lines)
             try:
                 self._fs.write_text(self._huey_config_path, config_content)
                 print(f"Generated Huey config: {self._huey_config_path}")
             except Exception as e:
                 print(f"Error writing Huey config file {self._huey_config_path}: {e}")
-                raise # Re-raise the exception
+                raise  # Re-raise the exception
 
         def _get_huey_instance_path(self) -> str:
             """
@@ -467,7 +469,6 @@ class HueyWorker(BaseWorker):
             # by the consumer process or the environment setup.
             module_name = config_path.stem
             return f"{module_name}.huey"
-
 
         # --- Context Manager ---
         def __enter__(self):

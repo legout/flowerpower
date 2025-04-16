@@ -7,7 +7,6 @@ from typing import Any
 
 from fsspec.spec import AbstractFileSystem
 
-
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
 
@@ -17,29 +16,26 @@ else:
     h_opentelemetry = None
     init_tracer = None
 import rich
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from ..cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
-
-    PipelineConfig,
-)
+from ..cfg import \
+    PipelineConfig  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
 from ..utils.misc import view_img
 from ..utils.templates import PIPELINE_PY_TEMPLATE
-
 # Import the new Worker class
-from ..worker import Worker #, BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
+from ..worker import \
+    Worker  # , BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
 
 # Keep conditional import for opentelemetry and other plugins
 if importlib.util.find_spec("opentelemetry"):
     # ... (rest of conditional imports remain the same)
-    pass # Placeholder, original code follows
+    pass  # Placeholder, original code follows
 
 # Remove the old SchedulerManager logic
 # SchedulerManager = None # Removed
@@ -52,9 +48,8 @@ from types import TracebackType
 from munch import Munch
 
 from ..worker.apscheduler.trigger import get_trigger  # Updated path
-
-
 from .manager import PipelineManager
+
 
 class Pipeline:
     def __init__(
@@ -376,16 +371,16 @@ class Pipeline:
             trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
 
             if overwrite:
-                worker.remove_schedule(id_) # Use worker method
+                worker.remove_schedule(id_)  # Use worker method
 
             # Pass run parameters via kwargs, remove job_executor
             id_ = worker.add_schedule(
                 func=self.run,
-                trigger=trigger, # Trigger object from get_trigger
+                trigger=trigger,  # Trigger object from get_trigger
                 id=id_,
                 # args=(name,), # Pass name as arg if self.run needs it directly
-                kwargs=kwargs, # Pass all other run parameters here
-                **schedule_kwargs, # Pass schedule-specific options like coalesce, etc.
+                kwargs=kwargs,  # Pass all other run parameters here
+                **schedule_kwargs,  # Pass schedule-specific options like coalesce, etc.
             )
             rich.print(
                 f"✅ Successfully added schedule for "

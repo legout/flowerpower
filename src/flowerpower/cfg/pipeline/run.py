@@ -1,5 +1,5 @@
-from munch import Munch, munchify
 import msgspec
+from munch import Munch, munchify
 
 from ..base import BaseConfig
 

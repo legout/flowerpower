@@ -5,11 +5,11 @@ This module implements the scheduler backend using RQ (Redis Queue) and rq-sched
 """
 
 import datetime as dt
+import multiprocessing
+import platform
 import sys
 import uuid
 from typing import Any, Callable
-import platform
-import multiprocessing
 
 from loguru import logger
 from rq import Queue
@@ -21,7 +21,6 @@ from ..base import BaseTrigger, BaseWorker
 from .setup import RQBackend
 from .trigger import RQTrigger
 from .utils import show_jobs, show_schedules
-
 
 if sys.platform == "darwin" and platform.machine() == "arm64":
     try:
@@ -354,13 +353,9 @@ class RQWorker(BaseWorker):
         Returns:
             Any: Result of the job
         """
-        #self._queues
-        raise NotImplementedError(
-            "get_job_result is not implemented in RQWorker."
-        )
-        #pass
-        
-
+        # self._queues
+        raise NotImplementedError("get_job_result is not implemented in RQWorker.")
+        # pass
 
     def show_schedules(self) -> None:
         """Display the schedules in a user-friendly format."""
@@ -386,8 +381,9 @@ class RQWorker(BaseWorker):
             background: Whether to run the worker in the background or in the current process
             queue_names: List of queue names to process (defaults to all queues)
         """
-        from rq import Worker
         import multiprocessing
+
+        from rq import Worker
 
         # Determine which queues to process
         if queue_names is None:
@@ -477,6 +473,7 @@ class RQWorker(BaseWorker):
             queue_names: List of queue names to process (defaults to all queues)
         """
         import multiprocessing
+
         from rq.worker_pool import WorkerPool
 
         if num_workers is None:

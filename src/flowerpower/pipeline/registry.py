@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
-import os
-import shutil
 import logging
+import os
 import posixpath
+import shutil
 import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import jinja2
-import rich # <-- Add this import
+import rich  # <-- Add this import
 from fsspec.spec import AbstractFileSystem
 from rich.console import Console
 from rich.panel import Panel
@@ -20,8 +20,9 @@ from rich.tree import Tree
 
 # Import necessary config types and utility functions
 from ..cfg.base import Config, PipelineConfig
+from ..utils.misc import \
+    view_img  # Assuming view_img might be used indirectly or needed later
 from ..utils.templates import PIPELINE_PY_TEMPLATE
-from ..utils.misc import view_img # Assuming view_img might be used indirectly or needed later
 
 if TYPE_CHECKING:
     # Keep this for type hinting if needed elsewhere, though Config is imported directly now
@@ -64,7 +65,7 @@ class PipelineRegistry:
     def new(
         self,
         name: str,
-        cfg: 'Config', # Accept Config object directly
+        cfg: "Config",  # Accept Config object directly
         template: str | None = None,
         template_kwargs: dict | None = None,
         overwrite: bool = False,
@@ -93,7 +94,9 @@ class PipelineRegistry:
         pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
 
         if self._fs.exists(pipeline_cfg_path) and not overwrite:
-            raise FileExistsError(f"Pipeline config {pipeline_cfg_path} already exists.")
+            raise FileExistsError(
+                f"Pipeline config {pipeline_cfg_path} already exists."
+            )
         if self._fs.exists(pipeline_py_path) and not overwrite:
             raise FileExistsError(f"Pipeline module {pipeline_py_path} already exists.")
 
@@ -115,12 +118,13 @@ class PipelineRegistry:
             logger.info(f"Created pipeline config: {pipeline_cfg_path}")
         except AttributeError:
             # Fallback: Manually dump YAML (less ideal)
-            import yaml # Import locally if not standard
+            import yaml  # Import locally if not standard
 
             with self._fs.open(pipeline_cfg_path, "w") as f:
                 yaml.dump(default_pipeline_cfg, f, default_flow_style=False)
-            logger.warning(f"Created pipeline config using basic YAML dump: {pipeline_cfg_path}")
-
+            logger.warning(
+                f"Created pipeline config using basic YAML dump: {pipeline_cfg_path}"
+            )
 
         # Create pipeline python module from template
         if template is None:
@@ -137,13 +141,12 @@ class PipelineRegistry:
                 logger.warning("Falling back to default pipeline template.")
                 template_content = PIPELINE_PY_TEMPLATE
             except Exception as e:
-                 logger.error(f"Error loading custom template {template}: {e}")
-                 logger.warning("Falling back to default pipeline template.")
-                 template_content = PIPELINE_PY_TEMPLATE
-
+                logger.error(f"Error loading custom template {template}: {e}")
+                logger.warning("Falling back to default pipeline template.")
+                template_content = PIPELINE_PY_TEMPLATE
 
         template_kwargs = template_kwargs or {}
-        template_kwargs.setdefault("pipeline_name", name) # Ensure name is available
+        template_kwargs.setdefault("pipeline_name", name)  # Ensure name is available
 
         try:
             jinja_template = jinja2.Template(template_content)
@@ -151,18 +154,18 @@ class PipelineRegistry:
         except Exception as e:
             logger.error(f"Error rendering Jinja template for {name}: {e}")
             # Handle error, maybe raise or use a very basic fallback
-            rendered_code = f"# Pipeline: {name}\n\n# Add your Hamilton functions here\n"
+            rendered_code = (
+                f"# Pipeline: {name}\n\n# Add your Hamilton functions here\n"
+            )
             logger.warning("Using basic fallback code due to template rendering error.")
-
 
         with self._fs.open(pipeline_py_path, "w") as f:
             f.write(rendered_code)
         logger.info(f"Created pipeline module: {pipeline_py_path}")
 
         # Sync filesystem if needed
-        if hasattr(self._fs, 'sync') and callable(getattr(self._fs, 'sync')):
-             self._fs.sync()
-
+        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
+            self._fs.sync()
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
@@ -185,14 +188,17 @@ class PipelineRegistry:
         """
         deleted_files = []
         if cfg:
-            pipeline_cfg_path = posixpath.join(self._cfg_dir, "pipelines", f"{name}.yml")
+            pipeline_cfg_path = posixpath.join(
+                self._cfg_dir, "pipelines", f"{name}.yml"
+            )
             if self._fs.exists(pipeline_cfg_path):
                 self._fs.rm(pipeline_cfg_path)
                 deleted_files.append(pipeline_cfg_path)
                 logger.info(f"Deleted pipeline config: {pipeline_cfg_path}")
             else:
-                 logger.warning(f"Config file not found, skipping deletion: {pipeline_cfg_path}")
-
+                logger.warning(
+                    f"Config file not found, skipping deletion: {pipeline_cfg_path}"
+                )
 
         if module:
             pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
@@ -201,16 +207,18 @@ class PipelineRegistry:
                 deleted_files.append(pipeline_py_path)
                 logger.info(f"Deleted pipeline module: {pipeline_py_path}")
             else:
-                 logger.warning(f"Module file not found, skipping deletion: {pipeline_py_path}")
-
+                logger.warning(
+                    f"Module file not found, skipping deletion: {pipeline_py_path}"
+                )
 
         if not deleted_files:
-             logger.warning(f"No files found or specified for deletion for pipeline '{name}'.")
+            logger.warning(
+                f"No files found or specified for deletion for pipeline '{name}'."
+            )
 
         # Sync filesystem if needed
-        if hasattr(self._fs, 'sync') and callable(getattr(self._fs, 'sync')):
-             self._fs.sync()
-
+        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
+            self._fs.sync()
 
     def _get_files(self) -> list[str]:
         """
@@ -222,7 +230,9 @@ class PipelineRegistry:
         try:
             return self._fs.glob(posixpath.join(self._pipelines_dir, "*.py"))
         except Exception as e:
-            logger.error(f"Error accessing pipeline directory {self._pipelines_dir}: {e}")
+            logger.error(
+                f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
+            )
             return []
 
     def _get_names(self) -> list[str]:
@@ -261,25 +271,28 @@ class PipelineRegistry:
             "Run Config": cfg.pipeline.run.to_dict(),
             "Schedule Config": cfg.pipeline.schedule.to_dict(),
             "Tracker Config": cfg.pipeline.tracker.to_dict(),
-            "Project Config": cfg.project.to_dict(), # Include relevant project config
+            "Project Config": cfg.project.to_dict(),  # Include relevant project config
         }
 
         if rich_render:
-            table = Table(title=f"Pipeline Summary: {name}", show_header=False, box=rich.box.ROUNDED)
+            table = Table(
+                title=f"Pipeline Summary: {name}",
+                show_header=False,
+                box=rich.box.ROUNDED,
+            )
             table.add_column("Parameter", style="cyan")
             table.add_column("Value", style="magenta")
 
             for key, value in summary_data.items():
                 if isinstance(value, dict):
-                     # Simple representation for dicts in the table
-                     value_str = "\n".join([f"  {k}: {v}" for k, v in value.items()])
-                     table.add_row(key, value_str)
+                    # Simple representation for dicts in the table
+                    value_str = "\n".join([f"  {k}: {v}" for k, v in value.items()])
+                    table.add_row(key, value_str)
                 else:
                     table.add_row(key, str(value))
             return table
         else:
             return summary_data
-
 
     def show_summary(
         self,
@@ -318,16 +331,25 @@ class PipelineRegistry:
                 code_view = Syntax(
                     code,
                     "python",
-                    theme="default", # Or choose another theme
+                    theme="default",  # Or choose another theme
                     line_numbers=True,
                     word_wrap=True,
                 )
-                self._console.print(Panel(code_view, title=f"Code: {pipeline_py_path}", border_style="green"))
+                self._console.print(
+                    Panel(
+                        code_view,
+                        title=f"Code: {pipeline_py_path}",
+                        border_style="green",
+                    )
+                )
             except FileNotFoundError:
-                self._console.print(f"[bold red]Error:[/bold red] Code file not found: {pipeline_py_path}")
+                self._console.print(
+                    f"[bold red]Error:[/bold red] Code file not found: {pipeline_py_path}"
+                )
             except Exception as e:
-                self._console.print(f"[bold red]Error reading code file {pipeline_py_path}:[/bold red] {e}")
-
+                self._console.print(
+                    f"[bold red]Error reading code file {pipeline_py_path}:[/bold red] {e}"
+                )
 
         # Optionally show DAG if needed/possible from registry context
         # show_dag functionality might remain in PipelineManager if it needs driver/execution context
@@ -346,7 +368,6 @@ class PipelineRegistry:
         # except Exception as e:
         #     logger.warning(f"Could not retrieve schedule info for {name}: {e}")
 
-
     @property
     def summary(self) -> dict[str, dict | str]:
         """
@@ -360,10 +381,9 @@ class PipelineRegistry:
             try:
                 all_summaries[name] = self.get_summary(name=name, rich_render=False)
             except Exception as e:
-                 logger.error(f"Failed to get summary for pipeline '{name}': {e}")
-                 all_summaries[name] = {"error": str(e)} # Indicate error in summary
+                logger.error(f"Failed to get summary for pipeline '{name}': {e}")
+                all_summaries[name] = {"error": str(e)}  # Indicate error in summary
         return all_summaries
-
 
     def _all_pipelines(
         self,
@@ -412,18 +432,26 @@ class PipelineRegistry:
                 table.add_column("Module Path", style="green")
                 table.add_column("Module Exists", style="blue")
 
-
             for name, info in pipelines_info.items():
                 row_data = [name]
                 if include_cfg:
-                    row_data.extend([info.get("config_path", "N/A"), str(info.get("config_exists", "N/A"))])
+                    row_data.extend(
+                        [
+                            info.get("config_path", "N/A"),
+                            str(info.get("config_exists", "N/A")),
+                        ]
+                    )
                 if include_module:
-                     row_data.extend([info.get("module_path", "N/A"), str(info.get("module_exists", "N/A"))])
+                    row_data.extend(
+                        [
+                            info.get("module_path", "N/A"),
+                            str(info.get("module_exists", "N/A")),
+                        ]
+                    )
                 table.add_row(*row_data)
             return table
         else:
             return pipelines_info
-
 
     def show_pipelines(self) -> None:
         """
@@ -431,7 +459,6 @@ class PipelineRegistry:
         """
         pipelines_table = self._all_pipelines(rich_render=True)
         self._console.print(pipelines_table)
-
 
     def list_pipelines(self) -> list[str]:
         """
