@@ -589,42 +589,6 @@ class PipelineManager:
             name=name, reload=reload, show_code=show_code, max_lines=max_lines
         )
 
-        # Keep DAG display within PipelineManager as it requires the driver
-        if show_dag:
-            # Ensure config is loaded for the correct pipeline before showing DAG
-            if reload or not hasattr(self, "cfg") or self.cfg.pipeline.name != name:
-                self.load_config(name=name, reload=reload)
-            self.show_dag(
-                name=name, reload=False
-            )  # Call existing method, avoid double reload
-
-        # Keep schedule display here for now, as it might interact with worker/config
-        console = Console()
-        try:
-            # Ensure config is loaded for the correct pipeline before showing schedule
-            if reload or not hasattr(self, "cfg") or self.cfg.pipeline.name != name:
-                self.load_config(name=name, reload=reload)
-
-            schedule_cfg = self.cfg.pipeline.schedule
-            if schedule_cfg.enabled:
-                schedule_tree = Tree("📅 Schedule Info", style="bold yellow")
-
-                # Define helper locally or move to utils if used elsewhere
-                def add_dict_to_tree(tree, dict_data, style="green"):
-                    for key, value in dict_data.items():
-                        if isinstance(value, dict):
-                            branch = tree.add(key, style=style)
-                            add_dict_to_tree(branch, value, style=style)
-                        else:
-                            tree.add(f"{key}: {value}", style=style)
-
-                add_dict_to_tree(schedule_tree, schedule_cfg.dict())
-                console.print(schedule_tree)
-            else:
-                console.print("No schedule configured for this pipeline.")
-        except Exception:
-            console.print_exception(show_locals=True)
-
     @property
     def schedules(self) -> list[str]:
         """Gets the schedules by delegating to the scheduler."""
@@ -634,3 +598,8 @@ class PipelineManager:
     def pipelines(self) -> list[str]:
         """Gets the pipelines by delegating to the registry."""
         return self._registry.pipelines
+    
+    @property
+    def summary(self):
+        """Gets the summary of the pipeline manager."""
+        return self._registry.summary

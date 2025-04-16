@@ -4,7 +4,7 @@
 import datetime as dt
 import logging
 import posixpath
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 import rich  # <-- Add this import
 from fsspec.spec import AbstractFileSystem
@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.tree import Tree
 
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig
@@ -188,236 +189,282 @@ class PipelineRegistry:
         """
         files = self._get_files()
         return [posixpath.basename(f).replace(".py", "") for f in files]
-
+    
     def get_summary(
-        self, name: str, reload: bool = False, rich_render: bool = False
-    ) -> dict[str, Any] | Table:
+        self, name: str | None = None, cfg: bool = True, code: bool = True, project: bool = True
+    ) -> dict[str, dict | str]:
         """
-        Get the summary of a pipeline.
+        Get a summary of the pipelines.
 
         Args:
-            name (str): The name of the pipeline.
-            reload (bool, optional): Whether to reload the configuration. Defaults to False.
-            rich_render (bool, optional): Whether to return a rich Table object. Defaults to False.
-
-
+            name (str | None, optional): The name of the pipeline. Defaults to None.
+            cfg (bool, optional): Whether to show the configuration. Defaults to True.
+            code (bool, optional): Whether to show the module. Defaults to True.
+            project (bool, optional): Whether to show the project configuration. Defaults to True.
         Returns:
-            dict[str, Any] | Table: The summary of the pipeline as a dictionary or rich Table.
+            dict[str, dict | str]: A dictionary containing the pipeline summary.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            summary=pm.get_summary()
+            ```
         """
-        # Use the passed load_config_func
-        cfg = self._load_config_func(name=name, reload=reload)
-
-        summary_data = {
-            "Name": cfg.pipeline.name,
-            "Config Path": cfg.pipeline_cfg_path,
-            "Module Path": posixpath.join(self._pipelines_dir, f"{name}.py"),
-            "Run Config": cfg.pipeline.run.to_dict(),
-            "Schedule Config": cfg.pipeline.schedule.to_dict(),
-            "Tracker Config": cfg.pipeline.tracker.to_dict(),
-            "Project Config": cfg.project.to_dict(),  # Include relevant project config
-        }
-
-        if rich_render:
-            table = Table(
-                title=f"Pipeline Summary: {name}",
-                show_header=False,
-                box=rich.box.ROUNDED,
-            )
-            table.add_column("Parameter", style="cyan")
-            table.add_column("Value", style="magenta")
-
-            for key, value in summary_data.items():
-                if isinstance(value, dict):
-                    # Simple representation for dicts in the table
-                    value_str = "\n".join([f"  {k}: {v}" for k, v in value.items()])
-                    table.add_row(key, value_str)
-                else:
-                    table.add_row(key, str(value))
-            return table
+        if name:
+            pipeline_names = [name]
         else:
-            return summary_data
+            pipeline_names = self._get_names()
+
+        summary = {}
+        summary["pipelines"] = {}
+
+        if project:
+            project_cfg = self._load_config_func().project
+            summary["project"] = project_cfg.to_dict()
+
+        for name in pipeline_names:
+            pipeline_cfg = self._load_config_func(name=name).pipeline
+            if cfg:
+                summary["pipelines"][name] = {"cfg": pipeline_cfg.to_dict()}
+            if code:
+                summary["pipelines"][name].update(
+                    {
+                        "module": self._fs.cat(
+                            f"{self._pipelines_dir}/{name}.py"
+                        ).decode(),
+                    }
+                )
+        return summary
 
     def show_summary(
         self,
-        name: str,
-        reload: bool = False,
-        show_code: bool = False,
-        max_lines: int | None = None,
-    ) -> None:
+        name: str | None = None,
+        cfg: bool = True,
+        code: bool = True,
+        project: bool = True,
+        to_html: bool = False,
+        to_svg: bool = False,
+    ) -> None | str:
         """
-        Show the summary of a pipeline.
+        Show a summary of the pipelines.
 
         Args:
-            name (str): The name of the pipeline.
-            reload (bool, optional): Whether to reload the configuration. Defaults to False.
-            show_code (bool, optional): Whether to show the pipeline code. Defaults to False.
-            max_lines (int | None, optional): Maximum lines of code to show. Defaults to None.
+            name (str | None, optional): The name of the pipeline. Defaults to None.
+            cfg (bool, optional): Whether to show the configuration. Defaults to True.
+            code (bool, optional): Whether to show the module. Defaults to True.
+            project (bool, optional): Whether to show the project configuration. Defaults to True.
+            to_html (bool, optional): Whether to export the summary to HTML. Defaults to False.
+            to_svg (bool, optional): Whether to export the summary to SVG. Defaults to False.
 
         Returns:
-            None
+            None | str: The summary of the pipelines. If `to_html` is True, returns the HTML string.
+                If `to_svg` is True, returns the SVG string.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.show_summary()
+            ```
         """
-        summary_table = self.get_summary(name=name, reload=reload, rich_render=True)
-        self._console.print(summary_table)
 
-        if show_code:
-            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
-            try:
-                with self._fs.open(pipeline_py_path, "r") as f:
-                    code = f.read()
+        summary = self.get_summary(name=name, cfg=cfg, code=code, project=project)
+        project_summary = summary.get("project", {})
+        pipeline_summary = summary["pipelines"]
 
-                if max_lines:
-                    code_lines = code.splitlines()
-                    code = "\n".join(code_lines[:max_lines])
-                    if len(code_lines) > max_lines:
-                        code += f"\n... (truncated - {len(code_lines) - max_lines} more lines)"
+        def add_dict_to_tree(tree, dict_data, style="green"):
+            for key, value in dict_data.items():
+                if isinstance(value, dict):
+                    branch = tree.add(f"[cyan]{key}:", style="bold cyan")
+                    add_dict_to_tree(branch, value, style)
+                else:
+                    tree.add(f"[cyan]{key}:[/] [green]{value}[/]")
 
-                code_view = Syntax(
-                    code,
-                    "python",
-                    theme="default",  # Or choose another theme
-                    line_numbers=True,
-                    word_wrap=True,
+        console = Console()
+
+        if project:
+
+            # Create tree for project config
+            project_tree = Tree("📁 Project Configuration", style="bold magenta")
+            add_dict_to_tree(project_tree, project_summary)
+
+            # Print project configuration
+            console.print(
+                Panel(
+                    project_tree,
+                    title="Project Configuration",
+                    border_style="blue",
+                    padding=(2, 2),
                 )
-                self._console.print(
+            )
+            console.print("\n")
+
+        for pipeline, info in pipeline_summary.items():
+            # Create tree for config
+            config_tree = Tree("📋 Pipeline Configuration", style="bold magenta")
+            add_dict_to_tree(config_tree, info["cfg"])
+
+            # Create syntax-highlighted code view
+            code_view = Syntax(
+                info["module"],
+                "python",
+                theme="default",
+                line_numbers=False,
+                word_wrap=True,
+                code_width=80,
+                padding=2,
+            )
+
+            if cfg:
+                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
+                console.print(
                     Panel(
-                        code_view,
-                        title=f"Code: {pipeline_py_path}",
-                        border_style="green",
+                        config_tree,
+                        title=f"🔄 Pipeline: {pipeline}",
+                        subtitle="Configuration",
+                        border_style="blue",
+                        padding=(2, 2),
                     )
                 )
-            except FileNotFoundError:
-                self._console.print(
-                    f"[bold red]Error:[/bold red] Code file not found: {pipeline_py_path}"
-                )
-            except Exception as e:
-                self._console.print(
-                    f"[bold red]Error reading code file {pipeline_py_path}:[/bold red] {e}"
-                )
+                console.print("\n")
 
-        # Optionally show DAG if needed/possible from registry context
-        # show_dag functionality might remain in PipelineManager if it needs driver/execution context
-
-        # Display schedule info if available (might need worker interaction)
-        # This part might be better handled by a dedicated scheduling component or remain in PipelineManager
-        # For now, let's keep it simple and focus on config/code summary.
-        # Example placeholder:
-        # try:
-        #     # Assuming a way to get schedule info related to this pipeline
-        #     schedule_info = self._get_schedule_info(name) # Hypothetical method
-        #     if schedule_info:
-        #         schedule_tree = Tree("📅 Schedule Info", style="bold yellow")
-        #         # Populate tree...
-        #         self._console.print(schedule_tree)
-        # except Exception as e:
-        #     logger.warning(f"Could not retrieve schedule info for {name}: {e}")
+            if code:
+                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
+                console.print(
+                    Panel(
+                        code_view,
+                        title=f"🔄 Pipeline: {pipeline}",
+                        subtitle="Module",
+                        border_style="blue",
+                        padding=(2, 2),
+                    )
+                )
+                console.print("\n")
+        if to_html:
+            return console.export_html()
+        elif to_svg:
+            return console.export_svg()
 
     @property
     def summary(self) -> dict[str, dict | str]:
         """
-        Get the summary of all pipelines.
+        Get a summary of the pipelines.
 
         Returns:
-            dict[str, dict | str]: The summary of all pipelines.
+            dict: A dictionary containing the pipeline summary.
         """
-        all_summaries = {}
-        for name in self._get_names():
-            try:
-                all_summaries[name] = self.get_summary(name=name, rich_render=False)
-            except Exception as e:
-                logger.error(f"Failed to get summary for pipeline '{name}': {e}")
-                all_summaries[name] = {"error": str(e)}  # Indicate error in summary
-        return all_summaries
+        return self.get_summary()
 
     def _all_pipelines(
-        self,
-        filter_str: str | None = None,
-        include_cfg: bool = True,
-        include_module: bool = True,
-        rich_render: bool = False,
-    ) -> dict[str, dict[str, Any]] | Table:
+        self, show: bool = True, to_html: bool = False, to_svg: bool = False
+    ) -> list[str] | None:
         """
-        Get information about all pipelines, optionally filtered.
+        Print all available pipelines in a formatted table.
 
         Args:
-            filter_str (str | None, optional): A string to filter pipeline names. Defaults to None.
-            include_cfg (bool, optional): Whether to include config file path. Defaults to True.
-            include_module (bool, optional): Whether to include module file path. Defaults to True.
-            rich_render (bool, optional): Whether to return a rich Table object. Defaults to False.
-
+            show (bool, optional): Whether to print the table. Defaults to True.
+            to_html (bool, optional): Whether to export the table to HTML. Defaults to False.
+            to_svg (bool, optional): Whether to export the table to SVG. Defaults to False.
 
         Returns:
-             dict[str, dict[str, Any]] | Table: Dictionary or rich Table with pipeline info.
+            list[str] | None: A list of pipeline names if `show` is False.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            all_pipelines = pm._pipelines(show=False)
+            ```
         """
-        pipeline_names = self._get_names()
-        if filter_str:
-            pipeline_names = [name for name in pipeline_names if filter_str in name]
+        if to_html or to_svg:
+            show = True
 
-        pipelines_info = {}
-        for name in pipeline_names:
-            info = {"name": name}
-            if include_cfg:
-                cfg_path = posixpath.join(self._cfg_dir, "pipelines", f"{name}.yml")
-                info["config_path"] = cfg_path
-                info["config_exists"] = self._fs.exists(cfg_path)
-            if include_module:
-                module_path = posixpath.join(self._pipelines_dir, f"{name}.py")
-                info["module_path"] = module_path
-                info["module_exists"] = self._fs.exists(module_path)
-            pipelines_info[name] = info
+        pipeline_files = [
+            f for f in self._fs.ls(self._pipelines_dir) if f.endswith(".py")
+        ]
+        pipeline_names = [
+            posixpath.splitext(f)[0]
+            .replace(self._pipelines_dir, "")
+            .lstrip("/")
+            .replace("/", ".")
+            for f in pipeline_files
+        ]
 
-        if rich_render:
-            table = Table(title="Pipelines", box=rich.box.ROUNDED)
-            table.add_column("Name", style="cyan", no_wrap=True)
-            if include_cfg:
-                table.add_column("Config Path", style="magenta")
-                table.add_column("Config Exists", style="yellow")
-            if include_module:
-                table.add_column("Module Path", style="green")
-                table.add_column("Module Exists", style="blue")
+        if not pipeline_files:
+            rich.print("[yellow]No pipelines found[/yellow]")
+            return
 
-            for name, info in pipelines_info.items():
-                row_data = [name]
-                if include_cfg:
-                    row_data.extend(
-                        [
-                            info.get("config_path", "N/A"),
-                            str(info.get("config_exists", "N/A")),
-                        ]
-                    )
-                if include_module:
-                    row_data.extend(
-                        [
-                            info.get("module_path", "N/A"),
-                            str(info.get("module_exists", "N/A")),
-                        ]
-                    )
-                table.add_row(*row_data)
-            return table
+        pipeline_info = []
+
+        for path, name in zip(pipeline_files, pipeline_names):
+            # path = posixpath.join( f)
+            try:
+                mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
+            except NotImplementedError:
+                mod_time = "N/A"
+            size = f"{self._fs.size(path) / 1024:.1f} KB"
+            pipeline_info.append(
+                {"name": name, "path": path, "mod_time": mod_time, "size": size}
+            )
+
+        if show:
+            table = Table(title="Available Pipelines")
+            table.add_column("Pipeline Name", style="blue")
+            table.add_column("Path", style="magenta")
+            table.add_column("Last Modified", style="green")
+            table.add_column("Size", style="cyan")
+
+            for info in pipeline_info:
+                table.add_row(
+                    info["name"], info["path"], info["mod_time"], info["size"]
+                )
+            console = Console(record=True)
+            console.print(table)
+            if to_html:
+                return console.export_html()
+            elif to_svg:
+                return console.export_svg()
+
         else:
-            return pipelines_info
+            return pipeline_info
 
     def show_pipelines(self) -> None:
         """
-        Show all pipelines in a table.
+        Print all available pipelines in a formatted table.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.show_pipelines()
+            ```
         """
-        pipelines_table = self._all_pipelines(rich_render=True)
-        self._console.print(pipelines_table)
+        self._all_pipelines(show=True)
 
     def list_pipelines(self) -> list[str]:
         """
-        List all pipeline names.
+        Get a list of all available pipelines.
 
         Returns:
-            list[str]: A list of pipeline names.
+            list[str] | None: A list of pipeline names.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pipelines = pm.list_pipelines()
+            ```
         """
-        return self._get_names()
+        return self._all_pipelines(show=False)
 
     @property
     def pipelines(self) -> list[str]:
         """
-        Get the list of pipeline names.
+        Get a list of all available pipelines.
 
         Returns:
-            list[str]: The list of pipeline names.
+            list[str] | None: A list of pipeline names.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pipelines = pm.pipelines
+            ```
         """
-        return self.list_pipelines()
+        return self._all_pipelines(show=False)
