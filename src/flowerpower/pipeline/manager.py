@@ -3,11 +3,9 @@ import importlib
 import importlib.util
 import posixpath
 import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import  Any
 
 from hamilton import driver
-from hamilton.execution import executors
-from hamilton.telemetry import disable_telemetry
 
 from ..fs import AbstractFileSystem
 from .io import PipelineIOManager  # Add import for PipelineIOManager
@@ -16,9 +14,6 @@ from .registry import PipelineRegistry
 from .runner import PipelineRunner  # Add import for PipelineRunner
 from .scheduler import PipelineScheduler  # Add import for PipelineScheduler
 from .visualizer import PipelineVisualizer  # Add import for PipelineVisualizer
-
-# from uuid import UUID # No longer needed here
-
 
 
 if importlib.util.find_spec("opentelemetry"):
@@ -30,26 +25,21 @@ else:
     h_opentelemetry = None
     init_tracer = None
 import rich
-from hamilton.plugins import h_tqdm
-from hamilton.plugins.h_threadpool import FutureAdapter
-from hamilton_sdk.adapters import HamiltonTracker
+
 from loguru import logger
 from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
+
 from rich.table import Table
 from rich.tree import Tree
 
-from ..cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
+from ..cfg import (  
     Config, PipelineConfig)
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
-from ..utils.misc import view_img  # Re-add view_img import for show_dag
+# Re-add view_img import for show_dag
 from ..utils.templates import \
     PIPELINE_PY_TEMPLATE  # Keep if needed for other methods
-# Import the new Worker class
-from ..worker import \
-    Worker  # , BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
+
 
 # Keep conditional import for opentelemetry and other plugins
 if importlib.util.find_spec("opentelemetry"):
@@ -62,14 +52,9 @@ from pathlib import Path
 from types import TracebackType
 from uuid import UUID
 
-# if importlib.util.find_spec("paho"):
-#     from .mqtt import MQTTClient
-# else:
-#     MQTTClient = None
+
 from munch import Munch
 
-# from .worker.apscheduler.trigger import get_trigger # No longer needed here
-from ..utils.executor import get_executor
 
 
 class PipelineManager:
@@ -376,11 +361,7 @@ class PipelineManager:
         Returns:
             UUID: The ID of the submitted job.
         """
-        # Delegate to the PipelineScheduler instance
-        # Need to import UUID if not already imported
-        from uuid import \
-            UUID  # Add import here if needed, or ensure it's at top
-
+        
         return self._scheduler.add_job(
             name=name,
             inputs=inputs,
@@ -675,7 +656,7 @@ class PipelineManager:
                 console.print(schedule_tree)
             else:
                 console.print("No schedule configured for this pipeline.")
-        except Exception as e:
+        except Exception:
             console.print_exception(show_locals=True)
 
     @property

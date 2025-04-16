@@ -5,7 +5,6 @@
 
 import datetime as dt
 import logging
-from typing import Any, Callable
 from uuid import UUID  # Add UUID import
 
 from fsspec.spec import AbstractFileSystem
@@ -15,8 +14,7 @@ from rich import print as rprint
 # Assuming Config structure is available or relevant parts passed via funcs
 # from .cfg import PipelineConfig # May not be needed directly if using funcs
 from ..fs.base import BaseStorageOptions
-from ..utils.misc import \
-    short_uuid  # Keep if short_uuid is needed, otherwise remove
+
 from ..utils.scheduler import get_trigger
 from ..worker import Worker
 from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
@@ -33,10 +31,10 @@ class PipelineScheduler:
         base_dir: str,
         storage_options: dict | Munch | BaseStorageOptions,
         worker_type: str,
-        load_config_func: Callable,  # e.g., PipelineManager.load_config
-        get_project_name_func: Callable,  # e.g., lambda: self.cfg.project.name
-        get_pipeline_run_func: Callable,  # e.g., PipelineManager._runner.run
-        get_registry_func: Callable,  # e.g., lambda: self._registry
+        load_config_func: callable,  # e.g., PipelineManager.load_config
+        get_project_name_func: callable,  # e.g., lambda: self.cfg.project.name
+        get_pipeline_run_func: callable,  # e.g., PipelineManager._runner.run
+        get_registry_func: callable,  # e.g., lambda: self._registry
     ):
         """Initialize PipelineScheduler.
 

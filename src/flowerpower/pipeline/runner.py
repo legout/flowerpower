@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import importlib
-import logging
 from typing import TYPE_CHECKING, Any, Callable
 
 from hamilton import driver
@@ -26,7 +25,7 @@ from loguru import logger
 
 # Assuming Config and PipelineConfig might be needed for type hints or logic
 # If not directly used, these can be removed later.
-from ..cfg import Config, PipelineConfig
+from ..cfg import PipelineConfig
 from ..utils.executor import get_executor
 
 if TYPE_CHECKING:

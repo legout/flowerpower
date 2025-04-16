@@ -2,12 +2,9 @@
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
 import logging
-import os
 import posixpath
-import shutil
-import sys
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 import rich  # <-- Add this import
@@ -16,12 +13,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
-from rich.tree import Tree
+
 
 # Import necessary config types and utility functions
-from ..cfg.base import Config, PipelineConfig
-from ..utils.misc import \
-    view_img  # Assuming view_img might be used indirectly or needed later
+from ..cfg.base import Config
+ # Assuming view_img might be used indirectly or needed later
 from ..utils.templates import PIPELINE_PY_TEMPLATE
 
 if TYPE_CHECKING:
@@ -41,7 +37,7 @@ class PipelineRegistry:
         base_dir: str,
         cfg_dir: str,
         pipelines_dir: str,
-        load_config_func: Callable,
+        load_config_func: callable,
     ):
         """
         Initializes the PipelineRegistry.
@@ -247,7 +243,7 @@ class PipelineRegistry:
 
     def get_summary(
         self, name: str, reload: bool = False, rich_render: bool = False
-    ) -> Union[dict[str, Any], Table]:
+    ) -> dict[str, Any] | Table:
         """
         Get the summary of a pipeline.
 
@@ -258,7 +254,7 @@ class PipelineRegistry:
 
 
         Returns:
-            Union[dict[str, Any], Table]: The summary of the pipeline as a dictionary or rich Table.
+            dict[str, Any] | Table: The summary of the pipeline as a dictionary or rich Table.
         """
         # Use the passed load_config_func
         cfg = self._load_config_func(name=name, reload=reload)
@@ -391,7 +387,7 @@ class PipelineRegistry:
         include_cfg: bool = True,
         include_module: bool = True,
         rich_render: bool = False,
-    ) -> Union[dict[str, dict[str, Any]], Table]:
+    ) -> dict[str, dict[str, Any]] | Table:
         """
         Get information about all pipelines, optionally filtered.
 
@@ -403,7 +399,7 @@ class PipelineRegistry:
 
 
         Returns:
-             Union[dict[str, dict[str, Any]], Table]: Dictionary or rich Table with pipeline info.
+             dict[str, dict[str, Any]] | Table: Dictionary or rich Table with pipeline info.
         """
         pipeline_names = self._get_names()
         if filter_str:
