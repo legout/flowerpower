@@ -27,13 +27,6 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
   
-  # mqtt:
-  #   image: eclipse-mosquitto
-  #   volumes:
-  #     - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
-  #   ports:
-  #     - 1883:1883
-  #   command: mosquitto -c /mosquitto/config/mosquitto.conf
   
   mqtt-nanomq:
     image: emqx/nanomq
@@ -56,7 +49,6 @@ services:
 
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
-  #   network_mode: host
   #   ulimits:
   #     memlock: -1
     ports:
@@ -76,11 +68,10 @@ services:
   
   postgres:
     image: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=flowerpower
+      - POSTGRES_PASSWORD=secret_password
+      - POSTGRES_DB=flowerpower
     ports:
       - 5432:5432
 
@@ -89,7 +80,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=flowerpower
+      - POSTGRES_DB=hamilton
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - PGPORT=5433

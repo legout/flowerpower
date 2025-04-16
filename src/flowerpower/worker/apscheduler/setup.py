@@ -215,6 +215,17 @@ class APSEventBroker(BaseBackend):
             self.setup()
         return self._sqla_engine
 
+    @classmethod
+    def from_data_store_sqla(cls, sqla_engine: AsyncEngine) -> "APSEventBroker":
+        if sqla_engine.url.drivername != "postgresql+asyncpg":
+            raise ValueError(
+                f"sqla_engine must be a PostgreSQL engine ('postgresql+asyncpg://'), got '{sqla_engine.url.drivername}'"
+            )
+        return cls(
+            type="postgresql",
+            sqla_engine=sqla_engine,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class APSBackend:

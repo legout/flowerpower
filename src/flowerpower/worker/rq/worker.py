@@ -65,6 +65,7 @@ class RQWorker(BaseWorker):
             **cfg_upates: Configuration updates for the scheduler
         """
         super().__init__(
+            type="rq",
             name=name,
             base_dir=base_dir,
             backend=backend,
@@ -90,23 +91,15 @@ class RQWorker(BaseWorker):
         """
         Set up the data store for the scheduler using config.
         """
-        backend_cfg = getattr(self.cfg, "rq_backend", None)
-        if not backend_cfg or not getattr(backend_cfg, "backend", None):
+        backend_cfg = getattr(self.cfg, "backend", None)
+        if not backend_cfg:
             logger.error(
                 "Backend configuration is missing in project.worker.rq_backend.backend."
             )
             raise RuntimeError("Backend configuration is missing.")
-        backend_cfg = backend_cfg.backend
         try:
             self._backend = RQBackend(
-                type=backend_cfg.type or "redis",
-                uri=backend_cfg.uri,
-                host=backend_cfg.host,
-                port=backend_cfg.port,
-                database=backend_cfg.database,
-                username=backend_cfg.username,
-                password=backend_cfg.password,
-                ssl=backend_cfg.ssl,
+                **backend_cfg.to_dict()
             )
             logger.info(
                 f"RQ backend setup successful (type: {self._backend.type}, uri: {self._backend.uri})"

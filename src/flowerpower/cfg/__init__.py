@@ -20,9 +20,10 @@ class Config(BaseConfig):
     @classmethod
     def load(
         cls,
-        base_dir: str = "",
+        base_dir: str = ".",
         name: str | None = None,
         pipeline_name: str | None = None,
+        worker_type: str | None = None,
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
     ):
@@ -32,6 +33,9 @@ class Config(BaseConfig):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
             project = ProjectConfig(name=name)
+        if worker_type is not None:
+            if worker_type != project.worker.type:
+                project.worker.update_type(worker_type)
 
         if pipeline_name is not None:
             if fs.exists(f"conf/pipelines/{pipeline_name}.yml"):

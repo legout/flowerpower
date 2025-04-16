@@ -24,18 +24,23 @@ class WorkerBackend(BaseConfig):
     port: int | None = msgspec.field(default=None)
     database: int | None = msgspec.field(default=None)
     ssl: bool = msgspec.field(default=False)
-    ssl_cert: str | None = msgspec.field(default=None)
-    ssl_key: str | None = msgspec.field(default=None)
-    ssl_ca: str | None = msgspec.field(default=None)
+    cert_file: str | None = msgspec.field(default=None)
+    key_file: str | None = msgspec.field(default=None)
+    ca_file: str | None = msgspec.field(default=None)
     verify_ssl: bool = msgspec.field(default=False)
 
 
 class APSDataStore(WorkerBackend):
-    pass
+    type: str = msgspec.field(default_factory=lambda: "postgresql")
+    host: str = msgspec.field(default_factory=lambda: "localhost")
+    port: int = msgspec.field(default_factory=lambda: 5432)
+    username: str = msgspec.field(default_factory=lambda: "flowerpower")
+    password: str = msgspec.field(default_factory=lambda: "secret_password")
+    
 
 
 class APSEventBroker(WorkerBackend):
-    pass
+    from_data_store_sqla_engine: bool = msgspec.field(default=False)
 
 
 class APSBackend(BaseConfig):
@@ -51,6 +56,9 @@ class APSBackend(BaseConfig):
 
 
 class RQBackend(WorkerBackend):
+    type: str = msgspec.field(default_factory=lambda: "redis")
+    host: str = msgspec.field(default_factory=lambda: "localhost")
+    port: int = msgspec.field(default_factory=lambda: 6379)
     queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])
 
 
@@ -70,8 +78,6 @@ class ProjectWorkerConfig(BaseConfig):
                     self.backend = RQBackend()
                 else:
                     self.backend = RQBackend(**self.backend)
-                    if self.backend.type is None:
-                        self.backend.type = "redis"
             elif self.type == "apscheduler":
                 if self.backend is None:
                     self.backend = APSBackend(
@@ -93,3 +99,10 @@ class ProjectWorkerConfig(BaseConfig):
                 raise ValueError(
                     f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"
                 )
+    
+    def update_type(self, type:str):
+        if type != self.type:
+            self.type = type
+            self.backend = None
+            self.__post_init__()
+

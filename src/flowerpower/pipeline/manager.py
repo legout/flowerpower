@@ -26,9 +26,7 @@ else:
     init_tracer = None
 import rich
 from loguru import logger
-from rich.console import Console
 from rich.table import Table
-from rich.tree import Tree
 
 from ..cfg import Config
 from ..fs import get_filesystem
@@ -449,7 +447,11 @@ class PipelineManager:
         # The new IOManager method takes these from its __init__.
         # We pass only the arguments relevant to the *delegated* call.
         return self._io_manager.import_pipeline(
-            name=name, base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
+            name=name,
+            base_dir=base_dir,
+            src_fs=src_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     def import_many(
@@ -464,7 +466,11 @@ class PipelineManager:
         # Note: The original method had different args (names, path, cfg_dir, etc.).
         # The new IOManager method takes a dict {name: path}.
         return self._io_manager.import_many(
-            pipelines=pipelines, base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
+            pipelines=pipelines,
+            base_dir=base_dir,
+            src_fs=src_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     def import_all(
@@ -476,7 +482,10 @@ class PipelineManager:
     ):
         """Delegates importing all pipelines to the PipelineIOManager."""
         return self._io_manager.import_all(
-           base_dir=base_dir, src_fs=src_fs, storage_options=storage_options, overwrite=overwrite
+            base_dir=base_dir,
+            src_fs=src_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     def export_pipeline(
@@ -489,7 +498,11 @@ class PipelineManager:
     ):
         """Delegates exporting a pipeline to the PipelineIOManager."""
         return self._io_manager.export_pipeline(
-            name=name, base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
+            name=name,
+            base_dir=base_dir,
+            dest_fs=dest_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     def export_many(
@@ -502,7 +515,11 @@ class PipelineManager:
     ):
         """Delegates exporting multiple pipelines to the PipelineIOManager."""
         return self._io_manager.export_many(
-            pipelines=pipelines, base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
+            pipelines=pipelines,
+            base_dir=base_dir,
+            dest_fs=dest_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     def export_all(
@@ -514,7 +531,10 @@ class PipelineManager:
     ):
         """Delegates exporting all pipelines to the PipelineIOManager."""
         return self._io_manager.export_all(
-            base_dir=base_dir, dest_fs=dest_fs, storage_options=storage_options, overwrite=overwrite
+            base_dir=base_dir,
+            dest_fs=dest_fs,
+            storage_options=storage_options,
+            overwrite=overwrite,
         )
 
     # --- End Delegate Methods ---
@@ -567,27 +587,54 @@ class PipelineManager:
     # --- Delegate Methods for Registry ---
 
     def get_summary(
-        self, name: str, reload: bool = False, rich_render: bool = False
+        self, name: str, reload: bool = False, cfg:bool=True, code:bool=True, project:bool=True
     ) -> dict[str, Any] | Table:
         """Gets the summary of a pipeline by delegating to the registry."""
         # The registry's get_summary now uses the load_config_func passed during init
         return self._registry.get_summary(
-            name=name, reload=reload, rich_render=rich_render
+            name=name, reload=reload, cfg=cfg, code=code, project=project
         )
 
     def show_summary(
         self,
         name: str,
         reload: bool = False,
-        show_code: bool = False,
-        show_dag: bool = False,  # Keep show_dag here as it needs driver
-        max_lines: int | None = None,
+        cfg: bool = True,
+        code: bool = True,
+        project: bool = True,
     ) -> None:
         """Shows the summary of a pipeline by delegating display logic."""
         # Delegate core summary display (config, code)
         self._registry.show_summary(
-            name=name, reload=reload, show_code=show_code, max_lines=max_lines
+            name=name, reload=reload, cfg=cfg, code=code, project=project
         )
+
+    def show_pipelines(self) -> None:
+        """
+        Print all available pipelines in a formatted table.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.show_pipelines()
+            ```
+        """
+        self._registry.show_pipelines()
+
+    def list_pipelines(self) -> list[str]:
+        """
+        Get a list of all available pipelines.
+
+        Returns:
+            list[str] | None: A list of pipeline names.
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pipelines = pm.list_pipelines()
+            ```
+        """
+        return self._registry.list_pipelines()
 
     @property
     def schedules(self) -> list[str]:
@@ -598,7 +645,7 @@ class PipelineManager:
     def pipelines(self) -> list[str]:
         """Gets the pipelines by delegating to the registry."""
         return self._registry.pipelines
-    
+
     @property
     def summary(self):
         """Gets the summary of the pipeline manager."""
