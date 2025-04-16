@@ -13,6 +13,7 @@
 *   [2025-04-15 10:24:48] - Added `Backend` factory class to `src/flowerpower/worker/__init__.py` for configuring `RQBackend` or `APSBackend`.
 *   [2025-04-15 22:07:05] - Task interrupted and resumed. Initiated Memory Bank Update (UMB).
 *   [2025-04-16 09:23:12] - Completed Memory Bank Update (UMB) by updating activeContext.md and progress.md.
+*   [2025-04-16 10:23:08] - Refactored `src/flowerpower/pipeline.py` to extract execution logic into `src/flowerpower/runner.py` (`PipelineRunner` class). `PipelineManager` now delegates `run` calls.
 
 ## Open Questions/Issues
 
