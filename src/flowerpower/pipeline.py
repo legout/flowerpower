@@ -281,6 +281,42 @@ class PipelineManager:
         dr = dr.build()
         return dr, shutdown
 
+    def _resolve_parameters(self, method_args: dict, config_section: Any, keys: list[str]) -> dict:
+        """
+        Merge method arguments with config section, giving precedence to explicit arguments.
+        Args:
+            method_args (dict): Arguments passed to the method.
+            config_section (Any): Config section (e.g., self.cfg.pipeline.run).
+            keys (list[str]): List of keys to resolve.
+        Returns:
+            dict: Merged parameters.
+        """
+        resolved = {}
+        for key in keys:
+            if key in method_args and method_args[key] is not None:
+                resolved[key] = method_args[key]
+            elif hasattr(config_section, key):
+                resolved[key] = getattr(config_section, key)
+            else:
+                resolved[key] = None
+        return resolved
+
+    @property
+    def worker(self):
+        """
+        Lazily instantiate and cache a Worker instance for this PipelineManager.
+        Returns:
+            Worker: The worker instance.
+        """
+        if not hasattr(self, '_worker') or self._worker is None:
+            self._worker = Worker(
+                type=self._worker_type,
+                fs=self._fs,
+                base_dir=self._base_dir,
+                storage_options=self._storage_options,
+            )
+        return self._worker
+
     def run(
         self,
         name: str,
@@ -331,6 +367,11 @@ class PipelineManager:
 
         run_params = self.cfg.pipeline.run
 
+        # Use _resolve_parameters for merging
+        method_args = locals()
+        keys = ["executor", "with_tracker", "with_opentelemetry", "with_progressbar"]
+        merged = self._resolve_parameters(method_args, run_params, keys)
+
         final_vars = final_vars or run_params.final_vars
         inputs = {
             **(run_params.inputs or {}),
@@ -340,21 +381,11 @@ class PipelineManager:
             **(run_params.config or {}),
             **(config or {}),
         }
-        for arg in [
-            "executor",
-            "with_tracker",
-            "with_opentelemetry",
-            "with_progressbar",
-        ]:
-            if eval(arg) is not None:
-                kwargs[arg] = eval(arg)
-            else:
-                kwargs[arg] = getattr(run_params, arg)
-
-        kwargs["config"] = config
+        merged["config"] = config
 
         dr, shutdown = self._get_driver(
             name=name,
+            **merged,
             **kwargs,
         )
 
@@ -383,7 +414,7 @@ class PipelineManager:
     ) -> str:
         """
         Add a job to run the pipeline with the given parameters to the worker queue.
-        Returns the job ID. Note: This previously executed immediately and returned results.
+        Returns the job ID (always).
 
         Args:
             name (str): The name of the job (pipeline).
@@ -406,41 +437,18 @@ class PipelineManager:
             final_vars = pm.run_job("my_job")
             ```
         """
-        # Removed SchedulerManager check, Worker factory handles backend availability.
-
-        # TODO: Make worker_type configurable
-        with Worker(
-            type=worker_type or self._worker_type,
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            base_dir=self._base_dir,
-            storage_options=self._storage_options,
-        ) as worker:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
-            )
-            # Note: The concept of 'job_executor' from the old SchedulerManager.run_job
-            # doesn't directly map to Worker.add_job. The execution context
-            # is now determined by the Worker implementation itself.
-            # We pass the pipeline run parameters via kwargs.
-            job_id = worker.add_job(
-                func=self.run,
-                kwargs=kwargs,
-            )
-            return job_id
+        kwargs.update({
+            arg: eval(arg)
+            for arg in [
+                "name", "inputs", "final_vars", "config", "executor",
+                "with_tracker", "with_opentelemetry", "with_progressbar", "reload"
+            ]
+        })
+        job_id = self.worker.add_job(
+            func=self.run,
+            kwargs=kwargs,
+        )
+        return job_id
 
     def add_job(
         self,
@@ -467,7 +475,7 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the job. Defaults to None.
             final_vars (list | None, optional): The final variables for the job. Defaults to None.
             config (dict | None, optional): The configuration for the job. Defaults to None.
-            executor (str | None, optional): Executor hint. Defaults to None.
+            executor (str | None, optional): Executor hint (behavior might depend on worker backend). Defaults to None.
             with_tracker (bool | None, optional): Whether to use a tracker for the job. Defaults to None.
             with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry for the job. Defaults to None.
             with_progressbar (bool | None, optional): Whether to use a progress bar for the job. Defaults to None.
@@ -485,43 +493,23 @@ class PipelineManager:
             job_id = pm.add_job("my_job")
             ```
         """
-        # Removed SchedulerManager check
-
-        # TODO: Make worker_type configurable
-        with Worker(
-            type=worker_type or self._worker_type,
-            name=f"{self.cfg.project.name}.{name}",
-            fs=self._fs,
-            base_dir=self._base_dir,
-            storage_options=self._storage_options,
-        ) as worker:
-            kwargs.update(
-                {
-                    arg: eval(arg)
-                    for arg in [
-                        "name",
-                        "inputs",
-                        "final_vars",
-                        "config",
-                        "executor",
-                        "with_tracker",
-                        "with_opentelemetry",
-                        "with_progressbar",
-                        "reload",
-                    ]
-                }
-            )
-            # Pass run parameters via kwargs, remove job_executor
-            id_ = worker.add_job(
-                func=self.run,
-                kwargs=kwargs,
-                result_ttl=result_ttl,
-            )
-            rich.print(
-                f"✅ Successfully added job for "
-                f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
-            )
-            return id_
+        kwargs.update({
+            arg: eval(arg)
+            for arg in [
+                "name", "inputs", "final_vars", "config", "executor",
+                "with_tracker", "with_opentelemetry", "with_progressbar", "reload"
+            ]
+        })
+        id_ = self.worker.add_job(
+            func=self.run,
+            kwargs=kwargs,
+            result_ttl=result_ttl,
+        )
+        rich.print(
+            f"✅ Successfully added job for "
+            f"[blue]{self.cfg.project.name}.{name}[/blue] with ID [green]{id_}[/green]"
+        )
+        return id_
 
     def schedule(
         self,
@@ -593,27 +581,22 @@ class PipelineManager:
         schedule_cfg = self.cfg.pipeline.schedule  # .copy()
         run_cfg = self.cfg.pipeline.run
 
-        kwargs.update(
-            {arg: eval(arg) or getattr(run_cfg, arg) for arg in run_cfg.to_dict()}
-        )
+        method_args = locals()
+        run_keys = list(run_cfg.to_dict().keys())
+        merged = self._resolve_parameters(method_args, run_cfg, run_keys)
+
         trigger_type = trigger_type or schedule_cfg.trigger.type_
 
-        trigger_kwargs = {
-            key: kwargs.pop(key, None)
-            or getattr(getattr(schedule_cfg.trigger, trigger_type), key)
-            for key in getattr(schedule_cfg.trigger, trigger_type).to_dict()
-        }
-
+        trigger_keys = list(getattr(schedule_cfg.trigger, trigger_type).to_dict().keys())
+        trigger_kwargs = self._resolve_parameters(method_args, getattr(schedule_cfg.trigger, trigger_type), trigger_keys)
         trigger_kwargs.pop("type_", None)
 
-        schedule_kwargs = {
-            arg: eval(arg) or getattr(schedule_cfg.run, arg)
-            for arg in schedule_cfg.run.to_dict()
-        }
+        schedule_keys = list(schedule_cfg.run.to_dict().keys())
+        schedule_kwargs = self._resolve_parameters(method_args, schedule_cfg.run, schedule_keys)
         executor = executor or schedule_cfg.run.executor
         # id_ = id_ or schedule_cfg.run.id_
 
-        def _get_id() -> str:
+        def _get_id(name=name, id_=id_, overwrite=overwrite):
             if id_:
                 return id_
 
@@ -650,7 +633,7 @@ class PipelineManager:
                 trigger=trigger, # Trigger object from get_trigger
                 id=id_,
                 # args=(name,), # Pass name as arg if self.run needs it directly
-                kwargs=kwargs, # Pass all other run parameters here
+                kwargs=merged, # Pass all other run parameters here
                 **schedule_kwargs, # Pass schedule-specific options like coalesce, etc.
             )
             rich.print(
@@ -1812,7 +1795,7 @@ class Pipeline:
         executor = executor or schedule_cfg.run.executor
         # id_ = id_ or schedule_cfg.run.id_
 
-        def _get_id() -> str:
+        def _get_id(name=name, id_=id_, overwrite=overwrite):
             if id_:
                 return id_
 
