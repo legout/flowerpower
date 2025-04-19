@@ -1,6 +1,24 @@
 version: "3.8"
+
+## This docker-compose file can be used to run and test FlowerPower locally.
+## It is not intended to be used in production.
+
+## The following services are included:
+## - JupyterCode
+## - Minio
+## - MQTT (Nanomq and Mosquitto)
+## - Redis
+## - Dragonfly
+## - MongoDB
+## - NodeRed
+## - PostgreSQL
+## - Hamilton UI (Backend and Frontend)
+
 services:
-  jupytercode:
+  # JupyCode
+  # This is a custom image based on JupyterLab that includes VSCodeServer
+  # It can be used as the test environment for FlowerPower
+  jupycode:
     build: 
       context: .
       args:
@@ -13,8 +31,11 @@ services:
     ports:
       - 8888:8888
     volumes:
-      - jupytercode:/home/jovyan
-  #
+      - jupycode_data:/home/jovyan
+
+  # Minio
+  # Often times FlowerPower pipelines will read and/or write to S3.
+  # Minio is a local S3 compatible storage solution.  
   minio:
     image: minio/minio
     ports:
@@ -27,7 +48,9 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
   
-  
+  # MQTT 
+  # When using APScheduler as the FlowerPower worker, MQTT can be used as a event broker
+  # nanomq
   mqtt-nanomq:
     image: emqx/nanomq
     ports:
@@ -35,6 +58,7 @@ services:
       - 8084:8083
       - 8884:8883
 
+  # mosquitto
   mqtt-mosquitto:
     image: eclipse-mosquitto
     ports:
@@ -42,43 +66,52 @@ services:
       - 8083:8083
       - 8883:8883
 
+  # Redis
+  # When using APScheduler as the FlowerPower worker, Redis can be used as a event broker
+  # When using RQ as the FlowerPower worker, Redis is used as the task queue
+  # Redis
   redis:
-    image: valkey/valkey
+    image: redis
     ports:
       - 6379:6379
+    
+  # Valkey - a Redis compatible key-value store
+  valkey:
+    image: valkey/valkey
+    ports:
+      - 6380:6379
 
+  # Dragonfly - a Redis compatible key-value store
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
   #   ulimits:
   #     memlock: -1
     ports:
-      - 6380:6379
+      - 6381:6379
   
+  # MongoDB
+  # When using APScheduler as the FlowerPower worker, MongoDB can be used as a data store
   mongodb:
     image: mongo
     ports:
       - 27017:27017
 
-  nodered:
-    image: nodered/node-red
-    volumes:
-      - nodered:/data
-    ports: 
-      - 1880:1880
-  
+  # PostgreSQL
+  # When using RQ as the FlowerPower worker, PostgreSQL can be used as a data store and event broker
   postgres:
-    image: postgres
-    environment:
-      - POSTGRES_USER=flowerpower
-      - POSTGRES_PASSWORD=secret_password
-      - POSTGRES_DB=flowerpower
-    ports:
-      - 5432:5432
-
-  postgres-hamilton:
     image: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  ## Hamilton UI ##
+  # Hamilton UI is a web-based interface for Hamilton, the data pipeline framework used in FlowerPower
+  # PosgreSQL
+  postgres-hamilton:
+    image: postgres
+    volumes:
+      - hamilton_pg_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=hamilton
       - POSTGRES_USER=postgres
@@ -86,16 +119,15 @@ services:
       - PGPORT=5433
     ports:
       - 5433:5433
+
+  # Backend
   backend:
     container_name: hamilton-ui-backend
     image: dagworks/ui-backend:latest
-    #build:
-    #    context: backend
-    #    dockerfile: Dockerfile.backend
+
     entrypoint: [ "/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh" ]
     volumes:
-      #- ./backend:/code
-      - /data/hamilton_ui:/data/
+      - hamilton_ui_data:/data/
     ports:
       - 8241:8241
     #env_file: .env
@@ -118,18 +150,10 @@ services:
 
     restart: unless-stopped
 
+  # Frontend
   frontend:
     container_name: hamilton-ui-frontend
     image: dagworks/ui-frontend:latest
-    #build:
-    #  context: frontend
-    #  dockerfile: Dockerfile.frontend
-    #  args:
-    #    - REACT_APP_AUTH_MODE=local
-    #    - REACT_APP_USE_POSTHOG=false
-    #volumes:
-      # - ./frontend:/usr/src/app
-      # - /usr/src/app/node_modules
     ports:
       - 8242:8242
     environment:
@@ -140,13 +164,12 @@ services:
       - REACT_APP_API_URL=http://backend:8241
     depends_on:
       - backend
-
     restart: unless-stopped
 
 volumes:
-  jupytercode:
+  jupycode_data:
   minio_data:
-  #minio_config:
-  nodered:
+  nodered_data:
   postgres_data:
-  backend_data:
+  hamilton_ui_data:
+  hamilton_pg_data:
