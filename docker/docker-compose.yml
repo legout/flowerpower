@@ -42,17 +42,17 @@ services:
       - PUID=1000 # Use your user's ID (run `id -u` on VPS)
       - PGID=1000 # Use your user's group ID (run `id -g` on VPS)
       - TZ=Europe/Berlin
-      - PASSWORD=$CS_PW # Set a strong password in the .env file
-      - SUDO_PASSWORD=$CS_SUDO_PW # If you need sudo within code-server
+      #- PASSWORD=$CS_PW # Set a strong password in the .env file
+      #- SUDO_PASSWORD=$CS_SUDO_PW # If you need sudo within code-server
       # - PROXY_DOMAIN=code.yourdomain.com # If using Caddy subdomains
-      - EXTENSIONS_GALLERY=$CS_EXTENSIONS_GALLARY
+      #- EXTENSIONS_GALLERY=$CS_EXTENSIONS_GALLARY
     volumes:
       - codeserver_config:/config # Persist code-server config
       # --- Option 2: Mount Docker socket to attach to python-dev (more complex/risky) ---
       - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
       # You might need another volume to install docker cli if not in base image
-    # ports:
-    #   - "8443:8443" # Expose code-server port
+    ports:
+      - "8443:8443" # Expose code-server port
     restart: unless-stopped
     networks:
       - flowerpower-net # Connect to Caddy's network
@@ -62,9 +62,9 @@ services:
   # Minio is a local S3 compatible storage solution.  
   minio:
     image: minio/minio
-    # ports:
-    #   - 9000:9000
-    #   - 9001:9001
+    ports:
+      - 9000:9000
+      - 9001:9001
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio1234
@@ -79,20 +79,20 @@ services:
   # nanomq
   mqtt-nanomq:
     image: emqx/nanomq
-    # ports:
-    #   - 1884:1883
-    #   - 8084:8083
-    #   - 8884:8883
+    ports:
+      - 1884:1883
+      - 8084:8083
+      - 8884:8883
     networks:
       - flowerpower-net
 
   # mosquitto
   mqtt-mosquitto:
     image: eclipse-mosquitto
-    # ports:
-    #   - 1883:1883
-    #   - 8083:8083
-    #   - 8883:8883
+    ports:
+      - 1883:1883
+      - 8083:8083
+      - 8883:8883
     networks:
       - flowerpower-net
 
@@ -102,16 +102,16 @@ services:
   # Redis
   redis:
     image: redis
-    # ports:
-    #   - 6379:6379
+    ports:
+      - 6379:6379
     networks:
       - flowerpower-net
 
   # Valkey - a Redis compatible key-value store
   valkey:
     image: valkey/valkey
-    # ports:
-    #   - 6380:6379
+    ports:
+      - 6379:6379
     networks:
       - flowerpower-net
 
@@ -120,8 +120,8 @@ services:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
     #   ulimits:
     #     memlock: -1
-    # ports:
-    #   - 6381:6379
+    ports:
+      - 6379:6379
     networks:
       - flowerpower-net
 
@@ -129,8 +129,8 @@ services:
   # When using APScheduler as the FlowerPower worker, MongoDB can be used as a data store
   mongodb:
     image: mongo
-    # ports:
-    #   - 27017:27017
+    ports:
+      - 27017:27017
     networks:
       - flowerpower-net
 
@@ -142,8 +142,8 @@ services:
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # ports:
-    #   - 5432:5432
+    ports:
+      - 5432:5432
     networks:
       - flowerpower-net
 
@@ -159,8 +159,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - PGPORT=5433
-    # ports:
-    #   - 5433:5433
+    ports:
+      - 5433:5433
     networks:
       - flowerpower-net
 
@@ -172,8 +172,8 @@ services:
     entrypoint: [ "/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh" ]
     volumes:
       - hamilton_ui_data:/data/
-    # ports:
-    #   - 8241:8241
+    ports:
+      - 8241:8241
     #env_file: .env
     environment:
       - DB_HOST=postgres-hamilton
@@ -199,8 +199,8 @@ services:
   frontend:
     container_name: hamilton-ui-frontend
     image: dagworks/ui-frontend:latest
-    # ports:
-    #   - 8242:8242
+    ports:
+      - 8242:8242
     environment:
       - NGINX_PORT=8242
       - NODE_ENV=development
