@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable
 
 from hamilton import driver
 from hamilton.execution import executors
@@ -18,18 +18,17 @@ else:
     h_opentelemetry = None
     init_tracer = None
 
-from hamilton.plugins import h_tqdm
+from hamilton.plugins import h_rich
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
 
 # Assuming Config and PipelineConfig might be needed for type hints or logic
 # If not directly used, these can be removed later.
-from ..cfg import PipelineConfig
+from ..cfg import Config
 from ..utils.executor import get_executor
 
-if TYPE_CHECKING:
-    from fsspec.spec import AbstractFileSystem
+from ..fs import AbstractFileSystem
 
 
 class PipelineRunner:
@@ -95,13 +94,10 @@ class PipelineRunner:
     def _get_driver(
         self,
         name: str,  # Pipeline name
-        pipeline_cfg: PipelineConfig,  # Pass loaded pipeline config
-        project_name: str,  # Pass project name
+        config: Config,
         executor: str | None = None,
-        with_tracker: bool = False,
-        with_opentelemetry: bool = False,
-        with_progressbar: bool = False,
-        config: dict = {},  # Driver config, not pipeline config
+        adapter: dict | None = None,
+        driver_config: dict = {},  # Driver config, not pipeline config
         module: Any | None = None,  # Pass loaded module
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
@@ -110,16 +106,12 @@ class PipelineRunner:
 
         Args:
             name (str): The name of the pipeline.
-            pipeline_cfg (PipelineConfig): Loaded configuration for the specific pipeline.
-            project_name (str): The name of the project.
+            config (Config): The flowerpower configuration.
             executor (str | None, optional): The executor to use. Defaults to None.
-            with_tracker (bool, optional): Whether to use the tracker. Defaults to False.
-            with_opentelemetry (bool, optional): Whether to use OpenTelemetry. Defaults to False.
-            with_progressbar (bool, optional): Whether to use a progress bar. Defaults to False.
-            config (dict | None, optional): The config for the hamilton driver that executes the pipeline.
-                Defaults to {}.
-            module (Any | None): The loaded pipeline module. Required.
-            **kwargs: Additional keyword arguments for tracker/opentelemetry setup.
+            adapter (dict | None, optional): The adapter configuration. Defaults to None.
+            driver_config (dict, optional): The driver configuration. Defaults to {}.
+            module (Any | None, optional): The loaded module. Defaults to None.
+            **kwargs: Additional keyword arguments for tracker/opentelemetry.
 
         Returns:
             tuple[driver.Driver, Callable | None]: A tuple containing the driver and shutdown function.
@@ -137,6 +129,7 @@ class PipelineRunner:
         executor_, shutdown = get_executor(
             executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
         )
+        
         adapters = []
         if with_tracker:
             # Assume tracker config comes from pipeline_cfg or project_cfg (passed via kwargs if needed)
@@ -208,7 +201,7 @@ class PipelineRunner:
                 logger.error(f"Failed to initialize OpenTelemetry tracer: {e}")
 
         if with_progressbar:
-            adapters.append(h_tqdm.ProgressBar(desc=f"{project_name}.{name}"))
+            adapters.append(h_rich.RichProgressBar(run_desc=f"{project_name}.{name}"))
             logger.info("Progress bar enabled.")
 
         if executor == "future_adapter":
@@ -268,13 +261,15 @@ class PipelineRunner:
         """
         # Load config and module using the provided functions
         # Pass reload flag to the loading functions
-        pipeline_cfg = self._load_config_func(name=name, reload=reload)
+        cfg = self._load_config_func(name=name, reload=reload)
+        pipeline_cfg = cfg.pipeline  # Access pipeline config from loaded config
+        project_cfg = cfg.project  # Access project config from loaded config
         module = self._load_module_func(name=name, reload=reload)
-        project_name = self._get_project_name_func()  # Get project name via function
+        project_name = project_cfg.name  # Get project name via function
 
         logger.info(f"Starting pipeline {project_name}.{name}")
 
-        run_params = pipeline_cfg.pipeline.run  # Access run params from loaded config
+        run_params = pipeline_cfg.run  # Access run params from loaded config
 
         # Use _resolve_parameters for merging run flags (executor, tracker, etc.)
         method_args = locals()  # Capture args passed to run()

@@ -7,15 +7,15 @@ from munch import Munch, munchify
 from ..base import BaseConfig
 from .run import RunConfig
 from .schedule import ScheduleConfig
-from .tracker import TrackerConfig
+from .adapter import AdapterConfig
 
 
 class PipelineConfig(BaseConfig):
-    name: str | None = None
+    name: str | None = msgspec.field(default=None)
     run: RunConfig = msgspec.field(default_factory=RunConfig)
     schedule: ScheduleConfig = msgspec.field(default_factory=ScheduleConfig)
     params: dict = msgspec.field(default_factory=dict)
-    tracker: TrackerConfig = msgspec.field(default_factory=TrackerConfig)
+    adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
     h_params: dict = msgspec.field(default_factory=dict)
 
     def __post_init__(self):

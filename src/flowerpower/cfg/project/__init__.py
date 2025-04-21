@@ -1,15 +1,12 @@
 import msgspec
 
 from ..base import BaseConfig
-from .open_telemetry import OpenTelemetryConfig
-from .tracker import TrackerConfig
+
+from .adapter import AdapterConfig
 from .worker import WorkerConfig
 
 
 class ProjectConfig(BaseConfig):
-    name: str | None = None
+    name: str | None = msgspec.field(default=None)
     worker: WorkerConfig = msgspec.field(default_factory=WorkerConfig)
-    tracker: TrackerConfig = msgspec.field(default_factory=TrackerConfig)
-    open_telemetry: OpenTelemetryConfig = msgspec.field(
-        default_factory=OpenTelemetryConfig
-    )
+    adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
