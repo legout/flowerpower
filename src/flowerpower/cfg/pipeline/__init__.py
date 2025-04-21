@@ -5,21 +5,17 @@ from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
 from ..base import BaseConfig
-from .run import PipelineRunConfig
-from .schedule import PipelineScheduleConfig
-from .tracker import PipelineTrackerConfig
+from .run import RunConfig
+from .schedule import ScheduleConfig
+from .tracker import TrackerConfig
 
 
 class PipelineConfig(BaseConfig):
     name: str | None = None
-    run: PipelineRunConfig = msgspec.field(default_factory=PipelineRunConfig)
-    schedule: PipelineScheduleConfig = msgspec.field(
-        default_factory=PipelineScheduleConfig
-    )
+    run: RunConfig = msgspec.field(default_factory=RunConfig)
+    schedule: ScheduleConfig = msgspec.field(default_factory=ScheduleConfig)
     params: dict = msgspec.field(default_factory=dict)
-    tracker: PipelineTrackerConfig = msgspec.field(
-        default_factory=PipelineTrackerConfig
-    )
+    tracker: TrackerConfig = msgspec.field(default_factory=TrackerConfig)
     h_params: dict = msgspec.field(default_factory=dict)
 
     def __post_init__(self):

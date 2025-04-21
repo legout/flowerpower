@@ -51,8 +51,8 @@ services:
       # --- Option 2: Mount Docker socket to attach to python-dev (more complex/risky) ---
       - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
       # You might need another volume to install docker cli if not in base image
-    ports:
-      - "8443:8443" # Expose code-server port
+    #ports:
+    #  - "8443:8443" # Expose code-server port
     restart: unless-stopped
     networks:
       - flowerpower-net # Connect to Caddy's network
@@ -62,9 +62,9 @@ services:
   # Minio is a local S3 compatible storage solution.  
   minio:
     image: minio/minio
-    ports:
-      - 9000:9000
-      - 9001:9001
+    #ports:
+    #  - 9000:9000
+    #  - 9001:9001
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio1234
@@ -103,7 +103,7 @@ services:
   redis:
     image: redis
     ports:
-      - 6379:6379
+     - 6379:6379
     networks:
       - flowerpower-net
 
@@ -111,17 +111,17 @@ services:
   valkey:
     image: valkey/valkey
     ports:
-      - 6379:6379
+     - 6379:6379
     networks:
       - flowerpower-net
 
   # Dragonfly - a Redis compatible key-value store
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
-    #   ulimits:
-    #     memlock: -1
+    ulimits:
+      memlock: -1
     ports:
-      - 6379:6379
+     - 6379:6379
     networks:
       - flowerpower-net
 
@@ -130,7 +130,7 @@ services:
   mongodb:
     image: mongo
     ports:
-      - 27017:27017
+     - 27017:27017
     networks:
       - flowerpower-net
 
@@ -143,7 +143,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+     - 5432:5432
     networks:
       - flowerpower-net
 
@@ -152,6 +152,7 @@ services:
   # PosgreSQL
   postgres-hamilton:
     image: postgres
+    container_name: hamilton-postgres
     volumes:
       - hamilton_pg_data:/var/lib/postgresql/data
     environment:
@@ -159,8 +160,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - PGPORT=5433
-    ports:
-      - 5433:5433
+    #ports:
+    #  - 5433:5433
     networks:
       - flowerpower-net
 
@@ -173,7 +174,7 @@ services:
     volumes:
       - hamilton_ui_data:/data/
     ports:
-      - 8241:8241
+     - 8241:8241
     #env_file: .env
     environment:
       - DB_HOST=postgres-hamilton
@@ -199,8 +200,8 @@ services:
   frontend:
     container_name: hamilton-ui-frontend
     image: dagworks/ui-frontend:latest
-    ports:
-      - 8242:8242
+    #ports:
+    #  - 8242:8242
     environment:
       - NGINX_PORT=8242
       - NODE_ENV=development
@@ -215,9 +216,7 @@ services:
 
   caddy:
     image: caddy:latest
-    container_name: caddy
-    env_file:
-      - .env
+    container_name: caddyP
     ports:
       - "80:80"
       - "443:443"
@@ -230,13 +229,13 @@ services:
     networks:
       - flowerpower-net
     environment:
-      - HOSTNAME=$HOSTNAME
+      - HOSTNAME=flowerpower.local
 
   dockge:
     image: louislam/dockge:latest
     container_name: dockge
-    ports:
-      - "5001:5001"
+    #ports:
+    #  - "5001:5001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - dockge_data:/data

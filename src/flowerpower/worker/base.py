@@ -16,10 +16,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from .settings import BACKEND_PROPERTIES
 from ..cfg import Config
 from ..fs import AbstractFileSystem, get_filesystem
 from ..utils.misc import update_config_from_dict
+from .settings import BACKEND_PROPERTIES
 
 
 class BackendType(str, Enum):
@@ -47,6 +47,14 @@ class BackendType(str, Enum):
     @property
     def default_host(self) -> str:
         return self.properties.get("default_host", "")
+
+    @property
+    def default_username(self) -> str:
+        return self.properties.get("default_username", "")
+
+    @property
+    def default_password(self) -> str:
+        return self.properties.get("default_password", "")
 
     @property
     def default_database(self) -> str:
@@ -93,7 +101,12 @@ class BackendType(str, Enum):
         key_file: str | None = None,
         verify_ssl: bool = False,
     ) -> str:
-        import urllib.parse
+        # Handle host and port
+        host = host or self.default_host
+        port = port or self.default_port
+        database = database or self.default_database
+        username = username or self.default_username
+        password = password or self.default_password
 
         # components: List[str] = []
         # Get the appropriate URI prefix based on backend type and SSL setting
@@ -117,11 +130,6 @@ class BackendType(str, Enum):
             auth = f":{urllib.parse.quote(password)}@"
         else:
             auth = ""
-
-        # Handle host and port
-        host = host or self.default_host
-        port = port or self.default_port
-        database = database or self.default_database
 
         port_part = f":{port}"  # if port is not None else self.default_port
 
@@ -202,7 +210,6 @@ class BackendType(str, Enum):
             query_string = "?" + "&".join(query_params)
 
         return f"{base_uri}{query_string}"
-
 
 
 @dataclass(slots=True)
@@ -315,7 +322,6 @@ class BaseWorker(abc.ABC):
         backend: BaseBackend | None = None,
         storage_options: dict = None,
         fs: AbstractFileSystem | None = None,
-        **cfg_updates: dict[str, Any],
     ):
         """
         Initialize the APScheduler backend.
@@ -326,6 +332,7 @@ class BaseWorker(abc.ABC):
             backend: APSBackend instance with data store and event broker
             storage_options: Storage options for filesystem access
             fs: Filesystem to use
+            cfg_override: Configuration overrides for the worker
         """
         self.name = name or ""
         self._base_dir = base_dir or str(Path.cwd())
@@ -340,19 +347,20 @@ class BaseWorker(abc.ABC):
         self._conf_path = "conf"
         self._pipelines_path = "pipelines"
 
-        self._load_config(**cfg_updates)
+        self._load_config()
 
         # Add pipelines path to sys.path
         sys.path.append(self._pipelines_path)
 
-    def _load_config(self, **cfg_updates) -> None:
+    def _load_config(self) -> None:
         """Load the configuration.
 
         Args:
             cfg_updates: Configuration updates to apply
         """
-        cfg = Config.load(base_dir=self._base_dir, worker_type=self._type, fs=self._fs)
-        self.cfg = update_config_from_dict(cfg.project.worker, cfg_updates)
+        self.cfg = Config.load(
+            base_dir=self._base_dir, worker_type=self._type, fs=self._fs
+        ).project.worker
 
     @abc.abstractmethod
     def add_job(

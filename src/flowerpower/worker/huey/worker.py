@@ -8,14 +8,25 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 # Huey imports for dynamic config generation and type hints
-from huey import (FileHuey, Huey, MemoryHuey,  # Added Huey base class
-                  PriorityRedisExpireHuey, PriorityRedisHuey, RedisExpireHuey,
-                  RedisHuey, SqliteHuey)
+from huey import (
+    FileHuey,
+    Huey,
+    MemoryHuey,  # Added Huey base class
+    PriorityRedisExpireHuey,
+    PriorityRedisHuey,
+    RedisExpireHuey,
+    RedisHuey,
+    SqliteHuey,
+)
 from redis import ConnectionPool
 
 from ...fs import AbstractFileSystem
-from ..base import (BackendType, BaseBackend, BaseTrigger,  # Added BackendType
-                    BaseWorker)
+from ..base import (
+    BackendType,
+    BaseBackend,
+    BaseTrigger,  # Added BackendType
+    BaseWorker,
+)
 
 
 class HueyWorker(BaseWorker):

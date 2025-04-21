@@ -10,7 +10,7 @@ from ..base import BaseConfig
 #    APSCHEDULER = "apscheduler"
 
 
-class WorkerBackend(BaseConfig):
+class WorkerBackendConfig(BaseConfig):
     """
     Worker backend configuration for FlowerPower.
     Inherits from BaseConfig and adapts Redis logic.
@@ -30,43 +30,43 @@ class WorkerBackend(BaseConfig):
     verify_ssl: bool = msgspec.field(default=False)
 
 
-class APSDataStore(WorkerBackend):
+class APSDataStoreConfig(WorkerBackendConfig):
     type: str = msgspec.field(default_factory=lambda: "postgresql")
     host: str = msgspec.field(default_factory=lambda: "localhost")
     port: int = msgspec.field(default_factory=lambda: 5432)
-    username: str = msgspec.field(default_factory=lambda: "flowerpower")
-    password: str = msgspec.field(default_factory=lambda: "secret_password")
-    
+    schema: str | None = msgspec.field(default="flowerpower")
+    username: str = msgspec.field(default_factory=lambda: "postgres")
 
 
-class APSEventBroker(WorkerBackend):
-    from_data_store_sqla_engine: bool = msgspec.field(default=False)
+class APSEventBrokerConfig(WorkerBackendConfig):
+    from_ds_sqla: bool = msgspec.field(default=True)
 
 
-class APSBackend(BaseConfig):
-    data_store: APSDataStore = msgspec.field(default_factory=APSDataStore)
-    event_broker: APSEventBroker = msgspec.field(default_factory=APSEventBroker)
+class APSBackendConfig(BaseConfig):
+    data_store: APSDataStoreConfig = msgspec.field(default_factory=APSDataStoreConfig)
+    event_broker: APSEventBrokerConfig = msgspec.field(
+        default_factory=APSEventBrokerConfig
+    )
     cleanup_interval: int | float | dt.timedelta = msgspec.field(
         default=300
     )  # int in secods
     max_concurrent_jobs: int = msgspec.field(default=10)
-    schema: str | None = msgspec.field(default="flowerpower")
     default_job_executor: str | None = msgspec.field(default="threadpool")
     num_workers: int | None = msgspec.field(default=None)
 
 
-class RQBackend(WorkerBackend):
+class RQBackendConfig(WorkerBackendConfig):
     type: str = msgspec.field(default_factory=lambda: "redis")
     host: str = msgspec.field(default_factory=lambda: "localhost")
     port: int = msgspec.field(default_factory=lambda: 6379)
     queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])
 
 
-class HueyBackend(WorkerBackend):
+class HueyBackendConfig(WorkerBackendConfig):
     pass
 
 
-class ProjectWorkerConfig(BaseConfig):
+class WorkerConfig(BaseConfig):
     type: str | None = msgspec.field(default="rq")
     backend: dict | None = msgspec.field(default=None)
 
@@ -75,34 +75,36 @@ class ProjectWorkerConfig(BaseConfig):
             self.type = self.type.lower()
             if self.type == "rq":
                 if self.backend is None:
-                    self.backend = RQBackend()
+                    self.backend = RQBackendConfig()
                 else:
-                    self.backend = RQBackend(**self.backend)
+                    self.backend = RQBackendConfig(**self.backend)
             elif self.type == "apscheduler":
                 if self.backend is None:
-                    self.backend = APSBackend(
-                        data_store=APSDataStore(), event_broker=APSEventBroker()
+                    self.backend = APSBackendConfig(
+                        data_store=APSDataStoreConfig(),
+                        event_broker=APSEventBrokerConfig(),
                     )
                 else:
-                    self.backend = APSBackend(
-                        data_store=APSDataStore(**self.backend.get("data_store", {})),
-                        event_broker=APSEventBroker(
-                            **self.backend.get("event_broker", {})
+                    self.backend = APSBackendConfig(
+                        data_store=APSDataStoreConfig(
+                            self.backend.get("data_store", {})
+                        ),
+                        event_broker=APSEventBrokerConfig(
+                            self.backend.get("event_broker", {})
                         ),
                     )
             elif self.type == "huey":
                 if self.backend is None:
-                    self.backend = HueyBackend()
+                    self.backend = HueyBackendConfig()
                 else:
-                    self.backend = HueyBackend(**self.backend)
+                    self.backend = HueyBackendConfig(**self.backend)
             else:
                 raise ValueError(
                     f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"
                 )
-    
-    def update_type(self, type:str):
+
+    def update_type(self, type: str):
         if type != self.type:
             self.type = type
             self.backend = None
             self.__post_init__()
-

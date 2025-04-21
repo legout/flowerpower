@@ -22,8 +22,8 @@ class PipelineIOManager:
     def __init__(
         self,
         fs: AbstractFileSystem,
-        #cfg_dir: str,
-        #pipelines_dir: str,
+        # cfg_dir: str,
+        # pipelines_dir: str,
         registry: PipelineRegistry,  # Add registry dependency
     ):
         """
@@ -38,7 +38,7 @@ class PipelineIOManager:
         self._fs = fs
         self._registry = registry  # Store registry
         self._cfg_dir = self._registry._cfg_dir
-        self._pipelines_dir =self._registry._pipelines_dir
+        self._pipelines_dir = self._registry._pipelines_dir
 
     def import_pipeline(
         self,
@@ -79,9 +79,7 @@ class PipelineIOManager:
         dest_cfg_file = posixpath.join(
             self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
         )
-        src_pipeline_file = posixpath.join(
-            "pipelines",  f"{name.replace('.', '/')}.py"
-        )
+        src_pipeline_file = posixpath.join("pipelines", f"{name.replace('.', '/')}.py")
         src_cfg_file = posixpath.join(
             "conf", "pipelines", f"{name.replace('.', '/')}.yml"
         )
@@ -303,11 +301,9 @@ class PipelineIOManager:
         dest_fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
         dest_fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
 
-     
         # Copy pipeline module and config
         dest_fs.write_bytes(dest_pipeline_file, self._fs.read_bytes(src_pipeline_file))
         dest_fs.write_bytes(dest_cfg_file, self._fs.read_bytes(src_cfg_file))
-
 
         # Use registry's project name if available
         project_name = cfg.project.name or "unknown_flowerpower_project"

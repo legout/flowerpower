@@ -1,10 +1,10 @@
 import msgspec
-from munch import  munchify
+from munch import munchify
 
 from ..base import BaseConfig
 
 
-class PipelineRunConfig(BaseConfig):
+class RunConfig(BaseConfig):
     final_vars: list[str] | None = msgspec.field(default_factory=list)
     inputs: dict | None = msgspec.field(default_factory=dict)
     executor: str | None = None

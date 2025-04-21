@@ -1,6 +1,5 @@
 {
-	email lignoblades@gmail.com
-	auto_https off
+	email user@example.com
 }
 
 codeserver.flowerpower.local {
@@ -8,26 +7,11 @@ codeserver.flowerpower.local {
 }
 
 minio.flowerpower.local {
-	reverse_proxy minio:9000
+	reverse_proxy minio:9001
 }
 
-mqtt-nanomq.flowerpower.local {
-	reverse_proxy mqtt-nanomq:1884
-}
 
-mqtt-mosquitto.flowerpower.local {
-	reverse_proxy mqtt-mosquitto:1883
-}
-
-mongodb.flowerpower.local {
-	reverse_proxy mongodb:27017
-}
-
-backend.flowerpower.local {
-	reverse_proxy hamilton-ui-backend:8241
-}
-
-frontend.flowerpower.local {
+hamilton-ui.flowerpower.local {
 	reverse_proxy hamilton-ui-frontend:8242
 }
 

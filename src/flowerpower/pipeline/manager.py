@@ -587,7 +587,12 @@ class PipelineManager:
     # --- Delegate Methods for Registry ---
 
     def get_summary(
-        self, name: str, reload: bool = False, cfg:bool=True, code:bool=True, project:bool=True
+        self,
+        name: str,
+        reload: bool = False,
+        cfg: bool = True,
+        code: bool = True,
+        project: bool = True,
     ) -> dict[str, Any] | Table:
         """Gets the summary of a pipeline by delegating to the registry."""
         # The registry's get_summary now uses the load_config_func passed during init

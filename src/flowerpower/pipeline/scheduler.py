@@ -16,12 +16,12 @@ from rich import print as rprint
 # from .cfg import PipelineConfig # May not be needed directly if using funcs
 from ..fs.base import BaseStorageOptions
 
-# The trigger function has siginificantly changed in the new version. 
+# The trigger function has siginificantly changed in the new version.
 # We have to adjust the related code and imports accordingly
-# from ..utils.scheduler import get_trigger 
+# from ..utils.scheduler import get_trigger
 from ..worker import Worker
 
-#from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
+# from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
 
 log = logging.getLogger(__name__)
 

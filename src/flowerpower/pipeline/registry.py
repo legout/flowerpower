@@ -75,9 +75,14 @@ class PipelineRegistry:
         """
         cfg = self._load_config_func()
 
-        for dir_path, label in ((self._cfg_dir, "configuration"), (self._pipelines_dir, "pipeline")):
+        for dir_path, label in (
+            (self._cfg_dir, "configuration"),
+            (self._pipelines_dir, "pipeline"),
+        ):
             if not self._fs.exists(dir_path):
-                raise ValueError(f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first.")
+                raise ValueError(
+                    f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first."
+                )
 
         formatted_name = name.replace(".", "/")
         pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
@@ -106,11 +111,13 @@ class PipelineRegistry:
                     date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 )
             )
-        
+
         cfg.pipeline = PipelineConfig(name=name)
         save_project = not self._fs.exists(f"{self._cfg_dir}/project.yml")
         cfg.save(project=save_project, pipeline=True)
-        rich.print(f"🔧 Created new pipeline [bold blue]{cfg.project.name}.{name}[/bold blue]")
+        rich.print(
+            f"🔧 Created new pipeline [bold blue]{cfg.project.name}.{name}[/bold blue]"
+        )
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
         """
@@ -189,9 +196,13 @@ class PipelineRegistry:
         """
         files = self._get_files()
         return [posixpath.basename(f).replace(".py", "") for f in files]
-    
+
     def get_summary(
-        self, name: str | None = None, cfg: bool = True, code: bool = True, project: bool = True
+        self,
+        name: str | None = None,
+        cfg: bool = True,
+        code: bool = True,
+        project: bool = True,
     ) -> dict[str, dict | str]:
         """
         Get a summary of the pipelines.
@@ -282,7 +293,6 @@ class PipelineRegistry:
         console = Console()
 
         if project:
-
             # Create tree for project config
             project_tree = Tree("📁 Project Configuration", style="bold magenta")
             add_dict_to_tree(project_tree, project_summary)

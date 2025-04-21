@@ -46,10 +46,9 @@ class APSWorker(BaseWorker):
         self,
         name: str | None = "flowerpower_apscheduler",
         base_dir: str | None = None,
-        backend: APSBackend | None = None,
+        backend: APSBackend | dict | None = None,
         storage_options: dict[str, Any] = None,
         fs: AbstractFileSystem | None = None,
-        **cfg_updates: dict[str, Any],
     ):
         """
         Initialize the APScheduler backend.
@@ -69,10 +68,9 @@ class APSWorker(BaseWorker):
             fs=fs,
             backend=backend,
             storage_options=storage_options,
-            **cfg_updates,
         )
 
-        if backend is None:
+        if not isinstance(backend, APSBackend):
             self._setup_backend()
 
         # Set up job executors
@@ -81,7 +79,6 @@ class APSWorker(BaseWorker):
             "threadpool": ThreadPoolJobExecutor(),
             "processpool": ProcessPoolJobExecutor(),
         }
-        print(self.cfg.to_dict())
         self._worker = Scheduler(
             job_executors=self._job_executors,
             event_broker=self._backend.event_broker.client,
@@ -103,55 +100,34 @@ class APSWorker(BaseWorker):
         Raises:
             RuntimeError: If the data store setup fails due to misconfiguration or connection errors.
         """
-        backend_cfg = getattr(self.cfg, "backend", None)
-        if not backend_cfg:
-            logger.info("Backend configuration is missing in project.worker.backend.",
-                        "Setting up default in-memory data store.")
-            data_store_cfg = {"type": "memory"}
-            event_broker_cfg = {"type": "memory"}
+        if isinstance(self._backend, dict):
+            if "data_store" in self._backend:
+                data_store = APSDataStore(**self._backend["data_store"])
+            if "event_broker" in self._backend:
+                if self._backend["event_broker"].get("from_ds_sqla", False):
+                    event_broker = APSEventBroker.from_ds_sqla(
+                        sqla_engine=data_store.sqla_engine
+                    )
+                else:
+                    event_broker = APSEventBroker(**self._backend["event_broker"])
+            self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
         else:
-            data_store_cfg = getattr(backend_cfg, "data_store", None)
-            event_broker_cfg = getattr(backend_cfg, "event_broker", None)
-            if not data_store_cfg:
-                logger.info(
-                    "Data store configuration is missing in project.worker.backend.data_store.",
-                    "Setting up default in-memory data store.",
-                )
-                data_store_cfg = {"type": "memory"}
-            else:
-                data_store_cfg = data_store_cfg.to_dict()
+            data_store = APSDataStore(**self.cfg.backend.data_store.to_dict())
 
-            if not event_broker_cfg:
-                logger.info(
-                    "Event broker configuration is missing in project.worker.backend.event_broker.",
-                    "Setting up default in-memory event broker.",
+            if self.cfg.backend.event_broker.to_dict().get("from_ds_sqla", False):
+                event_broker = APSEventBroker.from_ds_sqla(
+                    sqla_engine=data_store.sqla_engine
                 )
-                event_broker_cfg = {"type": "memory"}
-            else:
-                event_broker_cfg = event_broker_cfg.to_dict()
-
-        try:
-            data_store = APSDataStore(
-                **data_store_cfg,
-            )
-        except Exception as exc:
-            logger.exception(f"Failed to set up data store: {exc}")
-        
-        try:
-            print(event_broker_cfg)
-            if event_broker_cfg.pop("from_data_store_sqla_engine", False):
-                event_broker = APSEventBroker.from_data_store_sqla_engine(
-                    sqla_engine=data_store.sqla_engine)
             else:
                 event_broker = APSEventBroker(
-                    **event_broker_cfg,
+                    **{
+                        k: v
+                        for k, v in self.cfg.backend.event_broker.to_dict().items()
+                        if k != "from_ds_sqla"
+                    }
                 )
-        except Exception as exc:
-            logger.exception(f"Failed to set up event broker: {exc}")
+            self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
 
-        self._backend = APSBackend(
-            data_store=data_store, event_broker=event_broker
-        )
         logger.info(
             f"Data store and event broker set up successfully: data store type"
             f" '{data_store.type}', event broker type '{event_broker.type}'"
@@ -247,7 +223,7 @@ class APSWorker(BaseWorker):
         else:
             logger.info("Starting APScheduler worker in foreground mode.")
             self._worker.run_until_stopped()
-    
+
     def stop_worker(self) -> None:
         """Stop the worker."""
         logger.info("Stopping APScheduler worker.")

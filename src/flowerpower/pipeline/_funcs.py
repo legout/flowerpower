@@ -22,15 +22,18 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from ..cfg import \
-    PipelineConfig  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
+from ..cfg import (
+    PipelineConfig,
+)  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrackerConfig,
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
 from ..utils.misc import view_img
 from ..utils.templates import PIPELINE_PY_TEMPLATE
+
 # Import the new Worker class
-from ..worker import \
-    Worker  # , BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
+from ..worker import (
+    Worker,
+)  # , BaseWorker, BaseTrigger # BaseWorker/BaseTrigger potentially needed for typing
 
 # Keep conditional import for opentelemetry and other plugins
 if importlib.util.find_spec("opentelemetry"):

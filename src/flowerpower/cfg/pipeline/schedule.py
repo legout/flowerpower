@@ -5,7 +5,7 @@ import msgspec
 from ..base import BaseConfig
 
 
-class PipelineScheduleCronTriggerConfig(BaseConfig):
+class ScheduleCronTriggerConfig(BaseConfig):
     year: str | int | None = None
     month: str | int | None = None
     week: str | int | None = None
@@ -20,7 +20,7 @@ class PipelineScheduleCronTriggerConfig(BaseConfig):
     crontab: str | None = None
 
 
-class PipelineScheduleIntervalTriggerConfig(BaseConfig):
+class ScheduleIntervalTriggerConfig(BaseConfig):
     weeks: int | float | None = None
     days: int | float | None = None
     hours: int | float | None = None
@@ -31,7 +31,7 @@ class PipelineScheduleIntervalTriggerConfig(BaseConfig):
     end_time: dt.datetime | None = None
 
 
-class PipelineScheduleCalendarTriggerConfig(BaseConfig):
+class ScheduleCalendarTriggerConfig(BaseConfig):
     years: int | float | None = None
     months: int | float | None = None
     weeks: int | float | None = None
@@ -44,27 +44,27 @@ class PipelineScheduleCalendarTriggerConfig(BaseConfig):
     timezone: str | None = None
 
 
-class PipelineScheduleDateTriggerConfig(BaseConfig):
+class ScheduleDateTriggerConfig(BaseConfig):
     run_time: dt.datetime | None = None
 
 
-class PipelineScheduleTriggerConfig(BaseConfig):
-    cron: PipelineScheduleCronTriggerConfig = msgspec.field(
-        default_factory=PipelineScheduleCronTriggerConfig
+class ScheduleTriggerConfig(BaseConfig):
+    cron: ScheduleCronTriggerConfig = msgspec.field(
+        default_factory=ScheduleCronTriggerConfig
     )
-    interval: PipelineScheduleIntervalTriggerConfig = msgspec.field(
-        default_factory=PipelineScheduleIntervalTriggerConfig
+    interval: ScheduleIntervalTriggerConfig = msgspec.field(
+        default_factory=ScheduleIntervalTriggerConfig
     )
-    calendar: PipelineScheduleCalendarTriggerConfig = msgspec.field(
-        default_factory=PipelineScheduleCalendarTriggerConfig
+    calendar: ScheduleCalendarTriggerConfig = msgspec.field(
+        default_factory=ScheduleCalendarTriggerConfig
     )
-    date: PipelineScheduleDateTriggerConfig = msgspec.field(
-        default_factory=PipelineScheduleDateTriggerConfig
+    date: ScheduleDateTriggerConfig = msgspec.field(
+        default_factory=ScheduleDateTriggerConfig
     )
     type_: str | None = None
 
 
-class PipelineScheduleRunConfig(BaseConfig):
+class ScheduleRunConfig(BaseConfig):
     id_: str | None = None
     executor: str | None = None
     paused: bool = False
@@ -77,10 +77,8 @@ class PipelineScheduleRunConfig(BaseConfig):
     )
 
 
-class PipelineScheduleConfig(BaseConfig):
-    run: PipelineScheduleRunConfig = msgspec.field(
-        default_factory=PipelineScheduleRunConfig
-    )
-    trigger: PipelineScheduleTriggerConfig = msgspec.field(
-        default_factory=PipelineScheduleTriggerConfig
+class ScheduleConfig(BaseConfig):
+    run: ScheduleRunConfig = msgspec.field(default_factory=ScheduleRunConfig)
+    trigger: ScheduleTriggerConfig = msgspec.field(
+        default_factory=ScheduleTriggerConfig
     )

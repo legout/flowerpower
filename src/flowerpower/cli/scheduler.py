@@ -1,8 +1,7 @@
 import typer
 
 from ..pipeline.scheduler import SchedulerManager  # Adjust import as needed
-from .utils import \
-    parse_dict_or_list_param  # Assuming you have this utility function
+from .utils import parse_dict_or_list_param  # Assuming you have this utility function
 
 # Create a Typer app for scheduler commands
 app = typer.Typer(help="Scheduler management commands")

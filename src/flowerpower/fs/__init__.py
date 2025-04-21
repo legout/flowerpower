@@ -8,10 +8,14 @@ else:
     from fsspec import AbstractFileSystem
 
 from .base import get_filesystem  # noqa: F401
-from .storage_options import (AwsStorageOptions,  # noqa: F401
-                              AzureStorageOptions, GcsStorageOptions,
-                              GitHubStorageOptions, GitLabStorageOptions,
-                              StorageOptions)
+from .storage_options import (
+    AwsStorageOptions,  # noqa: F401
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+    StorageOptions,
+)
 
 __all__ = [
     "get_filesystem",

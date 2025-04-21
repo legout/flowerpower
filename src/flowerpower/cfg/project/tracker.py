@@ -3,7 +3,7 @@ import msgspec
 from ..base import BaseConfig
 
 
-class ProjectTrackerConfig(BaseConfig):
+class TrackerConfig(BaseConfig):
     username: str | None = msgspec.field(default=None)
     api_url: str = "http://localhost:8241"
     ui_url: str = "http://localhost:8242"

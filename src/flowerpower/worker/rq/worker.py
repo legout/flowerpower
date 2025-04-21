@@ -50,7 +50,6 @@ class RQWorker(BaseWorker):
         backend: RQBackend | None = None,
         storage_options: dict[str, Any] | None = None,
         fs: AbstractFileSystem | None = None,
-        **cfg_updates: dict[str, Any],
     ):
         """
         Initialize the RQScheduler backend.
@@ -62,7 +61,6 @@ class RQWorker(BaseWorker):
             event_broker: RQEventBroker instance (for pub/sub)
             storage_options: Storage options for filesystem access
             fs: Filesystem to use
-            **cfg_upates: Configuration updates for the scheduler
         """
         super().__init__(
             type="rq",
@@ -71,7 +69,6 @@ class RQWorker(BaseWorker):
             backend=backend,
             fs=fs,
             storage_options=storage_options,
-            **cfg_updates,
         )
 
         if self._backend is None:
@@ -98,9 +95,7 @@ class RQWorker(BaseWorker):
             )
             raise RuntimeError("Backend configuration is missing.")
         try:
-            self._backend = RQBackend(
-                **backend_cfg.to_dict()
-            )
+            self._backend = RQBackend(**backend_cfg.to_dict())
             logger.info(
                 f"RQ backend setup successful (type: {self._backend.type}, uri: {self._backend.uri})"
             )

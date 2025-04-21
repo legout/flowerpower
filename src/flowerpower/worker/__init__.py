@@ -9,8 +9,9 @@ from .rq import RQBackend, RQWorker
 
 class Worker:
     """
-    Worker class for FlowerPower.
-    This class serves as a factory for creating worker instances based on the specified backend type.
+       Worker
+    class for FlowerPower.
+       This class serves as a factory for creating worker instances based on the specified backend type.
     """
 
     def __new__(

@@ -64,7 +64,6 @@ class PipelineRunner:
         self._load_config_func = load_config_func
         self._load_module_func = load_module_func
         self._get_project_name_func = get_project_name_func
-    
 
     def _resolve_parameters(
         self, method_args: dict, config_section: Any, keys: list[str]

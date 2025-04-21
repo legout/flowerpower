@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from loguru import logger
+
 from apscheduler.datastores.base import BaseDataStore
 from apscheduler.eventbrokers.base import BaseEventBroker
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
@@ -39,7 +40,8 @@ class APSDataStore(BaseBackend):
             logger.warning(
                 "SQLite does not support schema. When using SQLite, the schema will be ignored.",
                 "When you need to use schemas, you can use several SQLite databases, ",
-                "one for each schema. Or use PostgreSQL or MySQL.")
+                "one for each schema. Or use PostgreSQL or MySQL.",
+            )
 
     async def _setup_db(self) -> None:
         sqla_engine = create_async_engine(self.uri)
@@ -143,8 +145,8 @@ class APSEventBroker(BaseBackend):
                 }"
             )
 
-    #@classmethod
-    #def from_dict(cls, d: dict[str, any]) -> "APSEventBroker":
+    # @classmethod
+    # def from_dict(cls, d: dict[str, any]) -> "APSEventBroker":
     #    return cls(**d)
 
     def _setup_asyncpg_event_broker(self):
@@ -213,14 +215,14 @@ class APSEventBroker(BaseBackend):
         return self._sqla_engine
 
     @classmethod
-    def from_data_store_sqla(cls, sqla_engine: AsyncEngine) -> "APSEventBroker":
+    def from_ds_sqla(cls, sqla_engine: AsyncEngine) -> "APSEventBroker":
         if sqla_engine.url.drivername != "postgresql+asyncpg":
             raise ValueError(
                 f"sqla_engine must be a PostgreSQL engine ('postgresql+asyncpg://'), got '{sqla_engine.url.drivername}'"
             )
         return cls(
             type="postgresql",
-            sqla_engine=sqla_engine,
+            _sqla_engine=sqla_engine,
         )
 
 
@@ -236,6 +238,10 @@ class APSBackend:
             self.data_store.setup()
         if self.event_broker is not None:
             if isinstance(self.event_broker, dict):
-                self.event_broker = APSEventBroker.from_dict(self.event_broker)            
+                if "from_ds_sqla" in self.event_broker:
+                    self.event_broker = APSEventBroker.from_ds_sqla(
+                        self.data_store.sqla_engine
+                    )
+                else:
+                    self.event_broker = APSEventBroker.from_dict(self.event_broker)
             self.event_broker.setup()
-

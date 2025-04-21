@@ -2,15 +2,14 @@
 # Created on 2024-10-26 12:44:27
 
 
+import time
 from pathlib import Path
 
 import pandas as pd
 from hamilton.function_modifiers import parameterize
+from loguru import logger
 
 from flowerpower.cfg import Config
-
-from loguru import logger
-import time
 
 PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
