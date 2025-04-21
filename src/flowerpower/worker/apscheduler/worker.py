@@ -310,7 +310,7 @@ class APSWorker(BaseWorker):
             func,
             args=args or (),
             kwargs=kwargs or {},
-            id=job_id,
+            #id=job_id,
             job_executor=job_executor,
             result_expiration_time=result_ttl,
             **job_kwargs,

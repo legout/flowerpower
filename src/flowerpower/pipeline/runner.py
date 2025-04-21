@@ -22,7 +22,6 @@ from hamilton.plugins import h_tqdm
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
-from munch import munchify
 
 # Assuming Config and PipelineConfig might be needed for type hints or logic
 # If not directly used, these can be removed later.
