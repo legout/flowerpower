@@ -1,3 +1,4 @@
+
 from typing import Any, Optional
 
 from ..fs import AbstractFileSystem
@@ -6,6 +7,8 @@ from .base import BaseBackend, BaseWorker
 from .huey import HueyWorker
 from .rq import RQBackend, RQWorker
 
+from ..utils.logging import setup_logging
+setup_logging()
 
 class Worker:
     """

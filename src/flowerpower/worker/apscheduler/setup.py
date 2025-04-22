@@ -7,7 +7,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from ..base import BaseBackend
+from ...utils.logging import setup_logging
 
+setup_logging()
 
 @dataclass  # (slots=True)
 class APSDataStore(BaseBackend):

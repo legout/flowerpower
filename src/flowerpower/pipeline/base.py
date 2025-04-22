@@ -1,14 +1,34 @@
-from munch import Munch
+import importlib
 import posixpath
 import sys
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from loguru import logger
 from traceback import TracebackType
 
-from ..cfg import ProjectConfig, PipelineConfig
-import importlib
+from loguru import logger
+from munch import Munch
+
+from ..cfg import PipelineConfig, ProjectConfig
+from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+
+from ..utils.logging import setup_logging
+
+setup_logging()
 
 
+def load_module(name: str, reload: bool = False):
+    """
+    Load a module.
+
+    Args:
+        name (str): The name of the module.
+
+    Returns:
+        module: The loaded module.
+    """
+    if name in sys.modules:
+        if reload:
+            return importlib.reload(sys.modules[name])
+        return sys.modules[name]
+    return importlib.import_module(name)
 
 
 class BasePipeline:
@@ -16,7 +36,8 @@ class BasePipeline:
     Base class for all pipelines.
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions = {},
         fs: AbstractFileSystem | None = None,
@@ -50,9 +71,8 @@ class BasePipeline:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        
         pass
-    
+
     def _sync_fs(self):
         """
         Sync the filesystem.
@@ -75,12 +95,12 @@ class BasePipeline:
             ProjectConfig: The loaded project configuration.
         """
         return ProjectConfig.load(
-                    base_dir=self._base_dir,
-                    worker_type=self._worker_type,
-                    fs=self._fs,
-                    storage_options=self._storage_options,
-                    )
-    
+            base_dir=self._base_dir,
+            worker_type=self._worker_type,
+            fs=self._fs,
+            storage_options=self._storage_options,
+        )
+
     def _load_pipeline_cfg(self, name: str) -> PipelineConfig:
         """
         Load the pipeline configuration.
@@ -92,25 +112,8 @@ class BasePipeline:
             PipelineConfig: The loaded pipeline configuration.
         """
         return PipelineConfig.load(
-                    base_dir=self._base_dir,
-                    name=name,
-                    fs=self._fs,
-                    storage_options=self._storage_options,
-                    )
-    
-    @staticmethod
-    def _load_module(name: str, reload: bool = False):
-        """
-        Load a module.
-
-        Args:
-            name (str): The name of the module.
-
-        Returns:
-            module: The loaded module.
-        """
-        if name in sys.modules:
-            if reload:
-                return importlib.reload(sys.modules[name])
-            return sys.modules[name]
-        return importlib.import_module(name)
+            base_dir=self._base_dir,
+            name=name,
+            fs=self._fs,
+            storage_options=self._storage_options,
+        )

@@ -8,14 +8,14 @@ else:
     from fsspec import AbstractFileSystem
 
 from .base import get_filesystem  # noqa: E402
-from .storage_options import (  # noqa: E402
-    AwsStorageOptions, 
+from .storage_options import AwsStorageOptions  # noqa: E402
+from .storage_options import (
     AzureStorageOptions,
+    BaseStorageOptions,
     GcsStorageOptions,
     GitHubStorageOptions,
     GitLabStorageOptions,
     StorageOptions,
-    BaseStorageOptions
 )
 
 __all__ = [
@@ -27,5 +27,5 @@ __all__ = [
     "GcsStorageOptions",
     "GitHubStorageOptions",
     "GitLabStorageOptions",
-    "BaseStorageOptions"
+    "BaseStorageOptions",
 ]

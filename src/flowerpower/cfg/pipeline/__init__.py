@@ -1,13 +1,13 @@
 import msgspec
 import yaml
-from ...fs import get_filesystem, AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
-from .. import BaseConfig
+from ...fs import AbstractFileSystem, get_filesystem
+from ..base import BaseConfig
+from .adapter import AdapterConfig
 from .run import RunConfig
 from .schedule import ScheduleConfig
-from .adapter import AdapterConfig
 
 
 class PipelineConfig(BaseConfig):
@@ -112,7 +112,7 @@ class PipelineConfig(BaseConfig):
             pipeline = PipelineConfig(name=name)
 
         return pipeline
-    
+
     def save(
         self,
         base_dir: str = ".",
@@ -120,16 +120,12 @@ class PipelineConfig(BaseConfig):
         storage_options: dict | Munch = Munch(),
     ):
         if fs is None:
-            fs = get_filesystem(
-                base_dir, cached=True, dirfs=True, **storage_options
-            )
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
 
         fs.makedirs("conf/pipelines", exist_ok=True)
 
         h_params = self.pop("h_params") if self.h_params else None
-        self.to_yaml(
-                path=f"conf/pipelines/{self.name}.yml", fs=fs
-            )
+        self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
         if h_params:
             self.h_params = h_params
         self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)

@@ -4,11 +4,11 @@
 """Pipeline Scheduler."""
 
 import datetime as dt
-from loguru import logger
 from typing import Any, Callable
 from uuid import UUID  # Add UUID import
 
 from fsspec.spec import AbstractFileSystem
+from loguru import logger
 from munch import Munch
 from rich import print as rprint
 
@@ -20,9 +20,9 @@ from ..fs.base import BaseStorageOptions
 # We have to adjust the related code and imports accordingly
 # from ..utils.scheduler import get_trigger
 from ..worker import Worker
+from ..utils.logging import setup_logging
 
-# from ..worker.base import BaseSchedule  # Import BaseSchedule for type hinting
-
+setup_logging()
 
 
 class PipelineScheduler:
@@ -74,8 +74,8 @@ class PipelineScheduler:
         """
         Lazily instantiate and cache a Worker instance.
         """
-        #if not hasattr(self, "_worker_instance") or self._worker_instance is None:
-            # Use attributes passed during PipelineScheduler init
+        # if not hasattr(self, "_worker_instance") or self._worker_instance is None:
+        # Use attributes passed during PipelineScheduler init
         logger.debug(f"Instantiating worker of type: {self._worker_type}")
         return Worker(
             type=self._worker_type,
@@ -83,7 +83,6 @@ class PipelineScheduler:
             base_dir=self._base_dir,
             storage_options=self._storage_options,
         )
-
 
     def _get_schedules(self) -> list[Any]:
         """Get all schedules from the worker backend."""
@@ -214,7 +213,9 @@ class PipelineScheduler:
         }
         # Filter out None values AFTER merging
         run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
-        logger.debug(f"Resolved run_kwargs for immediate job (TTL) '{name}': {run_kwargs}")
+        logger.debug(
+            f"Resolved run_kwargs for immediate job (TTL) '{name}': {run_kwargs}"
+        )
 
         with self.worker as worker:
             job_id = worker.add_job(  # Use the worker property
@@ -427,7 +428,9 @@ class PipelineScheduler:
         schedule_run_kwargs = {
             k: v for k, v in schedule_run_kwargs.items() if v is not None
         }
-        logger.debug(f"Resolved schedule_run_kwargs for '{name}': {schedule_run_kwargs}")
+        logger.debug(
+            f"Resolved schedule_run_kwargs for '{name}': {schedule_run_kwargs}"
+        )
 
         # --- Generate ID if not provided ---
         def _generate_id(

@@ -1,10 +1,11 @@
 version = 1
+revision = 1
 requires-python = ">=3.11"
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_system != 'Windows'",
-    "python_full_version >= '3.12' and platform_system == 'Windows'",
-    "python_full_version < '3.12' and platform_system != 'Windows'",
-    "python_full_version < '3.12' and platform_system == 'Windows'",
+    "python_full_version >= '3.12' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and sys_platform != 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'win32'",
 ]
 
 [[package]]
@@ -672,7 +673,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -1225,6 +1226,9 @@ dev = [
 mlflow = [
     { name = "mlflow" },
 ]
+openlineage = [
+    { name = "openlineage-python" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1284,6 +1288,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.85.2" },
     { name = "typer", specifier = ">=0.12.3" },
 ]
+provides-extras = ["io", "io-legacy", "mongodb", "mqtt", "opentelemetry", "ray", "redis", "scheduler", "tui", "ui", "webserver"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1326,6 +1331,7 @@ dev = [
     { name = "sqlalchemy", specifier = ">=2.0.37" },
 ]
 mlflow = [{ name = "mlflow", specifier = ">=2.21.3" }]
+openlineage = [{ name = "openlineage-python", specifier = ">=1.31.0" }]
 
 [[package]]
 name = "fonttools"
@@ -1633,7 +1639,7 @@ name = "gunicorn"
 version = "23.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging", marker = "platform_system != 'Windows'" },
+    { name = "packaging", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/34/72/9614c465dc206155d93eff0ca20d42e1e35afc533971379482de953521a4/gunicorn-23.0.0.tar.gz", hash = "sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec", size = 375031 }
 wheels = [
@@ -1774,7 +1780,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -2438,7 +2444,7 @@ dependencies = [
     { name = "docker" },
     { name = "flask" },
     { name = "graphene" },
-    { name = "gunicorn", marker = "platform_system != 'Windows'" },
+    { name = "gunicorn", marker = "sys_platform != 'win32'" },
     { name = "jinja2" },
     { name = "markdown" },
     { name = "matplotlib" },
@@ -2449,7 +2455,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy" },
-    { name = "waitress", marker = "platform_system == 'Windows'" },
+    { name = "waitress", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/55/1c/f7d0f27ff2136b14fed2405cedd9500735caa93b51038908df11604207bd/mlflow-2.21.3.tar.gz", hash = "sha256:5dc45dc5b8e2bcd5727052d14de2ab4bc372ff49aa20f5dc097eef913a1d0c01", size = 27622035 }
 wheels = [
@@ -2848,6 +2854,22 @@ wheels = [
 ]
 
 [[package]]
+name = "openlineage-python"
+version = "1.31.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "packaging" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/16/6a/870c530458ea59293df7e47729560b2270628650e3a9f199c2a0d408b783/openlineage_python-1.31.0.tar.gz", hash = "sha256:41d94fca26737a2beee016f6b3526372af14aacd45bc43e8938e577e4d559552", size = 58994 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/bc/1f01c89f15dc79d46aae3d605eaa5a81dd05f55367dfeb8d8086f6b25c73/openlineage_python-1.31.0-py3-none-any.whl", hash = "sha256:c62ba07c464be4e73d6a45a0e0014da02a9ad6cd7073c181f1404be8be71e855", size = 65742 },
+]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.31.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3153,7 +3175,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450 }
 wheels = [
@@ -4737,7 +4759,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
@@ -4837,7 +4859,7 @@ name = "tzlocal"
 version = "5.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzdata", marker = "platform_system == 'Windows'" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8b/2e/c14812d3d4d9cd1773c6be938f89e5735a1f11a9f184ac3639b93cef35d5/tzlocal-5.3.1.tar.gz", hash = "sha256:cceffc7edecefea1f595541dbd6e990cb1ea3d19bf01b2809f362a03dd7921fd", size = 30761 }
 wheels = [

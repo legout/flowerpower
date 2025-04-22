@@ -2,13 +2,13 @@ import datetime as dt
 import re
 from functools import lru_cache
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pyarrow as pa
 import pyarrow.compute as pc
 from sqlglot import exp, parse_one
 
 from .polars import pl
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @lru_cache(maxsize=128)
@@ -29,7 +29,7 @@ def timestamp_from_string(
     Args:
         timestamp_str (str): The string representation of the timestamp (ISO 8601 format).
         tz (str, optional): Target timezone identifier (e.g., 'UTC', '+02:00', 'Europe/Paris').
-            If provided, the output datetime/time will be localized or converted to this timezone. 
+            If provided, the output datetime/time will be localized or converted to this timezone.
             Defaults to None.
         naive (bool, optional): If True, return a naive datetime/time (no timezone info),
             even if the input string or `tz` parameter specifies one. Defaults to False.
@@ -50,9 +50,11 @@ def timestamp_from_string(
         match = _TZ_OFFSET_REGEX.fullmatch(tz_str)
         if match:
             sign, hours, minutes = match.groups()
-            offset_seconds = (int(hours) * 3600 + int(minutes) * 60) * (-1 if sign == "-" else 1)
+            offset_seconds = (int(hours) * 3600 + int(minutes) * 60) * (
+                -1 if sign == "-" else 1
+            )
             if abs(offset_seconds) >= 24 * 3600:
-                 raise ValueError(f"Invalid timezone offset: {tz_str}")
+                raise ValueError(f"Invalid timezone offset: {tz_str}")
             return dt.timezone(dt.timedelta(seconds=offset_seconds), name=tz_str)
         return None
 
@@ -73,8 +75,10 @@ def timestamp_from_string(
             try:
                 return ZoneInfo(tz_identifier)
             except ZoneInfoNotFoundError:
-                raise ValueError(f"Timezone '{tz_identifier}' not found. Install 'tzdata' or use offset format.")
-            except Exception as e: # Catch other potential zoneinfo errors
+                raise ValueError(
+                    f"Timezone '{tz_identifier}' not found. Install 'tzdata' or use offset format."
+                )
+            except Exception as e:  # Catch other potential zoneinfo errors
                 raise ValueError(f"Error loading timezone '{tz_identifier}': {e}")
         else:
             # zoneinfo not available
@@ -107,11 +111,17 @@ def timestamp_from_string(
                 # try:
                 #     parsed_obj = dt.datetime.strptime(processed_str, "%H:%M:%S").time()
                 # except ValueError:
-                     raise ValueError(f"Invalid timestamp format: '{timestamp_str}'")
+                raise ValueError(f"Invalid timestamp format: '{timestamp_str}'")
 
     # Apply timezone logic if we have a datetime or time object
     if isinstance(parsed_obj, (dt.datetime, dt.time)):
-        is_aware = parsed_obj.tzinfo is not None and parsed_obj.tzinfo.utcoffset(parsed_obj if isinstance(parsed_obj, dt.datetime) else None) is not None
+        is_aware = (
+            parsed_obj.tzinfo is not None
+            and parsed_obj.tzinfo.utcoffset(
+                parsed_obj if isinstance(parsed_obj, dt.datetime) else None
+            )
+            is not None
+        )
 
         if target_tz:
             if is_aware:
@@ -122,7 +132,7 @@ def timestamp_from_string(
             else:
                 # Localize naive object to target timezone
                 parsed_obj = parsed_obj.replace(tzinfo=target_tz)
-            is_aware = True # Object is now considered aware
+            is_aware = True  # Object is now considered aware
 
         # Handle naive flag: remove tzinfo if requested
         if naive and is_aware:

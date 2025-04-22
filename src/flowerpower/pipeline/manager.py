@@ -6,10 +6,10 @@ import sys
 from typing import Any
 
 from hamilton import driver
+from munch import Munch
 
 from ..fs import AbstractFileSystem
 from .io import PipelineIOManager  # Add import for PipelineIOManager
-
 # Import the new registry class
 from .registry import PipelineRegistry
 from .runner import PipelineRunner  # Add import for PipelineRunner
@@ -43,7 +43,9 @@ from pathlib import Path
 from types import TracebackType
 from uuid import UUID
 
-from munch import Munch
+from ..utils.logging import setup_logging
+
+setup_logging()
 
 
 class PipelineManager:
@@ -226,9 +228,11 @@ class PipelineManager:
             )
             return self._cfg
 
-        self._cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
+        self._cfg = Config.load(
+            base_dir=self._base_dir, pipeline_name=name, fs=self._fs
+        )
 
-        #return self._cfg
+        # return self._cfg
 
     @property
     def cfg(self) -> Config:
@@ -239,9 +243,9 @@ class PipelineManager:
             Config: The configuration object.
         """
         if not hasattr(self, "_cfg"):
-           self.load_config
+            self.load_config
         return self._cfg
-    
+
     @property
     def project_cfg(self) -> ProjectConfig:
         """
@@ -253,7 +257,7 @@ class PipelineManager:
         if not hasattr(self, "_cfg"):
             self.load_config()
         return self._cfg.project
-    
+
     @property
     def pipeline_cfg(self) -> PipelineConfig:
         """
@@ -269,9 +273,7 @@ class PipelineManager:
             logger.info("Pipeline config not loaded.")
             return
         return self._cfg.pipeline
-    
 
-    
     # _get_driver method removed, moved to PipelineRunner
 
     # _resolve_parameters method removed, moved to PipelineRunner

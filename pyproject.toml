@@ -123,3 +123,6 @@ package = true
 mlflow = [
     "mlflow>=2.21.3",
 ]
+openlineage = [
+    "openlineage-python>=1.31.0",
+]

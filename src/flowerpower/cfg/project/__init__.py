@@ -1,12 +1,11 @@
 import msgspec
-
-from .. import BaseConfig
-
-from .adapter import AdapterConfig
-from .worker import WorkerConfig
 from munch import Munch
 
-from ...fs import get_filesystem, AbstractFileSystem
+from ...fs import AbstractFileSystem, get_filesystem
+from ..base import BaseConfig
+from .adapter import AdapterConfig
+from .worker import WorkerConfig
+
 
 class ProjectConfig(BaseConfig):
     name: str | None = msgspec.field(default=None)
@@ -33,7 +32,7 @@ class ProjectConfig(BaseConfig):
                 project.worker.update_type(worker_type)
 
         return project
-    
+
     def save(
         self,
         base_dir: str = ".",
@@ -41,9 +40,7 @@ class ProjectConfig(BaseConfig):
         storage_options: dict | Munch = Munch(),
     ):
         if fs is None:
-            fs = get_filesystem(
-                base_dir, cached=True, dirfs=True, **storage_options
-            )
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
 
         fs.makedirs("conf", exist_ok=True)
         self.to_yaml(path="conf/project.yml", fs=fs)

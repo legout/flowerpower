@@ -6,7 +6,7 @@ import time
 from typing import Any
 
 import msgspec
-import tqdm
+#import tqdm
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa
@@ -347,8 +347,8 @@ if importlib.util.find_spec("joblib"):
         all_iterables = iterables + list(iterable_kwargs.values())
         param_combinations = list(zip(*all_iterables))  # Convert to list for tqdm
 
-        if verbose:
-            param_combinations = tqdm.tqdm(param_combinations)
+        #if verbose:
+        #    param_combinations = tqdm.tqdm(param_combinations)
 
         return Parallel(**parallel_kwargs)(
             delayed(func)(

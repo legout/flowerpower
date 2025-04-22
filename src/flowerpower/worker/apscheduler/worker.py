@@ -29,6 +29,9 @@ from ..base import BaseTrigger, BaseWorker
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
 from .utils import display_jobs, display_schedules
+from ...utils.logging import setup_logging
+
+setup_logging()
 
 # Patch pickle if needed
 try:
@@ -310,7 +313,7 @@ class APSWorker(BaseWorker):
             func,
             args=args or (),
             kwargs=kwargs or {},
-            #id=job_id,
+            # id=job_id,
             job_executor=job_executor,
             result_expiration_time=result_ttl,
             **job_kwargs,

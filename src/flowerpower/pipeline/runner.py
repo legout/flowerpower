@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
 import importlib.util
+from typing import Any, Callable
+
 from hamilton import driver
 from hamilton.execution import executors
+from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 
 if importlib.util.find_spec("opentelemetry"):
@@ -17,50 +19,66 @@ else:
     h_opentelemetry = None
     init_tracer = None
 
+if importlib.util.find_spec("mlflow"):
+    from hamilton.plugins import h_mlflow
+else:
+    h_mlflow = None
+
 from hamilton.plugins import h_rich
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
-from munch import Munch
-
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
+    from hamilton.plugins import h_dask
 else:
     distributed = None
 
 
 if importlib.util.find_spec("ray"):
     import ray
+    from hamilton.plugins import h_ray
 else:
-    ray = None
-from .base import BasePipeline
+    h_ray = None
 
-# Assuming Config and PipelineConfig might be needed for type hints or logic
-# If not directly used, these can be removed later.
-from ..cfg import Config
-from ..cfg.pipeline.run import ExecutorConfig, AdapterConfig
-#from .executor import get_executor
+from ..cfg import PipelineConfig, ProjectConfig
+from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from .base import load_module
 
-from ..fs import AbstractFileSystem, BaseStorageOptions
+from ..utils.logging import setup_logging
+setup_logging()
+
+# from .executor import get_executor
 
 
-class PipelineRunner(BasePipeline):
+class PipelineRunner:
     """PipelineRunner is responsible for executing a specific pipeline run.
     It handles the loading of the pipeline module, configuration, and execution"""
 
     def __init__(
-            self,
-            project_cfg: ProjectConfig,
-            pipeline_cfg: PipelineConfig,
-            telemetry: bool = False,
+        self,
+        name: str,
+        project_cfg: ProjectConfig,
+        pipeline_cfg: PipelineConfig,
+        telemetry: bool = False,
+        autoload: bool = False,
     ):
-        self._project_config = project_cfg
-        self._pipeline_config = pipeline_cfg
-        self._telemetry = telemetry
-        
+        self.name = name
+        self.project_cfg = project_cfg
+        self.pipeline_cfg = pipeline_cfg
+        # self._telemetry = telemetry
 
-    def _get_executor(self, executor:str|dict|ExecutorConfig|None=None)->tuple[executors.BaseExecutor, Callable | None]:
+        if not telemetry:
+            disable_telemetry()
+        if not autoload:
+            disable_autoload()
+
+    def _get_executor(
+        self, executor_cfg: str | dict | ExecutorConfig | None = None
+    ) -> tuple[executors.BaseExecutor, Callable | None]:
         """
         Get the executor based on the provided configuration.
 
@@ -70,37 +88,59 @@ class PipelineRunner(BasePipeline):
         Returns:
             tuple[executors.BaseExecutor, Callable | None]: A tuple containing the executor and shutdown function.
         """
-        if executor is not None:
-            if isinstance(executor, str):
-                executor = ExecutorConfig(type=executor)
-            elif isinstance(executor, dict):
-                executor = ExecutorConfig(**executor)
-            elif not isinstance(executor, ExecutorConfig):
-                raise TypeError("Executor must be a string, dictionary, or ExecutorConfig instance.")
-            
-            executor = self._pipeline_config.run.executor.merge(executor)
+        logger.info("Setting up executor...")
+        if executor_cfg:
+            if isinstance(executor_cfg, str):
+                executor_cfg = ExecutorConfig(type=executor_cfg)
+            elif isinstance(executor_cfg, dict):
+                executor_cfg = ExecutorConfig.from_dict(executor_cfg)
+            elif not isinstance(executor_cfg, ExecutorConfig):
+                raise TypeError(
+                    "Executor must be a string, dictionary, or ExecutorConfig instance."
+                )
 
-        if executor.type is None:
+            executor_cfg = self.pipeline_cfg.run.executor.merge(executor_cfg)
+
+        if executor_cfg.type is None:
+            logger.info(
+                "No executor type specified. Using  SynchronousLocalTaskExecutor as default."
+            )
             return executors.SynchronousLocalTaskExecutor(), None
 
-        if executor.type == "threadpool":
-            return executors.MultiThreadingExecutor(max_tasks=executor.max_workers), None
-        elif executor.type == "processpool":
-            return executors.MultiProcessingExecutor(max_tasks=executor.max_workers), None
-        elif executor.type == "ray":
-            if ray:
-                from hamilton.plugins import h_ray
+        if executor_cfg.type == "threadpool":
+            logger.info(
+                f"Using MultiThreadingExecutor with max_workers={executor_cfg.max_workers}"
+            )
+            return executors.MultiThreadingExecutor(
+                max_tasks=executor_cfg.max_workers
+            ), None
+        elif executor_cfg.type == "processpool":
+            logger.info(
+                f"Using MultiProcessingExecutor with max_workers={executor_cfg.max_workers}"
+            )
+            return executors.MultiProcessingExecutor(
+                max_tasks=executor_cfg.max_workers
+            ), None
+        elif executor_cfg.type == "ray":
+            if h_ray:
+                logger.info(
+                    f"Using RayTaskExecutor with num_cpus={executor_cfg.num_cpus}"
+                )
+
                 return (
-                    h_ray.RayTaskExecutor(num_cpus=executor.num_cpus),
-                    ray.shutdown,
+                    h_ray.RayTaskExecutor(
+                        num_cpus=executor_cfg.num_cpus,
+                        ray_init_config=self.project_cfg.adapter.ray.ray_init_config,
+                    ),
+                    ray.shutdown
+                    if self.project_cfg.adapter.ray.shutdown_ray_on_completion
+                    else None,
                 )
             else:
                 logger.warning("Ray is not installed. Using local executor.")
                 return executors.SynchronousLocalTaskExecutor(), None
-        elif executor.type == "dask":
+        elif executor_cfg.type == "dask":
             if distributed:
-                from hamilton.plugins import h_dask
-
                 cluster = distributed.LocalCluster()
                 client = distributed.Client(cluster)
                 return h_dask.DaskExecutor(client=client), cluster.close
@@ -108,340 +148,236 @@ class PipelineRunner(BasePipeline):
                 logger.warning("Dask is not installed. Using local executor.")
                 return executors.SynchronousLocalTaskExecutor(), None
         else:
-            logger.warning(f"Unknown executor type: {executor.type}. Using local executor.")
+            logger.warning(
+                f"Unknown executor type: {executor_cfg.type}. Using local executor."
+            )
             return executors.SynchronousLocalTaskExecutor(), None
-        
-    
-    def _get_adapters(self, adapter:dict|None=None)->list:
+
+    def _get_adapters(
+        self,
+        with_adapter_cfg: dict | WithAdapterConfig | None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+    ) -> list:
         """
         Set the adapters for the pipeline.
 
         Args:
             adapter (dict): A dictionary containing adapter configurations.
         """
+        logger.info("Setting up adapters...")
+        if with_adapter_cfg:
+            if isinstance(with_adapter_cfg, dict):
+                with_adapter_cfg = WithAdapterConfig.from_dict(with_adapter_cfg)
+            elif not isinstance(with_adapter_cfg, WithAdapterConfig):
+                raise TypeError(
+                    "with_adapter must be a dictionary or WithAdapterConfig instance."
+                )
 
+            with_adapter_cfg = self.pipeline_cfg.run.with_adapter.merge(
+                with_adapter_cfg
+            )
 
-        for key, value in adapter.items():
+        if pipeline_adapter_cfg:
+            if isinstance(pipeline_adapter_cfg, dict):
+                pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(
+                    pipeline_adapter_cfg
+                )
+            elif not isinstance(pipeline_adapter_cfg, PipelineAdapterConfig):
+                raise TypeError(
+                    "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
+                )
 
-            logger.info(f"Setting adapter: {key} with value: {value}")
+            pipeline_adapter_cfg = self.pipeline_cfg.run.adapter.merge(
+                pipeline_adapter_cfg
+            )
 
-        pass
+        if project_adapter_cfg:
+            if isinstance(project_adapter_cfg, dict):
+                project_adapter_cfg = ProjectAdapterConfig.from_dict(
+                    project_adapter_cfg
+                )
+            elif not isinstance(project_adapter_cfg, ProjectAdapterConfig):
+                raise TypeError(
+                    "project_adapter_cfg must be a dictionary or ProjectAdapterConfig instance."
+                )
 
-    def
+            project_adapter_cfg = self.project_cfg.adapter.merge(project_adapter_cfg)
 
+        adapters = []
+        if with_adapter_cfg.tracker:
+            tracker_kwargs = project_adapter_cfg.tracker.to_dict()
+            tracker_kwargs.update(pipeline_adapter_cfg.tracker.to_dict())
+            tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
+            tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
+            tracker = HamiltonTracker(**tracker_kwargs)
+            adapters.append(tracker)
 
-
-class _PipelineRunner(BasePipeline):
-    """Handles the execution of a specific pipeline run."""
-
-    def __init__(
-        self,
-        fs: AbstractFileSystem,
-        base_dir: str,
-        pipelines_dir: str,
-        telemetry: bool,
-        load_config_func: Callable,
-        load_module_func: Callable,
-        get_project_name_func: Callable[[], str],
-    ):
-        """Initialize PipelineRunner.
-
-        Args:
-            fs: Filesystem object.
-            base_dir: Base project directory.
-            pipelines_dir: Directory containing pipeline modules.
-            telemetry: Flag indicating if telemetry is enabled.
-            load_config_func: Function to load pipeline configuration.
-            load_module_func: Function to load pipeline module.
-            get_project_name_func: Function to get the project name.
-        """
-        self._fs = fs
-        self._base_dir = base_dir
-        self._pipelines_dir = pipelines_dir
-        self._telemetry = telemetry
-        self._load_config_func = load_config_func
-        self._load_module_func = load_module_func
-        self._get_project_name_func = get_project_name_func
-
-    def _resolve_parameters(
-        self, method_args: dict, config_section: Any, keys: list[str]
-    ) -> dict:
-        """
-        Merge method arguments with config section, giving precedence to explicit arguments.
-        Args:
-            method_args (dict): Arguments passed to the method.
-            config_section (Any): Config section (e.g., pipeline_cfg.run).
-            keys (list[str]): List of keys to resolve.
-        Returns:
-            dict: Merged parameters.
-        """
-        resolved = {}
-        for key in keys:
-            # Check if the key exists in method_args and is not None
-            if key in method_args and method_args[key] is not None:
-                resolved[key] = method_args[key]
-            # Otherwise, try to get it from the config section
-            elif (
-                hasattr(config_section, key)
-                and getattr(config_section, key) is not None
-            ):
-                resolved[key] = getattr(config_section, key)
-            # Fallback to None if not found or explicitly None in config
+        if with_adapter_cfg.mlflow:
+            if h_mlflow is None:
+                logger.warning("MLFlow is not installed. Skipping MLFlow adapter.")
             else:
-                resolved[key] = None  # Keep None if explicitly set or not found
-        return resolved
-    
-    def _get_executor(self, executor:dict|None=None)->tuple[executors.BaseExecutor, Callable | None]:
-        """
-        Get the executor based on the provided configuration.
+                mlflow_kwargs = project_adapter_cfg.mlflow.to_dict()
+                mlflow_kwargs.update(pipeline_adapter_cfg.mlflow.to_dict())
+                mlflow_adapter = h_mlflow.MLFlowTracker(**mlflow_kwargs)
+                adapters.append(mlflow_adapter)
 
-        Args:
-            executor (dict | None): Executor configuration.
-
-        Returns:
-            tuple[executors.BaseExecutor, Callable | None]: A tuple containing the executor and shutdown function.
-        """
-
-        if executor.type is None:
-            return executors.SynchronousLocalTaskExecutor(), None
-
-        if executor.type == "threadpool":
-            return executors.MultiThreadingExecutor(max_tasks=executor.max_workers), None
-        elif executor.type == "processpool":
-            return executors.MultiProcessingExecutor(max_tasks=executor.max_workers), None
-        elif executor.type == "ray":
-            if ray:
-                from hamilton.plugins import h_ray
-                return (
-                    h_ray.RayTaskExecutor(num_cpus=executor.num_cpus),
-                    ray.shutdown,
+        if with_adapter_cfg.opentelemetry:
+            if h_opentelemetry is None:
+                logger.warning(
+                    "OpenTelemetry is not installed. Skipping OpenTelemetry adapter."
                 )
             else:
-                logger.warning("Ray is not installed. Using local executor.")
-                return executors.SynchronousLocalTaskExecutor(), None
-        elif executor.type == "dask":
-            if distributed:
-                from hamilton.plugins import h_dask
+                otel_kwargs = project_adapter_cfg.opentelemetry.to_dict()
+                otel_kwargs.update(pipeline_adapter_cfg.opentelemetry.to_dict())
+                trace = init_tracer(**otel_kwargs, name=self.project_cfg.name)
+                tracer = trace.get_tracer(self.name)
+                otel_adapter = h_opentelemetry.OpenTelemetryTracer(
+                    tracer_name=f"{self.project_cfg.name}.{self.name}",
+                    tracer=tracer,
+                )
+                adapters.append(otel_adapter)
 
-                cluster = distributed.LocalCluster()
-                client = distributed.Client(cluster)
-                return h_dask.DaskExecutor(client=client), cluster.close
+        if with_adapter_cfg.progressbar:
+            adapters.append(
+                h_rich.RichProgressBar(run_desc=f"{self.project_cfg.name}.{self.name}")
+            )
+
+        if with_adapter_cfg.future:
+            adapters.append(FutureAdapter())
+
+        if with_adapter_cfg.ray:
+            if h_ray is None:
+                logger.warning("Ray is not installed. Skipping Ray adapter.")
             else:
-                logger.warning("Dask is not installed. Using local executor.")
-                return executors.SynchronousLocalTaskExecutor(), None
-        else:
-            logger.warning(f"Unknown executor type: {executor.type}. Using local executor.")
-            return executors.SynchronousLocalTaskExecutor(), None
-        
+                ray_kwargs = project_adapter_cfg.ray.to_dict()
+                ray_kwargs.update(pipeline_adapter_cfg.ray.to_dict())
+                ray_adapter = h_ray.RayGraphAdapter(**ray_kwargs)
+                adapters.append(ray_adapter)
+
+        logger.info(
+            f"Adapters enabled: {' | '.join([f'{adapter}: ✅' if enabled else f'{adapter}: ❌' for adapter, enabled in with_adapter_cfg.items()])}"
+        )
+        return adapters
 
     def _get_driver(
         self,
-        name: str,  # Pipeline name
-        executor: dict,
-        module: Any | None = None,  # Pass loaded module
-        **kwargs,
+        config: dict | None = None,
+        cache: dict | None = None,
+        executor_cfg: str | dict | ExecutorConfig | None = None,
+        with_adapter_cfg: dict | WithAdapterConfig | None = None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        reload: bool = False,
     ) -> tuple[driver.Driver, Callable | None]:
         """
         Get the driver and shutdown function for a given pipeline.
 
         Args:
-            name (str): The name of the pipeline.
-            config (Config): The flowerpower configuration.
-            executor (str | None, optional): The executor to use. Defaults to None.
-            adapter (dict | None, optional): The adapter configuration. Defaults to None.
-            driver_config (dict, optional): The driver configuration. Defaults to {}.
-            module (Any | None, optional): The loaded module. Defaults to None.
-            **kwargs: Additional keyword arguments for tracker/opentelemetry.
+            config (dict | None): The configuration for the pipeline.
+            cache (dict | None): The cache configuration.
+            executor_cfg (str | dict | ExecutorConfig | None): The executor to use.
+                Overrides the executor settings in the pipeline config.
+            with_adapter_cfg (dict | WithAdapterConfig | None): The adapter configuration.
+                Overrides the with_adapter settings in the pipeline config.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): The pipeline adapter configuration.
+                Overrides the adapter settings in the pipeline config.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): The project adapter configuration.
+                Overrides the adapter settings in the project config.
+            reload (bool): Whether to reload the module.
+
 
         Returns:
             tuple[driver.Driver, Callable | None]: A tuple containing the driver and shutdown function.
         """
-        if module is None:
-            raise ValueError(
-                "Pipeline module must be loaded and passed to _get_driver."
-            )
-
-        if not self._telemetry:
-            disable_telemetry()
-
-        max_tasks = kwargs.pop("max_tasks", 20)
-        num_cpus = kwargs.pop("num_cpus", 4)
-        executor_, shutdown = get_executor(
-            executor or "local", max_tasks=max_tasks, num_cpus=num_cpus
+        logger.info("Setting up driver...")
+        module = load_module(name=self.name, reload=reload)
+        executor, shutdown = self._get_executor(executor_cfg)
+        adapters = self._get_adapters(
+            with_adapter_cfg,
+            pipeline_adapter_cfg,
+            project_adapter_cfg,
         )
-        
-        adapters = []
-        if with_tracker:
-            # Assume tracker config comes from pipeline_cfg or project_cfg (passed via kwargs if needed)
-            # For simplicity, let's assume tracker kwargs are passed directly if needed,
-            # or rely on defaults/env vars if HamiltonTracker supports it.
-            # We need project_id, which might come from project_cfg.
-            # Let's refine this based on how PipelineManager passes tracker details.
-            # Assuming kwargs might contain tracker-specific args like project_id, username etc.
-            tracker_kwargs = {
-                k: v
-                for k, v in kwargs.items()
-                if k
-                in ["project_id", "username", "dag_name", "tags", "api_url", "ui_url"]
-            }
-            # Map API/UI URLs if provided
-            if "api_url" in tracker_kwargs:
-                tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url")
-            if "ui_url" in tracker_kwargs:
-                tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url")
 
-            # Ensure project_id is present (could be passed in kwargs)
-            if tracker_kwargs.get("project_id") is None:
-                # Try getting from project_name as a fallback? Or require explicit pass.
-                # Let's require it for now.
-                logger.warning(
-                    "Tracker enabled but 'project_id' not provided in kwargs. Tracker might fail."
-                )
-                # raise ValueError("Tracker enabled, but 'project_id' is required.")
+        config = config or self.pipeline_cfg.run.config
 
-            # Add default dag_name if not provided
-            if tracker_kwargs.get("dag_name") is None:
-                tracker_kwargs["dag_name"] = f"{project_name}.{name}"
-
-            if tracker_kwargs.get(
-                "project_id"
-            ):  # Only add tracker if project_id is available
-                try:
-                    tracker = HamiltonTracker(**tracker_kwargs)
-                    adapters.append(tracker)
-                    logger.info(
-                        f"Hamilton Tracker enabled for project_id: {tracker_kwargs['project_id']}"
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to initialize Hamilton Tracker: {e}")
-            else:
-                logger.warning(
-                    "Hamilton Tracker not initialized due to missing 'project_id'."
-                )
-
-        if (
-            with_opentelemetry
-            and h_opentelemetry is not None
-            and init_tracer is not None
-        ):
-            otel_host = kwargs.pop("otel_host", "localhost")  # Use specific prefix
-            otel_port = kwargs.pop("otel_port", 6831)
-            try:
-                trace = init_tracer(
-                    host=otel_host,
-                    port=otel_port,
-                    name=f"{project_name}.{name}",
-                )
-                tracer = trace.get_tracer(__name__)
-                adapters.append(h_opentelemetry.OpenTelemetryTracer(tracer=tracer))
-                logger.info(
-                    f"OpenTelemetry enabled, exporting to {otel_host}:{otel_port}"
-                )
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenTelemetry tracer: {e}")
-
-        if with_progressbar:
-            adapters.append(h_rich.RichProgressBar(run_desc=f"{project_name}.{name}"))
-            logger.info("Progress bar enabled.")
-
-        if executor == "future_adapter":
-            adapters.append(FutureAdapter())
-            logger.info("FutureAdapter enabled.")
-
-        dr_builder = (
+        dr = (
             driver.Builder()
             .enable_dynamic_execution(allow_experimental_mode=True)
             .with_modules(module)
-            .with_config(config)  # Pass driver config here
+            .with_config(config)
             .with_local_executor(executors.SynchronousLocalTaskExecutor())
         )
 
-        if executor_ is not None:
-            dr_builder = dr_builder.with_remote_executor(executor_)
-            logger.info(f"Using remote executor: {executor}")
-        else:
-            logger.info("Using local synchronous executor.")
+        if cache:
+            if isinstance(cache, dict):
+                cache = cache or self.pipeline_cfg.run.cache
+                dr = dr.with_cache(**cache)
+            else:
+                dr = dr.with_cache()
 
-        if len(adapters):
-            dr_builder = dr_builder.with_adapters(*adapters)
+        if executor:
+            dr = dr.with_remote_executor(executor)
 
-        final_dr = dr_builder.build()
-        return final_dr, shutdown
+        if adapters:
+            dr = dr.with_adapters(*adapters)
+
+        dr = dr.build()
+        return dr, shutdown
 
     def run(
         self,
-        name: str,
         inputs: dict | None = None,
         final_vars: list[str] | None = None,
-        driver_config: dict | None = None,
+        config: dict | None = None,
         cache: dict | None = None,
-        executor: str | dict | None = None,
-        adapter: dict | None = None,
+        executor_cfg: str | dict | ExecutorConfig | None = None,
+        with_adapter_cfg: dict | WithAdapterConfig | None = None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
         reload: bool = False,
-        **kwargs,  # Pass tracker/otel specific args here
     ) -> dict[str, Any]:
         """
         Run the pipeline with the given parameters.
-
         Args:
-            name (str): The name of the pipeline.
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             config (dict | None, optional): The config for the hamilton driver. Defaults to None.
-            executor (str | None, optional): The executor to use. Defaults to None.
-            adapter (dict | None, optional): The adapter configuration. Defaults to None.
-            **kwargs: Additional keyword arguments for tracker/opentelemetry (e.g., project_id, otel_host).
+            cache (dict | None, optional): The cache configuration. Defaults to None.
+            executor_cfg (str | dict | ExecutorConfig | None, optional): The executor to use.
+                Overrides the executor settings in the pipeline config. Defaults to None.
+            with_adapter_cfg (dict | WithAdapterConfig | None, optional): The adapter configuration.
+                Overrides the with_adapter settings in the pipeline config. Defaults to None.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None, optional): The pipeline adapter configuration.
+                Overrides the adapter settings in the pipeline config. Defaults to None.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
+                Overrides the adapter settings in the project config. Defaults to None.
+            reload (bool, optional): Whether to reload the module. Defaults to False.
 
         Returns:
-            dict[str,Any]: The result of executing the pipeline.
+            dict[str, Any]: The result of executing the pipeline.
         """
-        # Load config and module using the provided functions
-        # Pass reload flag to the loading functions
-        cfg = self._load_config_func(name=name, reload=reload)
-        pipeline_cfg = cfg.pipeline  # Access pipeline config from loaded config
-        project_cfg = cfg.project  # Access project config from loaded config
-        module = self._load_module_func(name=name, reload=reload)
-        project_name = project_cfg.name  # Get project name via function
 
-        logger.info(f"Starting pipeline {project_name}.{name}")
-
-        run_params = pipeline_cfg.run  # Access run params from loaded config
-
-        # Use _resolve_parameters for merging run flags (executor, tracker, etc.)
-        method_args = locals()  # Capture args passed to run()
-        keys = ["executor", "with_tracker", "with_opentelemetry", "with_progressbar"]
-        # Pass the run configuration section (pipeline_cfg.pipeline.run)
-        merged_run_flags = self._resolve_parameters(method_args, run_params, keys)
-
-        # Resolve final_vars, inputs, and driver config
-        final_vars = final_vars or run_params.final_vars
-        # Inputs passed to run() override/add to config inputs
-        inputs = {
-            **(run_params.inputs or {}),
-            **(inputs or {}),
-        }
-        # Driver config passed to run() overrides/adds to config driver config
-        driver_config = {
-            **(run_params.config or {}),
-            **(driver_config or {}),
-        }
-        # Add resolved driver config to the flags passed to _get_driver
-        merged_run_flags["config"] = driver_config
-
-        # Pass loaded config and module to _get_driver
-        # Pass kwargs for tracker/otel details
+        logger.info(f"Starting pipeline {self.project_cfg.name}.{self.name}")
+        # Load the module and get the driver
         dr, shutdown = self._get_driver(
-            name=name,
-            pipeline_cfg=pipeline_cfg,  # Pass loaded pipeline config
-            project_name=project_name,  # Pass project name
-            module=module,  # Pass loaded module
-            **merged_run_flags,  # Pass merged executor/tracker flags etc.
-            **kwargs,  # Pass through extra kwargs (e.g., project_id)
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            reload=reload,
         )
+        final_vars = final_vars or self.pipeline_cfg.run.final_vars
+        inputs = {
+            **(self.pipeline_cfg.run.inputs or {}),
+            **(inputs or {}),
+        }  # <-- inputs override and/or extend config inputs
 
         res = dr.execute(final_vars=final_vars, inputs=inputs)
 
-        logger.success(f"Finished pipeline {project_name}.{name}")
+        logger.success(f"Finished pipeline {self.project_cfg.name}.{self.name}")
 
         if shutdown is not None:
             logger.info("Shutting down executor...")

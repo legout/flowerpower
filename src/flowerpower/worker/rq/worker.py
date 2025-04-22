@@ -15,12 +15,14 @@ from loguru import logger
 from rq import Queue
 from rq_scheduler import Scheduler
 
-from ...cfg import Config
 from ...fs import AbstractFileSystem
 from ..base import BaseTrigger, BaseWorker
 from .setup import RQBackend
 from .trigger import RQTrigger
 from .utils import show_jobs, show_schedules
+
+from ...utils.logging import setup_logging
+setup_logging()
 
 if sys.platform == "darwin" and platform.machine() == "arm64":
     try:

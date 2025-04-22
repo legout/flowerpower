@@ -1,16 +1,19 @@
+import os
+
 import msgspec
 from munch import munchify
-import os
-from .. import BaseConfig
+
+from ..base import BaseConfig
 
 
-class AdapterConfig(BaseConfig):
+class WithAdapterConfig(BaseConfig):
     tracker: bool = msgspec.field(default=False)
     mlflow: bool = msgspec.field(default=False)
-    openlineage: bool = msgspec.field(default=False)
+    # openlineage: bool = msgspec.field(default=False)
     ray: bool = msgspec.field(default=False)
     opentelemetry: bool = msgspec.field(default=False)
     progressbar: bool = msgspec.field(default=False)
+    future: bool = msgspec.field(default=False)
 
 
 class ExecutorConfig(BaseConfig):
@@ -23,14 +26,20 @@ class RunConfig(BaseConfig):
     inputs: dict | None = msgspec.field(default_factory=dict)
     final_vars: list[str] | None = msgspec.field(default_factory=list)
     config: dict | None = msgspec.field(default_factory=dict)
-    cache: dict | None = msgspec.field(default_factory=dict)
-    adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
-    executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
+    cache: dict | bool | None = msgspec.field(default_factory=dict)
+    with_adapter: WithAdapterConfig | dict = msgspec.field(
+        default_factory=WithAdapterConfig
+    )
+    executor: ExecutorConfig | dict = msgspec.field(default_factory=ExecutorConfig)
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
             self.inputs = munchify(self.inputs)
         if isinstance(self.config, dict):
             self.config = munchify(self.config)
-        if isinstance(self.cache, dict):
+        if isinstance(self.cache, (dict)):
             self.cache = munchify(self.cache)
+        if isinstance(self.with_adapter, dict):
+            self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
+        if isinstance(self.executor, dict):
+            self.executor = ExecutorConfig.from_dict(self.executor)

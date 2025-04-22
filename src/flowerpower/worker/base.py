@@ -18,8 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from ..cfg import Config
 from ..fs import AbstractFileSystem, get_filesystem
-#from ..utils.misc import update_config_from_dict
-from .settings import BACKEND_PROPERTIES
+
+# from ..utils.misc import update_config_from_dict
+from ..settings import BACKEND_PROPERTIES
 
 
 class BackendType(str, Enum):

@@ -3,24 +3,13 @@ import importlib.util
 import typer
 from loguru import logger
 
-# Import your existing pipeline functions
-# from ..pipeline import (
-#     add as add_pipeline_,
-#     add_job as add_pipeline_job_,
-#     all_pipelines as all_pipelines_,
-#     delete as delete_pipeline_,
-#     get_summary as get_pipeline_summary_,
-#     new as new_pipeline_,
-#     run as run_pipeline_,
-#     run_job as run_pipeline_job_,
-#     schedule as schedule_pipeline_,
-#     save_dag as save_pipeline_dag_,
-#     show_dag as show_pipeline_dag_,
-#     show_summary as show_pipeline_summary_,
-#     # start_mqtt_listener as start_mqtt_listener_,
-# )
+
 from ..pipeline.manager import Pipeline, PipelineManager
 from .utils import parse_dict_or_list_param, parse_param_dict
+
+from ..utils.logging import setup_logging
+
+setup_logging()
 
 # Optional imports
 if importlib.util.find_spec("apscheduler"):

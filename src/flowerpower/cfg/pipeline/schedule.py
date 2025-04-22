@@ -2,7 +2,7 @@ import datetime as dt
 
 import msgspec
 
-from .. import BaseConfig
+from ..base import BaseConfig
 
 
 class ScheduleCronTriggerConfig(BaseConfig):
