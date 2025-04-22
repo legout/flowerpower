@@ -85,10 +85,10 @@ class WorkerConfig(BaseConfig):
                     )
                 else:
                     self.backend = APSBackendConfig(
-                        data_store=APSDataStoreConfig(
+                        data_store=APSDataStoreConfig.from_dict(
                             self.backend.get("data_store", {})
                         ),
-                        event_broker=APSEventBrokerConfig(
+                        event_broker=APSEventBrokerConfig.from_dict(
                             self.backend.get("event_broker", {})
                         ),
                     )

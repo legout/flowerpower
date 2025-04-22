@@ -15,4 +15,4 @@ def setup_logging(level: str = FP_LOG_LEVEL) -> None:
         level=level.upper(), # Use the level from the parameter, ensure it's uppercase
         format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>" # Example format
     )
-    logger.info(f"Log level set to: {FP_LOG_LEVEL.upper()}")
+    #logger.info(f"Log level set to: {FP_LOG_LEVEL.upper()}")

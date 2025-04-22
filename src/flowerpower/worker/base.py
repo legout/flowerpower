@@ -16,7 +16,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from ..cfg import Config
+from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
 
 # from ..utils.misc import update_config_from_dict
@@ -359,9 +359,9 @@ class BaseWorker(abc.ABC):
         Args:
             cfg_updates: Configuration updates to apply
         """
-        self.cfg = Config.load(
+        self.cfg = ProjectConfig.load(
             base_dir=self._base_dir, worker_type=self._type, fs=self._fs
-        ).project.worker
+        ).worker
 
     @abc.abstractmethod
     def add_job(
