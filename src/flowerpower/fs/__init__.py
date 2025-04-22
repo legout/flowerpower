@@ -7,14 +7,15 @@ if has_orjson:
 else:
     from fsspec import AbstractFileSystem
 
-from .base import get_filesystem  # noqa: F401
-from .storage_options import (
-    AwsStorageOptions,  # noqa: F401
+from .base import get_filesystem  # noqa: E402
+from .storage_options import (  # noqa: E402
+    AwsStorageOptions, 
     AzureStorageOptions,
     GcsStorageOptions,
     GitHubStorageOptions,
     GitLabStorageOptions,
     StorageOptions,
+    BaseStorageOptions
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "GcsStorageOptions",
     "GitHubStorageOptions",
     "GitLabStorageOptions",
+    "BaseStorageOptions"
 ]

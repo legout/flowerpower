@@ -4,7 +4,8 @@ params:
   spend_zero_mean:
     offset: 0
 run:
-  config: {}
+  config: 
+    range: 10_000
   executor: null
   final_vars:
     - spend

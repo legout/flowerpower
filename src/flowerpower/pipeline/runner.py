@@ -3,9 +3,8 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any, Callable
-
+import importlib.util
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.telemetry import disable_telemetry
@@ -22,16 +21,117 @@ from hamilton.plugins import h_rich
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
 from loguru import logger
+from munch import Munch
+
+
+if importlib.util.find_spec("distributed"):
+    from dask import distributed
+else:
+    distributed = None
+
+
+if importlib.util.find_spec("ray"):
+    import ray
+else:
+    ray = None
+from .base import BasePipeline
 
 # Assuming Config and PipelineConfig might be needed for type hints or logic
 # If not directly used, these can be removed later.
 from ..cfg import Config
-from ..utils.executor import get_executor
+from ..cfg.pipeline.run import ExecutorConfig, AdapterConfig
+#from .executor import get_executor
 
-from ..fs import AbstractFileSystem
+from ..fs import AbstractFileSystem, BaseStorageOptions
 
 
-class PipelineRunner:
+class PipelineRunner(BasePipeline):
+    """PipelineRunner is responsible for executing a specific pipeline run.
+    It handles the loading of the pipeline module, configuration, and execution"""
+
+    def __init__(
+            self,
+            project_cfg: ProjectConfig,
+            pipeline_cfg: PipelineConfig,
+            telemetry: bool = False,
+    ):
+        self._project_config = project_cfg
+        self._pipeline_config = pipeline_cfg
+        self._telemetry = telemetry
+        
+
+    def _get_executor(self, executor:str|dict|ExecutorConfig|None=None)->tuple[executors.BaseExecutor, Callable | None]:
+        """
+        Get the executor based on the provided configuration.
+
+        Args:
+            executor (dict | None): Executor configuration.
+
+        Returns:
+            tuple[executors.BaseExecutor, Callable | None]: A tuple containing the executor and shutdown function.
+        """
+        if executor is not None:
+            if isinstance(executor, str):
+                executor = ExecutorConfig(type=executor)
+            elif isinstance(executor, dict):
+                executor = ExecutorConfig(**executor)
+            elif not isinstance(executor, ExecutorConfig):
+                raise TypeError("Executor must be a string, dictionary, or ExecutorConfig instance.")
+            
+            executor = self._pipeline_config.run.executor.merge(executor)
+
+        if executor.type is None:
+            return executors.SynchronousLocalTaskExecutor(), None
+
+        if executor.type == "threadpool":
+            return executors.MultiThreadingExecutor(max_tasks=executor.max_workers), None
+        elif executor.type == "processpool":
+            return executors.MultiProcessingExecutor(max_tasks=executor.max_workers), None
+        elif executor.type == "ray":
+            if ray:
+                from hamilton.plugins import h_ray
+                return (
+                    h_ray.RayTaskExecutor(num_cpus=executor.num_cpus),
+                    ray.shutdown,
+                )
+            else:
+                logger.warning("Ray is not installed. Using local executor.")
+                return executors.SynchronousLocalTaskExecutor(), None
+        elif executor.type == "dask":
+            if distributed:
+                from hamilton.plugins import h_dask
+
+                cluster = distributed.LocalCluster()
+                client = distributed.Client(cluster)
+                return h_dask.DaskExecutor(client=client), cluster.close
+            else:
+                logger.warning("Dask is not installed. Using local executor.")
+                return executors.SynchronousLocalTaskExecutor(), None
+        else:
+            logger.warning(f"Unknown executor type: {executor.type}. Using local executor.")
+            return executors.SynchronousLocalTaskExecutor(), None
+        
+    
+    def _get_adapters(self, adapter:dict|None=None)->list:
+        """
+        Set the adapters for the pipeline.
+
+        Args:
+            adapter (dict): A dictionary containing adapter configurations.
+        """
+
+
+        for key, value in adapter.items():
+
+            logger.info(f"Setting adapter: {key} with value: {value}")
+
+        pass
+
+    def
+
+
+
+class _PipelineRunner(BasePipeline):
     """Handles the execution of a specific pipeline run."""
 
     def __init__(
@@ -90,14 +190,54 @@ class PipelineRunner:
             else:
                 resolved[key] = None  # Keep None if explicitly set or not found
         return resolved
+    
+    def _get_executor(self, executor:dict|None=None)->tuple[executors.BaseExecutor, Callable | None]:
+        """
+        Get the executor based on the provided configuration.
+
+        Args:
+            executor (dict | None): Executor configuration.
+
+        Returns:
+            tuple[executors.BaseExecutor, Callable | None]: A tuple containing the executor and shutdown function.
+        """
+
+        if executor.type is None:
+            return executors.SynchronousLocalTaskExecutor(), None
+
+        if executor.type == "threadpool":
+            return executors.MultiThreadingExecutor(max_tasks=executor.max_workers), None
+        elif executor.type == "processpool":
+            return executors.MultiProcessingExecutor(max_tasks=executor.max_workers), None
+        elif executor.type == "ray":
+            if ray:
+                from hamilton.plugins import h_ray
+                return (
+                    h_ray.RayTaskExecutor(num_cpus=executor.num_cpus),
+                    ray.shutdown,
+                )
+            else:
+                logger.warning("Ray is not installed. Using local executor.")
+                return executors.SynchronousLocalTaskExecutor(), None
+        elif executor.type == "dask":
+            if distributed:
+                from hamilton.plugins import h_dask
+
+                cluster = distributed.LocalCluster()
+                client = distributed.Client(cluster)
+                return h_dask.DaskExecutor(client=client), cluster.close
+            else:
+                logger.warning("Dask is not installed. Using local executor.")
+                return executors.SynchronousLocalTaskExecutor(), None
+        else:
+            logger.warning(f"Unknown executor type: {executor.type}. Using local executor.")
+            return executors.SynchronousLocalTaskExecutor(), None
+        
 
     def _get_driver(
         self,
         name: str,  # Pipeline name
-        config: Config,
-        executor: str | None = None,
-        adapter: dict | None = None,
-        driver_config: dict = {},  # Driver config, not pipeline config
+        executor: dict,
         module: Any | None = None,  # Pass loaded module
         **kwargs,
     ) -> tuple[driver.Driver, Callable | None]:
@@ -232,12 +372,11 @@ class PipelineRunner:
         self,
         name: str,
         inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,  # Driver config
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        final_vars: list[str] | None = None,
+        driver_config: dict | None = None,
+        cache: dict | None = None,
+        executor: str | dict | None = None,
+        adapter: dict | None = None,
         reload: bool = False,
         **kwargs,  # Pass tracker/otel specific args here
     ) -> dict[str, Any]:
@@ -250,10 +389,7 @@ class PipelineRunner:
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             config (dict | None, optional): The config for the hamilton driver. Defaults to None.
             executor (str | None, optional): The executor to use. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
-            with_progressbar (bool | None, optional): Whether to use a progress bar. Defaults to None.
-            reload (bool, optional): Whether to reload the pipeline config and module. Defaults to False.
+            adapter (dict | None, optional): The adapter configuration. Defaults to None.
             **kwargs: Additional keyword arguments for tracker/opentelemetry (e.g., project_id, otel_host).
 
         Returns:
@@ -287,7 +423,7 @@ class PipelineRunner:
         # Driver config passed to run() overrides/adds to config driver config
         driver_config = {
             **(run_params.config or {}),
-            **(config or {}),
+            **(driver_config or {}),
         }
         # Add resolved driver config to the flags passed to _get_driver
         merged_run_flags["config"] = driver_config

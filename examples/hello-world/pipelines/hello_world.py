@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import pandas as pd
-from hamilton.function_modifiers import parameterize
+from hamilton.function_modifiers import parameterize, config
 from loguru import logger
 
 from flowerpower.cfg import Config
@@ -15,14 +15,26 @@ PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
 
-
-def spend() -> pd.Series:
+@config.when(range=10_000)
+def spend__10000() -> pd.Series:
     """Returns a series of spend data."""
     # time.sleep(2)
     return pd.Series(range(10_000)) * 10
 
+@config.when(range=10_000)
+def signups__10000() -> pd.Series:
+    """Returns a series of signups data."""
+    time.sleep(1)
+    return pd.Series(range(10_000))
 
-def signups() -> pd.Series:
+@config.when(range=1_000)
+def spend__1000() -> pd.Series:
+    """Returns a series of spend data."""
+    # time.sleep(2)
+    return pd.Series(range(10_000)) * 10
+
+@config.when(range=1_000)
+def signups__1000() -> pd.Series:
     """Returns a series of signups data."""
     time.sleep(1)
     return pd.Series(range(10_000))

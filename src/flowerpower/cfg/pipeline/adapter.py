@@ -1,7 +1,7 @@
 import msgspec
 from munch import munchify
 
-from ..base import BaseConfig
+from .. import BaseConfig
 
 
 class TrackerConfig(BaseConfig):

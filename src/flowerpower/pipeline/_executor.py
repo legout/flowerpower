@@ -15,15 +15,16 @@ if importlib.util.find_spec("ray"):
 else:
     ray = None
 
+import os
 
-def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
+def get_executor(type: str, max_tasks: int = 10, num_cpus: int | None= None):
     shutdown = None
 
-    if mode == "processpool" or mode == "process" or mode == "multiprocessing":
+    if type == "processpool" or type == "process" or type == "multiprocessing":
         remote_executor = executors.MultiProcessingExecutor(max_tasks=max_tasks)
-    elif mode == "threadpool" or mode == "future_adapter" or mode == "threading":
+    elif type == "threadpool" or type == "future_adapter" or type == "threading":
         remote_executor = executors.MultiThreadingExecutor(max_tasks=max_tasks)
-    elif mode == "dask":
+    elif type == "dask":
         if distributed:
             from hamilton.plugins import h_dask
 
@@ -39,11 +40,11 @@ def get_executor(mode: str, max_tasks: int = 10, num_cpus: int = 4):
                 "`pip install flowerpower[dask]`"
             )
             remote_executor = None  # executors.SynchronousLocalTaskExecutor()
-    elif mode == "ray":
+    elif type == "ray":
         if ray:
             from hamilton.plugins import h_ray
 
-            remote_executor = h_ray.RayTaskExecutor(num_cpus=num_cpus)
+            remote_executor = h_ray.RayTaskExecutor(num_cpus=num_cpus or os.cpu_count())
             shutdown = ray.shutdown
         else:
             logger.info(

@@ -220,16 +220,58 @@ class PipelineManager:
             None
         """
         if reload:
-            del self.cfg
-            self.cfg = Config.load(
+            del self._cfg
+            self._cfg = Config.load(
                 base_dir=self._base_dir, pipeline_name=name, fs=self._fs
             )
-            return self.cfg
+            return self._cfg
 
-        self.cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
+        self._cfg = Config.load(base_dir=self._base_dir, pipeline_name=name, fs=self._fs)
 
-        return self.cfg
+        #return self._cfg
 
+    @property
+    def cfg(self) -> Config:
+        """
+        Get the configuration object.
+
+        Returns:
+            Config: The configuration object.
+        """
+        if not hasattr(self, "_cfg"):
+           self.load_config
+        return self._cfg
+    
+    @property
+    def project_cfg(self) -> ProjectConfig:
+        """
+        Get the project configuration object.
+
+        Returns:
+            ProjectConfig: The project configuration object.
+        """
+        if not hasattr(self, "_cfg"):
+            self.load_config()
+        return self._cfg.project
+    
+    @property
+    def pipeline_cfg(self) -> PipelineConfig:
+        """
+        Get the pipeline configuration object.
+
+        Returns:
+            PipelineConfig: The pipeline configuration object.
+        """
+        if not hasattr(self, "_cfg"):
+            logger.info("Pipeline config not loaded.")
+            return
+        if not hasattr(self._cfg, "pipeline"):
+            logger.info("Pipeline config not loaded.")
+            return
+        return self._cfg.pipeline
+    
+
+    
     # _get_driver method removed, moved to PipelineRunner
 
     # _resolve_parameters method removed, moved to PipelineRunner
@@ -273,7 +315,7 @@ class PipelineManager:
             name=name,
             inputs=inputs,
             final_vars=final_vars,
-            config=config,
+            driver_config=config,
             executor=executor,
             with_tracker=with_tracker,
             with_opentelemetry=with_opentelemetry,

@@ -1,9 +1,8 @@
 import datetime as dt
-from enum import Enum
 
 import msgspec
 
-from ..base import BaseConfig
+from .. import BaseConfig
 
 # class Worker(Enum):
 #    RQ = "rq"

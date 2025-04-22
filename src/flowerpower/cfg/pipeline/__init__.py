@@ -1,10 +1,10 @@
 import msgspec
 import yaml
-from fsspec import AbstractFileSystem
+from ...fs import get_filesystem, AbstractFileSystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
-from ..base import BaseConfig
+from .. import BaseConfig
 from .run import RunConfig
 from .schedule import ScheduleConfig
 from .adapter import AdapterConfig
@@ -88,3 +88,48 @@ class PipelineConfig(BaseConfig):
 
         # Step 2: Transform all values recursively
         return {k: transform_recursive(v, d) for k, v in result.items()}
+
+    @classmethod
+    def load(
+        cls,
+        base_dir: str = ".",
+        name: str | None = None,
+        fs: AbstractFileSystem | None = None,
+        storage_options: dict | Munch = Munch(),
+    ):
+        if fs is None:
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+        if fs.exists("conf/pipelines"):
+            if name is not None:
+                pipeline = PipelineConfig.from_yaml(
+                    name=name,
+                    path=f"conf/pipelines/{name}.yml",
+                    fs=fs,
+                )
+            else:
+                pipeline = PipelineConfig(name=name)
+        else:
+            pipeline = PipelineConfig(name=name)
+
+        return pipeline
+    
+    def save(
+        self,
+        base_dir: str = ".",
+        fs: AbstractFileSystem | None = None,
+        storage_options: dict | Munch = Munch(),
+    ):
+        if fs is None:
+            fs = get_filesystem(
+                base_dir, cached=True, dirfs=True, **storage_options
+            )
+
+        fs.makedirs("conf/pipelines", exist_ok=True)
+
+        h_params = self.pop("h_params") if self.h_params else None
+        self.to_yaml(
+                path=f"conf/pipelines/{self.name}.yml", fs=fs
+            )
+        if h_params:
+            self.h_params = h_params
+        self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
