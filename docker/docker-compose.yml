@@ -27,20 +27,21 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
   
-  # mqtt:
-  #   image: eclipse-mosquitto
-  #   volumes:
-  #     - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
-  #   ports:
-  #     - 1883:1883
-  #   command: mosquitto -c /mosquitto/config/mosquitto.conf
-  
   mqtt:
-    image: emqx/nanomq
+    image: eclipse-mosquitto
+    volumes:
+     - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
+     - ./data/mosquitto.db:/mosquitto/data/mosquitto.db
     ports:
-      - 1883:1883
-      - 8083:8083
-      - 8883:8883
+     - 1883:1883
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+  
+  #mqtt:
+  #  image: emqx/nanomq
+  #  ports:
+  #    - 1883:1883
+  #    - 8083:8083
+  #    - 8883:8883
 
   redis:
     image: valkey/valkey

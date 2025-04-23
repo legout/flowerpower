@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 from types import TracebackType
 from typing import Callable
+import mmh3
+import socket
 
 from fsspec import AbstractFileSystem
 from loguru import logger
@@ -27,6 +29,9 @@ class MQTTManager:
         reconnect_rate: int = 2,
         max_reconnect_delay: int = 60,
         transport: str = "tcp",
+        clean_session: bool = True,
+        client_id: str | None = None,
+        client_id_suffix: str | None = None,
         **kwargs,
     ):
         if "user" in kwargs:
@@ -45,6 +50,10 @@ class MQTTManager:
         self._reconnect_rate = reconnect_rate
         self._max_reconnect_delay = max_reconnect_delay
         self._transport = transport
+
+        self._clean_session = clean_session
+        self._client_id = client_id
+        self._client_id_suffix = client_id_suffix
 
         self._client = None
 
@@ -65,12 +74,12 @@ class MQTTManager:
     def _on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             logger.info(f"Connected to MQTT Broker {userdata.host}!")
+            logger.info(f"Connected as {userdata.client_id} with clean session {userdata.clean_session}")
         else:
             logger.error(f"Failed to connect, return code {rc}")
 
     @staticmethod
     def _on_disconnect(client, userdata, disconnect_flags, rc, properties=None):
-        logger.info(f"Disconnected with result code: {rc}")
         reconnect_count, reconnect_delay = 0, userdata.first_reconnect_delay
 
         if userdata.max_reconnect_count == 0:
@@ -106,10 +115,24 @@ class MQTTManager:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
+        if self._client_id is None and self._clean_session:
+            #Random Client ID when clean session is True
+            self._client_id = f"flowerpower-client-{random.randint(0, 10000)}"
+        elif self._client_id is None and not self._clean_session:
+            #Deterministic Client ID when clean session is False
+            self._client_id = f"flowerpower-client-{mmh3.hash_bytes(
+                str(self._host) + str(self._port) + str(self.topic) + str(socket.gethostname())
+            ).hex()}"
+
+        if self._client_id_suffix:
+            self._client_id = f"{self._client_id}-{self._client_id_suffix}"
+
+        logger.debug(f"Client ID: {self._client_id} - Clean session: {self._clean_session}")
         client = Client(
             CallbackAPIVersion.VERSION2,
-            client_id=f"flowerpower-{random.randint(0, 10000)}",
+            client_id=self._client_id,
             transport=self._transport,
+            clean_session=self._clean_session,
             userdata=Munch(
                 user=self._username,
                 pw=self._password,
@@ -121,6 +144,8 @@ class MQTTManager:
                 reconnect_rate=self._reconnect_rate,
                 max_reconnect_delay=self._max_reconnect_delay,
                 transport=self._transport,
+                client_id=self._client_id,
+                clean_session=self._clean_session,
             ),
         )
         if self._password != "" and self._username != "":
@@ -132,12 +157,12 @@ class MQTTManager:
         client.on_subscribe = self._on_subscribe
 
         client.connect(self._host, self._port)
-
+        self._client = client
         # topic = topic or topic
         if self.topic:
             self.subscribe()
 
-        self._client = client
+        
 
     def disconnect(self):
         self._max_reconnect_count = 0
@@ -154,10 +179,10 @@ class MQTTManager:
         #    self.reconnect()
         self._client.publish(topic, payload)
 
-    def subscribe(self, topic: str | None = None):
+    def subscribe(self, topic: str | None = None, qos: int = 0):
         if topic is not None:
             self.topic = topic
-        self._client.subscribe(self.topic)
+        self._client.subscribe(self.topic, qos=qos)
 
     def unsubscribe(self, topic: str | None = None):
         if topic is not None:
@@ -171,6 +196,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
+        qos: int = 0,
     ) -> None:
         """
         Run the MQTT client in the background.
@@ -186,7 +212,7 @@ class MQTTManager:
             self.connect()
 
         if topic:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
         self._client.on_message = on_message
         self._client.loop_start()
@@ -195,6 +221,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
+        qos: int = 0,
     ):
         """
         Run the MQTT client until a break signal is received.
@@ -210,13 +237,13 @@ class MQTTManager:
             self.connect()
 
         if topic:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
         self._client.on_message = on_message
         self._client.loop_forever()
 
     def start_listener(
-        self, on_message: Callable, topic: str | None = None, background: bool = False
+        self, on_message: Callable, topic: str | None = None, background: bool = False, qos: int = 0
     ) -> None:
         """
         Start the MQTT listener.
@@ -230,9 +257,9 @@ class MQTTManager:
             None
         """
         if background:
-            self.run_in_background(on_message, topic)
+            self.run_in_background(on_message, topic, qos)
         else:
-            self.run_until_break(on_message, topic)
+            self.run_until_break(on_message, topic, qos)
 
     def stop_listener(
         self,
@@ -253,12 +280,18 @@ class MQTTManager:
         event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":
+                logger.debug(f"{event_broker_cfg}")
                 return cls(
                     user=event_broker_cfg.get("username", None),
                     pw=event_broker_cfg.get("password", None),
                     host=event_broker_cfg.get("host", "localhost"),
                     port=event_broker_cfg.get("port", 1883),
                     transport=event_broker_cfg.get("transport", "tcp"),
+                    clean_session=event_broker_cfg.get("clean_session", True),
+                    client_id=event_broker_cfg.get("client_id", None),
+                    client_id_suffix=event_broker_cfg.get("client_id_suffix", None),
+                    topic=event_broker_cfg.get("topic", None),
+                    qos=event_broker_cfg.get("qos", 0),
                 )
             raise ValueError("No event broker configuration found in config file.")
         else:
@@ -282,6 +315,11 @@ class MQTTManager:
             host=cfg.get("host", "localhost"),
             port=cfg.get("port", 1883),
             transport=cfg.get("transport", "tcp"),
+            clean_session=cfg.get("clean_session", True),
+            client_id=cfg.get("client_id", None),
+            client_id_suffix=cfg.get("client_id_suffix", None),
+            topic=cfg.get("topic", None),
+            qos=cfg.get("qos", 0),
         )
 
     def run_pipeline_on_message(
@@ -302,6 +340,7 @@ class MQTTManager:
         storage_options: dict = {},
         fs: AbstractFileSystem | None = None,
         background: bool = False,
+        qos: int = 0,
         **kwargs,
     ):
         """
@@ -376,7 +415,7 @@ class MQTTManager:
 
                 logger.warning("Message processing failed")
 
-        self.start_listener(on_message=on_message, topic=topic, background=background)
+        self.start_listener(on_message=on_message, topic=topic, background=background, qos=qos)
 
 
 def start_listener(
@@ -457,6 +496,10 @@ def run_pipeline_on_message(
     port: int | None = None,
     username: str | None = None,
     password: str | None = None,
+    clean_session: bool = True,
+    qos: int = 0,
+    client_id: str | None = None,
+    client_id_suffix: str | None = None,
     **kwargs,
 ):
     """
@@ -497,6 +540,11 @@ def run_pipeline_on_message(
                 pw=password,
                 host=host,
                 port=port,
+                clean_session=clean_session,
+                client_id=client_id,
+                topic=topic,
+                qos=qos,
+                client_id_suffix=client_id_suffix,
             )
         else:
             raise ValueError(
@@ -504,6 +552,27 @@ def run_pipeline_on_message(
                 "or a FlowerPower project base directory, in which a event broker is "
                 "configured in the `config/project.yml` file."
             )
+        
+    if client._client_id is None and client_id is not None:
+        client._client_id = client_id
+
+    if client._client_id_suffix is None and client_id_suffix is not None:
+        client._client_id_suffix = client_id_suffix
+    
+    '''
+    cli_clean_session | config_clean_session | result
+    TRUE		        TRUE		           TRUE
+    FALSE		        FALSE                  FALSE
+    FALSE               TRUE                   FALSE
+    TRUE                FALSE                  FALSE
+
+    Clean session should only use default value if neither cli nor config source says otherwise
+    '''
+    client._clean_session = client._clean_session and clean_session
+
+    if client.topic is None and topic is not None:
+        client.topic = topic
+
     client.run_pipeline_on_message(
         name=name,
         topic=topic,
@@ -521,5 +590,6 @@ def run_pipeline_on_message(
         storage_options=storage_options,
         fs=fs,
         background=background,
+        qos=qos,
         **kwargs,
     )
