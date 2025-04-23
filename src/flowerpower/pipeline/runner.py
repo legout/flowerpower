@@ -54,7 +54,7 @@ from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..utils.logging import setup_logging
 from .base import load_module
 
-setup_logging(level=settings.FP_LOG_LEVEL)
+setup_logging(level=settings.LOG_LEVEL)
 
 # from .executor import get_executor
 
@@ -97,7 +97,7 @@ class PipelineRunner:
         Returns:
             tuple[executors.BaseExecutor, Callable | None]: A tuple containing the executor and shutdown function.
         """
-        logger.info("Setting up executor...")
+        logger.debug("Setting up executor...")
         if executor_cfg:
             if isinstance(executor_cfg, str):
                 executor_cfg = ExecutorConfig(type=executor_cfg)
@@ -113,20 +113,20 @@ class PipelineRunner:
             executor_cfg = self.pipeline_cfg.run.executor
 
         if executor_cfg.type is None:
-            logger.info(
+            logger.debug(
                 "No executor type specified. Using  SynchronousLocalTaskExecutor as default."
             )
             return executors.SynchronousLocalTaskExecutor(), None
 
         if executor_cfg.type == "threadpool":
-            logger.info(
+            logger.debug(
                 f"Using MultiThreadingExecutor with max_workers={executor_cfg.max_workers}"
             )
             return executors.MultiThreadingExecutor(
                 max_tasks=executor_cfg.max_workers
             ), None
         elif executor_cfg.type == "processpool":
-            logger.info(
+            logger.debug(
                 f"Using MultiProcessingExecutor with max_workers={executor_cfg.max_workers}"
             )
             return executors.MultiProcessingExecutor(
@@ -134,7 +134,7 @@ class PipelineRunner:
             ), None
         elif executor_cfg.type == "ray":
             if h_ray:
-                logger.info(
+                logger.debug(
                     f"Using RayTaskExecutor with num_cpus={executor_cfg.num_cpus}"
                 )
 
@@ -183,7 +183,7 @@ class PipelineRunner:
                 Overrides the adapter settings in the project config.
             adapter (dict[str, Any] | None): Any additional hamilton adapters can be passed here.
         """
-        logger.info("Setting up adapters...")
+        logger.debug("Setting up adapters...")
         if with_adapter_cfg:
             if isinstance(with_adapter_cfg, dict):
                 with_adapter_cfg = WithAdapterConfig.from_dict(with_adapter_cfg)
@@ -301,7 +301,7 @@ class PipelineRunner:
             adapters += list(adapter.values())
             all_adapters += [f"{adp}: ✅" for adp in adapter.keys()]
 
-        logger.info(f"Adapters enabled: {' | '.join(all_adapters)}")
+        logger.debug(f"Adapters enabled: {' | '.join(all_adapters)}")
         return adapters
 
     def _get_driver(
@@ -336,7 +336,7 @@ class PipelineRunner:
         Returns:
             tuple[driver.Driver, Callable | None]: A tuple containing the driver and shutdown function.
         """
-        logger.info("Setting up driver...")
+        logger.debug("Setting up driver...")
         module = load_module(name=self.name, reload=reload)
         executor, shutdown = self._get_executor(executor_cfg)
         adapters = self._get_adapters(

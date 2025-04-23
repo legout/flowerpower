@@ -14,7 +14,7 @@ from rich import print as rprint
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
 from ..worker import Worker
-
+from ..fs import AbstractFileSystem
 # Note: get_trigger is worker-specific and should be handled within the worker implementation
 # from ..utils.scheduler import get_trigger # Removed - Worker handles trigger creation
 
@@ -24,15 +24,28 @@ setup_logging()
 class PipelineScheduler:
     """Handles scheduling of pipeline runs via a configured worker backend."""
 
-    def __init__(self, project_cfg: ProjectConfig):
+    def __init__(
+        self,
+        project_cfg: ProjectConfig,
+        fs: AbstractFileSystem,
+        cfg_dir: str,
+        pipelines_dir: str,
+        worker_type: str | None = None,
+    ):
         """Initialize PipelineScheduler.
 
         Args:
             project_cfg: The project configuration object.
+            fs: The file system to use for file operations.
+            cfg_dir: The directory for configuration files.
+            pipelines_dir: The directory for pipeline files.
+            worker_type: The type of worker to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
         """
         self.project_cfg = project_cfg
-        # Determine worker type from project config
-        self._worker_type = project_cfg.worker.type
+        self._fs = fs
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
+        self._worker_type = worker_type or project_cfg.worker.type
         if not self._worker_type:
             # Fallback or default if not specified in project config
             self._worker_type = "rq"  # Or load from settings.FP_DEFAULT_WORKER_TYPE
@@ -40,10 +53,10 @@ class PipelineScheduler:
                 f"Worker type not specified in project config, defaulting to '{self._worker_type}'"
             )
 
-        logger.debug(
-            f"Initialized PipelineScheduler for project '{project_cfg.name}' with worker type: {self._worker_type}"
-        )
-        # Worker instance is created on demand via the property
+        # logger.debug(
+        #     f"Initialized PipelineScheduler for project '{project_cfg.name}' with worker type: {self._worker_type}"
+        # )
+        # # Worker instance is created on demand via the property
 
     @property
     def worker(self):
@@ -57,24 +70,19 @@ class PipelineScheduler:
         # Pass the necessary parts of project_cfg to the Worker
         return Worker(
             type=self._worker_type,
-            fs=self.project_cfg.fs,
-            base_dir=self.project_cfg.base_dir,
-            storage_options=self.project_cfg.storage_options,
+            fs=self._fs,
             # Pass worker-specific config from project_cfg if needed by Worker.__init__
             # e.g., worker_config=self.project_cfg.worker.get(self._worker_type, {})
         )
 
     def _get_schedules(self) -> list[Any]:
         """Get all schedules from the worker backend."""
-        # TODO: Consider caching or optimizing if called frequently
-        # Use the worker property directly
+
         with self.worker as worker:
-            # Assuming the worker has a method to get schedules
-            # This is a placeholder; actual implementation may vary
+
             logger.debug("Fetching schedules from worker")
             return worker.get_schedules()
 
-    # --- Moved from PipelineManager ---
     def run_job(
         self,
         run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
@@ -90,7 +98,7 @@ class PipelineScheduler:
         reload: bool = False,
         log_level: str | None = None,  # Match PipelineRunner arg
         **kwargs,  # Allow other worker-specific args if needed
-    ) -> str | UUID:
+    ) -> dict[str, Any]:
         """
         Add a job to run the pipeline immediately via the worker queue.
 
@@ -110,7 +118,7 @@ class PipelineScheduler:
             **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
 
         Returns:
-            str | UUID: The ID of the enqueued job.
+            dict[str, Any]: The result of the job execution.
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
 
@@ -142,13 +150,15 @@ class PipelineScheduler:
             job_id = worker.add_job(
                 func=run_func,  # Pass the function to be executed by the worker
                 kwargs=pipeline_run_args,  # Pass the arguments for that function
+                result_ttl=120,
                 **kwargs,  # Pass any extra args meant for the worker backend
             )
-        rprint(
-            f"✅ Successfully submitted immediate job for "
-            f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
-        )
-        return job_id
+            res = worker.get_result(job_id)
+        #logger.info(
+        #    f"✅ Successfully submitted immediate job for "
+        #    f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
+        #)
+        return res
 
     def add_job(
         self,
@@ -164,7 +174,7 @@ class PipelineScheduler:
         adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
         reload: bool = False,
         log_level: str | None = None,  # Match PipelineRunner arg
-        result_ttl: float | dt.timedelta = 0,
+        result_ttl: float | dt.timedelta = 120,
         **kwargs,  # Allow other worker-specific args if needed
     ) -> str | UUID:
         """

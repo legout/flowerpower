@@ -45,11 +45,10 @@ class PipelineManager:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
-        # cfg_dir and pipelines_dir are now primarily derived from project config,
-        # but can be passed to override defaults during ProjectConfig.load
         cfg_dir: str | None = None,
         pipelines_dir: str | None = None,
         worker_type: str | None = None,  # Explicit worker type override
+        log_level: str | None = None,
     ):
         """
         Initializes the PipelineManager.
@@ -61,47 +60,57 @@ class PipelineManager:
             cfg_dir (str | None): Override default configuration directory ('conf').
             pipelines_dir (str | None): Override default pipelines directory ('pipelines').
             worker_type (str | None): Override the worker type defined in project config or settings.
+            log_level (str | None): Logging level for the manager. Defaults to None (uses project config or settings).
         """
+        if log_level:
+            setup_logging(level=log_level)
+
         self._base_dir = base_dir or str(Path.cwd())
-        self._storage_options = storage_options or {}
-        # FS is loaded within ProjectConfig.load if not provided
-        self._fs = fs  # Store provided fs if any, ProjectConfig will use it
+        self._storage_options = storage_options
+        if not fs:
+            fs = get_filesystem(self._base_dir, storage_options=storage_options)
+        self._fs = fs
 
         # Store overrides for ProjectConfig loading
-        self._cfg_dir_override = cfg_dir
-        self._pipelines_dir_override = pipelines_dir
-        self._worker_type_override = worker_type or settings.FP_DEFAULT_WORKER_TYPE
+        self._cfg_dir = cfg_dir or settings.CONFIG_DIR
+        self._pipelines_dir = pipelines_dir or settings.PIPELINES_DIR
+        self._worker_type = worker_type
 
-        # Load Project Config first - it contains paths and fs needed by other components
-        self._load_project_cfg()  # This now uses the stored overrides
+        self._load_project_cfg(reload=True)  # Load project config
 
         # Ensure essential directories exist (using paths from loaded project_cfg)
         try:
-            self.project_cfg.fs.makedirs(
-                f"{self.project_cfg.cfg_dir}/pipelines", exist_ok=True
-            )
-            self.project_cfg.fs.makedirs(self.project_cfg.pipelines_dir, exist_ok=True)
+            self._fs.makedirs(self._cfg_dir, exist_ok=True)
+            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
         except Exception as e:
             logger.error(f"Error creating essential directories: {e}")
             # Consider raising an error here depending on desired behavior
-
+        
         # Sync cache if applicable
         self._sync_cache()
         # Ensure pipeline modules can be imported
         self._append_modules_path()
 
         # Instantiate components using the loaded project config
-        self.registry = PipelineRegistry(project_cfg=self.project_cfg)
-        self.scheduler = PipelineScheduler(project_cfg=self.project_cfg)
-        self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg)
-        self.io = PipelineIOManager(
-            project_cfg=self.project_cfg, registry=self.registry
+        self.registry = PipelineRegistry(
+            project_cfg=self.project_cfg,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
         )
+        self.scheduler = PipelineScheduler(
+            project_cfg=self.project_cfg,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+            worker_type=self._worker_type,
+        )
+        self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
+        self.io = PipelineIOManager(registry=self.registry)
 
         self._current_pipeline_name: str | None = None
-        self._pipeline_cfg: PipelineConfig | None = (
-            None  # Cache for last loaded pipeline cfg
-        )
+        self._pipeline_cfg: PipelineConfig | None = None
+        
 
     def __enter__(self) -> "PipelineManager":
         return self
@@ -124,8 +133,8 @@ class PipelineManager:
             None
         """
         # Use fs from project_cfg
-        if self.project_cfg.fs.is_cache_fs:
-            self.project_cfg.fs.sync_cache()
+        if self._fs.is_cache_fs:
+            self._fs.sync_cache()
 
     def _append_modules_path(self):
         """
@@ -138,9 +147,7 @@ class PipelineManager:
         # Note: fs.path might not be reliable for all filesystems (e.g., S3)
         # Using the derived pipelines_dir relative to base_dir is safer.
         # However, for sys.path, we often need the *local* path if using CacheFileSystem.
-        local_pipelines_path = posixpath.join(
-            self._base_dir, self.project_cfg.pipelines_dir
-        )
+        local_pipelines_path = posixpath.join(self._base_dir, self._pipelines_dir)
         if local_pipelines_path not in sys.path:
             # Add the potentially cached local path
             sys.path.append(local_pipelines_path)
@@ -163,14 +170,11 @@ class PipelineManager:
         # Pass overrides to ProjectConfig.load
         self._project_cfg = ProjectConfig.load(
             base_dir=self._base_dir,
-            worker_type=self._worker_type_override,
+            worker_type=self._worker_type,
             fs=self._fs,  # Pass pre-configured fs if provided
             storage_options=self._storage_options,
-            cfg_dir=self._cfg_dir_override,
-            pipelines_dir=self._pipelines_dir_override,
         )
         # Update internal fs reference in case ProjectConfig loaded/created one
-        self._fs = self._project_cfg.fs
         return self._project_cfg
 
     def _load_pipeline_cfg(self, name: str, reload: bool = False) -> PipelineConfig:
@@ -189,10 +193,10 @@ class PipelineManager:
         self._current_pipeline_name = name
         # Use project_cfg attributes for loading pipeline config
         self._pipeline_cfg = PipelineConfig.load(
-            base_dir=self.project_cfg.base_dir,
+            base_dir=self._base_dir,
             name=name,
-            fs=self.project_cfg.fs,
-            storage_options=self.project_cfg.storage_options,
+            fs=self._fs,
+            storage_options=self._storage_options,
             # cfg_dir is implicitly handled by PipelineConfig.load using base_dir
         )
         return self._pipeline_cfg
@@ -230,23 +234,7 @@ class PipelineManager:
         if not hasattr(self, "_pipeline_cfg"):
             logger.warning("Pipeline config not loaded.")
             return
-
-    def _get_or_load_pipeline_cfg(
-        self, name: str, reload: bool = False
-    ) -> PipelineConfig | None:
-        """Gets cached pipeline config or loads it if necessary."""
-        # Return cached config if available and not reloading
-        if self._pipeline_cfg and self._current_pipeline_name == name and not reload:
-            return self._pipeline_cfg
-        # Otherwise, load it using the internal loading method
-        try:
-            return self._load_pipeline_cfg(name=name, reload=reload)
-        except FileNotFoundError:
-            logger.error(f"Pipeline configuration file not found for '{name}'.")
-            return None
-        except Exception as e:
-            logger.error(f"Error loading pipeline configuration for '{name}': {e}")
-            return None
+        return self._pipeline_cfg
 
     # --- Core Execution Method ---
 
@@ -285,7 +273,7 @@ class PipelineManager:
         Returns:
             dict[str, Any]: The result of executing the pipeline.
         """
-        pipeline_cfg = self._get_or_load_pipeline_cfg(name=name, reload=reload)
+        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
 
         # Instantiate PipelineRunner for this specific run
         with PipelineRunner(
@@ -377,9 +365,9 @@ class PipelineManager:
         """Imports a pipeline from a source directory."""
         return self.io.import_pipeline(
             name=name,
-            base_dir=base_dir,
+            src_base_dir=base_dir,
             src_fs=src_fs,
-            storage_options=storage_options,
+            src_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -394,9 +382,9 @@ class PipelineManager:
         """Imports multiple pipelines."""
         return self.io.import_many(
             pipelines=pipelines,
-            base_dir=base_dir,
+            src_base_dir=base_dir,
             src_fs=src_fs,
-            storage_options=storage_options,
+            src_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -409,9 +397,9 @@ class PipelineManager:
     ):
         """Imports all pipelines found in a source directory."""
         return self.io.import_all(
-            base_dir=base_dir,
+            src_base_dir=base_dir,
             src_fs=src_fs,
-            storage_options=storage_options,
+            src_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -426,9 +414,9 @@ class PipelineManager:
         """Exports a single pipeline to a destination directory."""
         return self.io.export_pipeline(
             name=name,
-            base_dir=base_dir,
+            dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            storage_options=storage_options,
+            des_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -443,9 +431,9 @@ class PipelineManager:
         """Exports multiple specified pipelines."""
         return self.io.export_many(
             pipelines=pipelines,
-            base_dir=base_dir,
+            dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            storage_options=storage_options,
+            dest_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -458,9 +446,9 @@ class PipelineManager:
     ):
         """Exports all pipelines found in the registry."""
         return self.io.export_all(
-            base_dir=base_dir,
+            dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            storage_options=storage_options,
+            dest_storage_options=storage_options,
             overwrite=overwrite,
         )
 
@@ -483,7 +471,7 @@ class PipelineManager:
     def _get_run_func_for_job(self, name: str, reload: bool = False) -> Callable:
         """Helper to create a PipelineRunner instance and return its run method."""
         # This ensures the runner uses the correct, potentially reloaded, config for the job
-        pipeline_cfg = self._get_or_load_pipeline_cfg(name=name, reload=reload)
+        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
         # We return the bound method runner.run
         return runner.run
@@ -588,7 +576,7 @@ class PipelineManager:
     ) -> str | UUID:
         """Schedules a pipeline run via the PipelineScheduler."""
         # Need the specific pipeline's config to resolve defaults for the schedule call
-        pipeline_cfg = self._get_or_load_pipeline_cfg(name=name, reload=reload)
+        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         # Create the run function *now* with potentially reloaded config/module
         run_func = self._get_run_func_for_job(
             name, reload=False
@@ -637,7 +625,7 @@ class PipelineManager:
             try:
                 # Load config to check if enabled and get defaults
                 # Use reload=True to ensure fresh config check for enablement
-                pipeline_cfg = self._get_or_load_pipeline_cfg(name=name, reload=True)
+                pipeline_cfg = self._load_pipeline_cfg(name=name, reload=True)
 
                 if not pipeline_cfg.schedule.enabled:
                     logger.info(

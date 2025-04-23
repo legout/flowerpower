@@ -3,7 +3,7 @@ RQSchedulerBackend implementation for FlowerPower using RQ and rq-scheduler.
 
 This module implements the scheduler backend using RQ (Redis Queue) and rq-scheduler.
 """
-
+import random
 import datetime as dt
 import multiprocessing
 import platform
@@ -29,7 +29,7 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
         # Check if the start method has already been set to avoid errors
         if multiprocessing.get_start_method(allow_none=True) is None:
             multiprocessing.set_start_method("fork")
-            logger.info("Set multiprocessing start method to 'fork' for macOS ARM.")
+            logger.debug("Set multiprocessing start method to 'fork' for macOS ARM.")
         elif multiprocessing.get_start_method() != "fork":
             logger.warning(
                 f"Multiprocessing start method already set to '{multiprocessing.get_start_method()}'. "
@@ -52,18 +52,22 @@ class RQWorker(BaseWorker):
         backend: RQBackend | None = None,
         storage_options: dict[str, Any] | None = None,
         fs: AbstractFileSystem | None = None,
+        log_level: str | None = None,
     ):
         """
         Initialize the RQScheduler backend.
 
         Args:
-            name: Name of the scheduler
-            base_dir: Base directory for the FlowerPower project
-            data_store: RQDataStore instance (for job results)
-            event_broker: RQEventBroker instance (for pub/sub)
-            storage_options: Storage options for filesystem access
-            fs: Filesystem to use
+            name (str): Name of the scheduler
+            base_dir (str | None): Base directory for the scheduler
+            backend (RQBackend | None): RQ backend instance
+            storage_options (dict[str, Any] | None): Storage options for the backend
+            fs (AbstractFileSystem | None): File system instance
+            log_level (str | None): Logging level for the scheduler
         """
+        if log_level:
+            setup_logging(level=log_level)
+
         super().__init__(
             type="rq",
             name=name,
@@ -107,28 +111,28 @@ class RQWorker(BaseWorker):
             )
             raise RuntimeError(f"Failed to set up RQ backend: {exc}") from exc
 
-    def _get_items(
-        self, as_dict: bool = False, queue_name: str | None = None, getter=None
-    ) -> list:
-        """
-        Helper to get jobs or schedules as objects or dicts, optionally for a specific queue.
-        """
-        all_items = []
-        if queue_name is not None:
-            if getter and queue_name in getter:
-                all_items = getter[queue_name].get_jobs()
-            else:
-                logger.warning(f"Queue '{queue_name}' not found")
-        else:
-            if getter:
-                for obj in getter.values():
-                    all_items.extend(obj.get_jobs())
-        if as_dict:
-            return [
-                item.to_dict() if hasattr(item, "to_dict") else item.__dict__
-                for item in all_items
-            ]
-        return all_items
+    # def _get_items(
+    #     self, as_dict: bool = False, queue_name: str | None = None, getter=None
+    # ) -> list:
+    #     """
+    #     Helper to get jobs or schedules as objects or dicts, optionally for a specific queue.
+    #     """
+    #     all_items = []
+    #     if queue_name is not None:
+    #         if getter and queue_name in getter:
+    #             all_items = getter[queue_name].get_jobs()
+    #         else:
+    #             logger.warning(f"Queue '{queue_name}' not found")
+    #     else:
+    #         if getter:
+    #             for obj in getter.values():
+    #                 all_items.extend(obj.get_jobs())
+    #     if as_dict:
+    #         return [
+    #             item.to_dict() if hasattr(item, "to_dict") else item.__dict__
+    #             for item in all_items
+    #         ]
+    #     return all_items
 
     def get_schedules(
         self, as_dict: bool = False, queue_name: str | None = None
@@ -163,12 +167,15 @@ class RQWorker(BaseWorker):
     def add_job(
         self,
         func: Callable,
-        args: tuple | None = None,
+        *func_args,
+        #args: tuple | None = None,
         kwargs: dict[str, Any] | None = None,
         job_id: str | None = None,
         result_ttl: float | dt.timedelta = 0,
         queue_name: str | None = None,
-        **job_kwargs,
+        run_at: dt.datetime | None = None,
+        run_in: dt.timedelta | None = None,
+        **func_kwargs,
     ) -> str:
         """
         Add a job for immediate execution.
@@ -180,6 +187,8 @@ class RQWorker(BaseWorker):
             job_id: Optional job ID
             result_ttl: How long to keep the result (seconds or timedelta)
             queue_name: Name of the queue to use (defaults to first queue)
+            run_at: Optional datetime to run the job at
+            run_in: Optional timedelta to delay the job execution
             **job_kwargs: Additional job parameters
 
         Returns:
@@ -188,27 +197,48 @@ class RQWorker(BaseWorker):
         job_id = job_id or str(uuid.uuid4())
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
-        args = args or ()
-        kwargs = kwargs or {}
+        #args = args or ()
+        #kwargs = kwargs or {}
         if queue_name is None:
-            queue_name = next(iter(self._queues))
+            queue_name = random.choice(list(self._queues.keys()))
         elif queue_name not in self._queues:
+            queue_name_new = random.choice(list(self._queues.keys()))
             logger.warning(
-                f"Queue '{queue_name}' not found, using '{next(iter(self._queues))}'"
+                f"Queue '{queue_name}' not found, using '{queue_name_new}'"
             )
-            queue_name = next(iter(self._queues))
+            queue_name = queue_name_new
 
         queue = self._queues[queue_name]
-
-        job = queue.enqueue(
-            func,
-            args=args,
-            kwargs=kwargs,
-            job_id=job_id,
-            result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-            **job_kwargs,
-        )
-        logger.info(f"Enqueued job {job_id} ({func.__name__}) on queue '{queue_name}'")
+        if run_at:
+            # Schedule the job to run at a specific time
+            job = queue.enqueue_at(
+                run_at,
+                func,
+                *func_args,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                **func_kwargs,
+            )
+        elif run_in:
+            # Schedule the job to run after a delay
+            job = queue.enqueue_in(
+                run_in,
+                func,
+                *func_args,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                **func_kwargs,
+            )
+        else:
+            # Enqueue the job for immediate execution
+            job = queue.enqueue(
+                func,
+                *func_args,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                **func_kwargs,
+            )
+        logger.info(f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'")
         return job.id
 
     def add_schedule(

@@ -18,9 +18,9 @@ class WithAdapterConfig(BaseConfig):
 
 
 class ExecutorConfig(BaseConfig):
-    type: str | None = msgspec.field(default=settings.FP_EXECUTOR)
-    max_workers: int | None = msgspec.field(default=settings.FP_EXECUTOR_MAX_WORKERS)
-    num_cpus: int | None = msgspec.field(default=settings.FP_EXECUTOR_NUM_CPUS)
+    type: str | None = msgspec.field(default=settings.EXECUTOR)
+    max_workers: int | None = msgspec.field(default=settings.EXECUTOR_MAX_WORKERS)
+    num_cpus: int | None = msgspec.field(default=settings.EXECUTOR_NUM_CPUS)
 
 
 class RunConfig(BaseConfig):

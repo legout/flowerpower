@@ -7,12 +7,10 @@ Manages the import and export of pipelines.
 
 import posixpath
 
-from fsspec.spec import AbstractFileSystem
 from rich.console import Console
 
 # Import necessary config types and utility functions
-from ..cfg import ProjectConfig
-from ..fs.base import BaseStorageOptions, get_filesystem
+from ..fs.base import BaseStorageOptions, get_filesystem, AbstractFileSystem
 from .registry import PipelineRegistry
 
 console = Console()
@@ -23,29 +21,26 @@ class PipelineIOManager:
 
     def __init__(
         self,
-        project_cfg: ProjectConfig,
         registry: PipelineRegistry,
     ):
         """
         Initializes the PipelineIOManager.
 
         Args:
-            project_cfg: The project configuration object.
             registry: The pipeline registry instance.
         """
-        self.project_cfg = project_cfg
+        self.project_cfg = registry.project_cfg
         self.registry = registry
-        # Derive attributes from project_cfg
-        self._fs = project_cfg.fs
-        self._cfg_dir = project_cfg.cfg_dir
-        self._pipelines_dir = project_cfg.pipelines_dir
+        self._fs = registry._fs
+        self._cfg_dir = registry._cfg_dir
+        self._pipelines_dir = registry._pipelines_dir
 
     def import_pipeline(
         self,
         name: str,
-        base_dir: str,
+        src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        src_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """
@@ -53,9 +48,9 @@ class PipelineIOManager:
 
         Args:
             name (str): The name of the pipeline.
-            base_dir (str): The path of the flowerpower project directory.
+            src_base_dir (str): The path of the flowerpower project directory.
             src_fs (AbstractFileSystem | None, optional): The source filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): The storage options. Defaults to None.
+            src_storage_options (BaseStorageOptions | None, optional): The storage options. Defaults to None.
             overwrite (bool, optional): Whether to overwrite an existing pipeline. Defaults to False.
 
         Returns:
@@ -71,21 +66,21 @@ class PipelineIOManager:
             ```
         """
         if src_fs is None:
-            src_fs = get_filesystem(base_dir, **(storage_options or {}))
+            src_fs = get_filesystem(src_base_dir, **(src_storage_options or {}))
 
         # Use project_cfg attributes for destination paths and filesystem
         dest_pipeline_file = posixpath.join(
-            self.project_cfg.pipelines_dir, f"{name.replace('.', '/')}.py"
+            self._pipelines_dir, f"{name.replace('.', '/')}.py"
         )
         dest_cfg_file = posixpath.join(
-            self.project_cfg.cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
+            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
         )
         # Assume standard structure in source base_dir
         src_pipeline_file = posixpath.join(
-            base_dir, "pipelines", f"{name.replace('.', '/')}.py"
+            src_base_dir, "pipelines", f"{name.replace('.', '/')}.py"
         )
         src_cfg_file = posixpath.join(
-            base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
+            src_base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
         )
 
         if not src_fs.exists(src_pipeline_file):
@@ -97,15 +92,13 @@ class PipelineIOManager:
                 f"Source pipeline config file not found at: {src_cfg_file}"
             )
 
-        # Check existence in destination using project_cfg.fs
-        if self.project_cfg.fs.exists(dest_pipeline_file) or self.project_cfg.fs.exists(
-            dest_cfg_file
-        ):
+        # Check existence in destination using _fs
+        if self._fs.exists(dest_pipeline_file) or self._fs.exists(dest_cfg_file):
             if overwrite:
-                if self.project_cfg.fs.exists(dest_pipeline_file):
-                    self.project_cfg.fs.rm(dest_pipeline_file)
-                if self.project_cfg.fs.exists(dest_cfg_file):
-                    self.project_cfg.fs.rm(dest_cfg_file)
+                if self._fs.exists(dest_pipeline_file):
+                    self._fs.rm(dest_pipeline_file)
+                if self._fs.exists(dest_cfg_file):
+                    self._fs.rm(dest_cfg_file)
             else:
                 # Use project_cfg.name directly
                 raise ValueError(
@@ -114,28 +107,24 @@ class PipelineIOManager:
                 )
 
         # Create directories in destination
-        self.project_cfg.fs.makedirs(
-            posixpath.dirname(dest_pipeline_file), exist_ok=True
-        )
-        self.project_cfg.fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
+        self._fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
+        self._fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
 
         # Copy files using correct filesystems
-        self.project_cfg.fs.write_bytes(
-            dest_pipeline_file, src_fs.read_bytes(src_pipeline_file)
-        )
-        self.project_cfg.fs.write_bytes(dest_cfg_file, src_fs.read_bytes(src_cfg_file))
+        self._fs.write_bytes(dest_pipeline_file, src_fs.read_bytes(src_pipeline_file))
+        self._fs.write_bytes(dest_cfg_file, src_fs.read_bytes(src_cfg_file))
 
         # Use project_cfg.name directly
         console.print(
-            f"✅ Imported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] from [green]{base_dir}[/green]"
+            f"✅ Imported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] from [green]{src_base_dir}[/green]"
         )
 
     def import_many(
         self,
         pipelines: dict[str, str] | list[str],
-        base_dir: str,
+        src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        src_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """
@@ -144,9 +133,9 @@ class PipelineIOManager:
         Args:
             pipelines (dict[str, str] | list[str]): A dictionary where keys are pipeline names and values are paths or
                 a list of pipeline names to import.
-            base_dir (str): The base path of the flowerpower project directory.
+            src_base_dir (str): The base path of the flowerpower project directory.
             src_fs (AbstractFileSystem | None, optional): The source filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): The storage options. Defaults to None.
+            src_storage_options (BaseStorageOptions | None, optional): The storage options. Defaults to None.
             overwrite (bool, optional): Whether to overwrite existing pipelines. Defaults to False.
 
         Returns:
@@ -163,28 +152,28 @@ class PipelineIOManager:
             ```
         """
         if isinstance(pipelines, list):
-            pipelines = {name: base_dir for name in pipelines}
+            pipelines = {name: src_base_dir for name in pipelines}
 
-        for name, base_dir in pipelines.items():
+        for name, src_base_dir in pipelines.items():
             try:
                 self.import_pipeline(
                     name=name,
-                    base_dir=base_dir,
+                    src_base_dir=src_base_dir,
                     src_fs=src_fs,
-                    storage_options=storage_options,
+                    src_storage_options=src_storage_options,
                     overwrite=overwrite,
                 )
             except Exception as e:
                 console.print(
-                    f"❌ Failed to import pipeline [bold blue]{name}[/bold blue] from [red]{base_dir}[/red]: {e}",
+                    f"❌ Failed to import pipeline [bold blue]{name}[/bold blue] from [red]{src_base_dir}[/red]: {e}",
                     style="red",
                 )
 
     def import_all(
         self,
-        base_dir: str,
+        src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        src_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Import all pipelines from a given path.
@@ -192,9 +181,9 @@ class PipelineIOManager:
         Assumes the source path has a structure similar to the target `pipelines_dir` and `cfg_dir`/pipelines.
 
         Args:
-            base_dir (str): The base path containing pipeline modules and configurations.
+            src_base_dir (str): The base path containing pipeline modules and configurations.
             src_fs (AbstractFileSystem | None, optional): The source filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): Storage options for the source path. Defaults to None.
+            src_storage_options (BaseStorageOptions | None, optional): Storage options for the source path. Defaults to None.
             overwrite (bool, optional): Whether to overwrite existing pipelines. Defaults to False.
 
         Returns:
@@ -210,9 +199,9 @@ class PipelineIOManager:
             ```
         """
         if not src_fs:
-            src_fs = get_filesystem(base_dir, **(storage_options or {}))
+            src_fs = get_filesystem(src_base_dir, **(src_storage_options or {}))
 
-        console.print(f"🔍 Search pipelines in [green]{base_dir}[/green]...")
+        console.print(f"🔍 Search pipelines in [green]{src_base_dir}[/green]...")
 
         # Find all .py files in the source path (recursively)
         try:
@@ -224,7 +213,7 @@ class PipelineIOManager:
             # Add logic here to check common subdirs like 'pipelines' if needed
 
         names = [
-            f.replace(f"{base_dir}/", "").replace(".py", "").replace("/", ".")
+            f.replace(f"{src_base_dir}/", "").replace(".py", "").replace("/", ".")
             for f in pipeline_files
             if not f.endswith("__init__.py")  # Exclude __init__.py
         ]
@@ -238,21 +227,21 @@ class PipelineIOManager:
 
         console.print(f"Found {len(names)} potential pipeline modules. Importing...")
 
-        pipelines_to_import = {name: base_dir for name in names}
+        pipelines_to_import = {name: src_base_dir for name in names}
         self.import_many(
             pipelines=pipelines_to_import,
-            base_dir=base_dir,
+            src_base_dir=src_base_dir,
             src_fs=src_fs,
-            storage_options=storage_options,
+            src_storage_options=src_storage_options,
             overwrite=overwrite,
         )
 
     def export_pipeline(
         self,
         name: str,
-        base_dir: str,
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        des_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """
@@ -260,9 +249,9 @@ class PipelineIOManager:
 
         Args:
             name (str): The name of the pipeline.
-            base_dir (str): The destination path.
+            dest_base_dir (str): The destination path.
             dest_fs (AbstractFileSystem | None, optional): The destination filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
+            dest_storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
             overwrite (bool, optional): Whether to overwrite existing files at the destination. Defaults to False.
 
         Returns:
@@ -286,21 +275,21 @@ class PipelineIOManager:
             raise ValueError(f"Pipeline {self.project_cfg.name}.{name} does not exist.")
 
         if dest_fs is None:
-            dest_fs = get_filesystem(base_dir, **(storage_options or {}))
+            dest_fs = get_filesystem(dest_base_dir, **(des_storage_options or {}))
 
         # Define destination paths relative to base_dir
         dest_pipeline_file = posixpath.join(
-            base_dir, "pipelines", f"{name.replace('.', '/')}.py"
+            dest_base_dir, "pipelines", f"{name.replace('.', '/')}.py"
         )
         dest_cfg_file = posixpath.join(
-            base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
+            dest_base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
         )
         # Define source paths using project_cfg attributes
         src_pipeline_file = posixpath.join(
-            self.project_cfg.pipelines_dir, f"{name.replace('.', '/')}.py"
+            self._pipelines_dir, f"{name.replace('.', '/')}.py"
         )
         src_cfg_file = posixpath.join(
-            self.project_cfg.cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
+            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
         )
 
         # Check overwrite condition for destination files using dest_fs
@@ -308,7 +297,7 @@ class PipelineIOManager:
             dest_fs.exists(dest_pipeline_file) or dest_fs.exists(dest_cfg_file)
         ):
             raise ValueError(
-                f"Destination path {base_dir} for pipeline {name.replace('.', '/')} already contains files. Use `overwrite=True` to overwrite."
+                f"Destination path {dest_base_dir} for pipeline {name.replace('.', '/')} already contains files. Use `overwrite=True` to overwrite."
             )
 
         # Create necessary subdirectories in the destination using dest_fs
@@ -316,22 +305,20 @@ class PipelineIOManager:
         dest_fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
 
         # Copy pipeline module and config using correct filesystems
-        dest_fs.write_bytes(
-            dest_pipeline_file, self.project_cfg.fs.read_bytes(src_pipeline_file)
-        )
-        dest_fs.write_bytes(dest_cfg_file, self.project_cfg.fs.read_bytes(src_cfg_file))
+        dest_fs.write_bytes(dest_pipeline_file, self._fs.read_bytes(src_pipeline_file))
+        dest_fs.write_bytes(dest_cfg_file, self._fs.read_bytes(src_cfg_file))
 
         # Use project_cfg.name directly
         console.print(
-            f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{base_dir}[/green]"
+            f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{dest_base_dir}[/green]"
         )
 
     def export_many(
         self,
         pipelines: list[str],
-        base_dir: str,
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """
@@ -339,9 +326,9 @@ class PipelineIOManager:
 
         Args:
             pipelines (list[str]): A list of pipeline names to export.
-            base_dir (str): The destination directory path.
+            dest_base_dir (str): The destination directory path.
             dest_fs (AbstractFileSystem | None, optional): The destination filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
+            dest_storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
             overwrite (bool, optional): Whether to overwrite existing files at the destination. Defaults to False.
 
         Returns:
@@ -358,31 +345,31 @@ class PipelineIOManager:
             try:
                 self.export_pipeline(
                     name=name,
-                    base_dir=base_dir,
+                    dest_base_dir=dest_base_dir,
                     dest_fs=dest_fs,
-                    storage_options=storage_options,
+                    des_storage_options=dest_storage_options,
                     overwrite=overwrite,
                 )
             except Exception as e:
                 # Use project_cfg.name directly
                 console.print(
-                    f"❌ Failed to export pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [red]{base_dir}[/red]: {e}",
+                    f"❌ Failed to export pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [red]{dest_base_dir}[/red]: {e}",
                     style="red",
                 )
 
     def export_all(
         self,
-        base_dir: str,
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
     ):
         """Export all pipelines to a given path.
 
         Args:
-            base_dir (str): The destination directory path.
+            dest_base_dir (str): The destination directory path.
             dest_fs (AbstractFileSystem | None, optional): The destination filesystem. Defaults to None.
-            storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
+            dest_storage_options (BaseStorageOptions | None, optional): Storage options for the destination path. Defaults to None.
             overwrite (bool, optional): Whether to overwrite existing files at the destination. Defaults to False.
 
         Returns:
@@ -408,13 +395,13 @@ class PipelineIOManager:
             return
 
         console.print(
-            f"Found {len(pipelines)} pipelines in the registry. Exporting all to [green]{base_dir}[/green]..."
+            f"Found {len(pipelines)} pipelines in the registry. Exporting all to [green]{dest_base_dir}[/green]..."
         )
 
         self.export_many(
             pipelines=pipelines,
-            base_dir=base_dir,
+            dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
-            storage_options=storage_options,
+            dest_storage_options=dest_storage_options,
             overwrite=overwrite,
         )

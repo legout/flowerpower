@@ -52,6 +52,7 @@ class APSWorker(BaseWorker):
         backend: APSBackend | dict | None = None,
         storage_options: dict[str, Any] = None,
         fs: AbstractFileSystem | None = None,
+        log_level: str | None = None,
     ):
         """
         Initialize the APScheduler backend.
@@ -64,6 +65,9 @@ class APSWorker(BaseWorker):
             fs: Filesystem to use
             **cfg_updates: Configuration updates for the scheduler
         """
+        if log_level:
+            setup_logging(level=log_level)
+
         super().__init__(
             type="apscheduler",
             name=name,

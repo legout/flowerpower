@@ -8,26 +8,28 @@ from rich import print
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.misc import view_img
 from .base import load_module  # Import module loading utility
-
+from ..fs import AbstractFileSystem
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
 
-    def __init__(self, project_cfg: ProjectConfig):
+    def __init__(self, project_cfg: ProjectConfig, fs: AbstractFileSystem):
         """
         Initializes the PipelineVisualizer.
 
         Args:
             project_cfg: The project configuration object.
+            fs: The filesystem instance.    
         """
         self.project_cfg = project_cfg
+        self._fs = fs
         # Attributes like fs and base_dir are accessed via self.project_cfg
 
     def _display_all_function(self, name: str, reload: bool = False):
         """Internal helper to load module/config and get the Hamilton DAG object."""
         # Load pipeline-specific config
         pipeline_cfg = PipelineConfig.load(
-            base_dir=self.project_cfg.base_dir, name=name, fs=self.project_cfg.fs
+            name=name, fs=self._fs
         )
 
         # Load the pipeline module
@@ -68,7 +70,7 @@ class PipelineVisualizer:
 
         # Use project_cfg attributes for path and filesystem access
         graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
-        self.project_cfg.fs.makedirs(graph_dir, exist_ok=True)
+        self._fs.makedirs(graph_dir, exist_ok=True)
 
         output_path = posixpath.join(
             graph_dir, name

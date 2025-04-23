@@ -2,10 +2,10 @@ import sys
 
 from loguru import logger
 
-from ..settings import FP_LOG_LEVEL  # Import the setting
+from ..settings import LOG_LEVEL  # Import the setting
 
 
-def setup_logging(level: str = FP_LOG_LEVEL) -> None:
+def setup_logging(level: str = LOG_LEVEL) -> None:
     """
     Configures the Loguru logger.
 
