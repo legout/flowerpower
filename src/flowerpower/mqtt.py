@@ -16,6 +16,7 @@ from .utils.logging import setup_logging
 
 setup_logging()
 
+
 class MQTTManager:
     def __init__(
         self,

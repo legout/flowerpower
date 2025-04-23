@@ -3,8 +3,9 @@ import os
 import msgspec
 from munch import munchify
 
-from ..base import BaseConfig
 from ... import settings
+from ..base import BaseConfig
+
 
 class WithAdapterConfig(BaseConfig):
     tracker: bool = msgspec.field(default=False)
@@ -27,12 +28,9 @@ class RunConfig(BaseConfig):
     final_vars: list[str] | None = msgspec.field(default_factory=list)
     config: dict | None = msgspec.field(default_factory=dict)
     cache: dict | bool | None = msgspec.field(default_factory=dict)
-    with_adapter: WithAdapterConfig | dict = msgspec.field(
-        default_factory=WithAdapterConfig
-    )
-    executor: ExecutorConfig | dict = msgspec.field(default_factory=ExecutorConfig)
+    with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
+    executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     log_level: str | None = msgspec.field(default=None)
-
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):

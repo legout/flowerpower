@@ -4,10 +4,9 @@
 import datetime as dt
 import logging
 import posixpath
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
-import rich  # <-- Add this import
-from fsspec.spec import AbstractFileSystem
+import rich
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -15,7 +14,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 # Import necessary config types and utility functions
-from ..cfg import PipelineConfig
+from ..cfg import PipelineConfig, ProjectConfig
 
 # Assuming view_img might be used indirectly or needed later
 from ..utils.templates import PIPELINE_PY_TEMPLATE
@@ -31,29 +30,18 @@ logger = logging.getLogger(__name__)
 class PipelineRegistry:
     """Manages discovery, listing, creation, and deletion of pipelines."""
 
-    def __init__(
-        self,
-        fs: AbstractFileSystem,
-        base_dir: str,
-        cfg_dir: str,
-        pipelines_dir: str,
-        load_config_func: Callable,
-    ):
+    def __init__(self, project_cfg: ProjectConfig):
         """
         Initializes the PipelineRegistry.
 
         Args:
-            fs: Filesystem object.
-            base_dir: Base directory for the project.
-            cfg_dir: Configuration directory path.
-            pipelines_dir: Pipelines directory path.
-            load_config_func: Function to load configuration.
+            project_cfg: The project configuration object.
         """
-        self._fs = fs
-        self._base_dir = base_dir
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
-        self._load_config_func = load_config_func
+        self.project_cfg = project_cfg
+        self._fs = project_cfg.fs
+        self._base_dir = project_cfg.base_dir
+        self._cfg_dir = project_cfg.cfg_dir
+        self._pipelines_dir = project_cfg.pipelines_dir
         self._console = Console()
 
     # --- Methods moved from PipelineManager ---
@@ -73,28 +61,31 @@ class PipelineRegistry:
             pm = PipelineManager()
             pm.new("my_pipeline")
         """
-        cfg = self._load_config_func()
-
+        # Use attributes derived from self.project_cfg
         for dir_path, label in (
-            (self._cfg_dir, "configuration"),
-            (self._pipelines_dir, "pipeline"),
+            (self.project_cfg.cfg_dir, "configuration"),
+            (self.project_cfg.pipelines_dir, "pipeline"),
         ):
-            if not self._fs.exists(dir_path):
+            if not self.project_cfg.fs.exists(dir_path):
                 raise ValueError(
                     f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first."
                 )
 
-        formatted_name = name.replace(".", "/")
-        pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
-        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
+        formatted_name = name.replace(".", "/").replace("-", "_")
+        pipeline_file = posixpath.join(
+            self.project_cfg.pipelines_dir, f"{formatted_name}.py"
+        )
+        cfg_file = posixpath.join(
+            self.project_cfg.cfg_dir, "pipelines", f"{formatted_name}.yml"
+        )
 
         def check_and_handle(path: str):
-            if self._fs.exists(path):
+            if self.project_cfg.fs.exists(path):
                 if overwrite:
-                    self._fs.rm(path)
+                    self.project_cfg.fs.rm(path)
                 else:
                     raise ValueError(
-                        f"Pipeline {cfg.project.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
+                        f"Pipeline {self.project_cfg.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
                     )
 
         check_and_handle(pipeline_file)
@@ -102,9 +93,10 @@ class PipelineRegistry:
 
         # Ensure directories for the new files exist
         for file_path in (pipeline_file, cfg_file):
-            self._fs.makedirs(file_path.rsplit("/", 1)[0], exist_ok=True)
+            self.project_cfg.fs.makedirs(file_path.rsplit("/", 1)[0], exist_ok=True)
 
-        with self._fs.open(pipeline_file, "w") as f:
+        # Write pipeline code template
+        with self.project_cfg.fs.open(pipeline_file, "w") as f:
             f.write(
                 PIPELINE_PY_TEMPLATE.format(
                     name=name,
@@ -112,11 +104,13 @@ class PipelineRegistry:
                 )
             )
 
-        cfg.pipeline = PipelineConfig(name=name)
-        save_project = not self._fs.exists(f"{self._cfg_dir}/project.yml")
-        cfg.save(project=save_project, pipeline=True)
+        # Create default pipeline config and save it directly
+        new_pipeline_cfg = PipelineConfig(name=name)
+        with self.project_cfg.fs.open(cfg_file, "w") as f:
+            new_pipeline_cfg.save(stream=f)  # Save only the pipeline part
+
         rich.print(
-            f"🔧 Created new pipeline [bold blue]{cfg.project.name}.{name}[/bold blue]"
+            f"🔧 Created new pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue]"
         )
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
@@ -141,23 +135,29 @@ class PipelineRegistry:
         deleted_files = []
         if cfg:
             pipeline_cfg_path = posixpath.join(
-                self._cfg_dir, "pipelines", f"{name}.yml"
+                self.project_cfg.cfg_dir, "pipelines", f"{name}.yml"
             )
-            if self._fs.exists(pipeline_cfg_path):
-                self._fs.rm(pipeline_cfg_path)
+            if self.project_cfg.fs.exists(pipeline_cfg_path):
+                self.project_cfg.fs.rm(pipeline_cfg_path)
                 deleted_files.append(pipeline_cfg_path)
-                logger.info(f"Deleted pipeline config: {pipeline_cfg_path}")
+                logger.debug(
+                    f"Deleted pipeline config: {pipeline_cfg_path}"
+                )  # Changed to DEBUG
             else:
                 logger.warning(
                     f"Config file not found, skipping deletion: {pipeline_cfg_path}"
                 )
 
         if module:
-            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
-            if self._fs.exists(pipeline_py_path):
-                self._fs.rm(pipeline_py_path)
+            pipeline_py_path = posixpath.join(
+                self.project_cfg.pipelines_dir, f"{name}.py"
+            )
+            if self.project_cfg.fs.exists(pipeline_py_path):
+                self.project_cfg.fs.rm(pipeline_py_path)
                 deleted_files.append(pipeline_py_path)
-                logger.info(f"Deleted pipeline module: {pipeline_py_path}")
+                logger.debug(
+                    f"Deleted pipeline module: {pipeline_py_path}"
+                )  # Changed to DEBUG
             else:
                 logger.warning(
                     f"Module file not found, skipping deletion: {pipeline_py_path}"
@@ -168,9 +168,11 @@ class PipelineRegistry:
                 f"No files found or specified for deletion for pipeline '{name}'."
             )
 
-        # Sync filesystem if needed
-        if hasattr(self._fs, "sync") and Callable(getattr(self._fs, "sync")):
-            self._fs.sync()
+        # Sync filesystem if needed (using project_cfg.fs)
+        if hasattr(self.project_cfg.fs, "sync") and callable(
+            getattr(self.project_cfg.fs, "sync")
+        ):
+            self.project_cfg.fs.sync()
 
     def _get_files(self) -> list[str]:
         """
@@ -180,10 +182,12 @@ class PipelineRegistry:
             list[str]: The list of pipeline files.
         """
         try:
-            return self._fs.glob(posixpath.join(self._pipelines_dir, "*.py"))
+            return self.project_cfg.fs.glob(
+                posixpath.join(self.project_cfg.pipelines_dir, "*.py")
+            )
         except Exception as e:
             logger.error(
-                f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
+                f"Error accessing pipeline directory {self.project_cfg.pipelines_dir}: {e}"
             )
             return []
 
@@ -230,21 +234,34 @@ class PipelineRegistry:
         summary["pipelines"] = {}
 
         if project:
-            project_cfg = self._load_config_func().project
-            summary["project"] = project_cfg.to_dict()
+            # Use self.project_cfg directly
+            summary["project"] = self.project_cfg.to_dict()
 
         for name in pipeline_names:
-            pipeline_cfg = self._load_config_func(name=name).pipeline
+            # Load pipeline config directly
+            pipeline_cfg = PipelineConfig.load(
+                base_dir=self.project_cfg.base_dir, name=name, fs=self.project_cfg.fs
+            )
+            pipeline_summary = {}
             if cfg:
-                summary["pipelines"][name] = {"cfg": pipeline_cfg.to_dict()}
+                pipeline_summary["cfg"] = pipeline_cfg.to_dict()
             if code:
-                summary["pipelines"][name].update(
-                    {
-                        "module": self._fs.cat(
-                            f"{self._pipelines_dir}/{name}.py"
-                        ).decode(),
-                    }
-                )
+                try:
+                    module_content = self.project_cfg.fs.cat(
+                        posixpath.join(self.project_cfg.pipelines_dir, f"{name}.py")
+                    ).decode()
+                    pipeline_summary["module"] = module_content
+                except FileNotFoundError:
+                    logger.warning(f"Module file not found for pipeline '{name}'")
+                    pipeline_summary["module"] = "# Module file not found"
+                except Exception as e:
+                    logger.error(
+                        f"Error reading module file for pipeline '{name}': {e}"
+                    )
+                    pipeline_summary["module"] = f"# Error reading module file: {e}"
+
+            if pipeline_summary:  # Only add if cfg or code was requested and found
+                summary["pipelines"][name] = pipeline_summary
         return summary
 
     def show_summary(
@@ -388,29 +405,36 @@ class PipelineRegistry:
             show = True
 
         pipeline_files = [
-            f for f in self._fs.ls(self._pipelines_dir) if f.endswith(".py")
+            f
+            for f in self.project_cfg.fs.ls(self.project_cfg.pipelines_dir)
+            if f.endswith(".py")
         ]
         pipeline_names = [
-            posixpath.splitext(f)[0]
-            .replace(self._pipelines_dir, "")
-            .lstrip("/")
-            .replace("/", ".")
-            for f in pipeline_files
-        ]
+            posixpath.splitext(posixpath.basename(f))[0] for f in pipeline_files
+        ]  # Simplified name extraction
 
         if not pipeline_files:
             rich.print("[yellow]No pipelines found[/yellow]")
-            return
+            return []  # Return empty list for consistency
 
         pipeline_info = []
 
         for path, name in zip(pipeline_files, pipeline_names):
-            # path = posixpath.join( f)
             try:
-                mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
+                mod_time = self.project_cfg.fs.modified(path).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
             except NotImplementedError:
                 mod_time = "N/A"
-            size = f"{self._fs.size(path) / 1024:.1f} KB"
+            try:
+                size_bytes = self.project_cfg.fs.size(path)
+                size = f"{size_bytes / 1024:.1f} KB" if size_bytes else "0.0 KB"
+            except NotImplementedError:
+                size = "N/A"
+            except Exception as e:
+                logger.warning(f"Could not get size for {path}: {e}")
+                size = "Error"
+
             pipeline_info.append(
                 {"name": name, "path": path, "mod_time": mod_time, "size": size}
             )

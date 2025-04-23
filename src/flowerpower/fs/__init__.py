@@ -9,14 +9,14 @@ else:
 
 from .base import get_filesystem  # noqa: E402
 from .storage_options import AwsStorageOptions  # noqa: E402
-from .storage_options import ( # noqa: E402
-    AzureStorageOptions,
+from .storage_options import AzureStorageOptions  # noqa: E402
+from .storage_options import (
     BaseStorageOptions,
     GcsStorageOptions,
     GitHubStorageOptions,
     GitLabStorageOptions,
     StorageOptions,
-) 
+)
 
 __all__ = [
     "get_filesystem",

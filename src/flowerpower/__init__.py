@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from .flowerpower import init as init_flowerpower # noqa: E402
+from .flowerpower import init as init_flowerpower  # noqa: E402
 
 __version__ = importlib.metadata.version("FlowerPower")
 

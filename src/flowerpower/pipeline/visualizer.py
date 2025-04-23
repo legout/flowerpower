@@ -1,51 +1,48 @@
 import posixpath
-from typing import Any, Callable
+from typing import Any
 
-from fsspec.spec import AbstractFileSystem
 from hamilton import driver
 from rich import print
 
-# Ensure view_img is imported from the correct location
+# Import necessary config types and utility functions
+from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.misc import view_img
+from .base import load_module  # Import module loading utility
 
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
 
-    def __init__(
-        self,
-        fs: AbstractFileSystem,
-        base_dir: str,
-        # Assuming the passed functions can handle the 'reload' parameter
-        load_config_func: Callable[[str, bool], dict[str, Any]],
-        load_module_func: Callable[[str, bool], Any],
-        get_driver_builder_func: Callable[[Any, dict[str, Any]], driver.Builder],
-    ):
+    def __init__(self, project_cfg: ProjectConfig):
         """
         Initializes the PipelineVisualizer.
 
         Args:
-            fs: Filesystem object.
-            base_dir: Base directory for pipelines.
-            load_config_func: Function to load pipeline configuration.
-            load_module_func: Function to load pipeline module.
-            get_driver_builder_func: Function to get a basic Hamilton Driver Builder.
+            project_cfg: The project configuration object.
         """
-        self._fs = fs
-        self._base_dir = base_dir
-        self._load_config_func = load_config_func
-        self._load_module_func = load_module_func
-        self._get_driver_builder_func = get_driver_builder_func
+        self.project_cfg = project_cfg
+        # Attributes like fs and base_dir are accessed via self.project_cfg
 
-    def _display_all_function(self, name: str, reload: bool = True):
-        """Internal helper to get the Hamilton DAG object."""
-        # Load config and module using the provided functions
-        # Pass reload flag, assuming the functions handle it
-        config = self._load_config_func(name, reload=reload)
-        module = self._load_module_func(name, reload=reload)
+    def _display_all_function(self, name: str, reload: bool = False):
+        """Internal helper to load module/config and get the Hamilton DAG object."""
+        # Load pipeline-specific config
+        pipeline_cfg = PipelineConfig.load(
+            base_dir=self.project_cfg.base_dir, name=name, fs=self.project_cfg.fs
+        )
 
-        # Get the basic driver builder
-        builder = self._get_driver_builder_func(module, config)
+        # Load the pipeline module
+        # Ensure the pipelines directory is in sys.path (handled by PipelineManager usually)
+        module = load_module(name=name, reload=reload)
+
+        # Create a basic driver builder for visualization purposes
+        # Use the run config from the loaded pipeline_cfg
+        builder = (
+            driver.Builder()
+            .enable_dynamic_execution(allow_experimental_mode=True)
+            .with_modules(module)
+            .with_config(pipeline_cfg.run.config or {})
+            # No adapters or complex executors needed for display_all_functions
+        )
 
         # Build the driver
         dr = builder.build()
@@ -69,18 +66,24 @@ class PipelineVisualizer:
         """
         dag = self._display_all_function(name=name, reload=reload)
 
-        graph_dir = posixpath.join(self._base_dir, "graphs")
-        self._fs.makedirs(graph_dir, exist_ok=True)
+        # Use project_cfg attributes for path and filesystem access
+        graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
+        self.project_cfg.fs.makedirs(graph_dir, exist_ok=True)
 
-        output_path = posixpath.join(graph_dir, name)
+        output_path = posixpath.join(
+            graph_dir, name
+        )  # Output filename is just the pipeline name
+        output_path_with_ext = f"{output_path}.{format}"
+
+        # Render the DAG using the graphviz object returned by display_all_functions
         dag.render(
-            output_path,
+            output_path,  # graphviz appends the format automatically
             format=format,
             cleanup=True,
-            view=False,  # Ensure it doesn't try to open the file
+            view=False,
         )
         print(
-            f"📊 Saved graph for [bold blue]{name}[/bold blue] to [green]{output_path}.{format}[/green]"
+            f"📊 Saved graph for [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{output_path_with_ext}[/green]"
         )
 
     def show_dag(

@@ -15,12 +15,13 @@ from fsspec.implementations.memory import MemoryFile
 from fsspec.utils import infer_storage_options
 from loguru import logger
 
+from ..utils.logging import setup_logging
 from .ext import AbstractFileSystem
 from .storage_options import BaseStorageOptions
 from .storage_options import from_dict as storage_options_from_dict
-from ..utils.logging import setup_logging
 
 setup_logging()
+
 
 class FileNameCacheMapper(AbstractCacheMapper):
     def __init__(self, directory):
@@ -62,7 +63,7 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         else:
             return posixpath.getsize(cached_file)
 
-    def sync(self, reload: bool = False):
+    def sync_cache(self, reload: bool = False):
         if reload:
             self.clear_cache()
         content = self.glob("**/*")

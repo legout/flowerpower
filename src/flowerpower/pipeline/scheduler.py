@@ -5,83 +5,63 @@
 
 import datetime as dt
 from typing import Any, Callable
-from uuid import UUID  # Add UUID import
+from uuid import UUID
 
-from fsspec.spec import AbstractFileSystem
 from loguru import logger
-from munch import Munch
 from rich import print as rprint
 
-# Assuming Config structure is available or relevant parts passed via funcs
-# from .cfg import PipelineConfig # May not be needed directly if using funcs
-from ..fs.base import BaseStorageOptions
-
-# The trigger function has siginificantly changed in the new version.
-# We have to adjust the related code and imports accordingly
-# from ..utils.scheduler import get_trigger
-from ..worker import Worker
+# Import necessary config types
+from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
+from ..worker import Worker
+
+# Note: get_trigger is worker-specific and should be handled within the worker implementation
+# from ..utils.scheduler import get_trigger # Removed - Worker handles trigger creation
 
 setup_logging()
 
 
 class PipelineScheduler:
-    """Handles scheduling of pipeline runs."""
+    """Handles scheduling of pipeline runs via a configured worker backend."""
 
-    def __init__(
-        self,
-        fs: AbstractFileSystem,
-        base_dir: str,
-        storage_options: dict | Munch | BaseStorageOptions,
-        worker_type: str,
-        load_config_func: Callable,  # e.g., PipelineManager.load_config
-        get_project_name_func: Callable,  # e.g., lambda: self.cfg.project.name
-        get_pipeline_run_func: Callable,  # e.g., PipelineManager._runner.run
-        get_registry_func: Callable,  # e.g., lambda: self._registry
-    ):
+    def __init__(self, project_cfg: ProjectConfig):
         """Initialize PipelineScheduler.
 
         Args:
-            fs: Filesystem instance.
-            base_dir: Base directory for pipelines.
-            storage_options: Storage options for the filesystem.
-            worker_type: Type of worker to use (e.g., 'rq', 'apscheduler').
-            load_config_func: Function to load pipeline configuration for a given name.
-                              Expected signature: load_config_func(name: str) -> Config
-            get_project_name_func: Function to get the project name.
-                                   Expected signature: get_project_name_func() -> str
-            get_pipeline_run_func: Function representing the pipeline execution logic.
-                                   Expected signature matches PipelineRunner.run or PipelineManager.run
-            get_registry_func: Function to get the pipeline registry instance.
-                               Expected signature: get_registry_func() -> PipelineRegistry
+            project_cfg: The project configuration object.
         """
-        self._fs = fs
-        self._base_dir = base_dir
-        self._storage_options = storage_options
-        self._worker_type = worker_type
-        self._load_config_func = load_config_func
-        self._get_project_name_func = get_project_name_func
-        self._get_pipeline_run_func = get_pipeline_run_func
-        self._get_registry_func = get_registry_func
+        self.project_cfg = project_cfg
+        # Determine worker type from project config
+        self._worker_type = project_cfg.worker.type
+        if not self._worker_type:
+            # Fallback or default if not specified in project config
+            self._worker_type = "rq"  # Or load from settings.FP_DEFAULT_WORKER_TYPE
+            logger.warning(
+                f"Worker type not specified in project config, defaulting to '{self._worker_type}'"
+            )
 
         logger.debug(
-            f"Initialized PipelineScheduler with worker type: {self._worker_type}"
+            f"Initialized PipelineScheduler for project '{project_cfg.name}' with worker type: {self._worker_type}"
         )
-        self._worker_instance = None  # Initialize worker instance cache
+        # Worker instance is created on demand via the property
 
     @property
     def worker(self):
         """
         Lazily instantiate and cache a Worker instance.
         """
-        # if not hasattr(self, "_worker_instance") or self._worker_instance is None:
-        # Use attributes passed during PipelineScheduler init
-        logger.debug(f"Instantiating worker of type: {self._worker_type}")
+        # Lazily instantiate worker using project_cfg attributes
+        logger.debug(
+            f"Instantiating worker of type: {self._worker_type} for project '{self.project_cfg.name}'"
+        )
+        # Pass the necessary parts of project_cfg to the Worker
         return Worker(
             type=self._worker_type,
-            fs=self._fs,
-            base_dir=self._base_dir,
-            storage_options=self._storage_options,
+            fs=self.project_cfg.fs,
+            base_dir=self.project_cfg.base_dir,
+            storage_options=self.project_cfg.storage_options,
+            # Pass worker-specific config from project_cfg if needed by Worker.__init__
+            # e.g., worker_config=self.project_cfg.worker.get(self._worker_type, {})
         )
 
     def _get_schedules(self) -> list[Any]:
@@ -97,136 +77,153 @@ class PipelineScheduler:
     # --- Moved from PipelineManager ---
     def run_job(
         self,
+        run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
+        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
         reload: bool = False,
-        **kwargs,
+        log_level: str | None = None,  # Match PipelineRunner arg
+        **kwargs,  # Allow other worker-specific args if needed
     ) -> str | UUID:
         """
-        Add a job to run the pipeline with the given parameters to the worker queue.
-        Returns the job ID (always).
+        Add a job to run the pipeline immediately via the worker queue.
 
         Args:
-            name (str): The name of the job (pipeline).
-            inputs (dict | None, optional): The inputs for the job. Defaults to None.
-            final_vars (list | None, optional): The final variables for the job. Defaults to None.
-            config (dict | None, optional): The configuration for the job. Defaults to None.
-            executor (str | None, optional): Executor hint. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
-            with_progressbar (bool | None, optional): Whether to use a progress bar. Defaults to None.
-            reload (bool, optional): Whether to reload the job module. Defaults to False.
-            **kwargs: Additional keyword arguments passed to the pipeline's run method.
+            run_func (Callable): The function to execute in the worker (e.g., a configured PipelineRunner.run).
+            name (str): The name of the pipeline (used for logging).
+            inputs (dict | None): Inputs for the pipeline run.
+            final_vars (list | None): Final variables for the pipeline run.
+            config (dict | None): Hamilton driver config.
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration.
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration.
+            adapter (dict[str, Any] | None): Additional adapter configuration.
+            reload (bool): Whether to reload the pipeline module.
+            log_level (str | None): Log level for the run.
+            **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
 
         Returns:
             str | UUID: The ID of the enqueued job.
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
-        # Explicitly create kwargs for the worker job
-        run_kwargs = {
-            "name": name,
+
+        # Prepare the arguments for the target run_func
+        # These names MUST match the parameters of the target run_func (PipelineRunner.run)
+        pipeline_run_args = {
+            # 'name' is not passed to run_func, it's part of the context already in PipelineRunner
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
-            "executor": executor,
-            "with_tracker": with_tracker,
-            "with_opentelemetry": with_opentelemetry,
-            "with_progressbar": with_progressbar,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
             "reload": reload,
-            **kwargs,  # Include any extra kwargs passed to run_job
+            "log_level": log_level,
+            # **kwargs, # Be careful not to pass worker args to run_func
         }
         # Filter out None values AFTER merging
-        run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
-        logger.debug(f"Resolved run_kwargs for immediate job '{name}': {run_kwargs}")
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
+        logger.debug(
+            f"Resolved arguments for target run_func for job '{name}': {pipeline_run_args}"
+        )
 
         with self.worker as worker:
-            # Use the worker property to add the job
-            # Note: Worker-specific args might be needed here depending on the backend
-            # This is a placeholder; actual implementation may vary
-            job_id = worker.add_job(  # Use the worker property
-                func=self._get_pipeline_run_func(),  # Use the provided run function
-                kwargs=run_kwargs,
-                # Note: Worker-specific args might be needed here depending on the backend
+            job_id = worker.add_job(
+                func=run_func,  # Pass the function to be executed by the worker
+                kwargs=pipeline_run_args,  # Pass the arguments for that function
+                **kwargs,  # Pass any extra args meant for the worker backend
             )
         rprint(
             f"✅ Successfully submitted immediate job for "
-            f"[blue]{self._get_project_name_func()}.{name}[/blue] with ID [green]{job_id}[/green]"
+            f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
         )
         return job_id
 
     def add_job(
         self,
+        run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
+        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
         reload: bool = False,
+        log_level: str | None = None,  # Match PipelineRunner arg
         result_ttl: float | dt.timedelta = 0,
-        # worker_type: str | None = None, # Removed - Scheduler has fixed worker type
-        **kwargs,
+        **kwargs,  # Allow other worker-specific args if needed
     ) -> str | UUID:
         """
-        Add a job to run the pipeline with the given parameters to the worker data store.
+        Add a job to run the pipeline immediately via the worker queue, storing the result.
+
         Executes the job immediately and returns the job id (UUID). The job result will be stored
-        for the given `result_ttl` and can be fetched using the job id.
+        by the worker backend for the given `result_ttl` and can be fetched using the job id.
 
         Args:
-            name (str): The name of the job (pipeline).
-            inputs (dict | None, optional): The inputs for the job. Defaults to None.
-            final_vars (list | None, optional): The final variables for the job. Defaults to None.
-            config (dict | None, optional): The configuration for the job. Defaults to None.
-            executor (str | None, optional): Executor hint. Defaults to None.
-            with_tracker (bool | None, optional): Whether to use a tracker. Defaults to None.
-            with_opentelemetry (bool | None, optional): Whether to use OpenTelemetry. Defaults to None.
-            with_progressbar (bool | None, optional): Whether to use a progress bar. Defaults to None.
-            reload (bool, optional): Whether to reload the job module. Defaults to False.
-            result_ttl (float | dt.timedelta, optional): How long the job result should be stored.
-                Defaults to 0 (don't store).
-            **kwargs: Additional keyword arguments passed to the pipeline's run method.
+            run_func (Callable): The function to execute in the worker (e.g., a configured PipelineRunner.run).
+            name (str): The name of the pipeline (used for logging).
+            inputs (dict | None): Inputs for the pipeline run.
+            final_vars (list | None): Final variables for the pipeline run.
+            config (dict | None): Hamilton driver config.
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration.
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration.
+            adapter (dict[str, Any] | None): Additional adapter configuration.
+            reload (bool): Whether to reload the pipeline module.
+            log_level (str | None): Log level for the run.
+            result_ttl (float | dt.timedelta): How long the job result should be stored. Defaults to 0 (don't store).
+            **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
 
         Returns:
             str | UUID: The ID of the added job.
         """
         logger.debug(f"Adding immediate job with result TTL for pipeline: {name}")
-        # Explicitly create kwargs for the worker job
-        run_kwargs = {
-            "name": name,
+
+        # Prepare the arguments for the target run_func
+        pipeline_run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
-            "executor": executor,
-            "with_tracker": with_tracker,
-            "with_opentelemetry": with_opentelemetry,
-            "with_progressbar": with_progressbar,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
             "reload": reload,
-            **kwargs,  # Include any extra kwargs passed to add_job
+            "log_level": log_level,
         }
-        # Filter out None values AFTER merging
-        run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
         logger.debug(
-            f"Resolved run_kwargs for immediate job (TTL) '{name}': {run_kwargs}"
+            f"Resolved arguments for target run_func for job (TTL) '{name}': {pipeline_run_args}"
         )
 
         with self.worker as worker:
-            job_id = worker.add_job(  # Use the worker property
-                func=self._get_pipeline_run_func(),  # Use the provided run function
-                kwargs=run_kwargs,
+            job_id = worker.add_job(
+                func=run_func,
+                kwargs=pipeline_run_args,
                 result_ttl=result_ttl,
-                # Note: Worker-specific args might be needed here depending on the backend
+                **kwargs,  # Pass any extra args meant for the worker backend
             )
         rprint(
             f"✅ Successfully added job for "
-            f"[blue]{self._get_project_name_func()}.{name}[/blue] with ID [green]{id_}[/green]"  # Use project name func
+            f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
         )
         return job_id
 
@@ -234,166 +231,117 @@ class PipelineScheduler:
 
     def schedule(
         self,
-        name: str,
+        run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
+        pipeline_cfg: PipelineConfig,  # Pass the specific pipeline's config
+        # --- Run Parameters (passed to run_func) ---
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,  # Driver config
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
+        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
+        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
+        reload: bool = False,
+        log_level: str | None = None,  # Match PipelineRunner arg
+        # --- Schedule Parameters (passed to worker.add_schedule) ---
         trigger_type: str | None = None,
         id_: str | None = None,
-        paused: bool = False,
-        coalesce: str | None = None,  # Default handled by worker
+        paused: bool | None = None,  # Allow None to use config default
+        coalesce: str | None = None,
         misfire_grace_time: float | dt.timedelta | None = None,
         max_jitter: float | dt.timedelta | None = None,
         max_running_jobs: int | None = None,
-        conflict_policy: str | None = None,  # Default handled by worker
+        conflict_policy: str | None = None,
         overwrite: bool = False,
-        # worker_type: str | None = None, # worker_type is fixed for the scheduler instance
-        **kwargs,  # Trigger specific args + run specific args not explicitly listed
-    ) -> str:
+        # --- Trigger Parameters (passed within trigger_kwargs to worker.add_schedule) ---
+        **kwargs,  # Trigger specific args (e.g., seconds=30) + any other worker args
+    ) -> str | UUID:
         """
         Schedule a pipeline for execution using the configured worker.
 
         Args:
-            name (str): The name of the pipeline.
-            inputs (dict | None, optional): Inputs for the pipeline run. Defaults to config.
-            final_vars (list | None, optional): Final variables for the pipeline run. Defaults to config.
-            config (dict | None, optional): Hamilton driver config. Defaults to config.
-            executor (str | None, optional): Executor for the pipeline run. Defaults to config.
-            with_tracker (bool | None, optional): Enable tracker. Defaults to config.
-            with_opentelemetry (bool | None, optional): Enable OpenTelemetry. Defaults to config.
-            with_progressbar (bool | None, optional): Enable progress bar. Defaults to config.
-            trigger_type (str | None, optional): Type of trigger (e.g., 'interval', 'cron'). Defaults to config.
-            id_ (str | None, optional): Explicit ID for the schedule. Auto-generated if None.
-            paused (bool, optional): Start the schedule in a paused state. Defaults to False or config.
-            coalesce (str, optional): Coalesce strategy ('latest', 'earliest', 'all'). Defaults to worker default.
-            misfire_grace_time (float | dt.timedelta | None, optional): Grace time for misfires. Defaults to worker default.
-            max_jitter (float | dt.timedelta | None, optional): Max random delay added to run time. Defaults to worker default.
-            max_running_jobs (int | None, optional): Max concurrent runs for this schedule. Defaults to worker default.
-            conflict_policy (str, optional): Action on ID conflict ('replace', 'update', 'do_nothing'). Defaults to worker default ('do_nothing').
-            overwrite (bool, optional): If True and id_ is None, generates ID '{name}-1', potentially overwriting. Defaults to False.
-            **kwargs: Additional keyword arguments. Can include trigger-specific args (e.g., seconds=30 for interval)
-                      or run-specific args not covered above.
+            run_func (Callable): The function to execute in the worker.
+            pipeline_cfg (PipelineConfig): The configuration object for the specific pipeline being scheduled.
+            inputs (dict | None): Inputs for the pipeline run (overrides config).
+            final_vars (list | None): Final variables for the pipeline run (overrides config).
+            config (dict | None): Hamilton driver config (overrides config).
+            executor_cfg (... | None): Executor config (overrides config).
+            with_adapter_cfg (... | None): Adapter enablement config (overrides config).
+            pipeline_adapter_cfg (... | None): Pipeline adapter settings (overrides config).
+            project_adapter_cfg (... | None): Project adapter settings (overrides config).
+            adapter (dict | None): Additional Hamilton adapters (overrides config).
+            reload (bool): Whether to reload module (overrides config).
+            log_level (str | None): Log level for the run (overrides config).
+            trigger_type (str | None): Type of trigger (e.g., 'interval', 'cron') (overrides config).
+            id_ (str | None): Explicit ID for the schedule. Auto-generated if None.
+            paused (bool | None): Start paused (overrides config). Defaults to False if not in config.
+            coalesce (str | None): Coalesce strategy (overrides config).
+            misfire_grace_time (... | None): Grace time for misfires (overrides config).
+            max_jitter (... | None): Max random delay (overrides config).
+            max_running_jobs (int | None): Max concurrent runs (overrides config).
+            conflict_policy (str | None): Action on ID conflict (overrides config). Defaults to 'do_nothing'.
+            overwrite (bool): If True and id_ is None, generates ID '{name}-1', potentially overwriting.
+            **kwargs: Additional keyword arguments passed to the worker's add_schedule method,
+                      including trigger-specific parameters (e.g., seconds=30 for interval).
 
         Returns:
-            str: The ID of the scheduled pipeline.
+            str | UUID: The ID of the scheduled pipeline.
 
         Raises:
-            ValueError: If the specified trigger_type is invalid or required args are missing.
-            Exception: Can raise exceptions from the worker backend during scheduling.
+            ValueError: If trigger_type is invalid or required args are missing.
+            Exception: Can raise exceptions from the worker backend.
         """
-        logger.debug(f"Attempting to schedule pipeline: {name} with id: {id_}")
-        # Load the specific pipeline's configuration
-        try:
-            cfg = self._load_config_func(name=name)
-            if not cfg or not cfg.pipeline:
-                raise ValueError(
-                    f"Could not load valid configuration for pipeline '{name}'"
-                )
-            schedule_cfg = cfg.pipeline.schedule
-            run_cfg = cfg.pipeline.run
-            project_name = self._get_project_name_func()
-        except Exception as e:
-            logger.error(
-                f"Failed to load configuration or get project name for pipeline '{name}': {e}"
-            )
-            raise ValueError(f"Configuration error for pipeline '{name}': {e}") from e
+        name = pipeline_cfg.name  # Get name from the provided config
+        project_name = self.project_cfg.name
+        logger.debug(
+            f"Attempting to schedule pipeline: {project_name}.{name} with id: {id_}"
+        )
 
-        # --- Resolve Parameters ---
-        # Combine args passed to this method with defaults from the loaded config
+        # --- Resolve Parameters using pipeline_cfg for defaults ---
+        schedule_cfg = pipeline_cfg.schedule
+        run_cfg = pipeline_cfg.run
 
         # 1. Run Parameters (passed to the pipeline execution function)
-        run_kwargs = {
-            "name": name,  # Always pass the pipeline name
-            "inputs": inputs if inputs is not None else run_cfg.get("inputs"),
-            "final_vars": final_vars
-            if final_vars is not None
-            else run_cfg.get("final_vars"),
-            "config": config if config is not None else run_cfg.get("config"),
-            "executor": executor if executor is not None else run_cfg.get("executor"),
-            "with_tracker": with_tracker
-            if with_tracker is not None
-            else run_cfg.get("with_tracker"),
-            "with_opentelemetry": with_opentelemetry
-            if with_opentelemetry is not None
-            else run_cfg.get("with_opentelemetry"),
-            "with_progressbar": with_progressbar
-            if with_progressbar is not None
-            else run_cfg.get("with_progressbar"),
-            # Include any extra kwargs that aren't schedule/trigger related
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k
-                not in [
-                    "seconds",
-                    "minutes",
-                    "hours",
-                    "days",
-                    "weeks",
-                    "start_date",
-                    "end_date",
-                    "timezone",
-                    "jitter",
-                    "year",
-                    "month",
-                    "day",
-                    "week",
-                    "day_of_week",
-                    "hour",
-                    "minute",
-                    "second",
-                ]
-            },  # Basic filter
+        pipeline_run_args = {
+            "inputs": inputs if inputs is not None else run_cfg.inputs,
+            "final_vars": final_vars if final_vars is not None else run_cfg.final_vars,
+            "config": config if config is not None else run_cfg.config,
+            "executor_cfg": executor_cfg
+            if executor_cfg is not None
+            else run_cfg.executor,
+            "with_adapter_cfg": with_adapter_cfg
+            if with_adapter_cfg is not None
+            else run_cfg.with_adapter,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg
+            if pipeline_adapter_cfg is not None
+            else pipeline_cfg.adapter,  # Default from pipeline level
+            "project_adapter_cfg": project_adapter_cfg
+            if project_adapter_cfg is not None
+            else self.project_cfg.adapter,  # Default from project level
+            "adapter": adapter,  # No default in config, only passed directly
+            "reload": reload if reload is not None else run_cfg.reload,
+            "log_level": log_level if log_level is not None else run_cfg.log_level,
         }
-        # Filter out None values AFTER merging, so explicit None overrides default
-        run_kwargs = {k: v for k, v in run_kwargs.items() if v is not None}
-        logger.debug(f"Resolved run_kwargs for '{name}': {run_kwargs}")
+        # Filter out None values AFTER merging
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
+        logger.debug(f"Resolved run_kwargs for '{name}': {pipeline_run_args}")
 
-        # 2. Trigger Parameters
+        # 2. Trigger Parameters (passed to worker)
         trigger_type = trigger_type or schedule_cfg.trigger.type_
         if not trigger_type:
             raise ValueError(
                 f"Trigger type must be specified either in config or as argument for pipeline '{name}'"
             )
 
-        # Get defaults for the specified trigger type
-        trigger_defaults = getattr(
-            schedule_cfg.trigger, trigger_type, Munch()
-        ).to_dict()
+        # Get defaults for the specified trigger type from config
+        trigger_defaults = getattr(schedule_cfg.trigger, trigger_type, {}).to_dict()
         trigger_kwargs = trigger_defaults.copy()
-        # Overlay explicit kwargs passed to the function
-        trigger_kwargs.update(
-            {
-                k: v
-                for k, v in kwargs.items()
-                if k in trigger_defaults
-                or k
-                in [
-                    "seconds",
-                    "minutes",
-                    "hours",
-                    "days",
-                    "weeks",
-                    "start_date",
-                    "end_date",
-                    "timezone",
-                    "jitter",
-                    "year",
-                    "month",
-                    "day",
-                    "week",
-                    "day_of_week",
-                    "hour",
-                    "minute",
-                    "second",
-                ]
-            }
-        )  # Heuristic filter
-        trigger_kwargs.pop("type_", None)  # Remove internal type_ field
+        # Overlay explicit kwargs passed to the function that are trigger-related
+        # Worker's add_schedule should handle extracting relevant trigger args from kwargs
+        trigger_kwargs.update(kwargs)
         # Filter out None values
         trigger_kwargs = {k: v for k, v in trigger_kwargs.items() if v is not None}
         logger.debug(
@@ -405,7 +353,7 @@ class PipelineScheduler:
         schedule_run_kwargs = {
             "paused": paused
             if paused is not None
-            else schedule_run_defaults.get("paused", False),  # Explicit False default
+            else schedule_run_defaults.get("paused", False),
             "coalesce": coalesce
             if coalesce is not None
             else schedule_run_defaults.get("coalesce"),
@@ -420,9 +368,9 @@ class PipelineScheduler:
             else schedule_run_defaults.get("max_running_jobs"),
             "conflict_policy": conflict_policy
             if conflict_policy is not None
-            else schedule_run_defaults.get(
-                "conflict_policy", "do_nothing"
-            ),  # Explicit default
+            else schedule_run_defaults.get("conflict_policy", "do_nothing"),
+            # Pass any remaining kwargs not used by trigger or run_func to worker
+            **{k: v for k, v in kwargs.items() if k not in trigger_kwargs},
         }
         # Filter out None values AFTER merging
         schedule_run_kwargs = {
@@ -433,6 +381,7 @@ class PipelineScheduler:
         )
 
         # --- Generate ID if not provided ---
+        # (Keep _generate_id function as is, it uses self._get_schedules())
         def _generate_id(
             pipeline_name: str, explicit_id: str | None, force_overwrite_base: bool
         ) -> str:
@@ -489,15 +438,13 @@ class PipelineScheduler:
         # --- Add Schedule via Worker ---
         try:
             with self.worker as worker:
-                trigger = get_trigger(type_=trigger_type, **trigger_kwargs)
-
-                # Pass the pipeline execution function obtained from the manager
-                pipeline_func = self._get_pipeline_run_func()
-
+                # Worker is now responsible for creating the trigger object
+                # Pass trigger type and kwargs directly
                 added_id = worker.add_schedule(
-                    func=pipeline_func,
-                    kwargs=run_kwargs,  # Pass resolved run parameters
-                    trigger=trigger,
+                    func=run_func,
+                    kwargs=pipeline_run_args,  # Pass resolved run parameters
+                    trigger_type=trigger_type,
+                    trigger_kwargs=trigger_kwargs,
                     id=schedule_id,
                     **schedule_run_kwargs,  # Pass resolved schedule run parameters
                 )
@@ -513,6 +460,9 @@ class PipelineScheduler:
             rprint(f"[bold red]Error scheduling pipeline '{name}': {e}[/bold red]")
             # Re-raise the exception so the caller knows it failed
             raise
+
+    # --- schedule_all method removed ---
+    # PipelineManager will be responsible for iterating and calling schedule()
 
     def schedule_all(self, **kwargs):
         """

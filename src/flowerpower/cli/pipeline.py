@@ -3,11 +3,9 @@ import importlib.util
 import typer
 from loguru import logger
 
-
 from ..pipeline.manager import Pipeline, PipelineManager
-from .utils import parse_dict_or_list_param, parse_param_dict
-
 from ..utils.logging import setup_logging
+from .utils import parse_dict_or_list_param, parse_param_dict
 
 setup_logging()
 

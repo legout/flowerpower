@@ -2,15 +2,18 @@
 """Pipeline Runner."""
 
 from __future__ import annotations
-from .. import settings
+
+import datetime as dt
 import importlib.util
 from typing import Any, Callable
+
 import humanize
-import datetime as dt
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
+
+from .. import settings
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -48,9 +51,8 @@ from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from .base import load_module
-
 from ..utils.logging import setup_logging
+from .base import load_module
 
 setup_logging(level=settings.FP_LOG_LEVEL)
 
@@ -72,7 +74,7 @@ class PipelineRunner:
 
         if not settings.HAMILTON_TELEMETRY_ENABLED:
             disable_telemetry()
-        if not settings.HAMILTON_AUTOLOAD_ENABLED:
+        if not settings.HAMILTON_AUTOLOAD_EXTENSIONS:
             disable_autoload()
 
     def __enter__(self):
@@ -107,6 +109,8 @@ class PipelineRunner:
                 )
 
             executor_cfg = self.pipeline_cfg.run.executor.merge(executor_cfg)
+        else:
+            executor_cfg = self.pipeline_cfg.run.executor
 
         if executor_cfg.type is None:
             logger.info(
@@ -162,7 +166,7 @@ class PipelineRunner:
 
     def _get_adapters(
         self,
-        with_adapter_cfg: dict | WithAdapterConfig | None,
+        with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
         adapter: dict[str, Any] | None = None,
@@ -191,6 +195,8 @@ class PipelineRunner:
             with_adapter_cfg = self.pipeline_cfg.run.with_adapter.merge(
                 with_adapter_cfg
             )
+        else:
+            with_adapter_cfg = self.pipeline_cfg.run.with_adapter
 
         if pipeline_adapter_cfg:
             if isinstance(pipeline_adapter_cfg, dict):
@@ -202,9 +208,9 @@ class PipelineRunner:
                     "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
                 )
 
-            pipeline_adapter_cfg = self.pipeline_cfg.run.adapter.merge(
-                pipeline_adapter_cfg
-            )
+            pipeline_adapter_cfg = self.pipeline_cfg.adapter.merge(pipeline_adapter_cfg)
+        else:
+            pipeline_adapter_cfg = self.pipeline_cfg.adapter
 
         if project_adapter_cfg:
             if isinstance(project_adapter_cfg, dict):
@@ -217,6 +223,8 @@ class PipelineRunner:
                 )
 
             project_adapter_cfg = self.project_cfg.adapter.merge(project_adapter_cfg)
+        else:
+            project_adapter_cfg = self.project_cfg.adapter
 
         adapters = []
         if with_adapter_cfg.tracker:
@@ -284,14 +292,14 @@ class PipelineRunner:
                 ray_adapter = h_ray.RayGraphAdapter(**ray_kwargs)
                 adapters.append(ray_adapter)
 
-        if adapter:
-            adapters += list(adapter.values())
-
         all_adapters = [
             f"{adp}: ✅" if enabled else f"{adp}: ❌"
-            for adp, enabled in with_adapter_cfg.items()
+            for adp, enabled in with_adapter_cfg.to_dict().items()
         ]
-        all_adapters += [f"{adp}: ✅" for adp in adapter.keys()]
+
+        if adapter:
+            adapters += list(adapter.values())
+            all_adapters += [f"{adp}: ✅" for adp in adapter.keys()]
 
         logger.info(f"Adapters enabled: {' | '.join(all_adapters)}")
         return adapters

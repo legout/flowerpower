@@ -115,6 +115,7 @@ class PipelineConfig(BaseConfig):
 
     def save(
         self,
+        name: str | None = None,
         base_dir: str = ".",
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
@@ -123,9 +124,13 @@ class PipelineConfig(BaseConfig):
             fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
 
         fs.makedirs("conf/pipelines", exist_ok=True)
+        if name is not None:
+            self.name = name
+        if self.name is None:
+            raise ValueError("Pipeline name is not set. Please provide a name.")
 
-        h_params = self.pop("h_params") if self.h_params else None
+        h_params = getattr(self, "h_params")
+
         self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
-        if h_params:
-            self.h_params = h_params
-        self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
+
+        setattr(self, "h_params", h_params)

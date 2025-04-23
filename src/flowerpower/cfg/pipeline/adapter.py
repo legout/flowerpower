@@ -1,16 +1,23 @@
 import msgspec
 from munch import munchify
 
-from ..base import BaseConfig
 from ... import settings
+from ..base import BaseConfig
+
 
 class HamiltonTracerConfig(BaseConfig):
     project_id: int | None = msgspec.field(default=None)
     dag_name: str | None = msgspec.field(default=None)
     tags: dict = msgspec.field(default_factory=dict)
-    capture_data_statistics: bool = msgspec.field(default=settings.HAMILTON_CAPTURE_DATA_STATISTICS)
-    max_list_length_capture: int = msgspec.field(default=settings.HAMILTON_MAX_LIST_LENGTH_CAPTURE)
-    max_dict_length_capture: int = msgspec.field(default=settings.HAMILTON_MAX_DICT_LENGTH_CAPTURE)
+    capture_data_statistics: bool = msgspec.field(
+        default=settings.HAMILTON_CAPTURE_DATA_STATISTICS
+    )
+    max_list_length_capture: int = msgspec.field(
+        default=settings.HAMILTON_MAX_LIST_LENGTH_CAPTURE
+    )
+    max_dict_length_capture: int = msgspec.field(
+        default=settings.HAMILTON_MAX_DICT_LENGTH_CAPTURE
+    )
 
     def __post_init__(self):
         self.tags = munchify(self.tags)
@@ -38,10 +45,10 @@ class MLFlowConfig(BaseConfig):
 
 
 class AdapterConfig(BaseConfig):
-    hamilton_tracker: HamiltonTracerConfig | dict = msgspec.field(
+    hamilton_tracker: HamiltonTracerConfig = msgspec.field(
         default_factory=HamiltonTracerConfig
     )
-    mlflow: MLFlowConfig | dict = msgspec.field(default_factory=MLFlowConfig)
+    mlflow: MLFlowConfig = msgspec.field(default_factory=MLFlowConfig)
     # openlineage: OpenLineageConfig | dict = msgspec.field(default_factory=OpenLineageConfig)
 
     def __post_init__(self):

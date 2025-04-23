@@ -8,7 +8,6 @@ from munch import Munch
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-
 from ..utils.logging import setup_logging
 
 setup_logging()

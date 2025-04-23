@@ -1,12 +1,31 @@
-params:
+adapter:
+  hamilton_tracker:
+    capture_data_statistics: true
+    dag_name: null
+    max_dict_length_capture: 10
+    max_list_length_capture: 50
+    project_id: null
+    tags: {}
+  mlflow:
+    experiment_description: null
+    experiment_name: null
+    experiment_tags: {}
+    run_description: null
+    run_id: null
+    run_name: null
+    run_tags: {}
+params: 
   avg_x_wk_spend:
     rolling: 3
   spend_zero_mean:
     offset: 0
 run:
-  config: 
-    range: 10_000
-  executor: null
+  cache: {}
+  config: {}
+  executor:
+    max_workers: 10
+    num_cpus: 10
+    type: threadpool
   final_vars:
     - spend
     - signups
@@ -14,9 +33,14 @@ run:
     - spend_per_signup
     - spend_zero_mean_unit_variance
   inputs: {}
-  with_opentelemetry: false
-  with_tracker: false
-  with_progressbar: false
+  log_level: null
+  with_adapter:
+    future: false
+    mlflow: false
+    opentelemetry: false
+    progressbar: false
+    ray: false
+    tracker: false
 schedule:
   run:
     coalesce: latest
@@ -40,7 +64,7 @@ schedule:
       weeks: null
       years: null
     cron:
-      crontab: "* * * * *"
+      crontab: null
       day: null
       day_of_week: null
       end_time: null
@@ -63,8 +87,4 @@ schedule:
       seconds: null
       start_time: null
       weeks: null
-    type_: cron
-tracker:
-  dag_name: test
-  project_id: 2
-  tags: {}
+    type_: null

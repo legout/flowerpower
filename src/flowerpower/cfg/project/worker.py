@@ -1,6 +1,7 @@
 import datetime as dt
 
 import msgspec
+
 from ... import settings
 from ..base import BaseConfig
 
@@ -83,12 +84,8 @@ class APSBackendConfig(BaseConfig):
     max_concurrent_jobs: int = msgspec.field(
         default=settings.FP_APS_WORKER_MAX_CONCURRENT_JOBS
     )
-    default_job_executor: str | None = msgspec.field(
-        default=settings.FP_EXECUTOR
-    )
-    num_workers: int | None = msgspec.field(
-        default=settings.FP_EXECUTOR_NUM_CPUS
-    )
+    default_job_executor: str | None = msgspec.field(default=settings.FP_EXECUTOR)
+    num_workers: int | None = msgspec.field(default=settings.FP_EXECUTOR_NUM_CPUS)
 
 
 class RQBackendConfig(WorkerBackendConfig):
@@ -122,7 +119,14 @@ class WorkerConfig(BaseConfig):
                 if self.backend is None:
                     self.backend = RQBackendConfig()
                 else:
-                    self.backend = RQBackendConfig(**self.backend)
+                    if isinstance(self.backend, dict):
+                        self.backend = RQBackendConfig.from_dict(self.backend)
+                    elif isinstance(self.backend, RQBackendConfig):
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Invalid backend type for RQ: {type(self.backend)}"
+                        )
             elif self.type == "apscheduler":
                 if self.backend is None:
                     self.backend = APSBackendConfig(
@@ -130,18 +134,34 @@ class WorkerConfig(BaseConfig):
                         event_broker=APSEventBrokerConfig(),
                     )
                 else:
-                    self.backend = APSBackendConfig(
-                        data_store=APSDataStoreConfig.from_dict(
-                            self.backend.get("data_store", {})
-                        ),
-                        event_broker=APSEventBrokerConfig.from_dict(
-                            self.backend.get("event_broker", {})
-                        ),
-                    )
+                    if isinstance(self.backend, dict):
+                        self.backend = APSBackendConfig(
+                            data_store=APSDataStoreConfig.from_dict(
+                                self.backend.get("data_store", {})
+                            ),
+                            event_broker=APSEventBrokerConfig.from_dict(
+                                self.backend.get("event_broker", {})
+                            ),
+                        )
+                    elif isinstance(self.backend, APSBackendConfig):
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Invalid backend type for APScheduler: {type(self.backend)}"
+                        )
+
             elif self.type == "huey":
                 if self.backend is None:
                     self.backend = HueyBackendConfig()
                 else:
+                    if isinstance(self.backend, dict):
+                        self.backend = HueyBackendConfig.from_dict(self.backend)
+                    elif isinstance(self.backend, HueyBackendConfig):
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Invalid backend type for Huey: {type(self.backend)}"
+                        )
                     self.backend = HueyBackendConfig(**self.backend)
             else:
                 raise ValueError(

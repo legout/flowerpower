@@ -25,11 +25,11 @@ from apscheduler.executors.async_ import AsyncJobExecutor
 from apscheduler.executors.subprocess import ProcessPoolJobExecutor
 from apscheduler.executors.thread import ThreadPoolJobExecutor
 
+from ...utils.logging import setup_logging
 from ..base import BaseTrigger, BaseWorker
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
 from .utils import display_jobs, display_schedules
-from ...utils.logging import setup_logging
 
 setup_logging()
 

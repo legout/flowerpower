@@ -6,10 +6,11 @@ from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from ..base import BaseBackend
 from ...utils.logging import setup_logging
+from ..base import BaseBackend
 
 setup_logging()
+
 
 @dataclass  # (slots=True)
 class APSDataStore(BaseBackend):

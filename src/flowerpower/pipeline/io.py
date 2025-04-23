@@ -10,8 +10,10 @@ import posixpath
 from fsspec.spec import AbstractFileSystem
 from rich.console import Console
 
+# Import necessary config types and utility functions
+from ..cfg import ProjectConfig
 from ..fs.base import BaseStorageOptions, get_filesystem
-from .registry import PipelineRegistry  # Needed for type hints
+from .registry import PipelineRegistry
 
 console = Console()
 
@@ -21,24 +23,22 @@ class PipelineIOManager:
 
     def __init__(
         self,
-        fs: AbstractFileSystem,
-        # cfg_dir: str,
-        # pipelines_dir: str,
-        registry: PipelineRegistry,  # Add registry dependency
+        project_cfg: ProjectConfig,
+        registry: PipelineRegistry,
     ):
         """
         Initializes the PipelineIOManager.
 
         Args:
-            fs: The filesystem instance.
-            cfg_dir: The directory for pipeline configurations.
-            pipelines_dir: The directory for pipeline code.
+            project_cfg: The project configuration object.
             registry: The pipeline registry instance.
         """
-        self._fs = fs
-        self._registry = registry  # Store registry
-        self._cfg_dir = self._registry._cfg_dir
-        self._pipelines_dir = self._registry._pipelines_dir
+        self.project_cfg = project_cfg
+        self.registry = registry
+        # Derive attributes from project_cfg
+        self._fs = project_cfg.fs
+        self._cfg_dir = project_cfg.cfg_dir
+        self._pipelines_dir = project_cfg.pipelines_dir
 
     def import_pipeline(
         self,
@@ -73,49 +73,61 @@ class PipelineIOManager:
         if src_fs is None:
             src_fs = get_filesystem(base_dir, **(storage_options or {}))
 
+        # Use project_cfg attributes for destination paths and filesystem
         dest_pipeline_file = posixpath.join(
-            self._pipelines_dir, f"{name.replace('.', '/')}.py"
+            self.project_cfg.pipelines_dir, f"{name.replace('.', '/')}.py"
         )
         dest_cfg_file = posixpath.join(
-            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
+            self.project_cfg.cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
         )
-        src_pipeline_file = posixpath.join("pipelines", f"{name.replace('.', '/')}.py")
+        # Assume standard structure in source base_dir
+        src_pipeline_file = posixpath.join(
+            base_dir, "pipelines", f"{name.replace('.', '/')}.py"
+        )
         src_cfg_file = posixpath.join(
-            "conf", "pipelines", f"{name.replace('.', '/')}.yml"
+            base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
         )
 
         if not src_fs.exists(src_pipeline_file):
-            raise ValueError(f"Pipeline module file not found at: {src_pipeline_file}")
+            raise ValueError(
+                f"Source pipeline module file not found at: {src_pipeline_file}"
+            )
         if not src_fs.exists(src_cfg_file):
-            raise ValueError(f"Pipeline config file not found at: {src_cfg_file}")
+            raise ValueError(
+                f"Source pipeline config file not found at: {src_cfg_file}"
+            )
 
-        cfg = self._registry._load_config_func()
-
-        if self._fs.exists(dest_pipeline_file) or self._fs.exists(dest_cfg_file):
+        # Check existence in destination using project_cfg.fs
+        if self.project_cfg.fs.exists(dest_pipeline_file) or self.project_cfg.fs.exists(
+            dest_cfg_file
+        ):
             if overwrite:
-                if self._fs.exists(dest_pipeline_file):
-                    self._fs.rm(dest_pipeline_file)
-                if self._fs.exists(dest_cfg_file):
-                    self._fs.rm(dest_cfg_file)
+                if self.project_cfg.fs.exists(dest_pipeline_file):
+                    self.project_cfg.fs.rm(dest_pipeline_file)
+                if self.project_cfg.fs.exists(dest_cfg_file):
+                    self.project_cfg.fs.rm(dest_cfg_file)
             else:
-                # Use registry's project name if available
-                project_name = cfg.project.name or "unknown_flowerpower_project"
-
+                # Use project_cfg.name directly
                 raise ValueError(
-                    f"Pipeline {project_name}.{name.replace('.', '/')} already exists. "
+                    f"Pipeline {self.project_cfg.name}.{name.replace('.', '/')} already exists in destination. "
                     "Use `overwrite=True` to overwrite."
                 )
 
-        self._fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
-        self._fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
+        # Create directories in destination
+        self.project_cfg.fs.makedirs(
+            posixpath.dirname(dest_pipeline_file), exist_ok=True
+        )
+        self.project_cfg.fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
 
-        self._fs.write_bytes(dest_pipeline_file, src_fs.read_bytes(src_pipeline_file))
-        self._fs.write_bytes(dest_cfg_file, src_fs.read_bytes(src_cfg_file))
+        # Copy files using correct filesystems
+        self.project_cfg.fs.write_bytes(
+            dest_pipeline_file, src_fs.read_bytes(src_pipeline_file)
+        )
+        self.project_cfg.fs.write_bytes(dest_cfg_file, src_fs.read_bytes(src_cfg_file))
 
-        # Use registry's project name if available
-        project_name = cfg.project.name if cfg else "unknown_flowerpower_project"
+        # Use project_cfg.name directly
         console.print(
-            f"✅ Imported pipeline [bold blue]{project_name}.{name}[/bold blue] from [green]{base_dir}[/green]"
+            f"✅ Imported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] from [green]{base_dir}[/green]"
         )
 
     def import_many(
@@ -267,49 +279,51 @@ class PipelineIOManager:
             # pm.export("my_pipeline", "s3://my-bucket/exports", storage_options={"key": "...", "secret": "..."})
             ```
         """
-        cfg = self._registry._load_config_func()
-        # Use registry to check existence
-        if name not in self._registry.pipelines:
-            # Use registry's project name if available
-            project_name = cfg.project.name or "unknown_flowerpower_project"
-
-            raise ValueError(f"Pipeline {project_name}.{name} does not exist.")
+        # Use registry to check existence (accessing public property/method)
+        if (
+            name not in self.registry.list_pipelines()
+        ):  # Assuming list_pipelines is the public way
+            raise ValueError(f"Pipeline {self.project_cfg.name}.{name} does not exist.")
 
         if dest_fs is None:
             dest_fs = get_filesystem(base_dir, **(storage_options or {}))
 
-        dest_pipeline_file = posixpath.join("pipelines", f"{name.replace('.', '/')}.py")
-        dest_cfg_file = posixpath.join(
-            "conf", "pipelines", f"{name.replace('.', '/')}.yml"
+        # Define destination paths relative to base_dir
+        dest_pipeline_file = posixpath.join(
+            base_dir, "pipelines", f"{name.replace('.', '/')}.py"
         )
+        dest_cfg_file = posixpath.join(
+            base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
+        )
+        # Define source paths using project_cfg attributes
         src_pipeline_file = posixpath.join(
-            self._pipelines_dir, f"{name.replace('.', '/')}.py"
+            self.project_cfg.pipelines_dir, f"{name.replace('.', '/')}.py"
         )
         src_cfg_file = posixpath.join(
-            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
+            self.project_cfg.cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
         )
 
-        # Check overwrite condition for destination files
+        # Check overwrite condition for destination files using dest_fs
         if not overwrite and (
             dest_fs.exists(dest_pipeline_file) or dest_fs.exists(dest_cfg_file)
         ):
             raise ValueError(
-                f"Destination path {base_dir}/{name.replace('.', '/')} already contains files. Use `overwrite=True` to overwrite."
+                f"Destination path {base_dir} for pipeline {name.replace('.', '/')} already contains files. Use `overwrite=True` to overwrite."
             )
 
-        # Create necessary subdirectories in the destination
+        # Create necessary subdirectories in the destination using dest_fs
         dest_fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
         dest_fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
 
-        # Copy pipeline module and config
-        dest_fs.write_bytes(dest_pipeline_file, self._fs.read_bytes(src_pipeline_file))
-        dest_fs.write_bytes(dest_cfg_file, self._fs.read_bytes(src_cfg_file))
+        # Copy pipeline module and config using correct filesystems
+        dest_fs.write_bytes(
+            dest_pipeline_file, self.project_cfg.fs.read_bytes(src_pipeline_file)
+        )
+        dest_fs.write_bytes(dest_cfg_file, self.project_cfg.fs.read_bytes(src_cfg_file))
 
-        # Use registry's project name if available
-        project_name = cfg.project.name or "unknown_flowerpower_project"
-
+        # Use project_cfg.name directly
         console.print(
-            f"✅ Exported pipeline [bold blue]{project_name}.{name}[/bold blue] to [green]{base_dir}[/green]"
+            f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{base_dir}[/green]"
         )
 
     def export_many(
@@ -350,12 +364,9 @@ class PipelineIOManager:
                     overwrite=overwrite,
                 )
             except Exception as e:
-                # Use registry's project name if available
-                cfg = self._registry._load_config_func()
-                project_name = cfg.project.name or "unknown_flowerpower_project"
-
+                # Use project_cfg.name directly
                 console.print(
-                    f"❌ Failed to export pipeline [bold blue]{project_name}.{name}[/bold blue] to [red]{base_dir}[/red]: {e}",
+                    f"❌ Failed to export pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [red]{base_dir}[/red]: {e}",
                     style="red",
                 )
 
@@ -388,7 +399,8 @@ class PipelineIOManager:
         """
 
         # Use registry to get all pipeline names
-        pipelines = self._registry.pipelines
+        # Use registry's public method/property
+        pipelines = self.registry.list_pipelines()  # Assuming list_pipelines is public
         if not pipelines:
             console.print(
                 "🤷 No pipelines found in the registry to export.", style="yellow"

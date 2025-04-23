@@ -1,8 +1,9 @@
 import msgspec
 from munch import munchify
 
-from ..base import BaseConfig
 from ... import settings
+from ..base import BaseConfig
+
 
 class HamiltonTrackerConfig(BaseConfig):
     username: str | None = msgspec.field(default=None)

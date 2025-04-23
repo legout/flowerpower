@@ -16,12 +16,12 @@ from rq import Queue
 from rq_scheduler import Scheduler
 
 from ...fs import AbstractFileSystem
+from ...utils.logging import setup_logging
 from ..base import BaseTrigger, BaseWorker
 from .setup import RQBackend
 from .trigger import RQTrigger
 from .utils import show_jobs, show_schedules
 
-from ...utils.logging import setup_logging
 setup_logging()
 
 if sys.platform == "darwin" and platform.machine() == "arm64":
