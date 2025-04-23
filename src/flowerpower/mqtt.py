@@ -10,7 +10,7 @@ import socket
 from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import CallbackAPIVersion, Client, convert_disconnect_error_code_to_reason_code
+from paho.mqtt.client import CallbackAPIVersion, Client
 
 from .cfg import Config
 from .pipeline import Pipeline
@@ -80,8 +80,6 @@ class MQTTManager:
 
     @staticmethod
     def _on_disconnect(client, userdata, disconnect_flags, rc, properties=None):
-        logger.info(f"Disconnected from MQTT Broker with {convert_disconnect_error_code_to_reason_code(rc)}")
-        logger.info(f"Disconnected with result code: {rc} and {disconnect_flags}")
         reconnect_count, reconnect_delay = 0, userdata.first_reconnect_delay
 
         if userdata.max_reconnect_count == 0:
