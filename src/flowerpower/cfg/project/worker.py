@@ -1,7 +1,7 @@
 import datetime as dt
 
 import msgspec
-
+from ... import settings
 from ..base import BaseConfig
 
 # class Worker(Enum):
@@ -30,15 +30,46 @@ class WorkerBackendConfig(BaseConfig):
 
 
 class APSDataStoreConfig(WorkerBackendConfig):
-    type: str = msgspec.field(default_factory=lambda: "postgresql")
-    host: str = msgspec.field(default_factory=lambda: "localhost")
-    port: int = msgspec.field(default_factory=lambda: 5432)
+    type: str = msgspec.field(default=settings.FP_APS_WORKER_BACKEND_DS)
+    host: str = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_DS][
+            "default_host"
+        ]
+    )
+    port: int = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_DS][
+            "default_port"
+        ]
+    )
     schema: str | None = msgspec.field(default="flowerpower")
-    username: str = msgspec.field(default_factory=lambda: "postgres")
+    username: str = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_DS][
+            "default_username"
+        ]
+    )
 
 
 class APSEventBrokerConfig(WorkerBackendConfig):
-    from_ds_sqla: bool = msgspec.field(default=True)
+    type: str = msgspec.field(default=settings.FP_APS_WORKER_BACKEND_EB)
+    host: str = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_EB][
+            "default_host"
+        ]
+    )
+    port: int = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_EB][
+            "default_port"
+        ]
+    )
+    username: str = msgspec.field(
+        default=settings.BACKEND_PROPERTIES[settings.FP_APS_WORKER_BACKEND_EB][
+            "default_username"
+        ]
+    )
+    from_ds_sqla: bool = msgspec.field(
+        default_factory=lambda: settings.FP_APS_WORKER_BACKEND_EB == "postgresql"
+        and settings.FP_APS_WORKER_BACKEND_DS == "postgresql"
+    )
 
 
 class APSBackendConfig(BaseConfig):
@@ -47,18 +78,33 @@ class APSBackendConfig(BaseConfig):
         default_factory=APSEventBrokerConfig
     )
     cleanup_interval: int | float | dt.timedelta = msgspec.field(
-        default=300
+        default=settings.FP_APS_WORKER_CLEANUP_INTERVAL
     )  # int in secods
-    max_concurrent_jobs: int = msgspec.field(default=10)
-    default_job_executor: str | None = msgspec.field(default="threadpool")
-    num_workers: int | None = msgspec.field(default=None)
+    max_concurrent_jobs: int = msgspec.field(
+        default=settings.FP_APS_WORKER_MAX_CONCURRENT_JOBS
+    )
+    default_job_executor: str | None = msgspec.field(
+        default=settings.FP_EXECUTOR
+    )
+    num_workers: int | None = msgspec.field(
+        default=settings.FP_EXECUTOR_NUM_CPUS
+    )
 
 
 class RQBackendConfig(WorkerBackendConfig):
-    type: str = msgspec.field(default_factory=lambda: "redis")
-    host: str = msgspec.field(default_factory=lambda: "localhost")
-    port: int = msgspec.field(default_factory=lambda: 6379)
-    queues: str | list[str] = msgspec.field(default_factory=lambda: ["default"])
+    type: str = msgspec.field(default="redis")
+    host: str = msgspec.field(
+        default=settings.BACKEND_PROPERTIES["redis"]["default_host"]
+    )
+    port: int = msgspec.field(
+        default=settings.BACKEND_PROPERTIES["redis"]["default_port"]
+    )
+    database: int = msgspec.field(
+        default=settings.BACKEND_PROPERTIES["redis"]["default_database"]
+    )
+    queues: str | list[str] = msgspec.field(
+        default_factory=lambda: ["low-prio", "default", "high-prio"]
+    )
 
 
 class HueyBackendConfig(WorkerBackendConfig):

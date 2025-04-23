@@ -1,14 +1,10 @@
 import os
 
-from hamilton import registry
-
-registry.disable_autoload()
-
 # EXECUTOR
-FP_DEFAULT_EXECUTOR = os.getenv("FP_DEFAULT_EXECUTOR", "threadpool")
-FP_DEFAULT_EXECUTOR_MAX_WORKERS = int(os.getenv("FP_DEFAULT_EXECUTOR_MAX_WORKERS", 10))
-FP_DEFAULT_EXECUTOR_NUM_CPUS = int(
-    os.getenv("FP_DEFAULT_EXECUTOR_NUM_CPUS", os.cpu_count() or 1)
+FP_EXECUTOR = os.getenv("FP_EXECUTOR", "threadpool")
+FP_EXECUTOR_MAX_WORKERS = int(os.getenv("FP_EXECUTOR_MAX_WORKERS", 10))
+FP_EXECUTOR_NUM_CPUS = int(
+    os.getenv("FP_EXECUTOR_NUM_CPUS", os.cpu_count() or 1)
 )
 
 # LOGGING
@@ -16,10 +12,20 @@ FP_LOG_LEVEL = os.getenv("FP_LOG_LEVEL", "INFO")
 
 # WORKER
 FP_DEFAULT_WORKER_TYPE = os.getenv("FP_WORKER_TYPE", "rq")
-
+# RQ WORKER
 FP_RQ_WORKER_BACKEND = os.getenv("FP_RQ_BACKEND", "redis")
+
+# APS WORKER
 FP_APS_WORKER_BACKEND_DS = os.getenv("FP_APS_DS_BACKEND", "postgresql")
 FP_APS_WORKER_BACKEND_EB = os.getenv("FP_APS_EB_BACKEND", "postgresql")
+FP_APS_WORKER_CLEANUP_INTERVAL = int(
+    os.getenv("FP_APS_WORKER_CLEANUP_INTERVAL", 300))
+FP_APS_WORKER_MAX_CONCURRENT_JOBS = int(
+    os.getenv("FP_APS_WORKER_MAX_CONCURRENT_JOBS", 10))
+FP_APS_WORKER_DEFAULT_EXECUTOR = os.getenv(
+    "FP_APS_WORKER_DEFAULT_EXECUTOR", FP_EXECUTOR)
+FP_APS_WORKER_NUM_WORKERS = int(
+    os.getenv("FP_APS_WORKER_NUM_WORKERS", FP_EXECUTOR_NUM_CPUS))
 
 # Define backend properties in a dictionary for easier maintenance
 BACKEND_PROPERTIES = {
@@ -79,3 +85,15 @@ BACKEND_PROPERTIES = {
         "default_database": "",
     },
 }
+
+# HAMILTON
+HAMILTON_MAX_LIST_LENGTH_CAPTURE = int(os.getenv("HAMILTON_MAX_LIST_LENGTH_CAPTURE", 50))
+HAMILTON_MAX_DICT_LENGTH_CAPTURE = int(os.getenv("HAMILTON_MAX_DICT_LENGTH_CAPTURE", 10))
+HAMILTON_CAPTURE_DATA_STATISTICS = bool(os.getenv("HAMILTON_CAPTURE_DATA_STATISTICS", True))
+
+HAMILTON_AUTOLOAD_EXTENSIONS = int(os.getenv("HAMILTON_AUTOLOAD_EXTENSIONS", 0))
+HAMILTON_TELEMETRY_ENABLED = bool(os.getenv(
+    "HAMILTON_TELEMETRY_ENABLED", False
+))
+HAMILTON_API_URL = os.getenv("HAMILTON_API_URL", "http://localhost:8241")
+HAMILTON_UI_URL = os.getenv("HAMILTON_UI_URL", "http://localhost:8242")

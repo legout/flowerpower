@@ -4,7 +4,7 @@ import importlib.util
 import posixpath
 import sys
 from typing import Any
-
+from .. import settings
 from hamilton import driver
 from munch import Munch
 
@@ -28,7 +28,10 @@ import rich
 from loguru import logger
 from rich.table import Table
 
-from ..cfg import Config
+from ..cfg import ProjectConfig, PipelineConfig
+from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import get_filesystem
 from ..fs.storage_options import BaseStorageOptions
 
@@ -56,7 +59,6 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str = "conf",
         pipelines_dir: str = "pipelines",
-        telemetry: bool = False,
         worker_type: str | None = None,  # New parameter for worker backend
     ):
         """
@@ -75,7 +77,6 @@ class PipelineManager:
         Returns:
             None
         """
-        self._telemetry = telemetry
         self._base_dir = base_dir or str(Path.cwd())
         self._storage_options = storage_options or {}
         if fs is None:
@@ -84,81 +85,23 @@ class PipelineManager:
 
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
-        # Store worker_type
+        worker_type = worker_type or settings.FP_DEFAULT_WORKER_TYPE
 
         try:
             self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
             self._fs.makedirs(self._pipelines_dir, exist_ok=True)
         except Exception as e:
             logger.error(f"Error creating directories: {e}")
-
-        self._sync_fs()
-        self.load_config()  # Initial load for project config
-
+            
         self._worker_type = worker_type or self.cfg.project.worker.type
 
-        # Instantiate the PipelineRegistry
-        self._registry = PipelineRegistry(
-            fs=self._fs,
-            base_dir=self._base_dir,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
-            load_config_func=self.load_config,  # Pass the method itself
-        )
+        self._sync_cache()
+        self._append_modules_path()
+        self._load_project_cfg()
 
-        # Instantiate the PipelineRunner
-        self._runner = PipelineRunner(
-            fs=self._fs,
-            base_dir=self._base_dir,
-            pipelines_dir=self._pipelines_dir,
-            telemetry=self._telemetry,
-            load_config_func=self.load_config,  # Pass the method
-            load_module_func=self.load_module,  # Pass the method
-            # Use lambda to access cfg after it's loaded
-            get_project_name_func=lambda: self.cfg.project.name
-            if hasattr(self, "cfg") and self.cfg
-            else "unknown_project",
-        )
 
-        # Instantiate the PipelineScheduler
-        self._scheduler = PipelineScheduler(
-            fs=self._fs,
-            base_dir=self._base_dir,
-            storage_options=self._storage_options,
-            worker_type=self._worker_type,
-            load_config_func=self.load_config,  # Pass the method
-            get_project_name_func=lambda: self.cfg.project.name
-            if hasattr(self, "cfg") and self.cfg
-            else "unknown_project",  # Pass lambda
-            get_pipeline_run_func=self._runner.run,  # Pass the runner's run method
-            get_registry_func=lambda: self._registry,  # Pass lambda to get registry
-        )
+        self._current_pipeline_name = None
 
-        # Instantiate the PipelineIOManager
-        self._io_manager = PipelineIOManager(
-            fs=self._fs,
-            registry=self._registry,  # Pass registry instance
-        )
-
-        # Helper function for basic driver builder needed by visualizer
-        def get_base_driver_builder(module, config):
-            # Basic builder needed for visualization
-            return (
-                driver.Builder()
-                .enable_dynamic_execution(allow_experimental_mode=True)
-                .with_modules(module)
-                .with_config(config)
-                # No adapters or complex executors needed for display_all_functions
-            )
-
-        # Instantiate the PipelineVisualizer
-        self._visualizer = PipelineVisualizer(
-            fs=self._fs,
-            base_dir=self._base_dir,
-            load_config_func=self.load_config,  # Pass the method
-            load_module_func=self.load_module,  # Pass the method
-            get_driver_builder_func=get_base_driver_builder,  # Pass the helper function
-        )
 
     def __enter__(self) -> "PipelineManager":
         return self
@@ -173,7 +116,7 @@ class PipelineManager:
         pass
 
     # _get_schedules method removed, moved to PipelineScheduler
-    def _sync_fs(self):
+    def _sync_cache(self):
         """
         Sync the filesystem.
 
@@ -181,71 +124,69 @@ class PipelineManager:
             None
         """
         if self._fs.is_cache_fs:
-            self._fs.sync()
+            self._fs.sync_cache()
 
+    def _append_modules_path(self):
+        """
+        Append the modules path to sys.path.
+        This is necessary for dynamic module loading.
+        Returns:
+            None
+        """
         modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
         if modules_path not in sys.path:
             sys.path.append(modules_path)
 
-    def load_module(self, name: str, reload: bool = False):
+    def _load_project_cfg(self, reload: bool = False) -> ProjectConfig:
         """
-        Load a module dynamically.
-
-        Args:
-            name (str): The name of the module to load.
+        Load the project configuration.
 
         Returns:
-            None
+            ProjectConfig: The loaded project configuration.
         """
-        sys.path.append(posixpath.join(self._fs.path, self._pipelines_dir))
-
-        if not hasattr(self, "_module"):
-            self._module = importlib.import_module(name)
-
-        else:
-            if reload:
-                importlib.reload(self._module)
-
-        return self._module
-
-    def load_config(self, name: str | None = None, reload: bool = False) -> Config:
-        """
-        Load the configuration file.
-
-        This method loads the configuration file specified by the `_cfg_dir` attribute and
-        assigns it to the `cfg` attribute.
-
-        Args:
-            name (str | None, optional): The name of the pipeline. Defaults to None.
-
-        Returns:
-            None
-        """
-        if reload:
-            del self._cfg
-            self._cfg = Config.load(
-                base_dir=self._base_dir, pipeline_name=name, fs=self._fs
-            )
-            return self._cfg
-
-        self._cfg = Config.load(
-            base_dir=self._base_dir, pipeline_name=name, fs=self._fs
+        if hasattr(self, "_project_cfg") and not reload:
+            return self._project_cfg
+        
+        self._project_cfg = ProjectConfig.load(
+            base_dir=self._base_dir,
+            worker_type=self._worker_type,
+            fs=self._fs,
+            storage_options=self._storage_options,
         )
-
-        # return self._cfg
-
-    @property
-    def cfg(self) -> Config:
+        return self._project_cfg
+    
+    def _load_pipeline_cfg(self, name: str, reload: bool=False) -> PipelineConfig:
         """
-        Get the configuration object.
+        Load the pipeline configuration.
+
+        Args:
+            name (str): The name of the pipeline.
 
         Returns:
-            Config: The configuration object.
+            PipelineConfig: The loaded pipeline configuration.
         """
-        if not hasattr(self, "_cfg"):
-            self.load_config
-        return self._cfg
+        if name == self._current_pipeline_name and not reload:
+            return self._pipeline_config
+        
+        self._current_pipeline_name = name
+        self._pipeline_config = PipelineConfig.load(
+            base_dir=self._base_dir,
+            name=name,
+            fs=self._fs,
+            storage_options=self._storage_options,
+        )
+        return self._pipeline_config
+    
+    @property
+    def current_pipeline_name(self) -> str:
+        """
+        Get the name of the current pipeline.
 
+        Returns:
+            str: The name of the current pipeline.
+        """
+        return self._current_pipeline_name
+    
     @property
     def project_cfg(self) -> ProjectConfig:
         """
@@ -254,10 +195,10 @@ class PipelineManager:
         Returns:
             ProjectConfig: The project configuration object.
         """
-        if not hasattr(self, "_cfg"):
-            self.load_config()
-        return self._cfg.project
-
+        if not hasattr(self, "_project_cfg"):
+            self._load_project_cfg()
+        return self._project_cfg
+    
     @property
     def pipeline_cfg(self) -> PipelineConfig:
         """
@@ -266,33 +207,30 @@ class PipelineManager:
         Returns:
             PipelineConfig: The pipeline configuration object.
         """
-        if not hasattr(self, "_cfg"):
-            logger.info("Pipeline config not loaded.")
+        if not hasattr(self, "_pipeline_config"):
+            logger.warning("Pipeline config not loaded.")
             return
-        if not hasattr(self._cfg, "pipeline"):
-            logger.info("Pipeline config not loaded.")
+        if not hasattr(self._pipeline_config, "pipeline"):
+            logger.warning("Pipeline config not loaded.")
             return
-        return self._cfg.pipeline
-
-    # _get_driver method removed, moved to PipelineRunner
-
-    # _resolve_parameters method removed, moved to PipelineRunner
-
-    # worker property removed, moved to PipelineScheduler
+        return self._pipeline_config
 
     def run(
         self,
-        name: str,
+        name:str,
         inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,  # Driver config
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        final_vars: list[str] | None = None,
+        config: dict | None = None,
+        cache: dict | None = None,
+        executor_cfg: str | dict | ExecutorConfig | None = None,
+        with_adapter_cfg: dict | WithAdapterConfig | None = None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
-        **kwargs,  # Pass tracker/otel specific args here
+        log_level: str | None = None,
     ) -> dict[str, Any]:
+        
         """
         Run the pipeline by delegating to the PipelineRunner.
 
@@ -301,401 +239,612 @@ class PipelineManager:
             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             config (dict | None): Hamilton driver config.
-            executor (str | None): Executor for the pipeline run.
-            with_tracker (bool | None): Enable tracker.
-            with_opentelemetry (bool | None): Enable OpenTelemetry.
-            with_progressbar (bool | None): Enable progress bar.
+            cache (dict | None): Cache configuration.
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration.
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration.
+            adapter (dict[str, Any] | None): Additional adapter configuration.
             reload (bool): Whether to reload the pipeline config and module. Defaults to False.
-            **kwargs: Additional keyword arguments passed to the runner (e.g., project_id, otel_host).
+            log_level (str | None): Log level for the run.
 
         Returns:
-            dict[str,Any]: The result of executing the pipeline.
+            dict[str, Any]: The result of executing the pipeline.
         """
         # Delegate the execution to the PipelineRunner instance
         # Pass all arguments through
-        return self._runner.run(
-            name=name,
-            inputs=inputs,
-            final_vars=final_vars,
-            driver_config=config,
-            executor=executor,
-            with_tracker=with_tracker,
-            with_opentelemetry=with_opentelemetry,
-            with_progressbar=with_progressbar,
-            reload=reload,
-            **kwargs,
-        )
+        self._load_pipeline_cfg(name=name, reload=reload)
+        with PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=self.pipeline_cfg) as runner:
+            res = runner.run( # Pass the project
+                inputs=inputs,
+                final_vars=final_vars,
+                config=config,
+                cache=cache,
+                executor_cfg=executor_cfg,
+                with_adapter_cfg=with_adapter_cfg,
+                pipeline_adapter_cfg=pipeline_adapter_cfg,
+                project_adapter_cfg=project_adapter_cfg,
+                adapter=adapter,
+                reload=reload,
+                log_level=log_level,
+            )
+        return res
+    
 
-    # --- Delegate job submission to PipelineScheduler ---
-    def run_job(
-        self,
-        name: str,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
-        reload: bool = False,
-        # worker_type: str | None = None, # Override not directly supported here anymore
-        **kwargs,
-    ) -> str:
-        """
-        Submit an immediate job run via the PipelineScheduler.
+#         # Instantiate the PipelineRegistry
+#         self._registry = PipelineRegistry(
+#             fs=self._fs,
+#             base_dir=self._base_dir,
+#             cfg_dir=self._cfg_dir,
+#             pipelines_dir=self._pipelines_dir,
+#             load_config_func=self.load_config,  # Pass the method itself
+#         )
 
-        Args:
-            name (str): The name of the pipeline.
-            inputs (dict | None): Inputs for the pipeline run.
-            final_vars (list | None): Final variables for the pipeline run.
-            config (dict | None): Hamilton driver config.
-            executor (str | None): Executor for the pipeline run.
-            with_tracker (bool | None): Enable tracker.
-            with_opentelemetry (bool | None): Enable OpenTelemetry.
-            with_progressbar (bool | None): Enable progress bar.
-            reload (bool): Whether to reload the pipeline module. Defaults to False.
-            **kwargs: Additional keyword arguments passed to the scheduler's run_job method.
+#         # Instantiate the PipelineRunner
+#         self._runner = PipelineRunner(
+#             fs=self._fs,
+#             base_dir=self._base_dir,
+#             pipelines_dir=self._pipelines_dir,
+#             telemetry=self._telemetry,
+#             load_config_func=self.load_config,  # Pass the method
+#             load_module_func=self.load_module,  # Pass the method
+#             # Use lambda to access cfg after it's loaded
+#             get_project_name_func=lambda: self.cfg.project.name
+#             if hasattr(self, "cfg") and self.cfg
+#             else "unknown_project",
+#         )
 
-        Returns:
-            str: The ID of the submitted job.
-        """
-        # Delegate to the PipelineScheduler instance
-        return self._scheduler.run_job(
-            name=name,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            executor=executor,
-            with_tracker=with_tracker,
-            with_opentelemetry=with_opentelemetry,
-            with_progressbar=with_progressbar,
-            reload=reload,
-            **kwargs,
-        )
+#         # Instantiate the PipelineScheduler
+#         self._scheduler = PipelineScheduler(
+#             fs=self._fs,
+#             base_dir=self._base_dir,
+#             storage_options=self._storage_options,
+#             worker_type=self._worker_type,
+#             load_config_func=self.load_config,  # Pass the method
+#             get_project_name_func=lambda: self.cfg.project.name
+#             if hasattr(self, "cfg") and self.cfg
+#             else "unknown_project",  # Pass lambda
+#             get_pipeline_run_func=self._runner.run,  # Pass the runner's run method
+#             get_registry_func=lambda: self._registry,  # Pass lambda to get registry
+#         )
 
-    def add_job(
-        self,
-        name: str,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
-        reload: bool = False,
-        result_ttl: float | dt.timedelta = 0,
-        # worker_type: str | None = None, # Override not directly supported here anymore
-        **kwargs,
-    ) -> UUID:  # Return type should be UUID as per scheduler's add_job
-        """
-        Submit an immediate job run with result storage via the PipelineScheduler.
+#         # Instantiate the PipelineIOManager
+#         self._io_manager = PipelineIOManager(
+#             fs=self._fs,
+#             registry=self._registry,  # Pass registry instance
+#         )
 
-        Args:
-            name (str): The name of the pipeline.
-            inputs (dict | None): Inputs for the pipeline run.
-            final_vars (list | None): Final variables for the pipeline run.
-            config (dict | None): Hamilton driver config.
-            executor (str | None): Executor for the pipeline run.
-            with_tracker (bool | None): Enable tracker.
-            with_opentelemetry (bool | None): Enable OpenTelemetry.
-            with_progressbar (bool | None): Enable progress bar.
-            reload (bool): Whether to reload the pipeline module. Defaults to False.
-            result_ttl (float | dt.timedelta): How long the job result should be stored.
-                Defaults to 0 (don't store).
-            **kwargs: Additional keyword arguments passed to the scheduler's add_job method.
+#         # Helper function for basic driver builder needed by visualizer
+#         def get_base_driver_builder(module, config):
+#             # Basic builder needed for visualization
+#             return (
+#                 driver.Builder()
+#                 .enable_dynamic_execution(allow_experimental_mode=True)
+#                 .with_modules(module)
+#                 .with_config(config)
+#                 # No adapters or complex executors needed for display_all_functions
+#             )
 
-        Returns:
-            UUID: The ID of the submitted job.
-        """
+#         # Instantiate the PipelineVisualizer
+#         self._visualizer = PipelineVisualizer(
+#             fs=self._fs,
+#             base_dir=self._base_dir,
+#             load_config_func=self.load_config,  # Pass the method
+#             load_module_func=self.load_module,  # Pass the method
+#             get_driver_builder_func=get_base_driver_builder,  # Pass the helper function
+#         )
 
-        return self._scheduler.add_job(
-            name=name,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            executor=executor,
-            with_tracker=with_tracker,
-            with_opentelemetry=with_opentelemetry,
-            with_progressbar=with_progressbar,
-            reload=reload,
-            result_ttl=result_ttl,
-            **kwargs,
-        )
+    
 
-    # --- End Delegate job submission ---
+#     def load_module(self, name: str, reload: bool = False):
+#         """
+#         Load a module dynamically.
 
-    def schedule(self, name: str, **kwargs) -> str:
-        """
-        Schedule a pipeline by delegating to the PipelineScheduler.
+#         Args:
+#             name (str): The name of the module to load.
 
-        Args:
-            name (str): The name of the pipeline.
-            **kwargs: Arguments passed directly to PipelineScheduler.schedule.
-                      See PipelineScheduler.schedule for detailed arguments.
+#         Returns:
+#             None
+#         """
+#         sys.path.append(posixpath.join(self._fs.path, self._pipelines_dir))
 
-        Returns:
-            str: The ID of the scheduled pipeline.
-        """
-        # Delegate the scheduling to the PipelineScheduler instance
-        return self._scheduler.schedule(name=name, **kwargs)
+#         if not hasattr(self, "_module"):
+#             self._module = importlib.import_module(name)
 
-    def schedule_all(self, **kwargs):
-        """
-        Schedule all pipelines by delegating to the PipelineScheduler.
+#         else:
+#             if reload:
+#                 importlib.reload(self._module)
 
-        Args:
-            **kwargs: Arguments passed directly to PipelineScheduler.schedule_all.
-                      See PipelineScheduler.schedule_all for details.
-        """
-        # Delegate scheduling all pipelines to the PipelineScheduler instance
-        self._scheduler.schedule_all(**kwargs)
+#         return self._module
 
-    def new(
-        self,
-        name: str,
-        overwrite: bool = False,
-    ):
-        """
-        Adds a pipeline with the given name.
+#     def load_config(self, name: str | None = None, reload: bool = False) -> Config:
+#         """
+#         Load the configuration file.
 
-        Args:
-            name (str): The name of the pipeline.
-            overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
-            worker_type (str | None): The type of worker to use. Defaults to None.
+#         This method loads the configuration file specified by the `_cfg_dir` attribute and
+#         assigns it to the `cfg` attribute.
 
-        Raises:
-            ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
+#         Args:
+#             name (str | None, optional): The name of the pipeline. Defaults to None.
 
-        Examples:
-            pm = PipelineManager()
-            pm.new("my_pipeline")
-        """
-        self._registry.new(
-            name=name,
-            overwrite=overwrite,
-        )
+#         Returns:
+#             None
+#         """
+#         if reload:
+#             del self._cfg
+#             self._cfg = Config.load(
+#                 base_dir=self._base_dir, pipeline_name=name, fs=self._fs
+#             )
+#             return self._cfg
 
-    # --- Delegate Methods for IO Manager ---
+#         self._cfg = Config.load(
+#             base_dir=self._base_dir, pipeline_name=name, fs=self._fs
+#         )
 
-    def import_pipeline(
-        self,
-        name: str,
-        base_dir: str,
-        src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates importing a pipeline to the PipelineIOManager."""
-        # Note: The original method had different args (cfg_dir, pipelines_dir, fs).
-        # The new IOManager method takes these from its __init__.
-        # We pass only the arguments relevant to the *delegated* call.
-        return self._io_manager.import_pipeline(
-            name=name,
-            base_dir=base_dir,
-            src_fs=src_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#         # return self._cfg
 
-    def import_many(
-        self,
-        pipelines: dict[str, str] | list[str],
-        base_dir: str | None = None,
-        src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates importing multiple pipelines to the PipelineIOManager."""
-        # Note: The original method had different args (names, path, cfg_dir, etc.).
-        # The new IOManager method takes a dict {name: path}.
-        return self._io_manager.import_many(
-            pipelines=pipelines,
-            base_dir=base_dir,
-            src_fs=src_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#     @property
+#     def cfg(self) -> Config:
+#         """
+#         Get the configuration object.
 
-    def import_all(
-        self,
-        base_dir: str,
-        src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates importing all pipelines to the PipelineIOManager."""
-        return self._io_manager.import_all(
-            base_dir=base_dir,
-            src_fs=src_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#         Returns:
+#             Config: The configuration object.
+#         """
+#         if not hasattr(self, "_cfg"):
+#             self.load_config
+#         return self._cfg
 
-    def export_pipeline(
-        self,
-        name: str,
-        base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates exporting a pipeline to the PipelineIOManager."""
-        return self._io_manager.export_pipeline(
-            name=name,
-            base_dir=base_dir,
-            dest_fs=dest_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#     @property
+#     def project_cfg(self) -> ProjectConfig:
+#         """
+#         Get the project configuration object.
 
-    def export_many(
-        self,
-        pipelines: list[str],
-        base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates exporting multiple pipelines to the PipelineIOManager."""
-        return self._io_manager.export_many(
-            pipelines=pipelines,
-            base_dir=base_dir,
-            dest_fs=dest_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#         Returns:
+#             ProjectConfig: The project configuration object.
+#         """
+#         if not hasattr(self, "_cfg"):
+#             self.load_config()
+#         return self._cfg.project
 
-    def export_all(
-        self,
-        base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
-        overwrite: bool = False,
-    ):
-        """Delegates exporting all pipelines to the PipelineIOManager."""
-        return self._io_manager.export_all(
-            base_dir=base_dir,
-            dest_fs=dest_fs,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
+#     @property
+#     def pipeline_cfg(self) -> PipelineConfig:
+#         """
+#         Get the pipeline configuration object.
 
-    # --- End Delegate Methods ---
+#         Returns:
+#             PipelineConfig: The pipeline configuration object.
+#         """
+#         if not hasattr(self, "_cfg"):
+#             logger.info("Pipeline config not loaded.")
+#             return
+#         if not hasattr(self._cfg, "pipeline"):
+#             logger.info("Pipeline config not loaded.")
+#             return
+#         return self._cfg.pipeline
 
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
-        """
-        Delete a pipeline.
+#     # _get_driver method removed, moved to PipelineRunner
 
-        Args:
-            name (str): The name of the pipeline to delete.
-            cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
-            module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
+#     # _resolve_parameters method removed, moved to PipelineRunner
 
-        Returns:
-            None
+#     # worker property removed, moved to PipelineScheduler
 
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pm.delete("my_pipeline")
-            ```
-        """
+#     def run(
+#         self,
+#         name: str,
+#         inputs: dict | None = None,
+#         final_vars: list | None = None,
+#         config: dict | None = None,  # Driver config
+#         executor: str | None = None,
+#         with_tracker: bool | None = None,
+#         with_opentelemetry: bool | None = None,
+#         with_progressbar: bool | None = None,
+#         reload: bool = False,
+#         **kwargs,  # Pass tracker/otel specific args here
+#     ) -> dict[str, Any]:
+#         """
+#         Run the pipeline by delegating to the PipelineRunner.
 
-        if cfg:
-            if self._fs.exists(f"{self._cfg_dir}/pipelines/{name}.yml"):
-                self._fs.rm(f"{self._cfg_dir}/pipelines/{name}.yml")
-                rich.print(f"🗑️ Deleted pipeline config for {name}")
+#         Args:
+#             name (str): The name of the pipeline.
+#             inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+#             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+#             config (dict | None): Hamilton driver config.
+#             executor (str | None): Executor for the pipeline run.
+#             with_tracker (bool | None): Enable tracker.
+#             with_opentelemetry (bool | None): Enable OpenTelemetry.
+#             with_progressbar (bool | None): Enable progress bar.
+#             reload (bool): Whether to reload the pipeline config and module. Defaults to False.
+#             **kwargs: Additional keyword arguments passed to the runner (e.g., project_id, otel_host).
 
-        if module:
-            if self._fs.exists(f"{self._pipelines_dir}/{name}.py"):
-                self._fs.rm(f"{self._pipelines_dir}/{name}.py")
-                rich.print(
-                    f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
-                )
+#         Returns:
+#             dict[str,Any]: The result of executing the pipeline.
+#         """
+#         # Delegate the execution to the PipelineRunner instance
+#         # Pass all arguments through
+#         return self._runner.run(
+#             name=name,
+#             inputs=inputs,
+#             final_vars=final_vars,
+#             driver_config=config,
+#             executor=executor,
+#             with_tracker=with_tracker,
+#             with_opentelemetry=with_opentelemetry,
+#             with_progressbar=with_progressbar,
+#             reload=reload,
+#             **kwargs,
+#         )
 
-    # --- Delegate Methods for Visualization ---
+#     # --- Delegate job submission to PipelineScheduler ---
+#     def run_job(
+#         self,
+#         name: str,
+#         inputs: dict | None = None,
+#         final_vars: list | None = None,
+#         config: dict | None = None,
+#         executor: str | None = None,
+#         with_tracker: bool | None = None,
+#         with_opentelemetry: bool | None = None,
+#         with_progressbar: bool | None = None,
+#         reload: bool = False,
+#         # worker_type: str | None = None, # Override not directly supported here anymore
+#         **kwargs,
+#     ) -> str:
+#         """
+#         Submit an immediate job run via the PipelineScheduler.
 
-    def save_dag(self, name: str, format: str = "png", reload: bool = False):
-        """Delegates saving the DAG image to the PipelineVisualizer."""
-        self._visualizer.save_dag(name=name, format=format, reload=reload)
+#         Args:
+#             name (str): The name of the pipeline.
+#             inputs (dict | None): Inputs for the pipeline run.
+#             final_vars (list | None): Final variables for the pipeline run.
+#             config (dict | None): Hamilton driver config.
+#             executor (str | None): Executor for the pipeline run.
+#             with_tracker (bool | None): Enable tracker.
+#             with_opentelemetry (bool | None): Enable OpenTelemetry.
+#             with_progressbar (bool | None): Enable progress bar.
+#             reload (bool): Whether to reload the pipeline module. Defaults to False.
+#             **kwargs: Additional keyword arguments passed to the scheduler's run_job method.
 
-    def show_dag(
-        self, name: str, format: str = "png", reload: bool = False, raw: bool = False
-    ):
-        """Delegates displaying or returning the DAG object to the PipelineVisualizer."""
-        return self._visualizer.show_dag(
-            name=name, format=format, reload=reload, raw=raw
-        )
+#         Returns:
+#             str: The ID of the submitted job.
+#         """
+#         # Delegate to the PipelineScheduler instance
+#         return self._scheduler.run_job(
+#             name=name,
+#             inputs=inputs,
+#             final_vars=final_vars,
+#             config=config,
+#             executor=executor,
+#             with_tracker=with_tracker,
+#             with_opentelemetry=with_opentelemetry,
+#             with_progressbar=with_progressbar,
+#             reload=reload,
+#             **kwargs,
+#         )
 
-    # --- Delegate Methods for Registry ---
+#     def add_job(
+#         self,
+#         name: str,
+#         inputs: dict | None = None,
+#         final_vars: list | None = None,
+#         config: dict | None = None,
+#         executor: str | None = None,
+#         with_tracker: bool | None = None,
+#         with_opentelemetry: bool | None = None,
+#         with_progressbar: bool | None = None,
+#         reload: bool = False,
+#         result_ttl: float | dt.timedelta = 0,
+#         # worker_type: str | None = None, # Override not directly supported here anymore
+#         **kwargs,
+#     ) -> UUID:  # Return type should be UUID as per scheduler's add_job
+#         """
+#         Submit an immediate job run with result storage via the PipelineScheduler.
 
-    def get_summary(
-        self,
-        name: str,
-        reload: bool = False,
-        cfg: bool = True,
-        code: bool = True,
-        project: bool = True,
-    ) -> dict[str, Any] | Table:
-        """Gets the summary of a pipeline by delegating to the registry."""
-        # The registry's get_summary now uses the load_config_func passed during init
-        return self._registry.get_summary(
-            name=name, reload=reload, cfg=cfg, code=code, project=project
-        )
+#         Args:
+#             name (str): The name of the pipeline.
+#             inputs (dict | None): Inputs for the pipeline run.
+#             final_vars (list | None): Final variables for the pipeline run.
+#             config (dict | None): Hamilton driver config.
+#             executor (str | None): Executor for the pipeline run.
+#             with_tracker (bool | None): Enable tracker.
+#             with_opentelemetry (bool | None): Enable OpenTelemetry.
+#             with_progressbar (bool | None): Enable progress bar.
+#             reload (bool): Whether to reload the pipeline module. Defaults to False.
+#             result_ttl (float | dt.timedelta): How long the job result should be stored.
+#                 Defaults to 0 (don't store).
+#             **kwargs: Additional keyword arguments passed to the scheduler's add_job method.
 
-    def show_summary(
-        self,
-        name: str,
-        reload: bool = False,
-        cfg: bool = True,
-        code: bool = True,
-        project: bool = True,
-    ) -> None:
-        """Shows the summary of a pipeline by delegating display logic."""
-        # Delegate core summary display (config, code)
-        self._registry.show_summary(
-            name=name, reload=reload, cfg=cfg, code=code, project=project
-        )
+#         Returns:
+#             UUID: The ID of the submitted job.
+#         """
 
-    def show_pipelines(self) -> None:
-        """
-        Print all available pipelines in a formatted table.
+#         return self._scheduler.add_job(
+#             name=name,
+#             inputs=inputs,
+#             final_vars=final_vars,
+#             config=config,
+#             executor=executor,
+#             with_tracker=with_tracker,
+#             with_opentelemetry=with_opentelemetry,
+#             with_progressbar=with_progressbar,
+#             reload=reload,
+#             result_ttl=result_ttl,
+#             **kwargs,
+#         )
 
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pm.show_pipelines()
-            ```
-        """
-        self._registry.show_pipelines()
+#     # --- End Delegate job submission ---
 
-    def list_pipelines(self) -> list[str]:
-        """
-        Get a list of all available pipelines.
+#     def schedule(self, name: str, **kwargs) -> str:
+#         """
+#         Schedule a pipeline by delegating to the PipelineScheduler.
 
-        Returns:
-            list[str] | None: A list of pipeline names.
+#         Args:
+#             name (str): The name of the pipeline.
+#             **kwargs: Arguments passed directly to PipelineScheduler.schedule.
+#                       See PipelineScheduler.schedule for detailed arguments.
 
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pipelines = pm.list_pipelines()
-            ```
-        """
-        return self._registry.list_pipelines()
+#         Returns:
+#             str: The ID of the scheduled pipeline.
+#         """
+#         # Delegate the scheduling to the PipelineScheduler instance
+#         return self._scheduler.schedule(name=name, **kwargs)
 
-    @property
-    def schedules(self) -> list[str]:
-        """Gets the schedules by delegating to the scheduler."""
-        return self._scheduler.schedules
+#     def schedule_all(self, **kwargs):
+#         """
+#         Schedule all pipelines by delegating to the PipelineScheduler.
 
-    @property
-    def pipelines(self) -> list[str]:
-        """Gets the pipelines by delegating to the registry."""
-        return self._registry.pipelines
+#         Args:
+#             **kwargs: Arguments passed directly to PipelineScheduler.schedule_all.
+#                       See PipelineScheduler.schedule_all for details.
+#         """
+#         # Delegate scheduling all pipelines to the PipelineScheduler instance
+#         self._scheduler.schedule_all(**kwargs)
 
-    @property
-    def summary(self):
-        """Gets the summary of the pipeline manager."""
-        return self._registry.summary
+#     def new(
+#         self,
+#         name: str,
+#         overwrite: bool = False,
+#     ):
+#         """
+#         Adds a pipeline with the given name.
+
+#         Args:
+#             name (str): The name of the pipeline.
+#             overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
+#             worker_type (str | None): The type of worker to use. Defaults to None.
+
+#         Raises:
+#             ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
+
+#         Examples:
+#             pm = PipelineManager()
+#             pm.new("my_pipeline")
+#         """
+#         self._registry.new(
+#             name=name,
+#             overwrite=overwrite,
+#         )
+
+#     # --- Delegate Methods for IO Manager ---
+
+#     def import_pipeline(
+#         self,
+#         name: str,
+#         base_dir: str,
+#         src_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates importing a pipeline to the PipelineIOManager."""
+#         # Note: The original method had different args (cfg_dir, pipelines_dir, fs).
+#         # The new IOManager method takes these from its __init__.
+#         # We pass only the arguments relevant to the *delegated* call.
+#         return self._io_manager.import_pipeline(
+#             name=name,
+#             base_dir=base_dir,
+#             src_fs=src_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     def import_many(
+#         self,
+#         pipelines: dict[str, str] | list[str],
+#         base_dir: str | None = None,
+#         src_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates importing multiple pipelines to the PipelineIOManager."""
+#         # Note: The original method had different args (names, path, cfg_dir, etc.).
+#         # The new IOManager method takes a dict {name: path}.
+#         return self._io_manager.import_many(
+#             pipelines=pipelines,
+#             base_dir=base_dir,
+#             src_fs=src_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     def import_all(
+#         self,
+#         base_dir: str,
+#         src_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates importing all pipelines to the PipelineIOManager."""
+#         return self._io_manager.import_all(
+#             base_dir=base_dir,
+#             src_fs=src_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     def export_pipeline(
+#         self,
+#         name: str,
+#         base_dir: str,
+#         dest_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates exporting a pipeline to the PipelineIOManager."""
+#         return self._io_manager.export_pipeline(
+#             name=name,
+#             base_dir=base_dir,
+#             dest_fs=dest_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     def export_many(
+#         self,
+#         pipelines: list[str],
+#         base_dir: str,
+#         dest_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates exporting multiple pipelines to the PipelineIOManager."""
+#         return self._io_manager.export_many(
+#             pipelines=pipelines,
+#             base_dir=base_dir,
+#             dest_fs=dest_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     def export_all(
+#         self,
+#         base_dir: str,
+#         dest_fs: AbstractFileSystem | None = None,
+#         storage_options: BaseStorageOptions | None = None,
+#         overwrite: bool = False,
+#     ):
+#         """Delegates exporting all pipelines to the PipelineIOManager."""
+#         return self._io_manager.export_all(
+#             base_dir=base_dir,
+#             dest_fs=dest_fs,
+#             storage_options=storage_options,
+#             overwrite=overwrite,
+#         )
+
+#     # --- End Delegate Methods ---
+
+#     def delete(self, name: str, cfg: bool = True, module: bool = False):
+#         """
+#         Delete a pipeline.
+
+#         Args:
+#             name (str): The name of the pipeline to delete.
+#             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
+#             module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
+
+#         Returns:
+#             None
+
+#         Examples:
+#             ```python
+#             pm = PipelineManager()
+#             pm.delete("my_pipeline")
+#             ```
+#         """
+
+#         if cfg:
+#             if self._fs.exists(f"{self._cfg_dir}/pipelines/{name}.yml"):
+#                 self._fs.rm(f"{self._cfg_dir}/pipelines/{name}.yml")
+#                 rich.print(f"🗑️ Deleted pipeline config for {name}")
+
+#         if module:
+#             if self._fs.exists(f"{self._pipelines_dir}/{name}.py"):
+#                 self._fs.rm(f"{self._pipelines_dir}/{name}.py")
+#                 rich.print(
+#                     f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
+#                 )
+
+#     # --- Delegate Methods for Visualization ---
+
+#     def save_dag(self, name: str, format: str = "png", reload: bool = False):
+#         """Delegates saving the DAG image to the PipelineVisualizer."""
+#         self._visualizer.save_dag(name=name, format=format, reload=reload)
+
+#     def show_dag(
+#         self, name: str, format: str = "png", reload: bool = False, raw: bool = False
+#     ):
+#         """Delegates displaying or returning the DAG object to the PipelineVisualizer."""
+#         return self._visualizer.show_dag(
+#             name=name, format=format, reload=reload, raw=raw
+#         )
+
+#     # --- Delegate Methods for Registry ---
+
+#     def get_summary(
+#         self,
+#         name: str,
+#         reload: bool = False,
+#         cfg: bool = True,
+#         code: bool = True,
+#         project: bool = True,
+#     ) -> dict[str, Any] | Table:
+#         """Gets the summary of a pipeline by delegating to the registry."""
+#         # The registry's get_summary now uses the load_config_func passed during init
+#         return self._registry.get_summary(
+#             name=name, reload=reload, cfg=cfg, code=code, project=project
+#         )
+
+#     def show_summary(
+#         self,
+#         name: str,
+#         reload: bool = False,
+#         cfg: bool = True,
+#         code: bool = True,
+#         project: bool = True,
+#     ) -> None:
+#         """Shows the summary of a pipeline by delegating display logic."""
+#         # Delegate core summary display (config, code)
+#         self._registry.show_summary(
+#             name=name, reload=reload, cfg=cfg, code=code, project=project
+#         )
+
+#     def show_pipelines(self) -> None:
+#         """
+#         Print all available pipelines in a formatted table.
+
+#         Examples:
+#             ```python
+#             pm = PipelineManager()
+#             pm.show_pipelines()
+#             ```
+#         """
+#         self._registry.show_pipelines()
+
+#     def list_pipelines(self) -> list[str]:
+#         """
+#         Get a list of all available pipelines.
+
+#         Returns:
+#             list[str] | None: A list of pipeline names.
+
+#         Examples:
+#             ```python
+#             pm = PipelineManager()
+#             pipelines = pm.list_pipelines()
+#             ```
+#         """
+#         return self._registry.list_pipelines()
+
+#     @property
+#     def schedules(self) -> list[str]:
+#         """Gets the schedules by delegating to the scheduler."""
+#         return self._scheduler.schedules
+
+#     @property
+#     def pipelines(self) -> list[str]:
+#         """Gets the pipelines by delegating to the registry."""
+#         return self._registry.pipelines
+
+#     @property
+#     def summary(self):
+#         """Gets the summary of the pipeline manager."""
+#         return self._registry.summary

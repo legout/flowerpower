@@ -2,12 +2,12 @@ import msgspec
 from munch import munchify
 
 from ..base import BaseConfig
-
+from ... import settings
 
 class HamiltonTrackerConfig(BaseConfig):
     username: str | None = msgspec.field(default=None)
-    api_url: str = msgspec.field(default="http://localhost:8241")
-    ui_url: str = msgspec.field(default="http://localhost:8242")
+    api_url: str = msgspec.field(default=settings.HAMILTON_API_URL)
+    ui_url: str = msgspec.field(default=settings.HAMILTON_UI_URL)
     api_key: str | None = msgspec.field(default=None)
     verify: bool = msgspec.field(default=False)
 

@@ -1,7 +1,7 @@
 import importlib
 import posixpath
 import sys
-from traceback import TracebackType
+from types import TracebackType
 
 from loguru import logger
 from munch import Munch

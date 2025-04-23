@@ -1105,6 +1105,7 @@ dependencies = [
     { name = "aiobotocore" },
     { name = "dill" },
     { name = "fsspec" },
+    { name = "humanize" },
     { name = "msgspec" },
     { name = "munch" },
     { name = "orjson" },
@@ -1247,6 +1248,7 @@ requires-dist = [
     { name = "duckdb", marker = "extra == 'io-legacy'", specifier = ">=1.1.3" },
     { name = "fsspec", specifier = ">=2024.10.0" },
     { name = "greenlet", marker = "extra == 'scheduler'", specifier = ">=3.0.3" },
+    { name = "humanize", specifier = ">=4.12.2" },
     { name = "msgspec", specifier = ">=0.19.0" },
     { name = "munch", specifier = ">=4.0.0" },
     { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.5.0" },
@@ -1726,6 +1728,15 @@ name = "huey"
 version = "2.5.3"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/86/8c/2dfecf3705f5e522097b4e9fb6fb38e627a0340f8362cc05bd7a845e4279/huey-2.5.3.tar.gz", hash = "sha256:089fc72b97fd26a513f15b09925c56fad6abe4a699a1f0e902170b37e85163c7", size = 836918 }
+
+[[package]]
+name = "humanize"
+version = "4.12.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/84/ae8e64a6ffe3291105e9688f4e28fa65eba7924e0fe6053d85ca00556385/humanize-4.12.2.tar.gz", hash = "sha256:ce0715740e9caacc982bb89098182cf8ded3552693a433311c6a4ce6f4e12a2c", size = 80871 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/c7/6f89082f619c76165feb633446bd0fee32b0e0cbad00d22480e5aea26ade/humanize-4.12.2-py3-none-any.whl", hash = "sha256:e4e44dced598b7e03487f3b1c6fd5b1146c30ea55a110e71d5d4bca3e094259e", size = 128305 },
+]
 
 [[package]]
 name = "idna"

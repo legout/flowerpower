@@ -2,10 +2,11 @@
 """Pipeline Runner."""
 
 from __future__ import annotations
-
+from .. import settings
 import importlib.util
 from typing import Any, Callable
-
+import humanize
+import datetime as dt
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
@@ -27,6 +28,7 @@ else:
 from hamilton.plugins import h_rich
 from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton_sdk.adapters import HamiltonTracker
+from hamilton_sdk.tracking import constants
 from loguru import logger
 
 if importlib.util.find_spec("distributed"):
@@ -49,7 +51,8 @@ from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from .base import load_module
 
 from ..utils.logging import setup_logging
-setup_logging()
+
+setup_logging(level=settings.FP_LOG_LEVEL)
 
 # from .executor import get_executor
 
@@ -60,21 +63,25 @@ class PipelineRunner:
 
     def __init__(
         self,
-        name: str,
         project_cfg: ProjectConfig,
         pipeline_cfg: PipelineConfig,
-        telemetry: bool = False,
-        autoload: bool = False,
     ):
-        self.name = name
         self.project_cfg = project_cfg
         self.pipeline_cfg = pipeline_cfg
-        # self._telemetry = telemetry
+        self.name = pipeline_cfg.name
 
-        if not telemetry:
+        if not settings.HAMILTON_TELEMETRY_ENABLED:
             disable_telemetry()
-        if not autoload:
+        if not settings.HAMILTON_AUTOLOAD_ENABLED:
             disable_autoload()
+
+    def __enter__(self):
+        """Enable use as a context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """No special cleanup required."""
+        pass
 
     def _get_executor(
         self, executor_cfg: str | dict | ExecutorConfig | None = None
@@ -158,12 +165,19 @@ class PipelineRunner:
         with_adapter_cfg: dict | WithAdapterConfig | None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        adapter: dict[str, Any] | None = None,
     ) -> list:
         """
         Set the adapters for the pipeline.
 
         Args:
-            adapter (dict): A dictionary containing adapter configurations.
+            with_adapter_cfg (dict | WithAdapterConfig | None): The adapter configuration.
+                Overrides the with_adapter settings in the pipeline config.
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): The pipeline adapter configuration.
+                Overrides the adapter settings in the pipeline config.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): The project adapter configuration.
+                Overrides the adapter settings in the project config.
+            adapter (dict[str, Any] | None): Any additional hamilton adapters can be passed here.
         """
         logger.info("Setting up adapters...")
         if with_adapter_cfg:
@@ -210,7 +224,22 @@ class PipelineRunner:
             tracker_kwargs.update(pipeline_adapter_cfg.tracker.to_dict())
             tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
             tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
+
+            constants.MAX_DICT_LENGTH_CAPTURE = (
+                tracker_kwargs.pop("max_dict_length_capture", None)
+                or settings.HAMILTON_MAX_DICT_LENGTH_CAPTURE
+            )
+            constants.MAX_LIST_LENGTH_CAPTURE = (
+                tracker_kwargs.pop("max_list_length_capture", None)
+                or settings.HAMILTON_MAX_LIST_LENGTH_CAPTURE
+            )
+            constants.CAPTURE_DATA_STATISTICS = (
+                tracker_kwargs.pop("capture_data_statistics", None)
+                or settings.HAMILTON_CAPTURE_DATA_STATISTICS
+            )
+
             tracker = HamiltonTracker(**tracker_kwargs)
+
             adapters.append(tracker)
 
         if with_adapter_cfg.mlflow:
@@ -255,9 +284,16 @@ class PipelineRunner:
                 ray_adapter = h_ray.RayGraphAdapter(**ray_kwargs)
                 adapters.append(ray_adapter)
 
-        logger.info(
-            f"Adapters enabled: {' | '.join([f'{adapter}: ✅' if enabled else f'{adapter}: ❌' for adapter, enabled in with_adapter_cfg.items()])}"
-        )
+        if adapter:
+            adapters += list(adapter.values())
+
+        all_adapters = [
+            f"{adp}: ✅" if enabled else f"{adp}: ❌"
+            for adp, enabled in with_adapter_cfg.items()
+        ]
+        all_adapters += [f"{adp}: ✅" for adp in adapter.keys()]
+
+        logger.info(f"Adapters enabled: {' | '.join(all_adapters)}")
         return adapters
 
     def _get_driver(
@@ -268,6 +304,7 @@ class PipelineRunner:
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
     ) -> tuple[driver.Driver, Callable | None]:
         """
@@ -284,6 +321,7 @@ class PipelineRunner:
                 Overrides the adapter settings in the pipeline config.
             project_adapter_cfg (dict | ProjectAdapterConfig | None): The project adapter configuration.
                 Overrides the adapter settings in the project config.
+            adapter (dict[str, Any] | None): Any additional Hamilton adapters can be passed here.
             reload (bool): Whether to reload the module.
 
 
@@ -297,6 +335,7 @@ class PipelineRunner:
             with_adapter_cfg,
             pipeline_adapter_cfg,
             project_adapter_cfg,
+            adapter=adapter,
         )
 
         config = config or self.pipeline_cfg.run.config
@@ -335,7 +374,9 @@ class PipelineRunner:
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
+        log_level: str | None = None,
     ) -> dict[str, Any]:
         """
         Run the pipeline with the given parameters.
@@ -352,11 +393,17 @@ class PipelineRunner:
                 Overrides the adapter settings in the pipeline config. Defaults to None.
             project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
                 Overrides the adapter settings in the project config. Defaults to None.
+            adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
             reload (bool, optional): Whether to reload the module. Defaults to False.
+            log_level (str | None, optional): The log level to use. Defaults to None.
 
         Returns:
             dict[str, Any]: The result of executing the pipeline.
         """
+        self.start_time = dt.datetime.now()
+
+        if log_level or self.pipeline_cfg.run.log_level:
+            setup_logging(level=log_level or self.pipeline_cfg.run.log_level)
 
         logger.info(f"Starting pipeline {self.project_cfg.name}.{self.name}")
         # Load the module and get the driver
@@ -367,6 +414,7 @@ class PipelineRunner:
             with_adapter_cfg=with_adapter_cfg,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
             reload=reload,
         )
         final_vars = final_vars or self.pipeline_cfg.run.final_vars
@@ -376,8 +424,11 @@ class PipelineRunner:
         }  # <-- inputs override and/or extend config inputs
 
         res = dr.execute(final_vars=final_vars, inputs=inputs)
-
-        logger.success(f"Finished pipeline {self.project_cfg.name}.{self.name}")
+        self.end_time = dt.datetime.now()
+        self.execution_time = self.end_time - self.start_time
+        logger.success(
+            f"Finished: Pipeline {self.project_cfg.name}.{self.name} executed in {humanize.naturaldelta(self.execution_time)}"
+        )
 
         if shutdown is not None:
             logger.info("Shutting down executor...")

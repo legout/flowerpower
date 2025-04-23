@@ -1,4 +1,4 @@
-name: null
+name: hello-world
 worker:
   type: apscheduler
   backend:

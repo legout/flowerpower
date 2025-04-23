@@ -4,7 +4,7 @@ import msgspec
 from munch import munchify
 
 from ..base import BaseConfig
-
+from ... import settings
 
 class WithAdapterConfig(BaseConfig):
     tracker: bool = msgspec.field(default=False)
@@ -17,9 +17,9 @@ class WithAdapterConfig(BaseConfig):
 
 
 class ExecutorConfig(BaseConfig):
-    type: str | None = msgspec.field(default=None)
-    max_workers: int | None = msgspec.field(default=10)
-    num_cpus: int | None = msgspec.field(default_factory=os.cpu_count)
+    type: str | None = msgspec.field(default=settings.FP_EXECUTOR)
+    max_workers: int | None = msgspec.field(default=settings.FP_EXECUTOR_MAX_WORKERS)
+    num_cpus: int | None = msgspec.field(default=settings.FP_EXECUTOR_NUM_CPUS)
 
 
 class RunConfig(BaseConfig):
@@ -31,6 +31,8 @@ class RunConfig(BaseConfig):
         default_factory=WithAdapterConfig
     )
     executor: ExecutorConfig | dict = msgspec.field(default_factory=ExecutorConfig)
+    log_level: str | None = msgspec.field(default=None)
+
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
