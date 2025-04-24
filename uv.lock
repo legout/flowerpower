@@ -1105,7 +1105,6 @@ dependencies = [
     { name = "aiosqlite" },
     { name = "dill" },
     { name = "fsspec" },
-    { name = "mmh3" },
     { name = "munch" },
     { name = "orjson" },
     { name = "pendulum" },
@@ -1152,6 +1151,7 @@ mongodb = [
     { name = "pymongo" },
 ]
 mqtt = [
+    { name = "mmh3" },
     { name = "orjson" },
     { name = "paho-mqtt" },
 ]
@@ -1255,7 +1255,7 @@ requires-dist = [
     { name = "greenlet", marker = "extra == 'scheduler'", specifier = ">=3.0.3" },
     { name = "htmy", marker = "extra == 'web'", specifier = ">=0.5.0" },
     { name = "htpy", marker = "extra == 'web'", specifier = ">=25.2.0" },
-    { name = "mmh3", specifier = ">=5.1.0" },
+    { name = "mmh3", marker = "extra == 'mqtt'", specifier = ">=5.1.0" },
     { name = "munch", specifier = ">=4.0.0" },
     { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.5.0" },
     { name = "opentelemetry-exporter-jaeger", marker = "extra == 'opentelemetry'", specifier = ">=1.21.0" },
