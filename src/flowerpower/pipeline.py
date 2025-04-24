@@ -1187,7 +1187,7 @@ class PipelineManager:
             if self._fs.exists(f"{self._pipelines_dir}/{name}.py"):
                 self._fs.rm(f"{self._pipelines_dir}/{name}.py")
                 rich.print(
-                    f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
+                    f"🗑️ Deleted pipeline module for {self.cfg.project.name}.{name}"
                 )
 
         if hooks:
