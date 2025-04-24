@@ -752,12 +752,22 @@ class PipelineManager:
                     f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
                     "Use `overwrite=True` to overwrite."
                 )
+        if self._fs.exists(f"hooks/{name.replace(".", "/")}"):
+            if overwrite:
+                self._fs.rm(f"hooks/{name.replace(".", "/")}", recursive=True) #Delete all hooks in the folder
+            else:
+                raise ValueError(
+                    f"Pipeline {self.cfg.project.name}.{name.replace(".", "/")} alreads exists. "
+                    "Use `overwrite=True`to overwrite."
+                )
 
         pipeline_path = f"{self._pipelines_dir}/{name.replace('.', '/')}.py"
         cfg_path = f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"
+        hook_path = f"hooks/{name.replace(".", "/")}"
 
         self._fs.makedirs(pipeline_path.rsplit("/", 1)[0], exist_ok=True)
         self._fs.makedirs(cfg_path.rsplit("/", 1)[0], exist_ok=True)
+        self._fs.makedirs(hook_path, exist_ok=True)
 
         with self._fs.open(pipeline_path, "w") as f:
             f.write(
