@@ -1,3 +1,5 @@
+
+
 # PIPELINE_TEMPLATE = """# ---------------- Pipelines Configuration ----------------- #
 
 # # ------------------------ Example ------------------------- #
@@ -172,3 +174,17 @@ PARAMS = Config.load(
 # Pipeline functions
 
 """
+
+HOOK_TEMPLATE__MQTT_BUILD_CONFIG = '''
+def mqtt_build_config(payload: bytes, topic: str) -> dict:
+    """
+    MQTT hook function to build the configuration for the pipeline.
+    This function is called in the on_message callback of the MQTT client.
+    The result of this function will be passed to the hamilton builder as the config for the pipeline.
+    Args:
+        payload (bytes): The payload of the MQTT message.
+        topic (str): The topic of the MQTT message.
+    Returns:
+        dict: The configuration for the pipeline.
+    """
+'''
