@@ -1158,7 +1158,7 @@ class PipelineManager:
             overwrite=overwrite,
         )
 
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
+    def delete(self, name: str, cfg: bool = True, module: bool = False, hooks: bool = True):
         """
         Delete a pipeline.
 
@@ -1166,6 +1166,7 @@ class PipelineManager:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
+            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True
 
         Returns:
             None
@@ -1188,6 +1189,14 @@ class PipelineManager:
                 rich.print(
                     f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
                 )
+
+        if hooks:
+            if self._fs.exists(f"hooks/{name}/"):
+                self._fs.rm(f"hooks/{name}/", recursive=True)
+                rich.print(
+                    f"🗑️ Deleted pipeline hooks for {self.cfg.project.name}.{name}"
+                )
+        
 
     def _display_all_function(self, name: str, reload: bool = True):
         dr, _ = self._get_driver(

@@ -480,6 +480,7 @@ def delete(
     base_dir: str | None = None,
     cfg: bool = False,
     module: bool = False,
+    hooks: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -490,6 +491,7 @@ def delete(
         base_dir: Base directory for the pipeline
         cfg: Remove associated configuration
         module: Remove associated module
+        hooks: Remove associated hooks
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -502,7 +504,7 @@ def delete(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.delete(cfg=cfg, module=module)
+        pipeline.delete(cfg=cfg, module=module, hooks=hooks)
 
 
 @app.command()
