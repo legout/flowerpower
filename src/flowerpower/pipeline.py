@@ -38,7 +38,9 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img
-from .utils.templates import PIPELINE_PY_TEMPLATE
+from .utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
+
+
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -56,6 +58,10 @@ from munch import Munch
 from .utils.executor import get_executor
 from .utils.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
 
+from enum import Enum
+
+class HookType(str, Enum):
+    MQTT_BUILD_CONFIG = "mqtt-build-config"
 
 class PipelineManager:
     def __init__(
@@ -1166,7 +1172,7 @@ class PipelineManager:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
-            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True
+            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True.
 
         Returns:
             None
@@ -1539,6 +1545,44 @@ class PipelineManager:
         """
         return self._all_pipelines(show=False)
 
+    def add_hook(self, name: str, type: HookType, to: str | None = None):
+        """
+        Add a hook to the pipeline module.
+
+        Args:
+            type (HookType): The type of the hook.
+            to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
+
+        Returns:
+            None
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.add_hook(HookType.PRE_EXECUTE)
+            ```
+        """
+
+        
+        if to is None:
+            to = f"hooks/{name}/hook.py"
+        else:
+            to = f"hooks/{name}/{to}"
+
+        match type:
+            case HookType.MQTT_BUILD_CONFIG:
+                template = HOOK_TEMPLATE__MQTT_BUILD_CONFIG
+
+        if not self._fs.exists(to):
+            self._fs.makedirs(os.path.dirname(to), exist_ok=True)
+            self._fs.write_text(
+                to,
+                template,
+            )
+        else:
+            raise ValueError(f"Hook {to} already exists.")
+        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} for {name}")       
+
 
 class Pipeline:
     def __init__(
@@ -1844,13 +1888,14 @@ class Pipeline:
                 overwrite=overwrite,
             )
 
-    def delete(self, cfg: bool = True, module: bool = False):
+    def delete(self, cfg: bool = True, module: bool = False, hooks: bool = True):
         """Delete the pipeline.
 
         Args:
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file.
                 Defaults to False.
+            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True.
 
         Examples:
             ```python
@@ -1862,7 +1907,7 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            pm.delete(self.name, cfg=cfg, module=module)
+            pm.delete(self.name, cfg=cfg, module=module, hooks=hooks)
 
     def save_dag(self, format="png"):
         """Save a image of the graph of functions for a given name.
@@ -2436,3 +2481,4 @@ def list_pipelines(
         fs=fs,
     ) as pm:
         return pm.list_pipelines()
+

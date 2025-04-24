@@ -1,7 +1,9 @@
 import importlib.util
 
 import typer
+from typing_extensions import Annotated
 from loguru import logger
+
 
 # Import your existing pipeline functions
 # from ..pipeline import (
@@ -19,7 +21,7 @@ from loguru import logger
 #     show_summary as show_pipeline_summary_,
 #     # start_mqtt_listener as start_mqtt_listener_,
 # )
-from ..pipeline import Pipeline, PipelineManager
+from ..pipeline import Pipeline, PipelineManager, HookType
 from .utils import parse_dict_or_list_param, parse_param_dict
 
 # Optional imports
@@ -605,3 +607,32 @@ def show_summary(
         storage_options=parsed_storage_options or {},
     ) as manager:
         manager.show_summary(name=name, cfg=cfg, module=module)
+
+@app.command()
+def add_hook(
+    name: str,
+    type: Annotated[HookType, typer.Option(help="Type of the hook to add")],
+    to: str | None = None,
+    base_dir: str | None = None,
+    storage_options: str | None = None,
+):
+    """
+    Add a hook to the specified pipeline.
+
+    Args:
+        name: Name of the pipeline to add the hook to
+        type: Type of the hook to add
+        to: File in which to add the hook. If not provided, the hook will be added to the hook.py file in the pipelines hook folder.
+        base_dir: Base directory for the pipeline
+        storage_options: Storage options as JSON, dict string, or key=value pairs
+
+    Examples:
+    pipeline add-hook my_pipeline mqtt-build-config
+    """
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    with PipelineManager(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+    ) as manager:
+        manager.add_hook(name, type=type, to=to)
