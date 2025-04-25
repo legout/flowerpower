@@ -1,8 +1,14 @@
 import ast
 import json
+from pathlib import Path
 import re
-
+import importlib
+from typing import Callable
 from loguru import logger
+import sys
+import posixpath
+
+from flowerpower.pipeline import PipelineManager
 
 
 # Parse additional parameters
@@ -92,3 +98,41 @@ def parse_dict_or_list_param(
             # If all parsing fails, log warning and return None
             logger.warning(f"Could not parse {param_type} parameter: {value}")
             return None
+
+def load_hook(
+        pipeline_name: str,
+        function_path: str,
+        base_dir = None,
+        storage_options: str | None = None,
+        ) -> Callable:
+    """
+    Load a hook function from a specified path.
+    This function dynamically imports the module and retrieves the function
+
+
+    Args:
+        pipeline_name (str): Name of the pipeline
+        function_path (str): Path to the function in the format 'module_name.function_name'
+        base_dir (str, optional): Base directory for the pipeline
+        storage_options (str, optional): Storage options as JSON or dict string
+    Returns:
+        Callable: The loaded hook function
+    """
+    with PipelineManager(
+        storage_options=storage_options, base_dir=base_dir
+    ) as pm:
+        path_segments = function_path.rsplit('.', 2)
+        if len(path_segments) == 2:
+            # If the function path is in the format 'module_name.function_name'
+            module_name, function_name = path_segments
+            module_path = ''
+        elif len(path_segments) == 3:
+            # If the function path is in the format 'package.[subpackage.]module_name.function_name'
+            module_path, module_name, function_name = path_segments
+
+
+        logger.debug(posixpath.join(pm._fs.path,"hooks", pipeline_name , module_path.replace('.', '/')))
+        sys.path.append(posixpath.join(pm._fs.path,"hooks", pipeline_name ,module_path.replace('.', '/')))
+        hook_module = importlib.import_module(module_name)
+        hook_function = getattr(hook_module, function_name)
+        return hook_function
