@@ -3,6 +3,7 @@ RQSchedulerBackend implementation for FlowerPower using RQ and rq-scheduler.
 
 This module implements the scheduler backend using RQ (Redis Queue) and rq-scheduler.
 """
+
 import random
 import datetime as dt
 import multiprocessing
@@ -10,17 +11,19 @@ import platform
 import sys
 import uuid
 from typing import Any, Callable
-
+from cron_descriptor import get_description
+from humanize import precisedelta
 from loguru import logger
-from rq import Queue
+from rq import Queue, Repeat, Retry
+from rq.job import Job
+from rq.results import Result
 from rq_scheduler import Scheduler
+
 
 from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
-from ..base import BaseTrigger, BaseWorker
+from ..base import BaseWorker
 from .setup import RQBackend
-from .trigger import RQTrigger
-from .utils import show_jobs, show_schedules
 
 setup_logging()
 
@@ -110,286 +113,6 @@ class RQWorker(BaseWorker):
                 f"Failed to set up RQ backend (type: {getattr(self._backend, 'type', None)}, uri: {getattr(self._backend, 'uri', None)}): {exc}"
             )
             raise RuntimeError(f"Failed to set up RQ backend: {exc}") from exc
-
-    # def _get_items(
-    #     self, as_dict: bool = False, queue_name: str | None = None, getter=None
-    # ) -> list:
-    #     """
-    #     Helper to get jobs or schedules as objects or dicts, optionally for a specific queue.
-    #     """
-    #     all_items = []
-    #     if queue_name is not None:
-    #         if getter and queue_name in getter:
-    #             all_items = getter[queue_name].get_jobs()
-    #         else:
-    #             logger.warning(f"Queue '{queue_name}' not found")
-    #     else:
-    #         if getter:
-    #             for obj in getter.values():
-    #                 all_items.extend(obj.get_jobs())
-    #     if as_dict:
-    #         return [
-    #             item.to_dict() if hasattr(item, "to_dict") else item.__dict__
-    #             for item in all_items
-    #         ]
-    #     return all_items
-
-    def get_schedules(
-        self, as_dict: bool = False, queue_name: str | None = None
-    ) -> list:
-        """
-        Get all schedules.
-
-        Args:
-            as_dict: Whether to return schedules as dictionaries
-            queue_name: Optional name of the queue to get schedules from.
-                        If None, gets schedules from all queues.
-
-        Returns:
-            list: List of scheduled jobs
-        """
-        return self._get_items(as_dict, queue_name, getter=self._schedulers)
-
-    def get_jobs(self, as_dict: bool = False, queue_name: str | None = None) -> list:
-        """
-        Get all jobs in the queue.
-
-        Args:
-            as_dict: Whether to return jobs as dictionaries
-            queue_name: Optional name of the queue to get jobs from.
-                        If None, gets jobs from all queues.
-
-        Returns:
-            list: List of jobs
-        """
-        return self._get_items(as_dict, queue_name, getter=self._queues)
-
-    def add_job(
-        self,
-        func: Callable,
-        *func_args,
-        #args: tuple | None = None,
-        kwargs: dict[str, Any] | None = None,
-        job_id: str | None = None,
-        result_ttl: float | dt.timedelta = 0,
-        queue_name: str | None = None,
-        run_at: dt.datetime | None = None,
-        run_in: dt.timedelta | None = None,
-        **func_kwargs,
-    ) -> str:
-        """
-        Add a job for immediate execution.
-
-        Args:
-            func: Function to execute
-            args: Positional arguments for the function
-            kwargs: Keyword arguments for the function
-            job_id: Optional job ID
-            result_ttl: How long to keep the result (seconds or timedelta)
-            queue_name: Name of the queue to use (defaults to first queue)
-            run_at: Optional datetime to run the job at
-            run_in: Optional timedelta to delay the job execution
-            **job_kwargs: Additional job parameters
-
-        Returns:
-            str: Job ID
-        """
-        job_id = job_id or str(uuid.uuid4())
-        if isinstance(result_ttl, (int, float)):
-            result_ttl = dt.timedelta(seconds=result_ttl)
-        #args = args or ()
-        #kwargs = kwargs or {}
-        if queue_name is None:
-            queue_name = random.choice(list(self._queues.keys()))
-        elif queue_name not in self._queues:
-            queue_name_new = random.choice(list(self._queues.keys()))
-            logger.warning(
-                f"Queue '{queue_name}' not found, using '{queue_name_new}'"
-            )
-            queue_name = queue_name_new
-
-        queue = self._queues[queue_name]
-        if run_at:
-            # Schedule the job to run at a specific time
-            job = queue.enqueue_at(
-                run_at,
-                func,
-                *func_args,
-                job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                **func_kwargs,
-            )
-        elif run_in:
-            # Schedule the job to run after a delay
-            job = queue.enqueue_in(
-                run_in,
-                func,
-                *func_args,
-                job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                **func_kwargs,
-            )
-        else:
-            # Enqueue the job for immediate execution
-            job = queue.enqueue(
-                func,
-                *func_args,
-                job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                **func_kwargs,
-            )
-        logger.info(f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'")
-        return job.id
-
-    def add_schedule(
-        self,
-        func: Callable,
-        trigger: BaseTrigger,
-        schedule_id: str | None = None,
-        args: tuple | None = None,
-        kwargs: dict[str, Any] | None = None,
-        queue_name: str | None = None,
-        **schedule_kwargs,
-    ) -> str:
-        """
-        Schedule a job for repeated execution.
-
-        Args:
-            func: Function to execute
-            trigger: RQTrigger instance
-            schedule_id: Optional schedule ID
-            args: Positional arguments for the function
-            kwargs: Keyword arguments for the function
-            queue_name: Name of the queue to use (defaults to first queue)
-            **schedule_kwargs: Additional schedule parameters
-
-        Returns:
-            str: Schedule ID
-        """
-        schedule_id = schedule_id or str(uuid.uuid4())
-        args = args or ()
-        kwargs = kwargs or {}
-
-        # Use the specified scheduler or default to the first one
-        if queue_name is None:
-            queue_name = next(iter(self._schedulers))
-        elif queue_name not in self._schedulers:
-            logger.warning(
-                f"Queue '{queue_name}' not found, using '{next(iter(self._schedulers))}'"
-            )
-            queue_name = next(iter(self._schedulers))
-
-        scheduler = self._schedulers[queue_name]
-
-        # Get trigger parameters
-        if isinstance(trigger, RQTrigger):
-            trigger_params = trigger.get_trigger_instance(**schedule_kwargs)
-        else:
-            trigger_params = schedule_kwargs
-
-        # Support cron and interval triggers
-        if trigger_params.get("type") == "cron":
-            cron = trigger_params.get("crontab")
-            job = scheduler.cron(
-                cron_string=cron,
-                func=func,
-                args=args,
-                kwargs=kwargs,
-                id=schedule_id,
-                repeat=None,  # Infinite by default
-                meta={"cron": cron},
-            )
-        elif trigger_params.get("type") == "interval":
-            interval = trigger_params.get("interval")
-            job = scheduler.schedule(
-                scheduled_time=dt.datetime.utcnow() + dt.timedelta(seconds=interval),
-                func=func,
-                args=args,
-                kwargs=kwargs,
-                interval=interval,
-                id=schedule_id,
-                repeat=None,  # Infinite by default
-                meta={"interval": interval},
-            )
-        else:
-            raise ValueError(f"Unsupported trigger type: {trigger_params.get('type')}")
-
-        logger.info(
-            f"Scheduled job {schedule_id} ({func.__name__}) on queue '{queue_name}' with trigger {trigger_params}"
-        )
-        return job.id
-
-    def remove_schedule(self, schedule_id: str) -> bool:
-        """
-        Remove a schedule.
-
-        Args:
-            schedule_id: ID of the schedule to remove
-
-        Returns:
-            bool: True if the schedule was removed, False otherwise
-
-        Raises:
-            RuntimeError: If removal fails
-        """
-        found = False
-        # Try to cancel the schedule in all schedulers
-        for queue_name, scheduler in self._schedulers.items():
-            try:
-                scheduler.cancel(schedule_id)
-                logger.info(f"Removed schedule {schedule_id} from queue '{queue_name}'")
-                found = True
-            except Exception as e:
-                # Only log as debug because it might just not be in this scheduler
-                logger.debug(
-                    f"Schedule {schedule_id} not found in queue '{queue_name}': {e}"
-                )
-
-        if not found:
-            logger.error(
-                f"Failed to remove schedule {schedule_id}: not found in any queue"
-            )
-            raise RuntimeError(
-                f"Failed to remove schedule {schedule_id}: not found in any queue"
-            )
-
-        return True
-
-    def remove_all_schedules(self) -> None:
-        """Remove all schedules from all queues."""
-        for queue_name, scheduler in self._schedulers.items():
-            for job in scheduler.get_jobs():
-                scheduler.cancel(job.id)
-            logger.info(f"Removed all schedules from queue '{queue_name}'")
-        logger.info("Removed all schedules from all queues.")
-
-    def get_job_result(self, job_id: str) -> Any:
-        """
-        Get the result of a job.
-
-        Args:
-            job_id: ID of the job
-
-        Returns:
-            Any: Result of the job
-        """
-        # self._queues
-        raise NotImplementedError("get_job_result is not implemented in RQWorker.")
-        # pass
-
-    def show_schedules(self) -> None:
-        """Display the schedules in a user-friendly format."""
-        for queue_name, scheduler in self._schedulers.items():
-            print(f"Schedules in queue '{queue_name}':")
-            show_schedules(scheduler)
-            print("\n")
-
-    def show_jobs(self) -> None:
-        """Display the jobs in a user-friendly format."""
-        for queue_name, queue in self._queues.items():
-            print(f"Jobs in queue '{queue_name}':")
-            show_jobs(queue)
-            print("\n")
 
     def start_worker(
         self, background: bool = False, queue_names: list[str] | None = None
@@ -524,16 +247,17 @@ class RQWorker(BaseWorker):
         self._worker_pool = worker_pool
 
         if background:
-            # Start the worker pool process
-            import threading
-
-            def run_pool():
+            # Start the worker pool process using multiprocessing to avoid signal handler issues
+            def run_pool_process():
                 worker_pool.start(burst=False)
 
-            self._pool_thread = threading.Thread(target=run_pool, daemon=True)
-            self._pool_thread.start()
+            self._pool_process = multiprocessing.Process(
+                target=run_pool_process,
+                name=f"rq-worker-pool-{self.name}",
+            )
+            self._pool_process.start()
             logger.info(
-                f"Worker pool started with {num_workers} workers across queues: {queue_names_str} in background"
+                f"Worker pool started with {num_workers} workers across queues: {queue_names_str} in background process (PID: {self._pool_process.pid})"
             )
         else:
             # Start the worker pool in the current process (blocking)
@@ -550,18 +274,19 @@ class RQWorker(BaseWorker):
             logger.info("Stopping RQ worker pool")
             self._worker_pool.stop_workers()
 
-            if hasattr(self, "_pool_thread") and self._pool_thread.is_alive():
-                # Wait for the pool thread to finish (with timeout)
-                self._pool_thread.join(timeout=10)
-                if self._pool_thread.is_alive():
+            if hasattr(self, "_pool_process") and self._pool_process.is_alive():
+                # Terminate the worker pool process
+                self._pool_process.terminate()
+                self._pool_process.join(timeout=10)
+                if self._pool_process.is_alive():
                     logger.warning(
-                        "Worker pool thread did not terminate within timeout"
+                        "Worker pool process did not terminate within timeout"
                     )
 
             self._worker_pool = None
 
-            if hasattr(self, "_pool_thread"):
-                self._pool_thread = None
+            if hasattr(self, "_pool_process"):
+                self._pool_process = None
         else:
             logger.warning("No worker pool to stop")
 
@@ -576,3 +301,659 @@ class RQWorker(BaseWorker):
         worker = Worker(self._backend.queues, connection=self._backend.client)
         # Start the worker (blocking call)
         worker.work(with_scheduler=True)
+
+    ## Jobs ###
+
+
+
+
+    def add_job(
+        self,
+        func: Callable,
+        func_args: tuple | None = None,
+        func_kwargs: dict[str, Any] | None = None,
+        job_id: str | None = None,
+        result_ttl: float | dt.timedelta | None = None,
+        ttl: float | dt.timedelta | None = None,
+        queue_name: str | None = None,
+        run_at: dt.datetime | None = None,
+        run_in: dt.timedelta | None = None,
+        retry: int | dict | None = None,
+        repeat: int | dict | None = None,
+        **job_kwargs,
+    ) -> Job:
+        """
+        Add a job for immediate execution.
+        
+        Note: passing `is_async=False` will run the job in the current process.
+
+        Args:
+            func (Callable): Function to execute
+            func_args (tuple | None): Positional arguments for the function
+            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
+            job_id (str | None): Optional job ID
+            result_ttl (float | dt.timedelta | None): Time to live for the job result
+            ttl (float | dt.timedelta | None): Time to live for the job
+            queue_name (str | None): Name of the queue to use (defaults to first queue)
+            run_at (dt.datetime | None): Schedule the job to run at a specific time
+            run_in (dt.timedelta | None): Schedule the job to run after a delay
+            retry (int | dict | None): Retry configuration. When it is an int, it will be
+                converted to a Retry with max retries=retry. When it is a dict, it will be
+                converted to a Retry with the given parameters.
+            repeat (int | dict | None): Repeat configuration. When it is an int, it will be
+                converted to a Repeat with max repeats=repeat. When it is a dict, it will be
+                converted to a Repeat with the given parameters.
+            **job_kwargs: Additional job parameters for the rq job.
+        Returns:
+            Job: Enqueued job object
+        """
+        job_id = job_id or str(uuid.uuid4())
+        if isinstance(result_ttl, (int, float)):
+            result_ttl = dt.timedelta(seconds=result_ttl)
+        # args = args or ()
+        # kwargs = kwargs or {}
+        if queue_name is None:
+            queue_name = random.choice(list(self._queues.keys()))
+        elif queue_name not in self._queues:
+            queue_name_new = random.choice(list(self._queues.keys()))
+            logger.warning(f"Queue '{queue_name}' not found, using '{queue_name_new}'")
+            queue_name = queue_name_new
+
+        if repeat:
+            # If repeat is an int, convert it to a Repeat instance
+            if isinstance(repeat, int):
+                repeat = Repeat(max=repeat)
+            elif isinstance(repeat, dict):
+                # If repeat is a dict, convert it to a Repeat instance
+                repeat = Repeat(**repeat)
+            else:
+                raise ValueError("Invalid repeat value. Must be int or dict.")
+        if retry:
+            if isinstance(retry, int):
+                retry = Retry(max=retry)
+            elif isinstance(retry, dict):
+                # If retry is a dict, convert it to a Retry instance
+                retry = Retry(**retry)
+            else:
+                raise ValueError("Invalid retry value. Must be int or dict.")
+
+        queue = self._queues[queue_name]
+        if run_at:
+            # Schedule the job to run at a specific time
+            job = queue.enqueue_at(
+                run_at,
+                func,
+                args=func_args,
+                kwargs=func_kwargs,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                retry=retry,
+                repeat=repeat,
+                **job_kwargs,
+            )
+            logger.info(
+                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run at {run_at}."
+            )
+        elif run_in:
+            # Schedule the job to run after a delay
+            job = queue.enqueue_in(
+                run_in,
+                func,
+                args=func_args,
+                kwargs=func_kwargs,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                retry=retry,
+                repeat=repeat,
+                **job_kwargs,
+            )
+            logger.info(
+                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run in {precisedelta(run_in)}."
+            )
+        else:
+            # Enqueue the job for immediate execution
+            job = queue.enqueue(
+                func,
+                args=func_args,
+                kwargs=func_kwargs,
+                job_id=job_id,
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                retry=retry,
+                repeat=repeat,
+                **job_kwargs,
+            )
+            logger.info(
+                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'"
+            )
+        return job
+    
+    def run_job(
+            self,
+            func: Callable,
+            func_args: tuple | None = None,
+            func_kwargs: dict[str, Any] | None = None,
+            job_id: str | None = None,
+            result_ttl: float | dt.timedelta | None = None,
+            ttl: float | dt.timedelta | None = None,
+            queue_name: str | None = None,
+            retry: int | dict | None = None,
+            repeat: int | dict | None = None,
+            **job_kwargs)-> Any:
+        """
+        Run a job immediately  and return the result.
+        
+        This method is a wrapper around the add_job method, but it runs the job
+        immediatly and returns the result.
+        
+        Args:
+            func (Callable): Function to execute
+            func_args (tuple | None): Positional arguments for the function
+            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
+            job_id (str | None): Optional job ID
+            result_ttl (float | dt.timedelta | None): Time to live for the job result
+            ttl (float | dt.timedelta | None): Time to live for the job
+            queue_name (str | None): Name of the queue to use (defaults to first queue)
+            run_at (dt.datetime | None): Schedule the job to run at a specific time
+            run_in (dt.timedelta | None): Schedule the job to run after a delay
+            retry (int | dict | None): Retry configuration. When it is an int, it will be
+                converted to a Retry with max retries=retry. When it is a dict, it will be
+                converted to a Retry with the given parameters.
+            repeat (int | dict | None): Repeat configuration. When it is an int, it will be
+                converted to a Repeat with max repeats=repeat. When it is a dict, it will be
+                converted to a Repeat with the given parameters.
+            **job_kwargs: Additional job parameters for the rq job.
+        
+        Returns:
+
+            Any: Result of the job
+        """
+        job = self.add_job(
+            func=func,
+            func_args=func_args,
+            func_kwargs=func_kwargs,
+            job_id=job_id,
+            result_ttl=result_ttl,
+            ttl=ttl,
+            queue_name=queue_name,
+            retry=retry,
+            repeat=repeat,
+            **job_kwargs,
+            )
+        
+        return job.result
+
+    def _get_job_queue_name(self, job: str | Job) -> str | None:
+        """
+        Get the queue name for a job.
+
+        Args:
+            job: Job ID or Job object
+
+        Returns:
+            str | None: Queue name if found, None otherwise
+        """
+        job_id = job if isinstance(job, str) else job.id
+        for queue_name in self.job_ids:
+            if job_id in self.job_ids[queue_name]:
+                return queue_name
+        return None
+
+    def get_jobs(
+        self, queue_name: str | list[str] | None = None
+    ) -> dict[str, list[Job]]:
+        """
+        Get all jobs in the queue.
+
+        Args:
+            queue_name: Optional name of the queue to get jobs from.
+                        If None, gets jobs from all queues.
+
+        Returns:
+            list: List of jobs
+        """
+        if queue_name is None:
+            queue_name = list(self._queues.keys())
+        elif isinstance(queue_name, str):
+            queue_name = [queue_name]
+        jobs = {
+            queue_name: self._queues[queue_name].get_jobs() for queue_name in queue_name
+        }
+        return jobs
+
+    def get_job(self, job_id: str) -> Job | None:
+        """
+        Get a job by its ID.
+
+        Args:
+            job_id: ID of the job
+
+        Returns:
+            Job | None: Job object if found, None otherwise
+        """
+        queue_name = self._get_job_queue_name(job=job_id)
+        if queue_name is None:
+            logger.error(f"Job {job_id} not found in any queue")
+            return None
+        job = self._queues[queue_name].fetch_job(job_id)
+        if job is None:
+            logger.error(f"Job {job_id} not found in queue '{queue_name}'")
+            return None
+        return job
+
+    def get_job_result(self, job: str | Job, delete_result: bool = False) -> Any:
+        """
+        Get the result of a job.
+
+        Args:
+            job: Job ID or Job object
+
+        Returns:
+            Any: Result of the job
+        """
+        if isinstance(job, str):
+            job = self.get_job(job_id=job)
+
+        if job is None:
+            logger.error(f"Job {job} not found in any queue")
+            return None
+
+        if delete_result:
+            self.delete_job(job)
+
+        return job.result
+
+    def cancel_job(self, job: str | Job) -> bool:
+        """
+        Cancel a job in the queue.
+
+        Args:
+            job: Job ID or Job object
+
+        Returns:
+            bool: True if the job was canceled, False otherwise
+        """
+        if isinstance(job, str):
+            job = self.get_job(job_id=job)
+        if job is None:
+            logger.error(f"Job {job} not found in any queue")
+            return False
+
+        job.cancel()
+        logger.info(f"Canceled job {job.id} from queue '{job.origin}'")
+        return True
+
+    def delete_job(self, job: str | Job, ttl: int = 0, **kwargs) -> bool:
+        """
+        Remove a job from the queue.
+
+        Args:
+            job: Job ID or Job object
+            ttl: Optional time to live for the job (in seconds). 0 means no TTL.
+                Remove the job immediately.
+            **kwargs: Additional parameters for the job removal
+
+        Returns:
+            bool: True if the job was removed, False otherwise
+        """
+        if isinstance(job, str):
+            job = self.get_job(job)
+            if job is None:
+                logger.error(f"Job {job} not found in any queue")
+                return False
+        if ttl:
+            job.cleanup(ttl=ttl, **kwargs)
+            logger.info(
+                f"Removed job {job.id} from queue '{job.origin}' with TTL {ttl}"
+            )
+        else:
+            job.delete(**kwargs)
+        logger.info(f"Removed job {job.id} from queue '{job.origin}'")
+
+        return True
+
+    def cancel_all_jobs(self, queue_name: str | None = None) -> None:
+        """
+        Cancel all jobs in a queue.
+
+        Args:
+            queue_name (str | None): Optional name of the queue to cancel jobs from.
+                If None, cancels jobs from all queues.
+        """
+        if queue_name is None:
+            queue_name = list(self._queues.keys())
+        elif isinstance(queue_name, str):
+            queue_name = [queue_name]
+
+        for queue_name in queue_name:
+            if queue_name not in self._queues:
+                logger.warning(f"Queue '{queue_name}' not found, skipping")
+                continue
+
+            for job in self.get_jobs(queue_name=queue_name):
+                self.cancel_job(job)
+
+    def delete_all_jobs(self, queue_name: str | None = None, ttl: int = 0) -> None:
+        """
+        Remove all jobs from a queue.
+
+        Args:
+            queue_name (str | None): Optional name of the queue to remove jobs from.
+                If None, removes jobs from all queues.
+            ttl: Optional time to live for the job (in seconds). 0 means no TTL.
+                Remove the job immediately.
+
+        """
+        if queue_name is None:
+            queue_name = list(self._queues.keys())
+        elif isinstance(queue_name, str):
+            queue_name = [queue_name]
+
+        for queue_name in queue_name:
+            if queue_name not in self._queues:
+                logger.warning(f"Queue '{queue_name}' not found, skipping")
+                continue
+
+            for job in self.get_jobs(queue_name=queue_name):
+                self.delete_job(job, ttl=ttl)
+
+    @property
+    def job_ids(self):
+        """
+        Get all job IDs from all queues.
+        """
+        job_ids = {}
+        for queue_name in self._queues:
+            job_ids[queue_name] = self._queues[queue_name].job_ids
+
+        return job_ids
+
+    @property
+    def jobs(self):
+        """
+        Get all jobs from all queues.
+        """
+        jobs = {}
+        for queue_name in self._queues:
+            jobs[queue_name] = self._queues[queue_name].get_jobs()
+
+        return jobs
+
+    ### Schedules ###
+
+    def add_schedule(
+        self,
+        func: Callable,
+        func_args: tuple | None = None,
+        func_kwargs: dict[str, Any] | None = None,
+        cron: str | None = None,  # Cron expression for scheduling
+        interval: int | None = None,  # Interval in seconds
+        repeat: int | None = None,
+        result_ttl: float | dt.timedelta | None = None,
+        ttl: float | dt.timedelta | None = None,
+        schedule_id: str | None = None,
+        use_local_time_zone: bool = True,
+        queue_name: str | None = None,
+        **schedule_kwargs,
+    ) -> Job:
+        """
+        Schedule a job for repeated execution.
+
+        Args:
+            func (Callable): Function to execute
+            func_args (tuple | None): Positional arguments for the function
+            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
+            cron (str | None): Cron expression for scheduling
+            interval (int | None): Interval in seconds
+            repeat (int | None): Repeat count
+            result_ttl (float | dt.timedelta | None): Time to live for the job result
+            ttl (float | dt.timedelta | None): Time to live for the job
+            schedule_id (str | None): Optional schedule ID
+            use_local_time_zone (bool): Whether to use local time zone for scheduling
+            queue_name (str | None): Name of the queue to use (defaults to first queue)
+            **schedule_kwargs: Additional schedule parameters for the rq-scheduler job.
+
+
+        Returns:
+            Job: Scheduled job object
+        """
+        schedule_id = schedule_id or str(uuid.uuid4())
+        func_args = func_args or ()
+        func_kwargs = func_kwargs or {}
+
+        # Use the specified scheduler or default to the first one
+        if queue_name is None:
+            queue_name = random.choice(list(self._queues.keys()))
+        elif queue_name not in self._queues:
+            queue_name_new = random.choice(list(self._queues.keys()))
+            logger.warning(f"Queue '{queue_name}' not found, using '{queue_name_new}'")
+            queue_name = queue_name_new
+
+        scheduler = self._schedulers[queue_name]
+
+        if cron:
+            schedule = scheduler.cron(
+                cron_string=cron,
+                func=func,
+                args=func_args,
+                kwargs=func_kwargs,
+                id=schedule_id,
+                repeat=repeat,  # Infinite by default
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                use_local_time_zone=use_local_time_zone,
+                queue_name=queue_name,
+                meta={"cron": cron},
+                **schedule_kwargs,
+            )
+            logger.info(
+                f"Scheduled job {schedule.id} ({func.__name__}) on queue '{queue_name}' with cron '{get_description(cron)}'"
+            )
+
+        if interval:
+            schedule = scheduler.schedule(
+                scheduled_time=dt.datetime.now(dt.timezone.utc),
+                func=func,
+                args=func_args,
+                kwargs=func_kwargs,
+                interval=interval,
+                id=schedule_id,
+                repeat=repeat,  # Infinite by default
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                queue_name=queue_name,
+                meta={"interval": interval},
+            )
+            logger.info(
+                f"Scheduled job {schedule.id} ({func.__name__}) on queue '{queue_name}' with interval '{precisedelta(interval)}'"
+            )
+
+        return schedule
+
+    def _get_schedule_queue_name(self, schedule: str | Job) -> str | None:
+        """
+        Get the queue name for a schedule.
+
+        Args:
+            schedule: Schedule ID or Job object
+
+        Returns:
+            str | None: Queue name if found, None otherwise
+        """
+        schedule_id = schedule if isinstance(schedule, str) else schedule.id
+        for queue_name in self.schedule_ids:
+            if schedule_id in self.schedule_ids[queue_name]:
+                return queue_name
+        return None
+
+    def get_schedules(
+        self, queue_name: str | list[str] | None = None
+    ) -> dict[str, list[Job]]:
+        """
+        Get all schedules.
+
+        Args:
+            queue_name: Optional name of the queue to get schedules from.
+                        If None, gets schedules from all queues.
+
+        Returns:
+            list: List of scheduled jobs
+        """
+        if queue_name is None:
+            queue_name = list(self._schedulers.keys())
+        elif isinstance(queue_name, str):
+            queue_name = [queue_name]
+        schedules = {
+            queue_name: list(self._schedulers[queue_name].get_jobs())
+            for queue_name in queue_name
+        }
+        return schedules
+
+    def get_schedule(self, schedule_id: str) -> Job | None:
+        """
+        Get a schedule by its ID.
+
+        Args:
+            schedule_id: ID of the schedule
+
+        Returns:
+            Job | None: Schedule object if found, None otherwise
+        """
+        schedule = self.get_job(job_id=schedule_id)
+        return schedule
+
+    def _get_schedule_results(self, schedule: str | Job) -> list[Result]:
+        """
+        Get the result of a schedule.
+
+        Args:
+            schedule: Schedule ID or Job object
+
+        Returns:
+            Any: Result of the schedule
+        """
+        if isinstance(schedule, str):
+            schedule = self.get_schedule(schedule_id=schedule)
+
+        if schedule is None:
+            logger.error(f"Schedule {schedule} not found in any queue")
+            return None
+
+        return [res.return_value for res in schedule.results()]
+
+    def get_schedule_latest_result(
+        self, schedule: str | Job, delete_result: bool = False
+    ) -> Any:
+        """
+        Get the latest result of a schedule.
+
+        Args:
+            schedule: Schedule ID or Job object
+            delete_result: Whether to delete the result after fetching
+
+        Returns:
+            Any: Result of the schedule
+        """
+
+        result = self._backend.get_schedule_result(schedule=schedule)[-1]
+
+        if delete_result:
+            self.delete_schedule(schedule)
+
+        return result
+
+    def get_schedule_result(
+        self, schedule: str | Job, index: int | list[str] | slice | str
+    ) -> list[Result]:
+        """
+        Get the result of a schedule at a specific index.
+
+        Args:
+            schedule: Schedule ID or Job object
+            index: Index of the result to retrieve
+
+        Returns:
+            list[Result]: Result of the schedule at the specified index
+        """
+        results = self._get_schedule_results(schedule=schedule)
+        if not results:
+            return []
+
+        if isinstance(index, str):
+            if ":" in index:
+                index = [int(i) for i in index.split(":")]
+                index = slice(index[0], index[1])
+                return [result for result in results[index]]
+
+            if index == "all":
+                return [result for result in results]
+            if index == "latest":
+                return results[-1]
+            if index == "earliest":
+                return results[0]
+
+        elif isinstance(index, list):
+            return [results[i].return_value for i in index if i < len(results)]
+        elif isinstance(index, slice):
+            return [result.return_value for result in results[index]]
+        elif isinstance(index, int):
+            if index >= len(results):
+                logger.error(f"Index {index} out of range for schedule {schedule.id}")
+                return []
+            return results[index].return_value
+
+    def cancel_schedule(self, schedule: str | Job) -> bool:
+        """
+        Cancel a schedule.
+
+        Args:
+            schedule (str | Job): ID or Job object of the schedule to cancel
+
+        Returns:
+            bool: True if the schedule was canceled, False otherwise
+
+        """
+        queue_name = self._get_schedule_queue_name(schedule=schedule)
+        if queue_name is None:
+            logger.error(f"Schedule {schedule} not found in any queue")
+            return False
+       
+        if schedule is None:
+            logger.error(f"Schedule {schedule} not found in queue '{queue_name}'")
+            return False
+
+        self._schedulers[queue_name].cancel(schedule)
+        logger.info(f"Canceled schedule {schedule.id} from queue '{queue_name}'")
+        return True
+
+    def cancel_all_schedules(self) -> None:
+        """Cancel all schedules from all queues."""
+        for queue_name, scheduler in self._schedulers.items():
+            for job in scheduler.get_jobs():
+                scheduler.cancel(job.id)
+            logger.info(f"Canceled all schedules from queue '{queue_name}'")
+        logger.info("Canceled all schedules from all queues.")
+
+    @property
+    def schedules(self):
+        """
+        Get all schedules from all schedulers.
+        """
+        schedules = self.get_schedules()
+
+        return schedules
+
+    @property
+    def schedule_ids(self):
+        """
+        Get all schedule IDs from all schedulers.
+        """
+        schedule_ids = {}
+        for queue_name in self.schedules:
+            schedule_ids[queue_name] = [
+                schedule.id
+                for schedule in self.get_schedules(queue_name=queue_name)[queue_name]
+            ]
+        return schedule_ids

@@ -117,6 +117,11 @@ dev-dependencies = [
   "huey>=2.5.3",
   "cloudpickle>=3.1.1",
   "aiosqlite>=0.21.0",
+  "rq-dashboard>=0.8.2.2",
+  "croniter>=6.0.0",
+  "cron-descriptor>=1.4.5",
+  "gevent>=24.11.1",
+  "raven>=6.10.0",
 ]
 package = true
 
@@ -126,4 +131,7 @@ mlflow = [
 ]
 openlineage = [
     "openlineage-python>=1.31.0",
+]
+scheduler = [
+    "cron-descriptor>=1.4.5",
 ]
