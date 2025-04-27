@@ -1,8 +1,9 @@
 import importlib
 
 has_orjson = importlib.util.find_spec("orjson") is not None
+has_polars = importlib.util.find_spec("polars") is not None
 
-if has_orjson:
+if has_orjson and has_polars:
     from .ext import AbstractFileSystem
 else:
     from fsspec import AbstractFileSystem

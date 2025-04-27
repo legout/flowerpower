@@ -34,3 +34,4 @@ flowerpower.db*
 abc.py
 src/flowerpower/worker/rq/worker.py
 ToDo.md
+func.py

@@ -16,7 +16,11 @@ from fsspec.utils import infer_storage_options
 from loguru import logger
 
 from ..utils.logging import setup_logging
-from .ext import AbstractFileSystem
+from . import has_orjson, has_polars
+if has_orjson and has_polars:
+    from .ext import AbstractFileSystem
+else:
+    from fsspec import AbstractFileSystem
 from .storage_options import BaseStorageOptions
 from .storage_options import from_dict as storage_options_from_dict
 
