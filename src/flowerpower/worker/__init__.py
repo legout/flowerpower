@@ -2,9 +2,9 @@ from typing import Any, Optional
 
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
+from ._huey import HueyWorker
 from .apscheduler import APSBackend, APSWorker
 from .base import BaseBackend, BaseWorker
-from ._huey import HueyWorker
 from .rq import RQBackend, RQWorker
 
 setup_logging()

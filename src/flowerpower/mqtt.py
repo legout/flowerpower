@@ -1,12 +1,12 @@
 import datetime as dt
 import random
+import socket
 import time
 from pathlib import Path
 from types import TracebackType
 from typing import Callable
-import mmh3
-import socket
 
+import mmh3
 from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
@@ -77,7 +77,9 @@ class MQTTManager:
     def _on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             logger.info(f"Connected to MQTT Broker {userdata.host}!")
-            logger.info(f"Connected as {userdata.client_id} with clean session {userdata.clean_session}")
+            logger.info(
+                f"Connected as {userdata.client_id} with clean session {userdata.clean_session}"
+            )
         else:
             logger.error(f"Failed to connect, return code {rc}")
 
@@ -119,18 +121,25 @@ class MQTTManager:
 
     def connect(self) -> Client:
         if self._client_id is None and self._clean_session:
-            #Random Client ID when clean session is True
+            # Random Client ID when clean session is True
             self._client_id = f"flowerpower-client-{random.randint(0, 10000)}"
         elif self._client_id is None and not self._clean_session:
-            #Deterministic Client ID when clean session is False
-            self._client_id = f"flowerpower-client-{mmh3.hash_bytes(
-                str(self._host) + str(self._port) + str(self.topic) + str(socket.gethostname())
-            ).hex()}"
+            # Deterministic Client ID when clean session is False
+            self._client_id = f"flowerpower-client-{
+                mmh3.hash_bytes(
+                    str(self._host)
+                    + str(self._port)
+                    + str(self.topic)
+                    + str(socket.gethostname())
+                ).hex()
+            }"
 
         if self._client_id_suffix:
             self._client_id = f"{self._client_id}-{self._client_id_suffix}"
 
-        logger.debug(f"Client ID: {self._client_id} - Clean session: {self._clean_session}")
+        logger.debug(
+            f"Client ID: {self._client_id} - Clean session: {self._clean_session}"
+        )
         client = Client(
             CallbackAPIVersion.VERSION2,
             client_id=self._client_id,
@@ -164,8 +173,6 @@ class MQTTManager:
         # topic = topic or topic
         if self.topic:
             self.subscribe()
-
-        
 
     def disconnect(self):
         self._max_reconnect_count = 0
@@ -246,7 +253,11 @@ class MQTTManager:
         self._client.loop_forever()
 
     def start_listener(
-        self, on_message: Callable, topic: str | None = None, background: bool = False, qos: int = 0
+        self,
+        on_message: Callable,
+        topic: str | None = None,
+        background: bool = False,
+        qos: int = 0,
     ) -> None:
         """
         Start the MQTT listener.
@@ -425,7 +436,9 @@ class MQTTManager:
 
                 logger.warning("Message processing failed")
 
-        self.start_listener(on_message=on_message, topic=topic, background=background, qos=qos)
+        self.start_listener(
+            on_message=on_message, topic=topic, background=background, qos=qos
+        )
 
 
 def start_listener(
@@ -568,14 +581,14 @@ def run_pipeline_on_message(
                 "or a FlowerPower project base directory, in which a event broker is "
                 "configured in the `config/project.yml` file."
             )
-        
+
     if client._client_id is None and client_id is not None:
         client._client_id = client_id
 
     if client._client_id_suffix is None and client_id_suffix is not None:
         client._client_id_suffix = client_id_suffix
-    
-    '''
+
+    """
     cli_clean_session | config_clean_session | result
     TRUE		        TRUE		           TRUE
     FALSE		        FALSE                  FALSE
@@ -583,7 +596,7 @@ def run_pipeline_on_message(
     TRUE                FALSE                  FALSE
 
     Clean session should only use default value if neither cli nor config source says otherwise
-    '''
+    """
     client._clean_session = client._clean_session and clean_session
 
     if client.topic is None and topic is not None:

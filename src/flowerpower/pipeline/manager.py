@@ -27,10 +27,10 @@ from .runner import PipelineRunner, run_pipeline
 from .scheduler import PipelineScheduler
 from .visualizer import PipelineVisualizer
 
-
 setup_logging()
 
-GraphType = TypeVar('GraphType')  # Type variable for graphviz.Digraph
+GraphType = TypeVar("GraphType")  # Type variable for graphviz.Digraph
+
 
 class PipelineManager:
     """Central manager for FlowerPower pipeline operations.
@@ -56,10 +56,10 @@ class PipelineManager:
 
     Example:
         >>> from flowerpower.pipeline import PipelineManager
-        >>> 
+        >>>
         >>> # Create manager with default settings
         >>> manager = PipelineManager()
-        >>> 
+        >>>
         >>> # Create manager with custom settings
         >>> manager = PipelineManager(
         ...     base_dir="/path/to/project",
@@ -107,7 +107,7 @@ class PipelineManager:
         Example:
             >>> # Basic initialization
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Custom configuration with S3 storage
             >>> manager = PipelineManager(
             ...     base_dir="s3://my-bucket/project",
@@ -165,7 +165,6 @@ class PipelineManager:
 
         self._current_pipeline_name: str | None = None
         self._pipeline_cfg: PipelineConfig | None = None
-        
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -177,7 +176,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> with PipelineManager() as manager:
             ...     result = manager.run("my_pipeline")
         """
@@ -200,7 +199,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> with PipelineManager() as manager:
             ...     try:
             ...         result = manager.run("my_pipeline")
@@ -452,12 +451,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Basic pipeline run
             >>> results = manager.run("data_pipeline")
-            >>> 
+            >>>
             >>> # Complex run with overrides
             >>> results = manager.run(
             ...     name="ml_pipeline",
@@ -474,12 +473,12 @@ class PipelineManager:
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
 
         # Instantiate PipelineRunner for this specific run
-        #with PipelineRunner(
+        # with PipelineRunner(
         #    project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
-        #) as runner:
-            # Delegate execution, passing all relevant arguments
+        # ) as runner:
+        # Delegate execution, passing all relevant arguments
         res = run_pipeline(
-            project_cfg=   self.project_cfg,
+            project_cfg=self.project_cfg,
             pipeline_cfg=pipeline_cfg,
             inputs=inputs,
             final_vars=final_vars,
@@ -515,11 +514,11 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> # Create new pipeline
             >>> manager = PipelineManager()
             >>> manager.new("data_transformation")
-            >>> 
+            >>>
             >>> # Overwrite existing pipeline
             >>> manager.new("data_transformation", overwrite=True)
         """
@@ -542,11 +541,11 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> # Delete pipeline config only
             >>> manager = PipelineManager()
             >>> manager.delete("old_pipeline")
-            >>> 
+            >>>
             >>> # Delete both config and module
             >>> manager.delete("test_pipeline", module=True)
         """
@@ -575,18 +574,18 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Get summary of specific pipeline
             >>> summary = manager.get_summary("data_pipeline")
             >>> print(summary["config"]["schedule"]["enabled"])
             True
-            >>> 
+            >>>
             >>> # Get summary of all pipelines' code
             >>> all_code = manager.get_summary(
-            ...     cfg=False, 
-            ...     code=True, 
+            ...     cfg=False,
+            ...     code=True,
             ...     project=False
             ... )
         """
@@ -637,7 +636,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
             >>> manager.show_pipelines()
             ╭──────────────────────────────────────╮
@@ -660,7 +659,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
             >>> pipelines = manager.list_pipelines()
             >>> print(pipelines)
@@ -679,7 +678,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
             >>> print(manager.pipelines)
             ['data_ingestion', 'model_training', 'reporting']
@@ -696,7 +695,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
             >>> summary = manager.summary
             >>> for name, details in summary.items():
@@ -741,15 +740,15 @@ class PipelineManager:
         Example:
             >>> from flowerpower.pipeline import PipelineManager
             >>> from s3fs import S3FileSystem
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Import from local filesystem
             >>> manager.import_pipeline(
             ...     "new_pipeline",
             ...     "/path/to/other/project"
             ... )
-            >>> 
+            >>>
             >>> # Import from S3 with custom filesystem
             >>> s3 = S3FileSystem(anon=False)
             >>> manager.import_pipeline(
@@ -796,9 +795,9 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Import with name mapping
             >>> manager.import_many(
             ...     pipelines={
@@ -808,7 +807,7 @@ class PipelineManager:
             ...     base_dir="/path/to/source",
             ...     overwrite=True
             ... )
-            >>> 
+            >>>
             >>> # Import keeping original names
             >>> manager.import_many(
             ...     pipelines=["pipeline1", "pipeline2"],
@@ -848,12 +847,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Import all from backup
             >>> manager.import_all("/path/to/backup")
-            >>> 
+            >>>
             >>> # Import all from S3 with credentials
             >>> manager.import_all(
             ...     "s3://bucket/backup",
@@ -904,15 +903,15 @@ class PipelineManager:
         Example:
             >>> from flowerpower.pipeline import PipelineManager
             >>> from gcsfs import GCSFileSystem
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Export to local backup
             >>> manager.export_pipeline(
             ...     "my_pipeline",
             ...     "/path/to/backup"
             ... )
-            >>> 
+            >>>
             >>> # Export to Google Cloud Storage
             >>> gcs = GCSFileSystem(project='my-project')
             >>> manager.export_pipeline(
@@ -963,9 +962,9 @@ class PipelineManager:
         Example:
             >>> from flowerpower.pipeline import PipelineManager
             >>> from azure.storage.filedatalake import DataLakeServiceClient
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Export multiple pipelines to Azure Data Lake
             >>> manager.export_many(
             ...     pipelines=["ingest", "process", "report"],
@@ -1005,12 +1004,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Export all to backup directory
             >>> manager.export_all("/path/to/backup")
-            >>> 
+            >>>
             >>> # Export all to cloud storage
             >>> manager.export_all(
             ...     "gs://bucket/pipelines",
@@ -1050,12 +1049,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Save as PNG
             >>> manager.save_dag("data_pipeline")
-            >>> 
+            >>>
             >>> # Save as SVG with reload
             >>> manager.save_dag(
             ...     name="ml_pipeline",
@@ -1066,11 +1065,7 @@ class PipelineManager:
         self.visualizer.save_dag(name=name, format=format, reload=reload)
 
     def show_dag(
-        self,
-        name: str,
-        format: str = "png",
-        reload: bool = False,
-        raw: bool = False
+        self, name: str, format: str = "png", reload: bool = False, raw: bool = False
     ) -> Union[GraphType, None]:
         """Display pipeline DAG visualization interactively.
 
@@ -1091,15 +1086,15 @@ class PipelineManager:
             ValueError: If pipeline name doesn't exist
             ImportError: If visualization dependencies missing
             RuntimeError: If graph generation fails
-            
+
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Display in notebook
             >>> manager.show_dag("data_pipeline")
-            >>> 
+            >>>
             >>> # Get raw graph for custom rendering
             >>> graph = manager.show_dag(
             ...     name="ml_pipeline",
@@ -1110,10 +1105,7 @@ class PipelineManager:
             >>> graph.render("custom_vis", view=True)
         """
         return self.visualizer.show_dag(
-            name=name,
-            format=format,
-            reload=reload,
-            raw=raw
+            name=name, format=format, reload=reload, raw=raw
         )
 
     # Scheduler Delegations
@@ -1181,12 +1173,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Simple job execution
             >>> result = manager.run_job("data_pipeline")
-            >>> 
+            >>>
             >>> # Complex job with retry logic
             >>> result = manager.run_job(
             ...     name="ml_training",
@@ -1257,7 +1249,7 @@ class PipelineManager:
 
         Returns:
             str | UUID: The ID of the job.
-        
+
         Raises:
             ValueError: If the job ID is not valid or if the job cannot be scheduled.
 
@@ -1351,23 +1343,23 @@ class PipelineManager:
         Example:
             >>> from flowerpower.pipeline import PipelineManager
             >>> from datetime import datetime, timedelta
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Daily schedule with cron
             >>> schedule_id = manager.schedule(
             ...     name="daily_metrics",
             ...     cron="0 0 * * *",
             ...     inputs={"date": "{{ execution_date }}"}
             ... )
-            >>> 
+            >>>
             >>> # Interval-based schedule
             >>> schedule_id = manager.schedule(
             ...     name="monitoring",
             ...     interval={"minutes": 15},
             ...     with_adapter_cfg={"enable_alerts": True}
             ... )
-            >>> 
+            >>>
             >>> # Future one-time execution
             >>> future_date = datetime.now() + timedelta(days=1)
             >>> schedule_id = manager.schedule(
@@ -1412,12 +1404,12 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
-            >>> 
+            >>>
             >>> # Schedule all with default settings
             >>> manager.schedule_all()
-            >>> 
+            >>>
             >>> # Schedule all with common overrides
             >>> manager.schedule_all(
             ...     max_running_jobs=2,
@@ -1468,7 +1460,7 @@ class PipelineManager:
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
-            >>> 
+            >>>
             >>> manager = PipelineManager()
             >>> for schedule in manager.schedules:
             ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")

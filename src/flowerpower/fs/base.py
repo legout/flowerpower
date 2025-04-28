@@ -5,6 +5,7 @@ import posixpath
 import urllib
 from pathlib import Path
 from typing import Any
+
 import fsspec
 import requests
 from fsspec import filesystem
@@ -17,10 +18,12 @@ from loguru import logger
 
 from ..utils.logging import setup_logging
 from . import has_orjson, has_polars
+
 if has_orjson and has_polars:
     from .ext import AbstractFileSystem
 else:
     from fsspec import AbstractFileSystem
+
 from .storage_options import BaseStorageOptions
 from .storage_options import from_dict as storage_options_from_dict
 
@@ -39,7 +42,7 @@ class FileNameCacheMapper(AbstractCacheMapper):
     Example:
         >>> # Create cache mapper for S3 files
         >>> mapper = FileNameCacheMapper("/tmp/cache")
-        >>> 
+        >>>
         >>> # Map remote path to cache path
         >>> cache_path = mapper("bucket/data/file.csv")
         >>> print(cache_path)  # Preserves structure
@@ -102,12 +105,12 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         ...     cache_storage="/tmp/s3_cache",
         ...     verbose=True
         ... )
-        >>> 
+        >>>
         >>> # Read file (downloads and caches)
         >>> with cached_fs.open("bucket/data.csv") as f:
         ...     data = f.read()
         Downloading s3://bucket/data.csv
-        >>> 
+        >>>
         >>> # Second read uses cache
         >>> with cached_fs.open("bucket/data.csv") as f:
         ...     data = f.read()  # No download message
@@ -203,7 +206,7 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
             ... )
             >>> # Initial sync
             >>> fs.sync_cache()
-            >>> 
+            >>>
             >>> # Force reload all files
             >>> fs.sync_cache(reload=True)
         """
@@ -318,14 +321,14 @@ class GitLabFileSystem(AbstractFileSystem):
         ...     project_name="my-project",
         ...     access_token="glpat-xxxx"
         ... )
-        >>> 
+        >>>
         >>> # Read file contents
         >>> with fs.open("path/to/file.txt") as f:
         ...     content = f.read()
-        >>> 
+        >>>
         >>> # List directory
         >>> files = fs.ls("path/to/dir")
-        >>> 
+        >>>
         >>> # Access enterprise GitLab
         >>> fs = GitLabFileSystem(
         ...     project_id="12345",
@@ -406,12 +409,7 @@ class GitLabFileSystem(AbstractFileSystem):
         else:
             response.raise_for_status()
 
-    def _open(
-        self, 
-        path: str, 
-        mode: str = "rb",
-        **kwargs
-    ) -> MemoryFile:
+    def _open(self, path: str, mode: str = "rb", **kwargs) -> MemoryFile:
         """Open a file from GitLab repository.
 
         Retrieves file content from GitLab API and returns it as a memory file.
@@ -450,12 +448,7 @@ class GitLabFileSystem(AbstractFileSystem):
         else:
             response.raise_for_status()
 
-    def _ls(
-        self, 
-        path: str, 
-        detail: bool = False,
-        **kwargs
-    ) -> list[str] | list[dict]:
+    def _ls(self, path: str, detail: bool = False, **kwargs) -> list[str] | list[dict]:
         """List contents of a directory in GitLab repository.
 
         Args:
@@ -477,7 +470,7 @@ class GitLabFileSystem(AbstractFileSystem):
             >>> files = fs.ls("docs")
             >>> print(files)
             ['README.md', 'API.md']
-            >>> 
+            >>>
             >>> # List with details
             >>> details = fs.ls("docs", detail=True)
             >>> for item in details:
@@ -570,7 +563,7 @@ def get_filesystem(
     Example:
         >>> # Local filesystem
         >>> fs = get_filesystem("/path/to/data")
-        >>> 
+        >>>
         >>> # S3 with credentials
         >>> fs = get_filesystem(
         ...     "s3://bucket/data",
@@ -579,7 +572,7 @@ def get_filesystem(
         ...         "secret": "SECRET_KEY"
         ...     }
         ... )
-        >>> 
+        >>>
         >>> # Cached GCS filesystem
         >>> fs = get_filesystem(
         ...     "gs://bucket/data",
@@ -589,13 +582,13 @@ def get_filesystem(
         ...     cached=True,
         ...     cache_storage="/tmp/gcs_cache"
         ... )
-        >>> 
+        >>>
         >>> # Azure with environment credentials
         >>> fs = get_filesystem(
         ...     "abfs://container/data",
         ...     storage_options=AzureStorageOptions.from_env()
         ... )
-        >>> 
+        >>>
         >>> # Wrap existing filesystem
         >>> base_fs = filesystem("s3", key="ACCESS", secret="SECRET")
         >>> cached_fs = get_filesystem(

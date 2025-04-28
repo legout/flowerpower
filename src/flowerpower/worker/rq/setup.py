@@ -148,4 +148,3 @@ class RQBackend(BaseBackend):
         if self._client is None:
             self.setup()
         return self._client
-

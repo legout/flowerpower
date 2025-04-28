@@ -12,11 +12,10 @@ from rich import print as rprint
 
 # Import necessary config types
 from ..cfg import PipelineConfig, ProjectConfig
+from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
 from ..worker import Worker
-from ..fs import AbstractFileSystem
 from .registry import PipelineRegistry
-
 
 setup_logging()
 
@@ -249,7 +248,7 @@ class PipelineScheduler:
         date: dt.datetime | None = None,
         overwrite: bool = False,
         schedule_id: str | None = None,
-        **kwargs, 
+        **kwargs,
     ) -> str | UUID:
         """
         Schedule a pipeline for execution using the configured worker.
@@ -338,6 +337,7 @@ class PipelineScheduler:
         logger.debug(
             f"Resolved schedule parameters for '{name}': cron={cron}, interval={interval}, date={date}"
         )
+
         # --- Generate ID if not provided ---
         # (Keep _generate_id function as is, it uses self._get_schedules())
         def _generate_id(
@@ -348,7 +348,7 @@ class PipelineScheduler:
                 return explicit_id
 
             base_id = f"{pipeline_name}-1"
-            
+
             if force_overwrite_base:
                 logger.debug(f"Overwrite specified, using base ID: {base_id}")
                 return base_id
@@ -421,7 +421,7 @@ class PipelineScheduler:
     # --- schedule_all method removed ---
     # PipelineManager will be responsible for iterating and calling schedule()
 
-    def schedule_all(self,registry: PipelineRegistry, **kwargs):
+    def schedule_all(self, registry: PipelineRegistry, **kwargs):
         """
         Schedule all pipelines found by the registry.
 
@@ -451,7 +451,6 @@ class PipelineScheduler:
                         or not cfg.pipeline.schedule
                         or not cfg.pipeline.schedule.enabled
                     ):
-                        
                         logger.info(
                             f"🟡 Skipping schedule for [cyan]{name}[/cyan]: Not configured or disabled in config."
                         )

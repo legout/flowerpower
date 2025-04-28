@@ -1,11 +1,10 @@
 import importlib.util
 
 import typer
-from typing_extensions import Annotated
 from loguru import logger
+from typing_extensions import Annotated
 
-
-from ..pipeline.manager import PipelineManager, HookType
+from ..pipeline.manager import HookType, PipelineManager
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param, parse_param_dict
 
@@ -498,7 +497,10 @@ def delete(
 
 @app.command()
 def show_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
+    name: str,
+    base_dir: str | None = None,
+    storage_options: str | None = None,
+    config: str | None = None,
 ):
     """
     Show the DAG of the specified pipeline.
@@ -525,7 +527,10 @@ def show_dag(
 
 @app.command()
 def save_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
+    name: str,
+    base_dir: str | None = None,
+    storage_options: str | None = None,
+    config: str | None = None,
 ):
     """
     Save the DAG of the specified pipeline.
@@ -598,6 +603,7 @@ def show_summary(
         storage_options=parsed_storage_options or {},
     ) as manager:
         manager.show_summary(name=name, cfg=cfg, module=module)
+
 
 @app.command()
 def add_hook(

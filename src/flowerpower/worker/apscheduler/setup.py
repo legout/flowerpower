@@ -24,7 +24,7 @@ class APSDataStore(BaseBackend):
     storage.
 
     Args:
-        schema (str | None): Database schema name. Defaults to "flowerpower". 
+        schema (str | None): Database schema name. Defaults to "flowerpower".
             Note: Ignored for SQLite databases.
 
     Attributes:
@@ -35,7 +35,7 @@ class APSDataStore(BaseBackend):
 
     Raises:
         ValueError: If an invalid backend type is specified
-        
+
     Example:
         ```python
         # Create PostgreSQL data store
@@ -64,7 +64,7 @@ class APSDataStore(BaseBackend):
 
     def __post_init__(self):
         """Initialize and validate the data store configuration.
-        
+
         This method is called automatically after instance creation. It:
         1. Sets default type to "memory" if not specified
         2. Calls parent class initialization
@@ -104,7 +104,7 @@ class APSDataStore(BaseBackend):
     async def _setup_db(self) -> None:
         """Initialize database and schema for SQL backends.
 
-        Creates the database and schema if they don't exist. This is an internal async 
+        Creates the database and schema if they don't exist. This is an internal async
         method called by setup_db().
 
         Raises:
@@ -119,7 +119,7 @@ class APSDataStore(BaseBackend):
 
     async def _create_schema(self, engine: AsyncEngine) -> None:
         """Create schema in existing database if it doesn't exist.
-        
+
         Args:
             engine: SQLAlchemy async engine connected to the database
         """
@@ -132,10 +132,10 @@ class APSDataStore(BaseBackend):
 
     async def _create_database_and_schema(self, engine: AsyncEngine) -> None:
         """Create both database and schema if they don't exist.
-        
+
         Creates a temporary connection to template1 to create the database,
         then creates the schema within the new database.
-        
+
         Args:
             engine: SQLAlchemy async engine
         """
@@ -155,7 +155,7 @@ class APSDataStore(BaseBackend):
 
     def setup_db(self) -> None:
         """Initialize the database synchronously.
-        
+
         This is a blocking wrapper around the async _setup_db() method.
         Uses anyio portal to run async code from synchronous context.
         """
@@ -179,7 +179,7 @@ class APSDataStore(BaseBackend):
 
     def _setup_mongodb(self) -> None:
         """Initialize MongoDB data store.
-        
+
         Creates MongoDBDataStore instance using provided URI and schema (database name).
         """
         from apscheduler.datastores.mongodb import MongoDBDataStore
@@ -188,7 +188,7 @@ class APSDataStore(BaseBackend):
 
     def _setup_memory(self) -> None:
         """Initialize in-memory data store.
-        
+
         Creates MemoryDataStore instance for temporary storage.
         """
         from apscheduler.datastores.memory import MemoryDataStore
@@ -268,7 +268,7 @@ class APSEventBroker(BaseBackend):
 
         # Create PostgreSQL event broker from existing SQLAlchemy engine
         pg_broker = APSEventBroker.from_ds_sqla(pg_engine)
-        
+
         # Create in-memory event broker
         memory_broker = APSEventBroker(type="memory")
         memory_broker.setup()
@@ -277,7 +277,7 @@ class APSEventBroker(BaseBackend):
 
     def __post_init__(self):
         """Initialize and validate the event broker configuration.
-        
+
         This method is called automatically after instance creation. It:
         1. Sets default type to "memory" if not specified
         2. Calls parent class initialization
@@ -353,7 +353,7 @@ class APSEventBroker(BaseBackend):
 
     def _setup_redis_event_broker(self):
         """Initialize Redis event broker.
-        
+
         Creates RedisEventBroker instance using provided Redis URI.
         Uses Redis pub/sub for event messaging.
         """
@@ -363,7 +363,7 @@ class APSEventBroker(BaseBackend):
 
     def _setup_local_event_broker(self):
         """Initialize in-memory event broker.
-        
+
         Creates LocalEventBroker for in-process event handling.
         """
         from apscheduler.eventbrokers.local import LocalEventBroker
@@ -456,11 +456,11 @@ class APSBackend:
     with support for dictionary-based configuration.
 
     Args:
-        data_store (APSDataStore | dict | None): Data store configuration, either as an 
-            APSDataStore instance or a configuration dictionary. Defaults to a new 
+        data_store (APSDataStore | dict | None): Data store configuration, either as an
+            APSDataStore instance or a configuration dictionary. Defaults to a new
             APSDataStore instance.
-        event_broker (APSEventBroker | dict | None): Event broker configuration, either as 
-            an APSEventBroker instance or a configuration dictionary. Defaults to a new 
+        event_broker (APSEventBroker | dict | None): Event broker configuration, either as
+            an APSEventBroker instance or a configuration dictionary. Defaults to a new
             APSEventBroker instance.
 
     Example:
@@ -499,7 +499,7 @@ class APSBackend:
 
     def __post_init__(self):
         """Initialize and setup data store and event broker components.
-        
+
         Called automatically after instance creation. This method:
         1. Converts data store dict to APSDataStore instance if needed
         2. Initializes data store

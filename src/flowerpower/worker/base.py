@@ -4,8 +4,9 @@ Base scheduler interface for FlowerPower.
 This module defines the abstract base classes for scheduling operations
 that can be implemented by different backend providers (APScheduler, RQ, etc.).
 """
-import posixpath
+
 import abc
+import posixpath
 import sys
 import urllib.parse
 from dataclasses import dataclass, field
@@ -17,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
-
 # from ..utils.misc import update_config_from_dict
 from ..settings import BACKEND_PROPERTIES
 
@@ -326,7 +326,7 @@ class BaseWorker:
         backend: BaseBackend | None = None,
         storage_options: dict = None,
         fs: AbstractFileSystem | None = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the APScheduler backend.
@@ -347,14 +347,12 @@ class BaseWorker:
         self._pipelines_dir = kwargs.get("pipelines_dir", "pipelines")
         self._conf_dir = "conf"
 
-
         if fs is None:
             fs = get_filesystem(self._base_dir, **(self._storage_options or {}))
         self._fs = fs
 
-        self._add_modules_path() 
+        self._add_modules_path()
         self._load_config()
-
 
     def _load_config(self) -> None:
         """Load the configuration.

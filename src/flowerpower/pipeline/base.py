@@ -30,7 +30,6 @@ def load_module(name: str, reload: bool = False):
     return importlib.import_module(name)
 
 
-
 class BasePipeline:
     """
     Base class for all pipelines.

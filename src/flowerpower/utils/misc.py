@@ -153,12 +153,10 @@ if importlib.util.find_spec("polars"):
                     next(v for v in data.values() if isinstance(v, (list, tuple)))
                 )
                 # Convert to DataFrame where each list element becomes a row
-                data = pl.DataFrame(
-                    {
-                        k: v if isinstance(v, (list, tuple)) else [v] * length
-                        for k, v in data.items()
-                    }
-                )
+                data = pl.DataFrame({
+                    k: v if isinstance(v, (list, tuple)) else [v] * length
+                    for k, v in data.items()
+                })
             else:
                 # If values are scalars, wrap them in a list to create a single row
                 data = pl.DataFrame({k: [v] for k, v in data.items()})
@@ -260,6 +258,7 @@ if (
                 data = [pa.Table.from_batches([dd]) for dd in data]
 
         return data
+
 else:
 
     def to_pyarrow_table(*args, **kwargs):

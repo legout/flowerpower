@@ -4,9 +4,9 @@ APScheduler implementation for FlowerPower scheduler.
 This module implements the scheduler interfaces using APScheduler as the backend.
 """
 
-from typing import Callable, Any
 import datetime as dt
 import importlib.util
+from typing import Any, Callable
 from uuid import UUID
 
 from fsspec.spec import AbstractFileSystem
@@ -19,7 +19,7 @@ if not importlib.util.find_spec("apscheduler"):
         "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
     )
 
-from apscheduler import Scheduler, Job
+from apscheduler import Job, Scheduler
 from apscheduler.executors.async_ import AsyncJobExecutor
 from apscheduler.executors.subprocess import ProcessPoolJobExecutor
 from apscheduler.executors.thread import ThreadPoolJobExecutor
@@ -43,7 +43,7 @@ except Exception as e:
 
 class APSWorker(BaseWorker):
     """Implementation of BaseScheduler using APScheduler.
-    
+
     This worker class uses APScheduler 4.0+ as the backend to schedule and manage jobs.
     It supports different job executors including async, thread pool, and process pool.
 
@@ -51,11 +51,11 @@ class APSWorker(BaseWorker):
         ```python
         worker = APSWorker(name="my_scheduler")
         worker.start_worker(background=True)
-        
+
         # Add a job
         def my_job(x: int) -> int:
             return x * 2
-            
+
         job_id = worker.add_job(my_job, func_args=(10,))
         ```
     """
@@ -92,13 +92,13 @@ class APSWorker(BaseWorker):
             worker = APSWorker(name="my_scheduler")
 
             # With custom backend and logging
-            
+
             # Create a custom backend configuration using dictionaries for data store and event broker
             backend_config = {
                 "data_store": {"type": "postgresql", "uri": "postgresql+asyncpg://user:pass@localhost/db"},
                 "event_broker": {"type": "redis", "uri": "redis://localhost:6379/0"}
             }
-            
+
             # Create a custom backend configuration using APSBackend, APSDataStore, and APSEventBroker classes
             from flowerpower.worker.aps import APSBackend, APSDataStore, APSEventBroker
             data_store = APSDataStore(
@@ -152,7 +152,6 @@ class APSWorker(BaseWorker):
             default_job_executor=self.cfg.backend.default_job_executor,
         )
 
-
     def _setup_backend(self) -> None:
         """
         Set up the data store and SQLAlchemy engine for the scheduler.
@@ -182,13 +181,11 @@ class APSWorker(BaseWorker):
                     sqla_engine=data_store.sqla_engine
                 )
             else:
-                event_broker = APSEventBroker(
-                    **{
-                        k: v
-                        for k, v in self.cfg.backend.event_broker.to_dict().items()
-                        if k != "from_ds_sqla"
-                    }
-                )
+                event_broker = APSEventBroker(**{
+                    k: v
+                    for k, v in self.cfg.backend.event_broker.to_dict().items()
+                    if k != "from_ds_sqla"
+                })
             self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
 
         logger.info(
@@ -275,7 +272,6 @@ class APSWorker(BaseWorker):
         self._worker.stop()
         self._worker._exit_stack.close()
 
-
     def start_worker_pool(
         self,
         background: bool = False,
@@ -332,7 +328,7 @@ class APSWorker(BaseWorker):
                 Takes precedence over run_in if both are specified.
             run_in: Schedule the job to run after a delay (in seconds).
                 Only used if run_at is not specified.
-            job_executor: Name of the executor to run the job ("async", "threadpool", 
+            job_executor: Name of the executor to run the job ("async", "threadpool",
                 or "processpool"). If None, uses the default from config.
 
         Returns:
@@ -350,9 +346,9 @@ class APSWorker(BaseWorker):
             # Add immediate job
             def my_task(x: int, y: int) -> int:
                 return x + y
-                
+
             job_id = worker.add_job(
-                my_task, 
+                my_task,
                 func_args=(1, 2),
                 result_ttl=3600  # Keep result for 1 hour
             )
@@ -364,7 +360,7 @@ class APSWorker(BaseWorker):
                 func_kwargs={"x": 1, "y": 2},
                 run_at=tomorrow
             )
-            
+
             # Run after delay
             job_id = worker.add_job(
                 my_task,
@@ -429,7 +425,7 @@ class APSWorker(BaseWorker):
             ```python
             def add(x: int, y: int) -> int:
                 return x + y
-                
+
             result = worker.run_job(add, func_args=(1, 2))
             assert result == 3
             ```
@@ -471,7 +467,7 @@ class APSWorker(BaseWorker):
             ```python
             # Get job using string ID
             job = worker.get_job("550e8400-e29b-41d4-a716-446655440000")
-            
+
             # Get job using UUID
             from uuid import UUID
             job = worker.get_job(UUID("550e8400-e29b-41d4-a716-446655440000"))
@@ -506,7 +502,7 @@ class APSWorker(BaseWorker):
             ```python
             # Wait for result
             result = worker.get_job_result("550e8400-e29b-41d4-a716-446655440000")
-            
+
             # Check result without waiting
             result = worker.get_job_result(
                 "550e8400-e29b-41d4-a716-446655440000",
@@ -544,7 +540,7 @@ class APSWorker(BaseWorker):
             "Not implemented for apscheduler yet. You have to remove the job manually from the data_store."
         )
         return False
-    
+
     def delete_job(self, job_id: str | UUID) -> bool:
         """
         Delete a job and its results from storage.
@@ -570,7 +566,7 @@ class APSWorker(BaseWorker):
             "Not implemented for apscheduler yet. You have to remove the job manually from the data_store."
         )
         return False
-    
+
     def cancel_all_jobs(self) -> None:
         """Cancel all running and pending jobs.
 
@@ -588,7 +584,7 @@ class APSWorker(BaseWorker):
             "Not implemented for apscheduler yet. You have to remove the jobs manually from the data_store."
         )
         return None
-    
+
     def delete_all_jobs(self) -> None:
         """
         Delete all jobs and their results from storage.
@@ -607,9 +603,9 @@ class APSWorker(BaseWorker):
             "Not implemented for apscheduler yet. You have to remove the jobs manually from the data_store."
         )
         return None
-    
+
     @property
-    def jobs(self)-> list[Job]:
+    def jobs(self) -> list[Job]:
         """Get all jobs from the scheduler.
 
         Returns:
@@ -624,7 +620,7 @@ class APSWorker(BaseWorker):
             ```
         """
         return self._worker.get_jobs()
-    
+
     @property
     def job_ids(self) -> list[str]:
         """Get all job IDs from the scheduler.
@@ -639,15 +635,15 @@ class APSWorker(BaseWorker):
             ```
         """
         return [str(job.id) for job in self._worker.get_jobs()]
-    
+
     ## Schedules
     def add_schedule(
         self,
         func: Callable,
         func_args: tuple | None = None,
         func_kwargs: dict[str, Any] | None = None,
-        cron: str | dict[str, str|int] | None = None,
-        interval: int | str | dict[str, str|int] | None = None,
+        cron: str | dict[str, str | int] | None = None,
+        interval: int | str | dict[str, str | int] | None = None,
         date: dt.datetime | None = None,
         schedule_id: str | None = None,
         job_executor: str | None = None,
@@ -778,7 +774,6 @@ class APSWorker(BaseWorker):
 
         return schedule_id
 
-    
     def get_schedules(self, as_dict: bool = False) -> list[Any]:
         """Get all schedules from the scheduler.
 
@@ -804,7 +799,7 @@ class APSWorker(BaseWorker):
             ```
         """
         return self._worker.get_schedules()
-    
+
     def get_schedule(self, schedule_id: str) -> Any:
         """Get a specific schedule by its ID.
 
@@ -825,10 +820,10 @@ class APSWorker(BaseWorker):
         """
         if schedule_id in self.schedule_ids:
             return self._worker.get_schedule(schedule_id)
-        
+
         logger.error(f"Schedule {schedule_id} not found.")
         return None
-    
+
     def cancel_schedule(self, schedule_id: str) -> bool:
         """Cancel a schedule.
 
@@ -855,7 +850,7 @@ class APSWorker(BaseWorker):
             return False
         self._worker.remove_schedule(schedule_id)
         logger.info(f"Schedule {schedule_id} canceled.")
-        
+
     def delete_schedule(self, schedule_id: str) -> bool:
         """Remove a schedule.
 
@@ -884,8 +879,6 @@ class APSWorker(BaseWorker):
             ```
         """
         self.cancel_schedule(schedule_id)
-            
-       
 
     def cancel_all_schedules(self) -> None:
         """Cancel all schedules in the scheduler.
@@ -904,7 +897,7 @@ class APSWorker(BaseWorker):
             self.cancel_schedule(sched)
         logger.info("All schedules canceled.")
         return None
-    
+
     def delete_all_schedules(self) -> None:
         """
         Delete all schedules from the scheduler.
@@ -938,7 +931,7 @@ class APSWorker(BaseWorker):
             ```
         """
         return self._worker.get_schedules()
-    
+
     @property
     def schedule_ids(self) -> list[str]:
         """Get all schedule IDs from the scheduler.
@@ -953,7 +946,7 @@ class APSWorker(BaseWorker):
             ```
         """
         return [str(sched.id) for sched in self._worker.get_schedules()]
-    
+
     def pause_schedule(self, schedule_id: str) -> bool:
         """Pause a schedule temporarily.
 
@@ -980,7 +973,7 @@ class APSWorker(BaseWorker):
         self._worker.pause_schedule(schedule_id)
         logger.info(f"Schedule {schedule_id} paused.")
         return True
-    
+
     def resume_schedule(self, schedule_id: str) -> bool:
         """Resume a paused schedule.
 
@@ -1004,7 +997,7 @@ class APSWorker(BaseWorker):
         self._worker.unpause_schedule(schedule_id)
         logger.info(f"Schedule {schedule_id} resumed.")
         return True
-    
+
     def pause_all_schedules(self) -> None:
         """Pause all schedules in the scheduler.
 
@@ -1021,7 +1014,7 @@ class APSWorker(BaseWorker):
             self.pause_schedule(sched)
         logger.info("All schedules paused.")
         return None
-    
+
     def resume_all_schedules(self) -> None:
         """Resume all paused schedules.
 
@@ -1037,8 +1030,7 @@ class APSWorker(BaseWorker):
             self.resume_schedule(sched)
         logger.info("All schedules resumed.")
         return None
-    
-    
+
     def show_schedules(self) -> None:
         """Display all schedules in a user-friendly format.
 
@@ -1066,6 +1058,3 @@ class APSWorker(BaseWorker):
             ```
         """
         display_jobs(self._worker.get_jobs())
-
-
-

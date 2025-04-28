@@ -1,32 +1,37 @@
 # Monkey patch as early as possible
 try:
     from gevent import monkey
+
     monkey.patch_all()
     import gevent
     import gevent.pool
+
     GEVENT_AVAILABLE = True
 except ImportError:
     GEVENT_AVAILABLE = False
-    raise ImportError("Gevent is required for GeventWorker. Please install it with 'pip install gevent'.")
+    raise ImportError(
+        "Gevent is required for GeventWorker. Please install it with 'pip install gevent'."
+    )
 
 
 import datetime as dt
 
+from loguru import logger
 from rq import worker
 from rq.exceptions import DequeueTimeout
 from rq.job import JobStatus
 from rq.worker import StopRequested
 
-from loguru import logger
 from flowerpower.utils.logging import setup_logging
 
 # Use utcnow directly for simplicity
-utcnow = dt.datetime.utcnow 
+utcnow = dt.datetime.utcnow
 setup_logging("INFO")
+
 
 class GeventWorker(worker.Worker):
     """
-    A variation of the RQ Worker that uses Gevent to perform jobs concurrently 
+    A variation of the RQ Worker that uses Gevent to perform jobs concurrently
     within a single worker process using greenlets.
 
     Ideal for I/O bound tasks, offering very lightweight concurrency.
@@ -35,31 +40,56 @@ class GeventWorker(worker.Worker):
     Requires gevent to be installed and monkey-patching to be applied
     (done automatically when this module is imported).
     """
-    def __init__(self, queues, name=None, max_greenlets=1000,
-                 default_result_ttl=500, connection=None,
-                 exc_handler=None, exception_handlers=None,
-                 default_worker_ttl=None, job_class=None, queue_class=None,
-                 log_job_description=True, job_monitoring_interval=30,
-                 disable_default_exception_handler=False, prepare_for_work=True,
-                 maintenance_interval=600):
 
-        super().__init__(queues, name=name, default_result_ttl=default_result_ttl,
-                         connection=connection, exc_handler=exc_handler,
-                         exception_handlers=exception_handlers,
-                         default_worker_ttl=default_worker_ttl, job_class=job_class,
-                         queue_class=queue_class, log_job_description=log_job_description,
-                         job_monitoring_interval=job_monitoring_interval,
-                         disable_default_exception_handler=disable_default_exception_handler,
-                         prepare_for_work=prepare_for_work,
-                         maintenance_interval=maintenance_interval)
+    def __init__(
+        self,
+        queues,
+        name=None,
+        max_greenlets=1000,
+        default_result_ttl=500,
+        connection=None,
+        exc_handler=None,
+        exception_handlers=None,
+        default_worker_ttl=None,
+        job_class=None,
+        queue_class=None,
+        log_job_description=True,
+        job_monitoring_interval=30,
+        disable_default_exception_handler=False,
+        prepare_for_work=True,
+        maintenance_interval=600,
+    ):
+        super().__init__(
+            queues,
+            name=name,
+            default_result_ttl=default_result_ttl,
+            connection=connection,
+            exc_handler=exc_handler,
+            exception_handlers=exception_handlers,
+            default_worker_ttl=default_worker_ttl,
+            job_class=job_class,
+            queue_class=queue_class,
+            log_job_description=log_job_description,
+            job_monitoring_interval=job_monitoring_interval,
+            disable_default_exception_handler=disable_default_exception_handler,
+            prepare_for_work=prepare_for_work,
+            maintenance_interval=maintenance_interval,
+        )
 
         self.max_greenlets = max_greenlets
         self._pool = None
         self.log = logger
         logger.info(f"GeventWorker initialized with max_greenlets={self.max_greenlets}")
 
-    def work(self, burst=False, logging_level="INFO", date_format=worker.DEFAULT_LOGGING_DATE_FORMAT,
-             log_format=worker.DEFAULT_LOGGING_FORMAT, max_jobs=None, with_scheduler=False):
+    def work(
+        self,
+        burst=False,
+        logging_level="INFO",
+        date_format=worker.DEFAULT_LOGGING_DATE_FORMAT,
+        log_format=worker.DEFAULT_LOGGING_FORMAT,
+        max_jobs=None,
+        with_scheduler=False,
+    ):
         """Starts the worker's main loop using gevent for concurrent job execution."""
         self._install_signal_handlers()
         did_perform_work = False
@@ -72,7 +102,9 @@ class GeventWorker(worker.Worker):
 
         try:
             while True:
-                if self._stop_requested or (max_jobs is not None and processed_jobs >= max_jobs):
+                if self._stop_requested or (
+                    max_jobs is not None and processed_jobs >= max_jobs
+                ):
                     break
 
                 self.run_maintenance_tasks()
@@ -92,7 +124,7 @@ class GeventWorker(worker.Worker):
                 except StopRequested:
                     break
                 except Exception:
-                    self.log.error('Error during dequeue:', exc_info=True)
+                    self.log.error("Error during dequeue:", exc_info=True)
                     gevent.sleep(1)
                     continue
 
@@ -104,14 +136,16 @@ class GeventWorker(worker.Worker):
                     continue
 
                 job, queue = result
-                self.log.info('Processing job %s: %s', job.id, job.description)
+                self.log.info("Processing job %s: %s", job.id, job.description)
 
                 try:
                     # Spawn job execution in the gevent pool
                     greenlet = self._pool.spawn(self.execute_job, job, queue)
                     # Optional: Add error callback
                     greenlet.link_exception(
-                        lambda g: self.log.error(f"Error in greenlet for job {job.id}", exc_info=g.exception)
+                        lambda g: self.log.error(
+                            f"Error in greenlet for job {job.id}", exc_info=g.exception
+                        )
                     )
                 except Exception as e:
                     self.log.error(f"Failed to spawn job {job.id}: {e}", exc_info=True)
@@ -169,15 +203,24 @@ class GeventWorker(worker.Worker):
             started_job_registry = queue.started_job_registry
 
             try:
-                started_job_registry.add(job, self.job_monitoring_interval * 1000 if self.job_monitoring_interval else -1)
+                started_job_registry.add(
+                    job,
+                    self.job_monitoring_interval * 1000
+                    if self.job_monitoring_interval
+                    else -1,
+                )
             except NotImplementedError:
                 pass
 
             rv = job.perform()
-            self.handle_job_success(job=job, queue=queue, started_job_registry=started_job_registry)
+            self.handle_job_success(
+                job=job, queue=queue, started_job_registry=started_job_registry
+            )
             return rv
 
         except Exception as e:
             self.log.error(f"Job {job_id} failed: {e}", exc_info=True)
-            self.handle_job_failure(job=job, queue=queue, started_job_registry=started_job_registry)
+            self.handle_job_failure(
+                job=job, queue=queue, started_job_registry=started_job_registry
+            )
             raise

@@ -24,7 +24,7 @@ class BaseStorageOptions(BaseModel):
         >>> # Create and save options
         >>> options = BaseStorageOptions(protocol="s3")
         >>> options.to_yaml("config.yml")
-        >>> 
+        >>>
         >>> # Load from YAML
         >>> loaded = BaseStorageOptions.from_yaml("config.yml")
         >>> print(loaded.protocol)
@@ -55,7 +55,9 @@ class BaseStorageOptions(BaseModel):
         return {k: v for k, v in items if v is not None}
 
     @classmethod
-    def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "BaseStorageOptions":
+    def from_yaml(
+        cls, path: str, fs: AbstractFileSystem = None
+    ) -> "BaseStorageOptions":
         """Load storage options from YAML file.
 
         Args:
@@ -154,7 +156,7 @@ class AzureStorageOptions(BaseStorageOptions):
         ...     account_name="mystorageacct",
         ...     account_key="key123..."
         ... )
-        >>> 
+        >>>
         >>> # Data Lake with service principal
         >>> options = AzureStorageOptions(
         ...     protocol="abfs",
@@ -163,13 +165,14 @@ class AzureStorageOptions(BaseStorageOptions):
         ...     client_id="client123",
         ...     client_secret="secret123"
         ... )
-        >>> 
+        >>>
         >>> # Simple connection string auth
         >>> options = AzureStorageOptions(
         ...     protocol="az",
         ...     connection_string="DefaultEndpoints..."
         ... )
     """
+
     protocol: str
     account_name: str | None = None
     account_key: str | None = None
@@ -266,13 +269,13 @@ class GcsStorageOptions(BaseStorageOptions):
         ...     token="path/to/service-account.json",
         ...     project="my-project-123"
         ... )
-        >>> 
+        >>>
         >>> # Application default credentials
         >>> options = GcsStorageOptions(
         ...     protocol="gcs",
         ...     project="my-project-123"
         ... )
-        >>> 
+        >>>
         >>> # Custom endpoint (e.g., test server)
         >>> options = GcsStorageOptions(
         ...     protocol="gs",
@@ -280,6 +283,7 @@ class GcsStorageOptions(BaseStorageOptions):
         ...     token="test-token.json"
         ... )
     """
+
     protocol: str
     token: str | None = None
     project: str | None = None
@@ -393,10 +397,10 @@ class AwsStorageOptions(BaseStorageOptions):
         ...     secret_access_key="SECRETKEY",
         ...     region="us-east-1"
         ... )
-        >>> 
+        >>>
         >>> # Profile-based auth
         >>> options = AwsStorageOptions(profile="dev")
-        >>> 
+        >>>
         >>> # S3-compatible service (MinIO)
         >>> options = AwsStorageOptions(
         ...     endpoint_url="http://localhost:9000",
@@ -569,9 +573,7 @@ class AwsStorageOptions(BaseStorageOptions):
                 "verify": not self.allow_invalid_certificates
                 if self.allow_invalid_certificates is not None
                 else True,
-                "use_ssl": not self.allow_http
-                if self.allow_http is not None
-                else True,
+                "use_ssl": not self.allow_http if self.allow_http is not None else True,
             },
         }
         return {k: v for k, v in fsspec_kwargs.items() if v is not None}
@@ -657,7 +659,7 @@ class GitHubStorageOptions(BaseStorageOptions):
         ...     repo="vscode",
         ...     ref="main"
         ... )
-        >>> 
+        >>>
         >>> # Private repository
         >>> options = GitHubStorageOptions(
         ...     org="myorg",
@@ -665,7 +667,7 @@ class GitHubStorageOptions(BaseStorageOptions):
         ...     token="ghp_xxxx",
         ...     ref="develop"
         ... )
-        >>> 
+        >>>
         >>> # Enterprise instance
         >>> options = GitHubStorageOptions(
         ...     org="company",
@@ -674,6 +676,7 @@ class GitHubStorageOptions(BaseStorageOptions):
         ...     token="ghp_xxxx"
         ... )
     """
+
     protocol: str = "github"
     org: str | None = None
     repo: str | None = None
@@ -785,14 +788,14 @@ class GitLabStorageOptions(BaseStorageOptions):
         ...     project_name="group/project",
         ...     ref="main"
         ... )
-        >>> 
+        >>>
         >>> # Private project with token
         >>> options = GitLabStorageOptions(
         ...     project_id=12345,
         ...     token="glpat_xxxx",
         ...     ref="develop"
         ... )
-        >>> 
+        >>>
         >>> # Self-hosted instance
         >>> options = GitLabStorageOptions(
         ...     base_url="https://gitlab.company.com",
@@ -800,6 +803,7 @@ class GitLabStorageOptions(BaseStorageOptions):
         ...     token="glpat_xxxx"
         ... )
     """
+
     protocol: str = "gitlab"
     base_url: str = "https://gitlab.com"
     project_id: str | int | None = None
@@ -822,7 +826,7 @@ class GitLabStorageOptions(BaseStorageOptions):
         Example:
             >>> # Valid initialization
             >>> options = GitLabStorageOptions(project_id=12345)
-            >>> 
+            >>>
             >>> # Invalid initialization
             >>> try:
             ...     options = GitLabStorageOptions()
@@ -931,13 +935,14 @@ class LocalStorageOptions(BaseStorageOptions):
         >>> options = LocalStorageOptions()
         >>> fs = options.to_filesystem()
         >>> files = fs.ls("/path/to/data")
-        >>> 
+        >>>
         >>> # With auto directory creation
         >>> options = LocalStorageOptions(auto_mkdir=True)
         >>> fs = options.to_filesystem()
         >>> with fs.open("/new/path/file.txt", "w") as f:
         ...     f.write("test")  # Creates /new/path/ automatically
     """
+
     protocol: str = "file"
     auto_mkdir: bool = False
     mode: int | None = None
@@ -960,10 +965,7 @@ class LocalStorageOptions(BaseStorageOptions):
         return {k: v for k, v in kwargs.items() if v is not None}
 
 
-def from_dict(
-    protocol: str, 
-    storage_options: dict
-) -> BaseStorageOptions:
+def from_dict(protocol: str, storage_options: dict) -> BaseStorageOptions:
     """Create appropriate storage options instance from dictionary.
 
     Factory function that creates the correct storage options class based on protocol.
@@ -1052,7 +1054,7 @@ class StorageOptions(BaseModel):
         ...     access_key_id="KEY",
         ...     secret_access_key="SECRET"
         ... )
-        >>> 
+        >>>
         >>> # Create from existing options
         >>> s3_opts = AwsStorageOptions(access_key_id="KEY")
         >>> options = StorageOptions(storage_options=s3_opts)
@@ -1219,11 +1221,11 @@ def infer_protocol_from_uri(uri: str) -> str:
         >>> # S3 protocol
         >>> infer_protocol_from_uri("s3://my-bucket/data")
         's3'
-        >>> 
+        >>>
         >>> # Local file
         >>> infer_protocol_from_uri("/home/user/data")
         'file'
-        >>> 
+        >>>
         >>> # GitHub repository
         >>> infer_protocol_from_uri("github://microsoft/vscode")
         'github'
@@ -1263,7 +1265,7 @@ def storage_options_from_uri(uri: str) -> BaseStorageOptions:
         >>> opts = storage_options_from_uri("s3://my-bucket/data")
         >>> print(opts.protocol)
         's3'
-        >>> 
+        >>>
         >>> # GitHub options
         >>> opts = storage_options_from_uri("github://microsoft/vscode")
         >>> print(opts.org)
@@ -1273,23 +1275,20 @@ def storage_options_from_uri(uri: str) -> BaseStorageOptions:
     """
     protocol = infer_protocol_from_uri(uri)
     options = infer_storage_options(uri)
-    
-    if (protocol == "s3"):
+
+    if protocol == "s3":
         return AwsStorageOptions(protocol=protocol, **options)
     elif protocol in ["gs", "gcs"]:
         return GcsStorageOptions(protocol=protocol, **options)
     elif protocol == "github":
         parts = uri.replace("github://", "").split("/")
         return GitHubStorageOptions(
-            protocol=protocol,
-            org=parts[0],
-            repo=parts[1] if len(parts) > 1 else None
+            protocol=protocol, org=parts[0], repo=parts[1] if len(parts) > 1 else None
         )
     elif protocol == "gitlab":
         parts = uri.replace("gitlab://", "").split("/")
         return GitLabStorageOptions(
-            protocol=protocol,
-            project_name=parts[-1] if parts else None
+            protocol=protocol, project_name=parts[-1] if parts else None
         )
     elif protocol in ["az", "abfs", "adl"]:
         return AzureStorageOptions(protocol=protocol, **options)
@@ -1298,8 +1297,7 @@ def storage_options_from_uri(uri: str) -> BaseStorageOptions:
 
 
 def merge_storage_options(
-    *options: BaseStorageOptions | dict | None,
-    overwrite: bool = True
+    *options: BaseStorageOptions | dict | None, overwrite: bool = True
 ) -> BaseStorageOptions:
     """Merge multiple storage options into a single configuration.
 
@@ -1325,7 +1323,7 @@ def merge_storage_options(
         >>> merged = merge_storage_options(base, override)
         >>> print(merged.access_key_id)
         'NEW_KEY'
-        >>> 
+        >>>
         >>> # Preserve existing values
         >>> merged = merge_storage_options(
         ...     base,
@@ -1337,7 +1335,7 @@ def merge_storage_options(
     """
     result = {}
     protocol = None
-    
+
     for opts in options:
         if opts is None:
             continue
@@ -1348,7 +1346,7 @@ def merge_storage_options(
         for k, v in opts.items():
             if overwrite or k not in result:
                 result[k] = v
-    
+
     if not protocol:
         protocol = "file"
     return from_dict(protocol, result)

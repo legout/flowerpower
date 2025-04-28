@@ -9,15 +9,8 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 # Huey imports for dynamic config generation and type hints
 from huey import MemoryHuey  # Added Huey base class
-from huey import (
-    FileHuey,
-    Huey,
-    PriorityRedisExpireHuey,
-    PriorityRedisHuey,
-    RedisExpireHuey,
-    RedisHuey,
-    SqliteHuey,
-)
+from huey import (FileHuey, Huey, PriorityRedisExpireHuey, PriorityRedisHuey,
+                  RedisExpireHuey, RedisHuey, SqliteHuey)
 from redis import ConnectionPool
 
 from ...fs import AbstractFileSystem
@@ -167,13 +160,11 @@ class HueyWorker(BaseWorker):
         huey_schedule_options = trigger_instance
 
         # Combine schedule_kwargs with eta/delay options
-        huey_schedule_options.update(
-            {
-                k: schedule_kwargs.pop(k)
-                for k in ("priority", "retries", "retry_delay")
-                if k in schedule_kwargs
-            }
-        )
+        huey_schedule_options.update({
+            k: schedule_kwargs.pop(k)
+            for k in ("priority", "retries", "retry_delay")
+            if k in schedule_kwargs
+        })
 
         result = generic_task_wrapper.schedule(
             args=(module_path, function_name, args or (), kwargs or {}),
@@ -438,24 +429,22 @@ class HueyWorker(BaseWorker):
             config_lines.append(f"huey = MemoryHuey('{name}')")
 
             # Add generic Huey task definition
-            config_lines.extend(
-                [
-                    "import importlib",
-                    "",
-                    "@huey.task(context=True)",
-                    "def generic_huey_task(module_path, function_name, args, kwargs, task=None):",
-                    '    """Generic Huey task to execute an arbitrary function."""',
-                    "    try:",
-                    "        module = importlib.import_module(module_path)",
-                    "        func_to_run = getattr(module, function_name)",
-                    "        print(f\"Executing {module_path}.{function_name} via Huey task {task.id if task else 'N/A'}\")",
-                    "        return func_to_run(*args, **kwargs)",
-                    "    except Exception as e:",
-                    '        print(f"Error in generic_huey_task executing {module_path}.{function_name}: {e}")',
-                    "        raise # Re-raise the exception so Huey handles retries/errors",
-                    "",
-                ]
-            )
+            config_lines.extend([
+                "import importlib",
+                "",
+                "@huey.task(context=True)",
+                "def generic_huey_task(module_path, function_name, args, kwargs, task=None):",
+                '    """Generic Huey task to execute an arbitrary function."""',
+                "    try:",
+                "        module = importlib.import_module(module_path)",
+                "        func_to_run = getattr(module, function_name)",
+                "        print(f\"Executing {module_path}.{function_name} via Huey task {task.id if task else 'N/A'}\")",
+                "        return func_to_run(*args, **kwargs)",
+                "    except Exception as e:",
+                '        print(f"Error in generic_huey_task executing {module_path}.{function_name}: {e}")',
+                "        raise # Re-raise the exception so Huey handles retries/errors",
+                "",
+            ])
             config_content = "\n".join(config_lines)
             try:
                 self._fs.write_text(self._huey_config_path, config_content)

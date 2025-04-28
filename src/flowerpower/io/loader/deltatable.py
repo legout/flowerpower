@@ -7,17 +7,13 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
 from deltalake.exceptions import TableNotFoundError
-
 # from ..utils import get_dataframe_metadata, get_delta_metadata
 from loguru import logger
 from sherlock import RedisLock
 
 from ..base import BaseDatasetReader
-from ..metadata import (
-    get_dataframe_metadata,
-    get_delta_metadata,
-    get_pyarrow_dataset_metadata,
-)
+from ..metadata import (get_dataframe_metadata, get_delta_metadata,
+                        get_pyarrow_dataset_metadata)
 
 # from hamilton.function_modifiers import dataloader
 

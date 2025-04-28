@@ -4,23 +4,23 @@ RQSchedulerBackend implementation for FlowerPower using RQ and rq-scheduler.
 This module implements the scheduler backend using RQ (Redis Queue) and rq-scheduler.
 """
 
-import time
 import datetime as dt
 import multiprocessing
 import platform
 import sys
+import time
 import uuid
 from typing import Any, Callable
+
 from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
-from rq.worker import Worker
-from rq.worker_pool import WorkerPool
 from rq.job import Job
 from rq.results import Result
+from rq.worker import Worker
+from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
-
 
 from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
@@ -55,11 +55,11 @@ class RQWorker(BaseWorker):
         ```python
         worker = RQWorker(name="my_rq_worker")
         worker.start_worker(background=True)
-        
+
         # Add a job
         def my_job(x: int) -> int:
             return x * 2
-            
+
         job_id = worker.add_job(my_job, func_args=(10,))
         ```
     """
@@ -129,7 +129,7 @@ class RQWorker(BaseWorker):
         redis_conn = self._backend.client
         self._queues = {}
 
-        self._queue_names = self._backend.queues#[:-1]
+        self._queue_names = self._backend.queues  # [:-1]
         for queue_name in self._queue_names:
             queue = Queue(name=queue_name, connection=redis_conn)
             self._queues[queue_name] = queue
@@ -212,6 +212,7 @@ class RQWorker(BaseWorker):
             ```
         """
         import multiprocessing
+
         logging_level = kwargs.pop("logging_level", self._log_level)
         burst = kwargs.pop("burst", False)
         max_jobs = kwargs.pop("max_jobs", None)
@@ -256,7 +257,12 @@ class RQWorker(BaseWorker):
                 worker_proc._install_signal_handlers = lambda: None
 
                 # Work until terminated
-                worker_proc.work(with_scheduler=True, logging_level=logging_level, burst=burst, max_jobs=max_jobs)
+                worker_proc.work(
+                    with_scheduler=True,
+                    logging_level=logging_level,
+                    burst=burst,
+                    max_jobs=max_jobs,
+                )
 
             # Create and start the process
             process = multiprocessing.Process(
@@ -275,7 +281,12 @@ class RQWorker(BaseWorker):
             logger.info(
                 f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
             )
-            worker.work(with_scheduler=True, logging_level=logging_level, burst=burst, max_jobs=max_jobs)
+            worker.work(
+                with_scheduler=True,
+                logging_level=logging_level,
+                burst=burst,
+                max_jobs=max_jobs,
+            )
 
     def stop_worker(self) -> None:
         """Stop the worker process.
@@ -383,16 +394,21 @@ class RQWorker(BaseWorker):
 
         # Initialize RQ's WorkerPool
         worker_pool = WorkerPool(
-            queues=queue_list, connection=self._backend.client, num_workers=num_workers, **kwargs
+            queues=queue_list,
+            connection=self._backend.client,
+            num_workers=num_workers,
+            **kwargs,
         )
-        #worker_pool.log = logger
+        # worker_pool.log = logger
 
         self._worker_pool = worker_pool
 
         if background:
             # Start the worker pool process using multiprocessing to avoid signal handler issues
             def run_pool_process():
-                worker_pool.start(burst=burst, logging_level=logging_level, max_jobs=max_jobs)   
+                worker_pool.start(
+                    burst=burst, logging_level=logging_level, max_jobs=max_jobs
+                )
 
             self._pool_process = multiprocessing.Process(
                 target=run_pool_process,
@@ -1134,7 +1150,6 @@ class RQWorker(BaseWorker):
                 f"Scheduled job {schedule.id} ({func.__name__}) to run at '{date}'"
             )
 
-
         return schedule
 
     def _get_schedule_queue_name(self, schedule: str | Job) -> str | None:
@@ -1380,7 +1395,7 @@ class RQWorker(BaseWorker):
             ```
         """
         return self.delete_job(schedule)
-    
+
     def delete_all_schedules(self) -> None:
         """Delete all schedules and their results.
 

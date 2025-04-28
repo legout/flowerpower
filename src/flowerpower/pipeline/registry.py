@@ -2,25 +2,22 @@
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
 import datetime as dt
-from loguru import logger
 import posixpath
 from typing import TYPE_CHECKING
 
 import rich
+from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
+from .. import settings
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
-
 from ..fs import AbstractFileSystem
-
 from ..utils.logging import setup_logging
-from .. import settings
-
 # Assuming view_img might be used indirectly or needed later
 from ..utils.templates import PIPELINE_PY_TEMPLATE
 
@@ -431,9 +428,12 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append(
-                {"name": name, "path": path, "mod_time": mod_time, "size": size}
-            )
+            pipeline_info.append({
+                "name": name,
+                "path": path,
+                "mod_time": mod_time,
+                "size": size,
+            })
 
         if show:
             table = Table(title="Available Pipelines")
