@@ -1,9 +1,9 @@
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
-from .worker import APSWorker
+from .manager import APSManager
 
 __all__ = [
-    "APSWorker",
+    "APSManager",
     "APSTrigger",
     "APSBackend",
     "APSDataStore",

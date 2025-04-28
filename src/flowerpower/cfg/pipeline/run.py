@@ -29,6 +29,10 @@ class RunConfig(BaseConfig):
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     log_level: str | None = msgspec.field(default=None)
+    max_retries: int = msgspec.field(default=3)
+    retry_delay: int | float = msgspec.field(default=1)
+    jitter_factor: float | None = msgspec.field(default=0.1)
+    retry_exceptions: tuple[str] = msgspec.field(default_factory=lambda: ("Exception",))
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):

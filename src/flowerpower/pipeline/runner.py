@@ -2,7 +2,8 @@
 """Pipeline Runner."""
 
 from __future__ import annotations
-
+import time
+import random
 import datetime as dt
 import importlib.util
 from typing import Any, Callable
@@ -12,8 +13,12 @@ from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
+from hamilton_sdk.api.clients import UnauthorizedException
+
+from requests.exceptions import HTTPError
 
 from .. import settings
+
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -307,7 +312,7 @@ class PipelineRunner:
     def _get_driver(
         self,
         config: dict | None = None,
-        cache: bool|dict = False,
+        cache: bool | dict = False,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
@@ -320,8 +325,8 @@ class PipelineRunner:
 
         Args:
             config (dict | None): The configuration for the pipeline.
-            cache (bool): Use cache or not. 
-                To fine tune the cache settings, pass a dictionary with the cache settings 
+            cache (bool): Use cache or not.
+                To fine tune the cache settings, pass a dictionary with the cache settings
                 or adjust the pipeline config.
                 If set to True, the default cache settings will be used.
             executor_cfg (str | dict | ExecutorConfig | None): The executor to use.
@@ -463,19 +468,93 @@ def run_pipeline(
     adapter: dict[str, Any] | None = None,
     reload: bool = False,
     log_level: str | None = None,
+    max_retries: int = 0,
+    retry_delay: float = 1.0,
+    jitter_factor: float = 0.1,
+    retry_exceptions: tuple = (
+        Exception,
+        HTTPError,
+        UnauthorizedException,
+    ),  # Adjust to specific exceptions
 ) -> dict[str, Any]:
-    """Run the pipeline with the given parameters."""
-    with PipelineRunner(project_cfg, pipeline_cfg) as runner:
-        return runner.run(
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=reload,
-            log_level=log_level,
-        )
+    """Run the pipeline with the given parameters.
+
+    Args:
+
+        project_cfg (ProjectConfig): The project configuration.
+        pipeline_cfg (PipelineConfig): The pipeline configuration.
+        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
+        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
+        config (dict | None, optional): The config for the hamilton driver. Defaults to None.
+        cache (dict | None, optional): The cache configuration. Defaults to None.
+        executor_cfg (str | dict | ExecutorConfig | None, optional): The executor to use.
+            Overrides the executor settings in the pipeline config. Defaults to None.
+        with_adapter_cfg (dict | WithAdapterConfig | None, optional): The adapter configuration.
+            Overrides the with_adapter settings in the pipeline config. Defaults to None.
+        pipeline_adapter_cfg (dict | PipelineAdapterConfig | None, optional): The pipeline adapter configuration.
+            Overrides the adapter settings in the pipeline config. Defaults to None.
+        project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
+            Overrides the adapter settings in the project config. Defaults to None.
+        adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
+        reload (bool, optional): Whether to reload the module. Defaults to False.
+        log_level (str | None, optional): The log level to use. Defaults to None.
+        max_retries (int, optional): The maximum number of retry attempts. Defaults to 0.
+        retry_delay (float, optional): The base delay between retries in seconds. Defaults to 1.0.
+        jitter_factor (float, optional): The factor to apply for jitter. Defaults to 0.1.
+        retry_exceptions (tuple, optional): A tuple of exception classes to catch for retries. Defaults to (Exception,).
+
+    Returns:
+
+        dict[str, Any]: The result of executing the pipeline.
+
+    Raises:
+        Exception: If the pipeline execution fails after the maximum number of retries.
+    """
+    attempts = 0
+    last_exception = None
+
+    while attempts <= max_retries:
+        try:
+            with PipelineRunner(project_cfg, pipeline_cfg) as runner:
+                return runner.run(
+                    inputs=inputs,
+                    final_vars=final_vars,
+                    config=config,
+                    cache=cache,
+                    executor_cfg=executor_cfg,
+                    with_adapter_cfg=with_adapter_cfg,
+                    pipeline_adapter_cfg=pipeline_adapter_cfg,
+                    project_adapter_cfg=project_adapter_cfg,
+                    adapter=adapter,
+                    reload=reload,
+                    log_level=log_level,
+                )
+        except retry_exceptions as e:
+            if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException):
+                if with_adapter_cfg["tracker"]:
+                    logger.info("Tracker is enabled. Disabling tracker for this run.")
+                    with_adapter_cfg["tracker"] = False
+
+            attempts += 1
+            last_exception = e
+
+            if attempts <= max_retries:
+                logger.warning(
+                    f"Pipeline execution failed (attempt {attempts}/{max_retries}): {e}"
+                )
+
+                # Calculate base delay with exponential backoff
+                base_delay = retry_delay * (2 ** (attempts - 1))
+
+                # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
+                jitter = base_delay * jitter_factor * (2 * random.random() - 1)
+                actual_delay = max(0, base_delay + jitter)  # Ensure non-negative delay
+
+                logger.debug(
+                    f"Retrying in {actual_delay:.2f} seconds (base: {base_delay:.2f}s, jitter: {jitter:.2f}s)"
+                )
+                time.sleep(actual_delay)
+            else:
+                # Last attempt failed
+                logger.error(f"Pipeline execution failed after {max_retries} attempts")
+                raise last_exception

@@ -5,7 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
 from uuid import UUID
-
+import duration_parser
 from loguru import logger
 from munch import Munch
 
@@ -412,6 +412,11 @@ class PipelineManager:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
+
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -419,26 +424,32 @@ class PipelineManager:
         loading, adapter setup, and execution via PipelineRunner.
 
         Args:
-            name: Name of the pipeline to run
-            inputs: Override pipeline input values. Example: {"data_date": "2025-04-28"}
-            final_vars: Override output variables to compute. Example: ["final_result"]
-            config: Override Hamilton driver configuration. Example: {"result_builder": "pandas"}
-            cache: Cache configuration for results. Example: {"type": "memory", "ttl": 3600}
-            executor_cfg: Execution configuration, can be:
+            name (str): Name of the pipeline to run. Must be a valid identifier.
+            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
+            final_vars (list[str] | None): Specify which output variables to return.
+                Example: ["model", "metrics"]
+            config (dict | None): Configuration for Hamilton pipeline executor.
+                Example: {"model": "LogisticRegression"}
+            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
+            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
                 - str: Executor name, e.g. "threadpool", "local"
                 - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
                 - ExecutorConfig: Structured config object
-            with_adapter_cfg: Enable/disable specific adapters.
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
                 Example: {"opentelemetry": True, "tracker": False}
-            pipeline_adapter_cfg: Pipeline-specific adapter settings.
+             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
                 Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg: Project-level adapter settings.
-                Example: {"opentelemetry": {"endpoint": "http://localhost:4317"}}
-            adapter: Additional Hamilton adapters to inject.
-                Example: {"custom_adapter": CustomAdapterInstance()}
-            reload: Whether to reload pipeline module and config before running
-            log_level: Override logging level for this run.
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
+                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+                Example: {"ray_graph_adapter": RayGraphAdapter()}
+            reload (bool): Force reload of pipeline configuration.
+            log_level (str | None): Logging level for the execution. Default None uses project config.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+            max_retries (int): Maximum number of retries for execution.
+            retry_delay (float): Delay between retries in seconds.
+            jitter_factor (float): Random jitter factor to add to retry delay
+            retry_exceptions (tuple): Exceptions that trigger a retry.
 
         Returns:
             dict[str, Any]: Pipeline execution results, mapping output variable names
@@ -484,8 +495,12 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            reload=reload,  # Runner handles module reload if needed
+            #reload=reload,  # Runner handles module reload if needed
             log_level=log_level,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
         )
         return res
 
@@ -1153,6 +1168,10 @@ class PipelineManager:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute a pipeline job immediately through the task queue.
@@ -1161,27 +1180,33 @@ class PipelineManager:
         the pipeline through the configured worker system (RQ, APScheduler, etc.).
 
         Args:
-            name: Name of the pipeline to run
-            inputs: Override pipeline inputs
-                Example: {"start_date": "2025-04-28", "end_date": "2025-04-29"}
-            final_vars: Specific output variables to compute
-                Example: ["daily_metrics", "summary_report"]
-            config: Hamilton driver configuration
-                Example: {"result_builder": "pandas", "enable_cache": True}
-            cache: Activate caching. Can be a boolean or a dict with cache settings.
-                Example: True or {"recompute": ["node1", "node2"]}
-            executor_cfg: Execution strategy configuration
-                Example: {"type": "async", "max_workers": 4}
-            with_adapter_cfg: Adapter enablement settings
-                Example: {"enable_tracking": True, "enable_validation": True}
-            pipeline_adapter_cfg: Pipeline-specific adapter settings
-                Example: {"tracker": {"project_id": "123"}}
-            project_adapter_cfg: Project-wide adapter settings
-                Example: {"telemetry": {"endpoint": "http://collector:4317"}}
-            adapter: Additional custom adapters
-                Example: {"custom": CustomAdapterInstance()}
-            reload: Whether to reload pipeline configuration
-            log_level: Override logging level for this run
+            name (str): Name of the pipeline to run. Must be a valid identifier.
+            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
+            final_vars (list[str] | None): Specify which output variables to return.
+                Example: ["model", "metrics"]
+            config (dict | None): Configuration for Hamilton pipeline executor.
+                Example: {"model": "LogisticRegression"}
+            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
+            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
+                - str: Executor name, e.g. "threadpool", "local"
+                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
+                - ExecutorConfig: Structured config object
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
+                Example: {"opentelemetry": True, "tracker": False}
+             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
+                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
+                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+                Example: {"ray_graph_adapter": RayGraphAdapter()}
+            reload (bool): Force reload of pipeline configuration.
+            log_level (str | None): Logging level for the execution. Default None uses project config.
+                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+            max_retries (int): Maximum number of retries for execution.
+            retry_delay (float): Delay between retries in seconds.
+            jitter_factor (float): Random jitter factor to add to retry delay
+            retry_exceptions (tuple): Exceptions that trigger a retry.
+            
             **kwargs: JobQueue-specific arguments
                 For RQ:
                     - queue_name: Queue to use (str)
@@ -1229,6 +1254,10 @@ class PipelineManager:
             adapter=adapter,
             #reload=reload,
             log_level=log_level,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
             **kwargs,
         )
 
@@ -1238,6 +1267,7 @@ class PipelineManager:
         inputs: dict | None = None,
         final_vars: list[str] | None = None,
         config: dict | None = None,
+        cache: bool | dict = False,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
@@ -1245,26 +1275,53 @@ class PipelineManager:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,  # Reload config/module before creating run_func
         log_level: str | None = None,
-        result_ttl: float | dt.timedelta = 0,
-        run_at: dt.datetime | None = None,
-        run_in: dt.datetime | None = None,
+        result_ttl: int | dt.timedelta = 0,
+        run_at: dt.datetime | str | None = None,
+        run_in: dt.datetime |  str | None = None,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        jitter_factor: float = 0.1,
+        retry_exceptions: tuple = (Exception,),
         **kwargs,  # JobQueue specific args
     ) -> str | UUID:
         """Adds a jobt to the task queue.
 
         Args:
-            name (str): The name of the pipeline to run.
-            inputs (dict | None): Inputs for the pipeline run (overrides config).
-            final_vars (list[str] | None): Final variables for the pipeline run (overrides config).
-            config (dict | None): Hamilton driver config (overrides config).
-            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
-            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration (overrides config).
-            adapter (dict[str, Any] | None): Additional Hamilton adapters (overrides config).
-            reload (bool): Whether to reload module and pipeline config. Defaults to False.
-            log_level (str | None): Log level for the run (overrides config).
-            result_ttl (float | dt.timedelta, optional): Time to live for the job result. Defaults to 0.
+            name (str): Name of the pipeline to run. Must be a valid identifier.
+            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
+            final_vars (list[str] | None): Specify which output variables to return.
+                Example: ["model", "metrics"]
+            config (dict | None): Configuration for Hamilton pipeline executor.
+                Example: {"model": "LogisticRegression"}
+            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
+            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
+                - str: Executor name, e.g. "threadpool", "local"
+                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
+                - ExecutorConfig: Structured config object
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
+                Example: {"opentelemetry": True, "tracker": False}
+             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
+                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
+                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+                Example: {"ray_graph_adapter": RayGraphAdapter()}
+            reload (bool): Force reload of pipeline configuration.
+            run_at (dt.datetime | str | None): Future date to run the job.
+                Example: datetime(2025, 4, 28, 12, 0)
+                Example str: "2025-04-28T12:00:00" (ISO format)
+            run_in (dt.datetime | str | None): Time interval to run the job.
+                Example: 3600 (every hour in seconds)
+                Example: datetime.timedelta(days=1)
+                Example str: "1d" (1 day)
+            result_ttl (int | dt.timedelta): Time to live for the job result.
+                Example: 3600 (1 hour in seconds)
+            log_level (str | None): Logging level for the execution. Default None uses project config.
+                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+            max_retries (int): Maximum number of retries for execution.
+            retry_delay (float): Delay between retries in seconds.
+            jitter_factor (float): Random jitter factor to add to retry delay
+            retry_exceptions (tuple): Exceptions that trigger a retry.
             **kwargs: Additional keyword arguments passed to the worker's add_job method.
                 For RQ this includes:
                     - result_ttl: Time to live for the job result (float or timedelta)
@@ -1288,6 +1345,10 @@ class PipelineManager:
 
         """
         run_func = self._get_run_func_for_job(name, reload)
+        run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in #convert to seconds
+        run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+
+
         return self.job_queue.add_job(
             run_func=run_func,
             name=name,  # Pass name for logging
@@ -1295,6 +1356,7 @@ class PipelineManager:
             inputs=inputs,
             final_vars=final_vars,
             config=config,
+            cache=cache,
             executor_cfg=executor_cfg,
             with_adapter_cfg=with_adapter_cfg,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
@@ -1305,6 +1367,10 @@ class PipelineManager:
             result_ttl=result_ttl,
             run_at=run_at,
             run_in=run_in,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
             **kwargs,  # Pass worker args
         )
 
@@ -1314,6 +1380,7 @@ class PipelineManager:
         inputs: dict | None = None,
         final_vars: list[str] | None = None,
         config: dict | None = None,
+        cache: bool | dict = False,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
@@ -1323,36 +1390,46 @@ class PipelineManager:
         log_level: str | None = None,
         cron: str | dict[str, str | int] | None = None,
         interval: int | str | dict[str, str | int] | None = None,
-        date: dt.datetime | None = None,
+        date: dt.datetime | str | None = None,
         overwrite: bool = False,
         schedule_id: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
         **kwargs: Any,
     ) -> str | UUID:
         """Schedule a pipeline to run on a recurring or future basis.
 
         Args:
-            name: Pipeline name to schedule
-            inputs: Pipeline input overrides
-                Example: {"data_date": "{{ execution_date }}"}
-            final_vars: Specific outputs to compute
-            config: Hamilton driver configuration
-            executor_cfg: Execution configuration
-            with_adapter_cfg: Adapter enablement settings
-            pipeline_adapter_cfg: Pipeline adapter settings
-            project_adapter_cfg: Project adapter settings
-            adapter: Additional custom adapters
-            reload: Whether to reload configuration
-            log_level: Override logging level
-            cron: Cron expression or settings
+            name (str): The name of the pipeline to run.
+            inputs (dict | None): Inputs for the pipeline run (overrides config).
+            final_vars (list[str] | None): Final variables for the pipeline run (overrides config).
+            config (dict | None): Hamilton driver config (overrides config).
+            cache (bool | dict): Cache settings (overrides config).
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration (overrides config).
+            adapter (dict[str, Any] | None): Additional Hamilton adapters (overrides config).
+            reload (bool): Whether to reload module and pipeline config. Defaults to False.
+            log_level (str | None): Log level for the run (overrides config).
+            cron (str | dict[str, str | int] | None): Cron expression or settings
                 Example string: "0 0 * * *" (daily at midnight)
                 Example dict: {"minute": "0", "hour": "*/2"} (every 2 hours)
-            interval: Time interval for recurring execution
+            interval (int | str | dict[str, str | int] | None): Time interval for recurring execution
                 Example int: 3600 (every hour in seconds)
+                Example str: "1h" (every hour)
                 Example dict: {"hours": 1, "minutes": 30} (every 90 minutes)
-            date: Specific future execution date
+            date (dt.datetime | str | None): Future date for
                 Example: datetime(2025, 4, 28, 12, 0)
-            overwrite: Whether to overwrite existing schedule
-            schedule_id: Custom ID for the schedule
+                Example str: "2025-04-28T12:00:00" (ISO format)
+            overwrite (bool): Whether to overwrite existing schedule with the same ID
+            schedule_id (str | None): Unique identifier for the schedule
+            max_retries (int): Maximum number of retries for execution
+            retry_delay (float): Delay between retries in seconds
+            jitter_factor (float): Random jitter factor to add to retry delay
+            retry_exceptions (tuple): Exceptions that trigger a retry
             **kwargs: JobQueue-specific scheduling options
                 For RQ:
                     - result_ttl: Result lifetime (int seconds)
@@ -1399,6 +1476,8 @@ class PipelineManager:
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         run_func = self._get_run_func_for_job(name, reload)
+        interval = duration_parser.parse(interval) if isinstance(interval, str) else interval
+        date = dt.datetime.fromisoformat(date) if isinstance(date, str) else date
 
         return self.job_queue.schedule(
             run_func=run_func,
@@ -1406,6 +1485,7 @@ class PipelineManager:
             inputs=inputs,
             final_vars=final_vars,
             config=config,
+            cache=cache,
             executor_cfg=executor_cfg,
             with_adapter_cfg=with_adapter_cfg,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
@@ -1418,6 +1498,10 @@ class PipelineManager:
             date=date,
             overwrite=overwrite,
             schedule_id=schedule_id,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
             **kwargs,
         )
 

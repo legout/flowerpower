@@ -4,22 +4,25 @@ import socket
 import time
 from pathlib import Path
 from types import TracebackType
-from typing import Callable
+from typing import Callable, Any
 
 import mmh3
-from fsspec import AbstractFileSystem
 from loguru import logger
 from munch import Munch
 from paho.mqtt.client import CallbackAPIVersion, Client
 
-from .cfg import Config
-from .pipeline.manager import PipelineManager
-from .utils.logging import setup_logging
+from .cfg import MqttConfig
+from ...cfg import ProjectConfig
+from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ...cfg.project.adapter import AdapterConfig
+from ...pipeline.manager import PipelineManager
+from ...utils.logging import setup_logging
+from ...fs import get_filesystem, AbstractFileSystem, BaseStorageOptions
 
 setup_logging()
 
 
-class MQTTManager:
+class MqttManager:
     def __init__(
         self,
         username: str | None = None,
@@ -60,7 +63,61 @@ class MQTTManager:
 
         self._client = None
 
-    def __enter__(self) -> "MQTTManager":
+    @classmethod
+    def from_event_broker(cls, base_dir: str | None = None):
+        base_dir = base_dir or str(Path.cwd())
+
+        jq_backend = ProjectConfig.load(base_dir=base_dir).job_queue.backend
+        if jq_backend is None:
+            raise ValueError(
+                "No MQTT event broker configuration found. Recheck the provided `base_dir`.\n"
+                "If you are not using a MQTT event broker, initialize the MQTT client using the MQTTManager class.\n"
+                "or use the provide a configuration dict to the MQTTManager.from_dict() method."
+            )
+        if hasattr(jq_backend, "event_broker") is False:
+            raise ValueError(
+                "No MQTT event broker configuration found. Recheck the provided `base_dir`.\n"
+                "If you are not using a MQTT event broker, initialize the MQTT client using the MQTTManager class.\n"
+                "or use the provide a configuration dict to the MQTTManager.from_dict() method."
+            )
+        if jq_backend.event_broker.type != "mqtt":
+            raise ValueError(
+                "No MQTT event broker configuration found. Recheck the provided `base_dir`.\n"
+                "If you are not using a MQTT event broker, initialize the MQTT client using the MQTTManager class.\n"
+                "or use the provide a configuration dict to the MQTTManager.from_dict() method."
+            )
+        else:
+            event_broker_cfg = jq_backend.event_broker
+            return cls(
+               **event_broker_cfg.dict(),
+            )
+
+    @classmethod
+    def from_config(cls, cfg: MqttConfig | None=None, path: str | None = None, fs: AbstractFileSystem | None = None, storage_options: dict | BaseStorageOptions = {}):
+        if cfg is None:
+            if path is None:
+                raise ValueError(
+                    "No configuration provided. Please provide `config` or `path` to the configuration file."
+                )
+            
+        if cfg is None:
+            import os
+            if fs is None:
+                fs = get_filesystem(path=os.path.dirname(path), storage_options=storage_options)
+
+            cfg = MqttConfig.from_yaml(path=os.path.basename(path), fs=fs)
+
+        return cls(
+            **cfg.dict(),
+        )
+    
+    @classmethod
+    def from_dict(cls, cfg: dict):
+        return cls(
+            **cfg,
+        )
+
+    def __enter__(self) -> "MqttManager":
         self.connect()
         return self
 
@@ -189,7 +246,7 @@ class MQTTManager:
         #    self.reconnect()
         self._client.publish(topic, payload)
 
-    def subscribe(self, topic: str | None = None, qos: int = 0):
+    def subscribe(self, topic: str | None = None, qos: int = 2):
         if topic is not None:
             self.topic = topic
         self._client.subscribe(self.topic, qos=qos)
@@ -206,7 +263,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
-        qos: int = 0,
+        qos: int = 2,
     ) -> None:
         """
         Run the MQTT client in the background.
@@ -231,7 +288,7 @@ class MQTTManager:
         self,
         on_message: Callable,
         topic: str | None = None,
-        qos: int = 0,
+        qos: int = 2,
     ):
         """
         Run the MQTT client until a break signal is received.
@@ -257,7 +314,7 @@ class MQTTManager:
         on_message: Callable,
         topic: str | None = None,
         background: bool = False,
-        qos: int = 0,
+        qos: int = 2,
     ) -> None:
         """
         Start the MQTT listener.
@@ -287,54 +344,7 @@ class MQTTManager:
         self._client.loop_stop()
         logger.info("Client stopped.")
 
-    @classmethod
-    def from_event_broker(cls, base_dir: str | None = None):
-        base_dir = base_dir or str(Path.cwd())
-
-        event_broker_cfg = Config.load(base_dir=base_dir).project.job_queue.event_broker
-        if event_broker_cfg is not None:
-            if event_broker_cfg.get("type", None) == "mqtt":
-                logger.debug(f"{event_broker_cfg}")
-                return cls(
-                    user=event_broker_cfg.get("username", None),
-                    pw=event_broker_cfg.get("password", None),
-                    host=event_broker_cfg.get("host", "localhost"),
-                    port=event_broker_cfg.get("port", 1883),
-                    transport=event_broker_cfg.get("transport", "tcp"),
-                    clean_session=event_broker_cfg.get("clean_session", True),
-                    client_id=event_broker_cfg.get("client_id", None),
-                    client_id_suffix=event_broker_cfg.get("client_id_suffix", None),
-                    topic=event_broker_cfg.get("topic", None),
-                    qos=event_broker_cfg.get("qos", 0),
-                )
-            raise ValueError("No event broker configuration found in config file.")
-        else:
-            raise ValueError("No event broker configuration found in config file.")
-
-    @classmethod
-    def from_config(cls, cfg: dict):
-        return cls(
-            user=cfg.get("user", None),
-            pw=cfg.get("pw", None),
-            host=cfg.get("host", "localhost"),
-            port=cfg.get("port", 1883),
-            transport=cfg.get("transport", "tcp"),
-        )
-
-    @classmethod
-    def from_dict(cls, cfg: dict):
-        return cls(
-            user=cfg.get("user", None),
-            pw=cfg.get("pw", None),
-            host=cfg.get("host", "localhost"),
-            port=cfg.get("port", 1883),
-            transport=cfg.get("transport", "tcp"),
-            clean_session=cfg.get("clean_session", True),
-            client_id=cfg.get("client_id", None),
-            client_id_suffix=cfg.get("client_id_suffix", None),
-            topic=cfg.get("topic", None),
-            qos=cfg.get("qos", 0),
-        )
+    
 
     def run_pipeline_on_message(
         self,
@@ -343,18 +353,26 @@ class MQTTManager:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor: str | None = None,
-        with_tracker: bool | None = None,
-        with_opentelemetry: bool | None = None,
-        with_progressbar: bool | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | ExecutorConfig | None = None,
+        with_adapter_cfg: dict | WithAdapterConfig | None = None,
+        pipeline_adapter_cfg: dict | AdapterConfig | None = None,
+        project_adapter_cfg: dict | AdapterConfig | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
-        result_expiration_time: float | dt.timedelta = 0,
+        log_level: str | None = None,
+        result_ttl: float | dt.timedelta = 0,
+        run_in: int | str | dt.timedelta | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
         as_job: bool = False,
         base_dir: str | None = None,
         storage_options: dict = {},
         fs: AbstractFileSystem | None = None,
         background: bool = False,
-        qos: int = 0,
+        qos: int = 2,
         config_hook: Callable[[bytes, int], dict] | None = None,
         **kwargs,
     ):
@@ -362,29 +380,59 @@ class MQTTManager:
         Start a pipeline listener that listens to a topic and processes the message using a pipeline.
 
         Args:
-            name: Name of the pipeline
-            topic: MQTT topic to listen to
-            inputs: Inputs for the pipeline
-            final_vars: Final variables for the pipeline
-            config: Configuration for the pipeline driver
-            executor: Executor to use for the pipeline
-            with_tracker: Use tracker for the pipeline
-            with_opentelemetry: Use OpenTelemetry for the pipeline
-            with_progressbar: Use progress for the pipeline
-            reload: Reload the pipeline
-            result_expiration_time: Result expiration time for the pipeline
-            as_job: Run the pipeline as a job
-            base_dir: Base directory for the pipeline
-            storage_options: Storage options for the pipeline
-            fs: File system for the pipeline
-            background: Run the listener in the background
+            name (str): Name of the pipeline
+            topic (str | None): MQTT topic to listen to
+            inputs (dict | None): Inputs for the pipeline
+            final_vars (list | None): Final variables for the pipeline
+            config (dict | None): Configuration for the pipeline driver
+            cache (bool | dict): Cache for the pipeline
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration
+            with_adapter_cfg (dict | WithAdapterConfig | None): With adapter configuration
+            pipeline_adapter_cfg (dict | AdapterConfig | None): Pipeline adapter configuration
+            project_adapter_cfg (dict | AdapterConfig | None): Project adapter configuration
+            adapter (dict[str, Any] | None): Adapter configuration
+            reload (bool): Reload the pipeline
+            log_level (str | None): Log level for the pipeline
+            result_ttl (float | dt.timedelta): Result expiration time for the pipeline
+            run_in (int | str | dt.timedelta | None): Run in time for the pipeline
+            max_retries (int | None): Maximum number of retries for the pipeline
+            retry_delay (float | None): Delay between retries for the pipeline
+            jitter_factor (float | None): Jitter factor for the pipeline
+            retry_exceptions (tuple | list | None): Exceptions to retry for the pipeline
+            as_job (bool): Run the pipeline as a job
+            base_dir (str | None): Base directory for the pipeline
+            storage_options (dict): Storage options for the pipeline
+            fs (AbstractFileSystem | None): File system for the pipeline
+            background (bool): Run the listener in the background
+            qos (int): Quality of Service for the MQTT client
+            config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
             **kwargs: Additional keyword arguments
 
         Returns:
-            MQTTClient: MQTT client
+            None
+
+        Raises:
+            ValueError: If the config_hook is not callable
+
+        Example:
+            ```python
+            from flowerpower.plugins.mqtt import MqttManager
+            mqtt = MqttManager()
+            mqtt.run_pipeline_on_message(
+                name="my_pipeline",
+                topic="my_topic",
+                inputs={"key": "value"},
+                config={"param": "value"},
+                as_job=True,
+            )
+            ```
         """
+
         if inputs is None:
             inputs = {}
+
+        if config is None:
+            config = {}
 
         if config_hook is not None and not callable(config_hook):
             raise ValueError("config_hook must be a callable function")
@@ -394,13 +442,6 @@ class MQTTManager:
 
             inputs["payload"] = msg.payload
             inputs["topic"] = msg.topic
-
-            if config_hook is not None:
-                config = config_hook(inputs["payload"], inputs["topic"])
-                logger.debug(f"Config from hook: {config}")
-
-            if config is None:
-                config = {}
 
             if config_hook is not None:
                 config_ = config_hook(inputs["payload"], inputs["topic"])
@@ -422,27 +463,43 @@ class MQTTManager:
                             name=name,
                             inputs=inputs,
                             final_vars=final_vars,
-                            executor=executor,
                             config=config,
-                            with_tracker=with_tracker,
-                            with_opentelemetry=with_opentelemetry,
-                            with_progressbar=with_progressbar,
+                            cache=cache,
+                            executor_cfg=executor_cfg,
+                            with_adapter_cfg=with_adapter_cfg,
+                            pipeline_adapter_cfg=pipeline_adapter_cfg,
+                            project_adapter_cfg=project_adapter_cfg,
+                            adapter=adapter,
+                            run_in=run_in,
                             reload=reload,
-                            result_expiration_time=result_expiration_time,
-                            **kwargs,
+                            log_level=log_level,
+                            result_ttl=result_ttl,
+                            max_retries=max_retries,
+                            retry_delay=retry_delay,
+                            jitter_factor=jitter_factor,
+                            retry_exceptions=retry_exceptions,
+                            **kwargs,  
                         )
                     else:
                         pipeline.run(
                             name=name,
                             inputs=inputs,
                             final_vars=final_vars,
-                            executor=executor,
                             config=config,
-                            with_tracker=with_tracker,
-                            with_opentelemetry=with_opentelemetry,
-                            with_progressbar=with_progressbar,
+                            cache=cache,
+                            executor_cfg=executor_cfg,
+                            with_adapter_cfg=with_adapter_cfg,
+                            pipeline_adapter_cfg=pipeline_adapter_cfg,
+                            project_adapter_cfg=project_adapter_cfg,
+                            adapter=adapter,
                             reload=reload,
-                            result_expiration_time=result_expiration_time,
+                            log_level=log_level,
+                            result_ttl=result_ttl,
+                            run_in=run_in,
+                            max_retries=max_retries,
+                            retry_delay=retry_delay,
+                            jitter_factor=jitter_factor,
+                            retry_exceptions=retry_exceptions,
                             **kwargs,
                         )
                     logger.success("Message processed successfully")
@@ -462,12 +519,18 @@ def start_listener(
     on_message: Callable,
     topic: str | None = None,
     background: bool = False,
-    mqtt_cfg: dict = {},
+    mqtt_cfg: dict | MqttConfig = {},
     base_dir: str | None = None,
     username: str | None = None,
     password: str | None = None,
     host: str | None = None,
     port: int | None = None,
+    clean_session: bool = True,
+    qos: int = 2,
+    client_id: str | None = None,
+    client_id_suffix: str | None = None,
+    config_hook: Callable[[bytes, int], dict] | None = None,
+    **kwargs,
 ) -> None:
     """
     Start the MQTT listener.
@@ -478,31 +541,62 @@ def start_listener(
     connection parameters or the arguments `username`, `password`, `host`, and `port`.
 
     Args:
-        on_message: Callback function to run when a message is received
-        topic: MQTT topic to listen to
-        background: Run the listener in the background
-        mqtt_cfg: MQTT client configuration. Use either this or arguments
+        on_message (Callable): Callback function to run when a message is received
+        topic (str | None): MQTT topic to listen to
+        background (bool): Run the listener in the background
+        mqtt_cfg (dict | MqttConfig): MQTT client configuration. Use either this or arguments
             username, password, host, and port.
-        base_dir: Base directory for the MQTT client
-        username: Username for the MQTT client
-        password: Password for the MQTT client
-        host: Host for the MQTT client
-        port: Port for the MQTT client
+        base_dir (str | None): Base directory for the module
+        username (str | None): Username for the MQTT client
+        password (str | None): Password for the MQTT client
+        host (str | None): Host for the MQTT client
+        port (int | None): Port for the MQTT client
+        clean_session (bool): Clean session flag for the MQTT client
+        qos (int): Quality of Service for the MQTT client
+        client_id (str | None): Client ID for the MQTT client
+        client_id_suffix (str | None): Client ID suffix for the MQTT client
+        config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
+        **kwargs: Additional keyword arguments
 
     Returns:
         None
+
+    Raises:
+        ValueError: If the config_hook is not callable
+        ValueError: If no client configuration is found
+    
+    Example:
+        ```python
+        from flowerpower.plugins.mqtt import start_listener
+
+        start_listener(
+            on_message=my_on_message_function,
+            topic="my_topic",
+            background=True,
+            mqtt_cfg={"host": "localhost", "port": 1883},
+        )
+        ```
     """
     try:
-        client = MQTTManager.from_event_broker(base_dir)
+        client = MqttManager.from_event_broker(base_dir)
     except ValueError:
         if mqtt_cfg:
-            client = MQTTManager.from_dict(mqtt_cfg)
+            if isinstance(mqtt_cfg, MqttConfig):
+                client = MqttManager.from_config(mqtt_cfg)
+            elif isinstance(mqtt_cfg, dict):
+                client = MqttManager.from_dict(mqtt_cfg)
         elif host and port:
-            client = MQTTManager(
+            client = MqttManager(
                 username=username,
                 password=password,
                 host=host,
                 port=port,
+                clean_session=clean_session,
+                client_id=client_id,
+                client_id_suffix=client_id_suffix,
+                config_hook=config_hook,
+                **kwargs,
+                
             )
         else:
             raise ValueError(
@@ -511,7 +605,7 @@ def start_listener(
                 "configured in the `config/project.yml` file."
             )
 
-    client.start_listener(on_message=on_message, topic=topic, background=background)
+    client.start_listener(on_message=on_message, topic=topic, background=background, qos=qos)
 
 
 def run_pipeline_on_message(
@@ -520,24 +614,32 @@ def run_pipeline_on_message(
     inputs: dict | None = None,
     final_vars: list | None = None,
     config: dict | None = None,
-    executor: str | None = None,
-    with_tracker: bool | None = None,
-    with_opentelemetry: bool | None = None,
-    with_progressbar: bool | None = None,
+    cache: bool | dict = False,
+    executor_cfg: str | dict | ExecutorConfig | None = None,
+    with_adapter_cfg: dict | WithAdapterConfig | None = None,
+    pipeline_adapter_cfg: dict | AdapterConfig | None = None,
+    project_adapter_cfg: dict | AdapterConfig | None = None,
+    adapter: dict[str, Any] | None = None,
     reload: bool = False,
-    result_expiration_time: float | dt.timedelta = 0,
+    log_level: str | None = None,
+    result_ttl: float | dt.timedelta = 0,
+    run_in: int | str | dt.timedelta | None = None,
+    max_retries: int | None = None,
+    retry_delay: float | None = None,
+    jitter_factor: float | None = None,
+    retry_exceptions: tuple | list | None = None,
     as_job: bool = False,
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
     background: bool = False,
-    mqtt_cfg: dict = {},
+    mqtt_cfg: dict | MqttConfig = {},
     host: str | None = None,
     port: int | None = None,
     username: str | None = None,
     password: str | None = None,
     clean_session: bool = True,
-    qos: int = 0,
+    qos: int = 2,
     client_id: str | None = None,
     client_id_suffix: str | None = None,
     config_hook: Callable[[bytes, int], dict] | None = None,
@@ -547,50 +649,83 @@ def run_pipeline_on_message(
     Start a pipeline listener that listens to a topic and processes the message using a pipeline.
 
     Args:
-        name: Name of the pipeline
-        topic: MQTT topic to listen to
-        inputs: Inputs for the pipeline
-        final_vars: Final variables for the pipeline
-        config: Configuration for the pipeline driver
-        executor: Executor to use for the pipeline
-        with_tracker: Use tracker for the pipeline
-        with_opentelemetry: Use OpenTelemetry for the pipeline
-        reload: Reload the pipeline
-        result_expiration_time: Result expiration time for the pipeline
-        as_job: Run the pipeline as a job
-        base_dir: Base directory for the pipeline
-        storage_options: Storage options for the pipeline
-        fs: File system for the pipeline
-        background: Run the listener in the background
-        mqtt_cfg: MQTT client configuration. Use either this or arguments
+        name (str): Name of the pipeline
+        topic (str | None): MQTT topic to listen to
+        inputs (dict | None): Inputs for the pipeline
+        final_vars (list | None): Final variables for the pipeline
+        config (dict | None): Configuration for the pipeline driver
+        cache (bool | dict): Cache for the pipeline
+        executor_cfg (str | dict | ExecutorConfig | None): Executor configuration
+        with_adapter_cfg (dict | WithAdapterConfig | None): With adapter configuration
+        pipeline_adapter_cfg (dict | AdapterConfig | None): Pipeline adapter configuration
+        project_adapter_cfg (dict | AdapterConfig | None): Project adapter configuration
+        adapter (dict[str, Any] | None): Adapter configuration
+        reload (bool): Reload the pipeline
+        log_level (str | None): Log level for the pipeline
+        result_ttl (float | dt.timedelta): Result expiration time for the pipeline
+        run_in (int | str | dt.timedelta | None): Run in time for the pipeline
+        max_retries (int | None): Maximum number of retries for the pipeline
+        retry_delay (float | None): Delay between retries for the pipeline
+        jitter_factor (float | None): Jitter factor for the pipeline
+        retry_exceptions (tuple | list | None): Exceptions to retry for the pipeline
+        as_job (bool): Run the pipeline as a job
+        base_dir (str | None): Base directory for the pipeline
+        storage_options (dict): Storage options for the pipeline
+        fs (AbstractFileSystem | None): File system for the pipeline
+        background (bool): Run the listener in the background
+        mqtt_cfg (dict | MqttConfig): MQTT client configuration. Use either this or arguments
             username, password, host, and port.
-        host: Host for the MQTT client
-        port: Port for the MQTT client
-        username: Username for the MQTT client
-        password: Password for the MQTT Client
-        clean_session: Clean session for the MQTT client
-        qos: Quality of Service for the MQTT client
-        client_id: Client ID for the MQTT client
-        client_id_suffix: Client ID suffix for the MQTT client
-        config_hook: Hook function to modify the configuration of the pipeline
+        host (str | None): Host for the MQTT client
+        port (int | None): Port for the MQTT client
+        username (str | None): Username for the MQTT client
+        password (str | None): Password for the MQTT client
+        clean_session (bool): Clean session flag for the MQTT client
+        qos (int): Quality of Service for the MQTT client
+        client_id (str | None): Client ID for the MQTT client
+        client_id_suffix (str | None): Client ID suffix for the MQTT client
+        config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
         **kwargs: Additional keyword arguments
+
+    Returns:
+        None
+    
+    Raises:
+        ValueError: If the config_hook is not callable
+        ValueError: If no client configuration is found
+
+    Example:
+        ```python
+        from flowerpower.plugins.mqtt import run_pipeline_on_message
+
+        run_pipeline_on_message(
+            name="my_pipeline",
+            topic="my_topic",
+            inputs={"key": "value"},
+            config={"param": "value"},
+            as_job=True,
+        )
+        ```
     """
     try:
-        client = MQTTManager.from_event_broker(base_dir)
+        client = MqttManager.from_event_broker(base_dir)
     except ValueError:
         if mqtt_cfg:
-            client = MQTTManager.from_dict(mqtt_cfg)
+            if isinstance(mqtt_cfg, MqttConfig):
+                client = MqttManager.from_config(mqtt_cfg)
+            elif isinstance(mqtt_cfg, dict):
+                client = MqttManager.from_dict(mqtt_cfg)
         elif host and port:
-            client = MQTTManager(
-                user=username,
-                pw=password,
+            client = MqttManager(
+                username=username,
+                password=password,
                 host=host,
                 port=port,
                 clean_session=clean_session,
                 client_id=client_id,
-                topic=topic,
-                qos=qos,
                 client_id_suffix=client_id_suffix,
+                config_hook=config_hook,                
+                **kwargs,
+                
             )
         else:
             raise ValueError(
@@ -625,18 +760,30 @@ def run_pipeline_on_message(
         inputs=inputs,
         final_vars=final_vars,
         config=config,
-        executor=executor,
-        with_tracker=with_tracker,
-        with_opentelemetry=with_opentelemetry,
-        with_progressbar=with_progressbar,
+        cache=cache,
+        executor_cfg=executor_cfg,
+        with_adapter_cfg=with_adapter_cfg,
+        pipeline_adapter_cfg=pipeline_adapter_cfg,
+        project_adapter_cfg=project_adapter_cfg,
+        adapter=adapter,
         reload=reload,
-        result_expiration_time=result_expiration_time,
+        log_level=log_level,
+        result_ttl=result_ttl,
+        run_in=run_in,
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        jitter_factor=jitter_factor,
+        retry_exceptions=retry_exceptions,
         as_job=as_job,
         base_dir=base_dir,
         storage_options=storage_options,
         fs=fs,
         background=background,
         qos=qos,
+        client_id=client_id,
+        client_id_suffix=client_id_suffix,
         config_hook=config_hook,
         **kwargs,
     )
+
+

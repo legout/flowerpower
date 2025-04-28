@@ -289,7 +289,7 @@ class BaseTrigger(abc.ABC):
         pass
 
 
-class BaseJobQueue:
+class BaseJobQueueManager:
     """
     Abstract base class for scheduler workers (APScheduler, RQ, etc.).
     Defines the required interface for all scheduler backends.
@@ -297,8 +297,8 @@ class BaseJobQueue:
     Can be used as a context manager:
 
     ```python
-    with RQWorker(name="test") as worker:
-        worker.add_job(job1)
+    with RQManager(name="test") as manager:
+        manager.add_job(job1)
     ```
     """
 

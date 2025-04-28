@@ -54,7 +54,7 @@ class PipelineJobQueue:
             )
 
     @property
-    def worker(self):
+    def job_queue(self):
         """
         Lazily instantiate and cache a Job queue instance.
         """
@@ -71,7 +71,7 @@ class PipelineJobQueue:
     def _get_schedule_ids(self) -> list[Any]:
         """Get all schedules from the worker backend."""
 
-        with self.worker as worker:
+        with self.job_queue as worker:
             logger.debug("Fetching schedules ids from worker")
             return worker.schedule_ids
 
@@ -138,7 +138,7 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job '{name}': {pipeline_run_args}"
         )
 
-        with self.worker as worker:
+        with self.job_queue as worker:
             res = worker.run_job(
                 func=run_func,
                 func_kwargs=pipeline_run_args,
@@ -160,11 +160,15 @@ class PipelineJobQueue:
         pipeline_adapter_cfg: dict | Any | None = None,
         project_adapter_cfg: dict | Any | None = None,
         adapter: dict[str, Any] | None = None,
-        result_ttl: float | dt.timedelta = 120,
+        result_ttl: int | dt.timedelta = 120,
         run_at: dt.datetime | None = None,
         run_in: float | dt.timedelta | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
         **kwargs,  # Allow other worker-specific args if needed
     ) -> str | UUID:
         """
@@ -187,9 +191,13 @@ class PipelineJobQueue:
             adapter (dict[str, Any] | None): Additional adapter configuration.
             reload (bool): Whether to reload the pipeline module.
             log_level (str | None): Log level for the run.
-            result_ttl (float | dt.timedelta): How long the job result should be stored. Defaults to 0 (don't store).
+            result_ttl (int | dt.timedelta): How long the job result should be stored. Defaults to 0 (don't store).
             run_at (dt.datetime | None): Optional datetime to run the job at.
             run_in (float | dt.timedelta | None): Optional delay before running the job.
+            max_retries (int): Maximum number of retries for the job.
+            retry_delay (float): Delay between retries.
+            jitter_factor (float): Jitter factor for retry delay.
+            retry_exceptions (tuple): Exceptions that should trigger a retry.
             **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
 
         Returns:
@@ -209,6 +217,10 @@ class PipelineJobQueue:
             "adapter": adapter,
             "reload": reload,
             "log_level": log_level,
+            "max_retries": max_retries,
+            "retry_delay": retry_delay,
+            "jitter_factor": jitter_factor,
+            "retry_exceptions": retry_exceptions,
         }
         pipeline_run_args = {
             k: v for k, v in pipeline_run_args.items() if v is not None
@@ -217,7 +229,7 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job (TTL) '{name}': {pipeline_run_args}"
         )
 
-        with self.worker as worker:
+        with self.job_queue as worker:
             job_id = worker.add_job(
                 func=run_func,
                 func_kwargs=pipeline_run_args,
@@ -251,6 +263,10 @@ class PipelineJobQueue:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple = (Exception,),
         # --- Schedule Parameters (passed to worker.add_schedule) ---
         cron: str | dict[str, str | int] | None = None,
         interval: int | str | dict[str, str | int] | None = None,
@@ -276,6 +292,10 @@ class PipelineJobQueue:
             adapter (dict | None): Additional Hamilton adapters (overrides config).
             reload (bool): Whether to reload module (overrides config).
             log_level (str | None): Log level for the run (overrides config).
+            max_retries (int): Maximum number of retries for the job.
+            retry_delay (float): Delay between retries.
+            jitter_factor (float): Jitter factor for retry delay.
+            retry_exceptions (tuple): Exceptions that should trigger a retry.
             cron (str | dict | None): Cron expression or dict for cron trigger.
             interval (int | str | dict | None): Interval in seconds or dict for interval trigger.
             date (dt.datetime | None): Date for date trigger.
@@ -326,6 +346,10 @@ class PipelineJobQueue:
             "adapter": adapter,
             "reload": reload,
             "log_level": log_level,
+            "max_retries": max_retries,
+            "retry_delay": retry_delay,
+            "jitter_factor": jitter_factor,
+            "retry_exceptions": retry_exceptions,
         }
         pipeline_run_args = {
             k: v for k, v in pipeline_run_args.items() if v is not None
@@ -396,7 +420,7 @@ class PipelineJobQueue:
 
         # --- Add Schedule via Job queue ---
         try:
-            with self.worker as worker:
+            with self.job_queue as worker:
                 # Job queue is now responsible for creating the trigger object
                 # Pass trigger type and kwargs directly
                 added_id = worker.add_schedule(

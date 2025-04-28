@@ -25,6 +25,9 @@ def run(
     storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
     log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
     with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
+    max_retries: int = typer.Option(0, help="Maximum number of retry attempts on failure"),
+    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
+    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
 ):
     """
     Run a pipeline immediately.
@@ -43,6 +46,9 @@ def run(
         storage_options: Options for storage backends
         log_level: Set the logging level
         with_adapter: Configuration for adapters like trackers or monitors
+        max_retries: Maximum number of retry attempts on failure
+        retry_delay: Base delay between retries in seconds
+        jitter_factor: Random factor applied to delay for jitter (0-1)
 
     Examples:
         # Run a pipeline with default settings
@@ -65,6 +71,9 @@ def run(
         
         # Set a specific logging level
         $ pipeline run my_pipeline --log-level debug
+        
+        # Configure automatic retries on failure
+        $ pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
     parsed_config = parse_dict_or_list_param(config, "dict")
@@ -85,7 +94,10 @@ def run(
             config=parsed_config,
             cache=parsed_cache,
             executor_cfg=executor, 
-            with_adapter_cfg=parsed_with_adapter, 
+            with_adapter_cfg=parsed_with_adapter,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
         )
         logger.info(f"Pipeline '{name}' finished running.")
 
@@ -102,6 +114,9 @@ def run_job(
     storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
     log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
     with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
+    max_retries: int = typer.Option(0, help="Maximum number of retry attempts on failure"),
+    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
+    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
 ):
     """
     Run a specific pipeline job.
@@ -120,6 +135,9 @@ def run_job(
         storage_options: Options for storage backends
         log_level: Set the logging level
         with_adapter: Configuration for adapters like trackers or monitors
+        max_retries: Maximum number of retry attempts on failure
+        retry_delay: Base delay between retries in seconds
+        jitter_factor: Random factor applied to delay for jitter (0-1)
 
     Examples:
         # Run a job with a specific ID
@@ -136,6 +154,9 @@ def run_job(
 
         # Configure adapters for monitoring
         $ pipeline run-job job-123456 --with-adapter '{"tracker": true, "opentelemetry": false}'
+        
+        # Set up automatic retries for resilience
+        $ pipeline run-job job-123456 --max-retries 3 --retry-delay 2.0
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
     parsed_config = parse_dict_or_list_param(config, "dict")
@@ -157,6 +178,9 @@ def run_job(
             cache=parsed_cache,
             executor_cfg=executor,
             with_adapter_cfg=parsed_with_adapter,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
         )
         logger.info(f"Job '{name}' finished running.")
 
@@ -175,6 +199,9 @@ def add_job(
     with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
     run_at: str | None = typer.Option(None, help="Run at a specific time (ISO format)"),
     run_in: str | None = typer.Option(None, help="Run in a specific interval (e.g., '5m', '1h', '12m34s')"),
+    max_retries: int = typer.Option(3, help="Maximum number of retry attempts on failure"),
+    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
+    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
 ):
     """
     Add a pipeline job to the queue.
@@ -195,6 +222,9 @@ def add_job(
         with_adapter: Configuration for adapters like trackers or monitors
         run_at: Run the job at a specific time (ISO format)
         run_in: Run the job in a specific interval (e.g., '5m', '1h')
+        max_retries: Maximum number of retry attempts on failure
+        retry_delay: Base delay between retries in seconds
+        jitter_factor: Random factor applied to delay for jitter (0-1)
 
     Examples:
         # Add a basic job
@@ -211,6 +241,9 @@ def add_job(
 
         # Use a specific log level
         $ pipeline add-job my_pipeline --log-level debug
+        
+        # Configure automatic retries for resilience
+        $ pipeline add-job my_pipeline --max-retries 5 --retry-delay 2.0 --jitter-factor 0.2
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
     parsed_config = parse_dict_or_list_param(config, "dict")
@@ -236,6 +269,9 @@ def add_job(
             with_adapter_cfg=parsed_with_adapter,
             run_at=run_at,
             run_in=run_in,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
         )
         logger.info(f"Job {job_id} added for pipeline '{name}'.")
 
@@ -257,6 +293,9 @@ def schedule(
     with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
     overwrite: bool = typer.Option(False, help="Overwrite existing schedule if it exists"),
     schedule_id: str | None = typer.Option(None, help="Custom ID for the schedule (autogenerated if not provided)"),
+    max_retries: int = typer.Option(3, help="Maximum number of retry attempts on failure"),
+    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
+    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
 ):
     """
     Schedule a pipeline to run at specified times.
@@ -280,6 +319,9 @@ def schedule(
         with_adapter: Configuration for adapters like trackers or monitors
         overwrite: Overwrite existing schedule with same ID
         schedule_id: Custom identifier for the schedule
+        max_retries: Maximum number of retry attempts on failure
+        retry_delay: Base delay between retries in seconds
+        jitter_factor: Random factor applied to delay for jitter (0-1)
 
     Examples:
         # Schedule with cron expression (every hour)
@@ -299,6 +341,9 @@ def schedule(
 
         # Set a custom schedule ID
         $ pipeline schedule my_pipeline --crontab "0 12 * * *" --schedule_id "daily-noon-run"
+        
+        # Configure automatic retries for resilience
+        $ pipeline schedule my_pipeline --max-retries 5 --retry-delay 2.0 --jitter-factor 0.2
     """
     parsed_inputs = parse_dict_or_list_param(inputs, "dict")
     parsed_config = parse_dict_or_list_param(config, "dict")
@@ -329,6 +374,10 @@ def schedule(
             interval=interval,
             date=date,
             overwrite=overwrite,
+            schedule_id=schedule_id,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
         )
 
     logger.info(f"Pipeline '{name}' scheduled with ID {id_}.")

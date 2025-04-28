@@ -11,7 +11,7 @@ import sys
 import time
 import uuid
 from typing import Any, Callable
-
+import duration_parser
 from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
@@ -24,7 +24,7 @@ from rq_scheduler import Scheduler
 
 from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
-from ..base import BaseJobQueue
+from ..base import BaseJobQueueManager
 from .setup import RQBackend
 
 setup_logging()
@@ -45,7 +45,7 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
         logger.warning(f"Could not set multiprocessing start method to 'fork': {e}")
 
 
-class RQWorker(BaseJobQueue):
+class RQManager(BaseJobQueueManager):
     """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
 
     This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.
@@ -53,7 +53,7 @@ class RQWorker(BaseJobQueue):
 
     Typical usage:
         ```python
-        worker = RQWorker(name="my_rq_worker")
+        worker = RQManager(name="my_rq_worker")
         worker.start_worker(background=True)
 
         # Add a job
@@ -96,14 +96,14 @@ class RQWorker(BaseJobQueue):
         Example:
             ```python
             # Basic initialization
-            worker = RQWorker(name="my_worker")
+            worker = RQManager(name="my_worker")
 
             # With custom backend and logging
             backend = RQBackend(
                 uri="redis://localhost:6379/0",
                 queues=["high", "default", "low"]
             )
-            worker = RQWorker(
+            worker = RQManager(
                 name="custom_worker",
                 backend=backend,
                 log_level="DEBUG"
@@ -551,8 +551,8 @@ class RQWorker(BaseJobQueue):
         result_ttl: float | dt.timedelta | None = None,
         ttl: float | dt.timedelta | None = None,
         queue_name: str | None = None,
-        run_at: dt.datetime | None = None,
-        run_in: dt.timedelta | None = None,
+        run_at: dt.datetime | str | None = None,
+        run_in: dt.timedelta | int | str | None = None,
         retry: int | dict | None = None,
         repeat: int | dict | None = None,
         meta: dict | None = None,
@@ -658,6 +658,7 @@ class RQWorker(BaseJobQueue):
         queue = self._queues[queue_name]
         if run_at:
             # Schedule the job to run at a specific time
+            run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
             job = queue.enqueue_at(
                 run_at,
                 func,
@@ -676,6 +677,8 @@ class RQWorker(BaseJobQueue):
             )
         elif run_in:
             # Schedule the job to run after a delay
+            run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
+            run_in = dt.timedelta(seconds=run_in) if isinstance(run_in, (int, float)) else run_in
             job = queue.enqueue_in(
                 run_in,
                 func,

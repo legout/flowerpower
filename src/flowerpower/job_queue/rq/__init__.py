@@ -1,9 +1,9 @@
 from .setup import RQBackend
 from .utils import show_jobs, show_schedules
-from .worker import RQWorker
+from .manager import RQManager
 
 __all__ = [
-    "RQWorker",
+    "RQManager",
     "RQBackend",
     "show_jobs",
     "show_schedules",

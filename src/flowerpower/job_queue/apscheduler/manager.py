@@ -8,7 +8,7 @@ import datetime as dt
 import importlib.util
 from typing import Any, Callable
 from uuid import UUID
-
+import duration_parser
 from fsspec.spec import AbstractFileSystem
 from loguru import logger
 
@@ -25,7 +25,7 @@ from apscheduler.executors.subprocess import ProcessPoolJobExecutor
 from apscheduler.executors.thread import ThreadPoolJobExecutor
 
 from ...utils.logging import setup_logging
-from ..base import BaseJobQueue
+from ..base import BaseJobQueueManager
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
 from .utils import display_jobs, display_schedules
@@ -41,7 +41,7 @@ except Exception as e:
     logger.warning(f"Failed to patch pickle: {e}")
 
 
-class APSWorker(BaseJobQueue):
+class APSManager(BaseJobQueueManager):
     """Implementation of BaseScheduler using APScheduler.
 
     This worker class uses APScheduler 4.0+ as the backend to schedule and manage jobs.
@@ -49,7 +49,7 @@ class APSWorker(BaseJobQueue):
 
     Typical usage:
         ```python
-        worker = APSWorker(name="my_scheduler")
+        worker = APSManager(name="my_scheduler")
         worker.start_worker(background=True)
 
         # Add a job
@@ -89,7 +89,7 @@ class APSWorker(BaseJobQueue):
         Example:
             ```python
             # Basic initialization
-            worker = APSWorker(name="my_scheduler")
+            worker = APSManager(name="my_scheduler")
 
             # With custom backend and logging
 
@@ -113,7 +113,7 @@ class APSWorker(BaseJobQueue):
                 event_broker=event_broker
             )
 
-            worker = APSWorker(
+            worker = APSManager(
                 name="custom_scheduler",
                 backend=backend_config,
                 log_level="DEBUG"
@@ -374,6 +374,9 @@ class APSWorker(BaseJobQueue):
         # Convert result_expiration_time to datetime.timedelta if it's not already
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
+
+        run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+        run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
 
         if run_in:
             run_at = dt.datetime.now() + dt.timedelta(seconds=run_in)

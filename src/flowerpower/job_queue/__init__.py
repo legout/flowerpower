@@ -2,9 +2,9 @@ from typing import Any, Optional
 
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
-from .apscheduler import APSBackend, APSWorker
-from .base import BaseBackend, BaseJobQueue
-from .rq import RQBackend, RQWorker
+from .apscheduler import APSBackend, APSManager
+from .base import BaseBackend, BaseJobQueueManager
+from .rq import RQBackend, RQManager
 from ..cfg.project import ProjectConfig
 
 setup_logging()
@@ -57,7 +57,7 @@ class JobQueue:
         fs: AbstractFileSystem | None = None,
         log_level: str | None = None,
         **kwargs,
-    ) -> BaseJobQueue:
+    ) -> BaseJobQueueManager:
         """Create a new job queue instance based on the specified backend type.
 
         Args:
@@ -80,8 +80,8 @@ class JobQueue:
                 job queue implementation.
 
         Returns:
-            BaseJobQueue: An instance of the specified job queue type (RQWorker,
-                APSWorker).
+            BaseJobQueueManager: An instance of the specified job queue type (RQManager,
+                APSManager).
 
         Raises:
             ValueError: If an invalid job queue type is specified.
@@ -111,7 +111,7 @@ class JobQueue:
                 base_dir=base_dir, name=name, fs=fs, storage_options=storage_options or {}).job_queue.type
             
         if type == "rq":
-            return RQWorker(
+            return RQManager(
                 name=name,
                 base_dir=base_dir,
                 backend=backend,
@@ -121,7 +121,7 @@ class JobQueue:
                 **kwargs,
             )
         elif type == "apscheduler":
-            return APSWorker(
+            return APSManager(
                 name=name,
                 base_dir=base_dir,
                 backend=backend,
@@ -243,8 +243,8 @@ class Backend:
 
 __all__ = [
     "JobQueue",
-    "RQWorker",
-    "APSWorker",
+    "RQManager",
+    "APSManager",
     #"HueyWorker",
     "Backend",
     "RQBackend",
