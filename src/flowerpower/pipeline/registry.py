@@ -2,7 +2,7 @@
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
 import datetime as dt
-from loguru import logger 
+from loguru import logger
 import posixpath
 from typing import TYPE_CHECKING
 
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 setup_logging(level=settings.LOG_LEVEL)
 
+
 class PipelineRegistry:
     """Manages discovery, listing, creation, and deletion of pipelines."""
 
@@ -37,8 +38,8 @@ class PipelineRegistry:
         self,
         project_cfg: ProjectConfig,
         fs: AbstractFileSystem,
-        cfg_dir: str ,
-        pipelines_dir: str ,
+        cfg_dir: str,
+        pipelines_dir: str,
     ):
         """
         Initializes the PipelineRegistry.
@@ -83,12 +84,8 @@ class PipelineRegistry:
                 )
 
         formatted_name = name.replace(".", "/").replace("-", "_")
-        pipeline_file = posixpath.join(
-            self._pipelines_dir, f"{formatted_name}.py"
-        )
-        cfg_file = posixpath.join(
-            self._cfg_dir, "pipelines", f"{formatted_name}.yml"
-        )
+        pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
+        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
 
         def check_and_handle(path: str):
             if self._fs.exists(path):
@@ -159,9 +156,7 @@ class PipelineRegistry:
                 )
 
         if module:
-            pipeline_py_path = posixpath.join(
-                self._pipelines_dir, f"{name}.py"
-            )
+            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
             if self._fs.exists(pipeline_py_path):
                 self._fs.rm(pipeline_py_path)
                 deleted_files.append(pipeline_py_path)
@@ -179,9 +174,7 @@ class PipelineRegistry:
             )
 
         # Sync filesystem if needed (using _fs)
-        if hasattr(self._fs, "sync") and callable(
-            getattr(self._fs, "sync")
-        ):
+        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
             self._fs.sync()
 
     def _get_files(self) -> list[str]:
@@ -192,9 +185,7 @@ class PipelineRegistry:
             list[str]: The list of pipeline files.
         """
         try:
-            return self._fs.glob(
-                posixpath.join(self._pipelines_dir, "*.py")
-            )
+            return self._fs.glob(posixpath.join(self._pipelines_dir, "*.py"))
         except Exception as e:
             logger.error(
                 f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
@@ -249,11 +240,10 @@ class PipelineRegistry:
 
         for name in pipeline_names:
             # Load pipeline config directly
-            pipeline_cfg = PipelineConfig.load(
-                name=name, fs=self._fs
-            )
+
             pipeline_summary = {}
             if cfg:
+                pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
                 pipeline_summary["cfg"] = pipeline_cfg.to_dict()
             if code:
                 try:
@@ -415,9 +405,7 @@ class PipelineRegistry:
             show = True
 
         pipeline_files = [
-            f
-            for f in self._fs.ls(self._pipelines_dir)
-            if f.endswith(".py")
+            f for f in self._fs.ls(self._pipelines_dir) if f.endswith(".py")
         ]
         pipeline_names = [
             posixpath.splitext(posixpath.basename(f))[0] for f in pipeline_files
@@ -431,9 +419,7 @@ class PipelineRegistry:
 
         for path, name in zip(pipeline_files, pipeline_names):
             try:
-                mod_time = self._fs.modified(path).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+                mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
             except NotImplementedError:
                 mod_time = "N/A"
             try:

@@ -15,8 +15,8 @@ from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
 from ..worker import Worker
 from ..fs import AbstractFileSystem
-# Note: get_trigger is worker-specific and should be handled within the worker implementation
-# from ..utils.scheduler import get_trigger # Removed - Worker handles trigger creation
+from .registry import PipelineRegistry
+
 
 setup_logging()
 
@@ -53,11 +53,6 @@ class PipelineScheduler:
                 f"Worker type not specified in project config, defaulting to '{self._worker_type}'"
             )
 
-        # logger.debug(
-        #     f"Initialized PipelineScheduler for project '{project_cfg.name}' with worker type: {self._worker_type}"
-        # )
-        # # Worker instance is created on demand via the property
-
     @property
     def worker(self):
         """
@@ -71,33 +66,30 @@ class PipelineScheduler:
         return Worker(
             type=self._worker_type,
             fs=self._fs,
-            # Pass worker-specific config from project_cfg if needed by Worker.__init__
-            # e.g., worker_config=self.project_cfg.worker.get(self._worker_type, {})
         )
 
-    def _get_schedules(self) -> list[Any]:
+    def _get_schedule_ids(self) -> list[Any]:
         """Get all schedules from the worker backend."""
 
         with self.worker as worker:
-
-            logger.debug("Fetching schedules from worker")
-            return worker.get_schedules()
+            logger.debug("Fetching schedules ids from worker")
+            return worker.schedule_ids
 
     def run_job(
         self,
-        run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
-        name: str,
+        run_func: Callable,
+        name: str,  # name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
-        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
-        log_level: str | None = None,  # Match PipelineRunner arg
-        **kwargs,  # Allow other worker-specific args if needed
+        log_level: str | None = None,
+        **kwargs,
     ) -> dict[str, Any]:
         """
         Add a job to run the pipeline immediately via the worker queue.
@@ -122,8 +114,6 @@ class PipelineScheduler:
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
 
-        # Prepare the arguments for the target run_func
-        # These names MUST match the parameters of the target run_func (PipelineRunner.run)
         pipeline_run_args = {
             # 'name' is not passed to run_func, it's part of the context already in PipelineRunner
             "inputs": inputs,
@@ -136,9 +126,7 @@ class PipelineScheduler:
             "adapter": adapter,
             "reload": reload,
             "log_level": log_level,
-            # **kwargs, # Be careful not to pass worker args to run_func
         }
-        # Filter out None values AFTER merging
         pipeline_run_args = {
             k: v for k, v in pipeline_run_args.items() if v is not None
         }
@@ -147,17 +135,12 @@ class PipelineScheduler:
         )
 
         with self.worker as worker:
-            job_id = worker.add_job(
-                func=run_func,  # Pass the function to be executed by the worker
-                kwargs=pipeline_run_args,  # Pass the arguments for that function
-                result_ttl=120,
-                **kwargs,  # Pass any extra args meant for the worker backend
+            res = worker.run_job(
+                func=run_func,
+                func_kwargs=pipeline_run_args,
+                **kwargs,
             )
-            res = worker.get_result(job_id)
-        #logger.info(
-        #    f"✅ Successfully submitted immediate job for "
-        #    f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
-        #)
+
         return res
 
     def add_job(
@@ -167,14 +150,16 @@ class PipelineScheduler:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
-        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
-        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
-        reload: bool = False,
-        log_level: str | None = None,  # Match PipelineRunner arg
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
         result_ttl: float | dt.timedelta = 120,
+        run_at: dt.datetime | None = None,
+        run_in: float | dt.timedelta | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
         **kwargs,  # Allow other worker-specific args if needed
     ) -> str | UUID:
         """
@@ -197,6 +182,8 @@ class PipelineScheduler:
             reload (bool): Whether to reload the pipeline module.
             log_level (str | None): Log level for the run.
             result_ttl (float | dt.timedelta): How long the job result should be stored. Defaults to 0 (don't store).
+            run_at (dt.datetime | None): Optional datetime to run the job at.
+            run_in (float | dt.timedelta | None): Optional delay before running the job.
             **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
 
         Returns:
@@ -204,7 +191,6 @@ class PipelineScheduler:
         """
         logger.debug(f"Adding immediate job with result TTL for pipeline: {name}")
 
-        # Prepare the arguments for the target run_func
         pipeline_run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
@@ -227,13 +213,16 @@ class PipelineScheduler:
         with self.worker as worker:
             job_id = worker.add_job(
                 func=run_func,
-                kwargs=pipeline_run_args,
+                func_kwargs=pipeline_run_args,
                 result_ttl=result_ttl,
-                **kwargs,  # Pass any extra args meant for the worker backend
+                run_at=run_at,
+                run_in=run_in,
+                **kwargs,
             )
         rprint(
             f"✅ Successfully added job for "
             f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
+            f" and result TTL of {result_ttl} seconds."
         )
         return job_id
 
@@ -241,59 +230,62 @@ class PipelineScheduler:
 
     def schedule(
         self,
-        run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
-        pipeline_cfg: PipelineConfig,  # Pass the specific pipeline's config
+        run_func: Callable,
+        pipeline_cfg: PipelineConfig,
         # --- Run Parameters (passed to run_func) ---
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,  # Driver config
-        executor_cfg: str | dict | Any | None = None,  # Match PipelineRunner arg
-        with_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        pipeline_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        project_adapter_cfg: dict | Any | None = None,  # Match PipelineRunner arg
-        adapter: dict[str, Any] | None = None,  # Match PipelineRunner arg
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
         reload: bool = False,
-        log_level: str | None = None,  # Match PipelineRunner arg
+        log_level: str | None = None,
         # --- Schedule Parameters (passed to worker.add_schedule) ---
-        trigger_type: str | None = None,
-        id_: str | None = None,
-        paused: bool | None = None,  # Allow None to use config default
-        coalesce: str | None = None,
-        misfire_grace_time: float | dt.timedelta | None = None,
-        max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
-        conflict_policy: str | None = None,
+        cron: str | dict[str, str | int] | None = None,
+        interval: int | str | dict[str, str | int] | None = None,
+        date: dt.datetime | None = None,
         overwrite: bool = False,
-        # --- Trigger Parameters (passed within trigger_kwargs to worker.add_schedule) ---
-        **kwargs,  # Trigger specific args (e.g., seconds=30) + any other worker args
+        schedule_id: str | None = None,
+        **kwargs, 
     ) -> str | UUID:
         """
         Schedule a pipeline for execution using the configured worker.
 
         Args:
             run_func (Callable): The function to execute in the worker.
-            pipeline_cfg (PipelineConfig): The configuration object for the specific pipeline being scheduled.
+            pipeline_cfg (PipelineConfig): The pipeline configuration object.
             inputs (dict | None): Inputs for the pipeline run (overrides config).
             final_vars (list | None): Final variables for the pipeline run (overrides config).
             config (dict | None): Hamilton driver config (overrides config).
-            executor_cfg (... | None): Executor config (overrides config).
-            with_adapter_cfg (... | None): Adapter enablement config (overrides config).
-            pipeline_adapter_cfg (... | None): Pipeline adapter settings (overrides config).
-            project_adapter_cfg (... | None): Project adapter settings (overrides config).
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration (overrides config).
             adapter (dict | None): Additional Hamilton adapters (overrides config).
             reload (bool): Whether to reload module (overrides config).
             log_level (str | None): Log level for the run (overrides config).
-            trigger_type (str | None): Type of trigger (e.g., 'interval', 'cron') (overrides config).
-            id_ (str | None): Explicit ID for the schedule. Auto-generated if None.
-            paused (bool | None): Start paused (overrides config). Defaults to False if not in config.
-            coalesce (str | None): Coalesce strategy (overrides config).
-            misfire_grace_time (... | None): Grace time for misfires (overrides config).
-            max_jitter (... | None): Max random delay (overrides config).
-            max_running_jobs (int | None): Max concurrent runs (overrides config).
-            conflict_policy (str | None): Action on ID conflict (overrides config). Defaults to 'do_nothing'.
+            cron (str | dict | None): Cron expression or dict for cron trigger.
+            interval (int | str | dict | None): Interval in seconds or dict for interval trigger.
+            date (dt.datetime | None): Date for date trigger.
             overwrite (bool): If True and id_ is None, generates ID '{name}-1', potentially overwriting.
+            schedule_id (str | None): Optional ID for the schedule. If None, generates a new ID.
             **kwargs: Additional keyword arguments passed to the worker's add_schedule method,
-                      including trigger-specific parameters (e.g., seconds=30 for interval).
+                For RQ this includes:
+                    - repeat: Repeat count (int or dict)
+                    - result_ttl: Time to live for the job result (float or timedelta)
+                    - ttl: Time to live for the job (float or timedelta)
+                    - use_local_time_zone: Whether to use local time zone for scheduling (bool)
+                For APScheduler, this includes:
+                    - misfire_grace_time: Grace time for misfires (timedelta)
+                    - coalesce: Whether to coalesce jobs (bool)
+                    - max_running_jobs: Maximum instances of the job (int)
+                    - max_jitter: Maximum jitter for scheduling (int)
+                    - conflict_policy: Policy for conflicting jobs (str)
+                    - paused: Whether to pause the job (bool)
+
 
         Returns:
             str | UUID: The ID of the scheduled pipeline.
@@ -302,10 +294,11 @@ class PipelineScheduler:
             ValueError: If trigger_type is invalid or required args are missing.
             Exception: Can raise exceptions from the worker backend.
         """
-        name = pipeline_cfg.name  # Get name from the provided config
+
         project_name = self.project_cfg.name
+        name = pipeline_cfg.name
         logger.debug(
-            f"Attempting to schedule pipeline: {project_name}.{name} with id: {id_}"
+            f"Attempting to schedule pipeline: {project_name}.{name} with id: {schedule_id}"
         )
 
         # --- Resolve Parameters using pipeline_cfg for defaults ---
@@ -339,57 +332,12 @@ class PipelineScheduler:
         }
         logger.debug(f"Resolved run_kwargs for '{name}': {pipeline_run_args}")
 
-        # 2. Trigger Parameters (passed to worker)
-        trigger_type = trigger_type or schedule_cfg.trigger.type_
-        if not trigger_type:
-            raise ValueError(
-                f"Trigger type must be specified either in config or as argument for pipeline '{name}'"
-            )
-
-        # Get defaults for the specified trigger type from config
-        trigger_defaults = getattr(schedule_cfg.trigger, trigger_type, {}).to_dict()
-        trigger_kwargs = trigger_defaults.copy()
-        # Overlay explicit kwargs passed to the function that are trigger-related
-        # Worker's add_schedule should handle extracting relevant trigger args from kwargs
-        trigger_kwargs.update(kwargs)
-        # Filter out None values
-        trigger_kwargs = {k: v for k, v in trigger_kwargs.items() if v is not None}
+        cron = cron if cron is not None else schedule_cfg.cron
+        interval = interval if interval is not None else schedule_cfg.interval
+        date = date if date is not None else schedule_cfg.date
         logger.debug(
-            f"Resolved trigger_kwargs for '{name}' (type={trigger_type}): {trigger_kwargs}"
+            f"Resolved schedule parameters for '{name}': cron={cron}, interval={interval}, date={date}"
         )
-
-        # 3. Schedule Run Parameters (passed to the worker's add_schedule method)
-        schedule_run_defaults = schedule_cfg.run.to_dict()
-        schedule_run_kwargs = {
-            "paused": paused
-            if paused is not None
-            else schedule_run_defaults.get("paused", False),
-            "coalesce": coalesce
-            if coalesce is not None
-            else schedule_run_defaults.get("coalesce"),
-            "misfire_grace_time": misfire_grace_time
-            if misfire_grace_time is not None
-            else schedule_run_defaults.get("misfire_grace_time"),
-            "max_jitter": max_jitter
-            if max_jitter is not None
-            else schedule_run_defaults.get("max_jitter"),
-            "max_running_jobs": max_running_jobs
-            if max_running_jobs is not None
-            else schedule_run_defaults.get("max_running_jobs"),
-            "conflict_policy": conflict_policy
-            if conflict_policy is not None
-            else schedule_run_defaults.get("conflict_policy", "do_nothing"),
-            # Pass any remaining kwargs not used by trigger or run_func to worker
-            **{k: v for k, v in kwargs.items() if k not in trigger_kwargs},
-        }
-        # Filter out None values AFTER merging
-        schedule_run_kwargs = {
-            k: v for k, v in schedule_run_kwargs.items() if v is not None
-        }
-        logger.debug(
-            f"Resolved schedule_run_kwargs for '{name}': {schedule_run_kwargs}"
-        )
-
         # --- Generate ID if not provided ---
         # (Keep _generate_id function as is, it uses self._get_schedules())
         def _generate_id(
@@ -400,13 +348,13 @@ class PipelineScheduler:
                 return explicit_id
 
             base_id = f"{pipeline_name}-1"
+            
             if force_overwrite_base:
                 logger.debug(f"Overwrite specified, using base ID: {base_id}")
                 return base_id
 
             try:
-                existing_schedules = self._get_schedules()
-                existing_ids = {schedule.id for schedule in existing_schedules}
+                existing_ids = self._get_schedule_ids()
                 logger.debug(f"Existing schedule IDs: {existing_ids}")
 
                 if not any(
@@ -443,7 +391,7 @@ class PipelineScheduler:
                 # Fallback in case of error fetching schedules
                 return base_id
 
-        schedule_id = _generate_id(name, id_, overwrite)
+        schedule_id = _generate_id(name, schedule_id, overwrite)
 
         # --- Add Schedule via Worker ---
         try:
@@ -452,13 +400,14 @@ class PipelineScheduler:
                 # Pass trigger type and kwargs directly
                 added_id = worker.add_schedule(
                     func=run_func,
-                    kwargs=pipeline_run_args,  # Pass resolved run parameters
-                    trigger_type=trigger_type,
-                    trigger_kwargs=trigger_kwargs,
-                    id=schedule_id,
-                    **schedule_run_kwargs,  # Pass resolved schedule run parameters
+                    func_kwargs=pipeline_run_args,  # Pass resolved run parameters
+                    cron=cron,
+                    interval=interval,
+                    date=date,
+                    schedule_id=schedule_id,
+                    **kwargs,  # Pass resolved schedule run parameters
                 )
-                rprint(
+                logger.info(
                     f"✅ Successfully scheduled job for "
                     f"[blue]{project_name}.{name}[/blue] with ID [green]{added_id}[/green]"
                 )
@@ -467,14 +416,12 @@ class PipelineScheduler:
             logger.error(
                 f"Failed to add schedule '{schedule_id}' for pipeline '{name}': {e}"
             )
-            rprint(f"[bold red]Error scheduling pipeline '{name}': {e}[/bold red]")
-            # Re-raise the exception so the caller knows it failed
             raise
 
     # --- schedule_all method removed ---
     # PipelineManager will be responsible for iterating and calling schedule()
 
-    def schedule_all(self, **kwargs):
+    def schedule_all(self,registry: PipelineRegistry, **kwargs):
         """
         Schedule all pipelines found by the registry.
 
@@ -487,10 +434,10 @@ class PipelineScheduler:
             registry = self._get_registry_func()
             names = registry._get_names()  # Use registry to find pipelines
             if not names:
-                rprint("[yellow]No pipelines found to schedule.[/yellow]")
+                logger.info("[yellow]No pipelines found to schedule.[/yellow]")
                 return
 
-            rprint(f"Attempting to schedule {len(names)} pipelines...")
+            logger.info(f"Attempting to schedule {len(names)} pipelines...")
             scheduled_ids = []
             errors = []
             for name in names:
@@ -504,34 +451,31 @@ class PipelineScheduler:
                         or not cfg.pipeline.schedule
                         or not cfg.pipeline.schedule.enabled
                     ):
+                        
                         logger.info(
-                            f"Skipping scheduling for '{name}': Not configured or not enabled."
-                        )
-                        rprint(
                             f"🟡 Skipping schedule for [cyan]{name}[/cyan]: Not configured or disabled in config."
                         )
                         continue
 
-                    rprint(f"Scheduling [cyan]{name}[/cyan]...")
+                    logger.info(f"Scheduling [cyan]{name}[/cyan]...")
                     # Pass kwargs, allowing overrides of config defaults
                     schedule_id = self.schedule(name=name, **kwargs)
                     scheduled_ids.append(schedule_id)
                 except Exception as e:
                     logger.error(f"Failed to schedule pipeline '{name}': {e}")
                     errors.append(name)
-                    rprint(f"❌ Error scheduling [cyan]{name}[/cyan]: {e}")
+                    logger.error(f"❌ Error scheduling [cyan]{name}[/cyan]: {e}")
 
             if errors:
-                rprint(
+                logger.error(
                     f"\n[bold red]Finished scheduling with errors for: {', '.join(errors)}[/bold red]"
                 )
             else:
-                rprint(
+                logger.success(
                     f"\n[bold green]Successfully scheduled {len(scheduled_ids)} pipelines.[/bold green]"
                 )
 
         except Exception as e:
-            logger.error(f"An unexpected error occurred during schedule_all: {e}")
-            rprint(
+            logger.error(
                 f"[bold red]An unexpected error occurred during schedule_all: {e}[/bold red]"
             )

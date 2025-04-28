@@ -26,7 +26,19 @@ class PipelineVisualizer:
         # Attributes like fs and base_dir are accessed via self.project_cfg
 
     def _display_all_function(self, name: str, reload: bool = False):
-        """Internal helper to load module/config and get the Hamilton DAG object."""
+        """Internal helper to load module/config and get the Hamilton DAG object.
+        
+        Args:
+            name (str): The name of the pipeline.
+            reload (bool): Whether to reload the module.
+            
+        Returns:
+            Hamilton DAG object.
+
+        Raises:
+            ImportError: If the module cannot be loaded.
+
+        """
         # Load pipeline-specific config
         pipeline_cfg = PipelineConfig.load(
             name=name, fs=self._fs
@@ -65,6 +77,14 @@ class PipelineVisualizer:
             name (str): The name of the pipeline graph.
             format (str, optional): The format of the graph file. Defaults to "png".
             reload (bool, optional): Whether to reload the pipeline data. Defaults to False.
+
+        Raises:
+            ImportError: If the module cannot be loaded.
+
+        Example:
+            >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
+            >>> visualizer = PipelineVisualizer(project_cfg, fs)
+            >>> visualizer.save_dag(name="example_pipeline", format="png")
         """
         dag = self._display_all_function(name=name, reload=reload)
 
@@ -106,6 +126,14 @@ class PipelineVisualizer:
 
         Returns:
             Optional[graphviz.Digraph]: The generated graph object if raw=True, else None.
+
+        Raises:
+            ImportError: If the module cannot be loaded.
+
+        Example:
+            >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
+            >>> visualizer = PipelineVisualizer(project_cfg, fs)
+            >>> visualizer.show_dag(name="example_pipeline", format="png")  
         """
         dag = self._display_all_function(name=name, reload=reload)
         if raw:

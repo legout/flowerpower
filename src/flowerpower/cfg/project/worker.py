@@ -85,7 +85,7 @@ class APSBackendConfig(BaseConfig):
         default=settings.APS_WORKER_MAX_CONCURRENT_JOBS
     )
     default_job_executor: str | None = msgspec.field(default=settings.EXECUTOR)
-    num_workers: int | None = msgspec.field(default=settings.EXECUTOR_NUM_CPUS)
+    num_workers: int | None = msgspec.field(default=settings.APS_WORKER_NUM_WORKERS)
 
 
 class RQBackendConfig(WorkerBackendConfig):
@@ -102,6 +102,9 @@ class RQBackendConfig(WorkerBackendConfig):
     queues: str | list[str] = msgspec.field(
         default_factory=lambda: settings.RQ_WORKER_QUEUES
     )
+    num_workers: int = msgspec.field(
+        default=settings.RQ_WORKER_NUM_WORKERS
+    )  # int in secods
 
 
 class HueyBackendConfig(WorkerBackendConfig):

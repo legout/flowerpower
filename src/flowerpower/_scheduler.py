@@ -60,7 +60,7 @@ class SchedulerManager(Scheduler):
         self._conf_path = "conf"
         self._pipelines_path = "pipelines"  # or pipelines_path
 
-        self._sync_fs()
+        self._add_modules_path()
         self.load_config()
 
         self._setup_data_store()
@@ -80,7 +80,7 @@ class SchedulerManager(Scheduler):
 
         sys.path.append(self._pipelines_path)
 
-    def _sync_fs(self):
+    def _add_modules_path(self):
         """
         Sync the filesystem.
 

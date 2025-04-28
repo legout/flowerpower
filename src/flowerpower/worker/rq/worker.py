@@ -4,7 +4,7 @@ RQSchedulerBackend implementation for FlowerPower using RQ and rq-scheduler.
 This module implements the scheduler backend using RQ (Redis Queue) and rq-scheduler.
 """
 
-import random
+import time
 import datetime as dt
 import multiprocessing
 import platform
@@ -15,6 +15,8 @@ from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
+from rq.worker import Worker
+from rq.worker_pool import WorkerPool
 from rq.job import Job
 from rq.results import Result
 from rq_scheduler import Scheduler
@@ -44,8 +46,22 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
 
 
 class RQWorker(BaseWorker):
-    """
-    Implementation of BaseScheduler using RQ and rq-scheduler.
+    """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
+
+    This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.
+    It supports multiple queues, background workers, and job scheduling capabilities.
+
+    Typical usage:
+        ```python
+        worker = RQWorker(name="my_rq_worker")
+        worker.start_worker(background=True)
+        
+        # Add a job
+        def my_job(x: int) -> int:
+            return x * 2
+            
+        job_id = worker.add_job(my_job, func_args=(10,))
+        ```
     """
 
     def __init__(
@@ -57,19 +73,46 @@ class RQWorker(BaseWorker):
         fs: AbstractFileSystem | None = None,
         log_level: str | None = None,
     ):
-        """
-        Initialize the RQScheduler backend.
+        """Initialize the RQ scheduler backend.
 
         Args:
-            name (str): Name of the scheduler
-            base_dir (str | None): Base directory for the scheduler
-            backend (RQBackend | None): RQ backend instance
-            storage_options (dict[str, Any] | None): Storage options for the backend
-            fs (AbstractFileSystem | None): File system instance
-            log_level (str | None): Logging level for the scheduler
+            name: Name of the scheduler instance. Used for identification in logs
+                and queue names.
+            base_dir: Base directory for the FlowerPower project. Used for finding
+                configuration files.
+            backend: RQBackend instance for Redis connection configuration.
+                If None, configuration is loaded from project settings.
+            storage_options: Options for configuring file system storage access.
+                Example: {"mode": "async", "root": "/tmp"}
+            fs: Custom filesystem implementation for storage operations.
+            log_level: Logging level to use for this worker instance.
+                Example: "DEBUG", "INFO", "WARNING", etc.
+
+        Raises:
+            RuntimeError: If backend setup fails due to Redis connection issues
+                or missing configurations.
+            ImportError: If required dependencies are not installed.
+
+        Example:
+            ```python
+            # Basic initialization
+            worker = RQWorker(name="my_worker")
+
+            # With custom backend and logging
+            backend = RQBackend(
+                uri="redis://localhost:6379/0",
+                queues=["high", "default", "low"]
+            )
+            worker = RQWorker(
+                name="custom_worker",
+                backend=backend,
+                log_level="DEBUG"
+            )
+            ```
         """
         if log_level:
             setup_logging(level=log_level)
+        self._log_level = log_level or "INFO"
 
         super().__init__(
             type="rq",
@@ -85,17 +128,29 @@ class RQWorker(BaseWorker):
 
         redis_conn = self._backend.client
         self._queues = {}
-        self._schedulers = {}
 
-        for queue_name in self._backend.queues:
+        self._queue_names = self._backend.queues#[:-1]
+        for queue_name in self._queue_names:
             queue = Queue(name=queue_name, connection=redis_conn)
             self._queues[queue_name] = queue
-            self._schedulers[queue_name] = Scheduler(queue=queue, connection=redis_conn)
+            self._queues[queue_name].log = logger
             logger.debug(f"Created queue and scheduler for '{queue_name}'")
 
+        self._scheduler_name = self._backend.queues[-1]
+        self._scheduler = Scheduler(
+            connection=redis_conn, queue_name=self._backend.queues[-1], interval=60
+        )
+        self._scheduler.log = logger
+
     def _setup_backend(self) -> None:
-        """
-        Set up the data store for the scheduler using config.
+        """Set up the Redis backend for the scheduler.
+
+        This internal method initializes the Redis connection and queues based on
+        project configuration. It validates configuration, handles errors, and logs
+        the setup process.
+
+        Raises:
+            RuntimeError: If Redis connection fails or configuration is invalid.
         """
         backend_cfg = getattr(self.cfg, "backend", None)
         if not backend_cfg:
@@ -115,35 +170,72 @@ class RQWorker(BaseWorker):
             raise RuntimeError(f"Failed to set up RQ backend: {exc}") from exc
 
     def start_worker(
-        self, background: bool = False, queue_names: list[str] | None = None
+        self,
+        background: bool = False,
+        queue_names: list[str] | None = None,
+        with_scheduler: bool = True,
+        **kwargs: Any,
     ) -> None:
-        """
-        Start a worker process for processing jobs from the queues.
+        """Start a worker process for processing jobs from the queues.
 
         Args:
-            background: Whether to run the worker in the background or in the current process
-            queue_names: List of queue names to process (defaults to all queues)
+            background: If True, runs the worker in a non-blocking background mode.
+                If False, runs in the current process and blocks until stopped.
+            queue_names: List of queue names to process. If None, processes all
+                queues defined in the backend configuration.
+            with_scheduler: Whether to include the scheduler queue for processing
+                scheduled jobs.
+            **kwargs: Additional arguments passed to RQ's Worker class.
+                Example: {"burst": True, "logging_level": "INFO", "job_monitoring_interval": 30}
+
+        Raises:
+            RuntimeError: If worker fails to start or if Redis connection fails.
+
+        Example:
+            ```python
+            # Start worker in background processing all queues
+            worker.start_worker(background=True)
+
+            # Start worker for specific queues
+            worker.start_worker(
+                background=True,
+                queue_names=["high", "default"],
+                with_scheduler=False
+            )
+
+            # Start worker with custom settings
+            worker.start_worker(
+                background=True,
+                max_jobs=100,
+                job_monitoring_interval=30
+            )
+            ```
         """
         import multiprocessing
-
-        from rq import Worker
-
+        logging_level = kwargs.pop("logging_level", self._log_level)
+        burst = kwargs.pop("burst", False)
+        max_jobs = kwargs.pop("max_jobs", None)
         # Determine which queues to process
         if queue_names is None:
             # Use all queues by default
-            queue_names = list(self._queues.keys())
+            queue_names = self._queue_names
             queue_names_str = ", ".join(queue_names)
         else:
             # Filter to only include valid queue names
-            queue_names = [name for name in queue_names if name in self._queues]
+            queue_names = [name for name in queue_names if name in self._queue_names]
             queue_names_str = ", ".join(queue_names)
 
         if not queue_names:
             logger.error("No valid queues specified, cannot start worker")
             return
 
+        if with_scheduler:
+            # Add the scheduler queue to the list of queues
+            queue_names.append(self._scheduler_name)
+            queue_names_str = ", ".join(queue_names)
+
         # Create a worker instance with queue names (not queue objects)
-        worker = Worker(queue_names, connection=self._backend.client)
+        worker = Worker(queue_names, connection=self._backend.client, **kwargs)
 
         if background:
             # We need to use a separate process rather than a thread because
@@ -164,7 +256,7 @@ class RQWorker(BaseWorker):
                 worker_proc._install_signal_handlers = lambda: None
 
                 # Work until terminated
-                worker_proc.work(with_scheduler=True)
+                worker_proc.work(with_scheduler=True, logging_level=logging_level, burst=burst, max_jobs=max_jobs)
 
             # Create and start the process
             process = multiprocessing.Process(
@@ -183,11 +275,22 @@ class RQWorker(BaseWorker):
             logger.info(
                 f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
             )
-            worker.work(with_scheduler=True)
+            worker.work(with_scheduler=True, logging_level=logging_level, burst=burst, max_jobs=max_jobs)
 
     def stop_worker(self) -> None:
-        """
-        Stop the worker process if running in the background.
+        """Stop the worker process.
+
+        This method stops the worker process if running in background mode and
+        performs cleanup. It should be called before program exit.
+
+        Example:
+            ```python
+            try:
+                worker.start_worker(background=True)
+                # ... do work ...
+            finally:
+                worker.stop_worker()
+            ```
         """
         if hasattr(self, "_worker_process") and self._worker_process is not None:
             if self._worker_process.is_alive():
@@ -201,55 +304,95 @@ class RQWorker(BaseWorker):
     def start_worker_pool(
         self,
         num_workers: int | None = None,
-        background: bool = True,
+        background: bool = False,
         queue_names: list[str] | None = None,
+        with_scheduler: bool = True,
+        **kwargs: Any,
     ) -> None:
-        """
-        Start a pool of worker processes to handle jobs in parallel using RQ's built-in WorkerPool.
+        """Start a pool of worker processes to handle jobs in parallel.
 
-        This implementation uses RQ's WorkerPool class which provides robust worker management
-        with proper monitoring, restarting of crashed workers, and graceful shutdown.
+        This implementation uses RQ's WorkerPool class which provides robust worker
+        management with proper monitoring and graceful shutdown.
 
         Args:
-            num_workers: Number of worker processes to start (defaults to CPU count or config)
-            background: Whether to run the workers in the background
-            queue_names: List of queue names to process (defaults to all queues)
+            num_workers: Number of worker processes to start. If None, uses CPU
+                count or configuration value.
+            background: If True, runs the worker pool in background mode.
+                If False, runs in the current process and blocks.
+            queue_names: List of queue names to process. If None, processes all
+                queues defined in the backend configuration.
+            with_scheduler: Whether to include the scheduler queue for processing
+                scheduled jobs.
+            **kwargs: Additional arguments passed to RQ's WorkerPool class.
+                Example: {"max_jobs": 100, "job_monitoring_interval": 30}
+
+        Raises:
+            RuntimeError: If worker pool fails to start or Redis connection fails.
+
+        Example:
+            ```python
+            # Start pool with default settings
+            worker.start_worker_pool(num_workers=4, background=True)
+
+            # Start pool for specific queues
+            worker.start_worker_pool(
+                num_workers=4,
+                background=True,
+                queue_names=["high", "default"],
+                with_scheduler=False
+            )
+
+            # Start pool with custom settings
+            worker.start_worker_pool(
+                num_workers=4,
+                background=True,
+                max_jobs=100,
+                job_monitoring_interval=30
+            )
+            ```
         """
         import multiprocessing
 
-        from rq.worker_pool import WorkerPool
+        logging_level = kwargs.pop("logging_level", self._log_level)
+        burst = kwargs.pop("burst", False)
+        max_jobs = kwargs.pop("max_jobs", None)
 
         if num_workers is None:
-            num_workers = getattr(self.cfg, "rq_backend", None)
-            if num_workers is not None:
-                num_workers = getattr(num_workers, "num_workers", None)
+            backend = getattr(self.cfg, "rq_backend", None)
+            if backend is not None:
+                num_workers = getattr(backend, "num_workers", None)
             if num_workers is None:
                 num_workers = multiprocessing.cpu_count()
         # Determine which queues to process
         if queue_names is None:
             # Use all queues by default
-            queue_list = list(self._queues.keys())
+            queue_list = self._queue_names
             queue_names_str = ", ".join(queue_list)
         else:
             # Filter to only include valid queue names
-            queue_list = [name for name in queue_names if name in self._queues]
+            queue_list = [name for name in queue_names if name in self._queue_names]
             queue_names_str = ", ".join(queue_list)
 
         if not queue_list:
             logger.error("No valid queues specified, cannot start worker pool")
             return
+        if with_scheduler:
+            # Add the scheduler queue to the list of queues
+            queue_list.append(self._scheduler_name)
+            queue_names_str = ", ".join(queue_list)
 
         # Initialize RQ's WorkerPool
         worker_pool = WorkerPool(
-            queues=queue_list, connection=self._backend.client, num_workers=num_workers
+            queues=queue_list, connection=self._backend.client, num_workers=num_workers, **kwargs
         )
+        #worker_pool.log = logger
 
         self._worker_pool = worker_pool
 
         if background:
             # Start the worker pool process using multiprocessing to avoid signal handler issues
             def run_pool_process():
-                worker_pool.start(burst=False)
+                worker_pool.start(burst=burst, logging_level=logging_level, max_jobs=max_jobs)   
 
             self._pool_process = multiprocessing.Process(
                 target=run_pool_process,
@@ -264,11 +407,22 @@ class RQWorker(BaseWorker):
             logger.info(
                 f"Starting worker pool with {num_workers} workers across queues: {queue_names_str} in foreground (blocking)"
             )
-            worker_pool.start(burst=False)
+            worker_pool.start(burst=burst, logging_level=logging_level)
 
     def stop_worker_pool(self) -> None:
-        """
-        Stop all worker processes in the pool using RQ's built-in WorkerPool.
+        """Stop all worker processes in the pool.
+
+        This method stops all worker processes in the pool and performs cleanup.
+        It ensures a graceful shutdown of all workers.
+
+        Example:
+            ```python
+            try:
+                worker.start_worker_pool(num_workers=4, background=True)
+                # ... do work ...
+            finally:
+                worker.stop_worker_pool()
+            ```
         """
         if hasattr(self, "_worker_pool"):
             logger.info("Stopping RQ worker pool")
@@ -290,22 +444,87 @@ class RQWorker(BaseWorker):
         else:
             logger.warning("No worker pool to stop")
 
-    def _run_worker(self) -> None:
-        """
-        Helper method to run a worker process.
-        Used by the worker pool.
-        """
-        from rq import Worker
+    def start_scheduler(self, background: bool = False, interval: int = 60) -> None:
+        """Start the RQ scheduler process.
 
-        # Create a worker instance with queue names
-        worker = Worker(self._backend.queues, connection=self._backend.client)
-        # Start the worker (blocking call)
-        worker.work(with_scheduler=True)
+        The scheduler process manages scheduled and recurring jobs. It must be
+        running for scheduled jobs to execute.
+
+        Args:
+            background: If True, runs the scheduler in a non-blocking background mode.
+                If False, runs in the current process and blocks.
+            interval: How often to check for scheduled jobs, in seconds.
+
+        Raises:
+            RuntimeError: If scheduler fails to start or Redis connection fails.
+
+        Example:
+            ```python
+            # Start scheduler in background checking every 30 seconds
+            worker.start_scheduler(background=True, interval=30)
+
+            # Start scheduler in foreground (blocking)
+            worker.start_scheduler(background=False)
+            ```
+        """
+        # Create a scheduler instance with the queue name
+        if not hasattr(self, "_scheduler"):
+            self._scheduler = Scheduler(
+                connection=self._backend.client,
+                queue_name=self._backend.queues[-1],
+                interval=interval,
+            )
+            self._scheduler.log = logger
+
+        elif self._scheduler._interval != interval:
+            self._scheduler = Scheduler(
+                connection=self._backend.client,
+                queue_name=self._backend.queues[-1],
+                interval=interval,
+            )
+            self._scheduler.log = logger
+
+        if background:
+
+            def run_scheduler():
+                self._scheduler.run()
+
+            self._scheduler_process = multiprocessing.Process(
+                target=run_scheduler, name=f"rq-scheduler-{self.name}"
+            )
+            self._scheduler_process.start()
+            logger.info(
+                f"Started RQ scheduler in background (PID: {self._scheduler_process.pid})"
+            )
+        else:
+            logger.info("Starting RQ scheduler in current process (blocking)")
+            self._scheduler.run()
+
+    def stop_scheduler(self) -> None:
+        """Stop the RQ scheduler process.
+
+        This method stops the scheduler process if running in background mode
+        and performs cleanup.
+
+        Example:
+            ```python
+            try:
+                worker.start_scheduler(background=True)
+                # ... do work ...
+            finally:
+                worker.stop_scheduler()
+            ```
+        """
+        if hasattr(self, "_scheduler_process") and self._scheduler_process is not None:
+            if self._scheduler_process.is_alive():
+                self._scheduler_process.terminate()
+                self._scheduler_process.join(timeout=5)
+                logger.info("RQ scheduler process terminated")
+            self._scheduler_process = None
+        else:
+            logger.warning("No scheduler process to stop")
 
     ## Jobs ###
-
-
-
 
     def add_job(
         self,
@@ -320,32 +539,74 @@ class RQWorker(BaseWorker):
         run_in: dt.timedelta | None = None,
         retry: int | dict | None = None,
         repeat: int | dict | None = None,
+        meta: dict | None = None,
         **job_kwargs,
     ) -> Job:
-        """
-        Add a job for immediate execution.
-        
-        Note: passing `is_async=False` will run the job in the current process.
+        """Add a job for immediate or scheduled execution.
 
         Args:
-            func (Callable): Function to execute
-            func_args (tuple | None): Positional arguments for the function
-            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
-            job_id (str | None): Optional job ID
-            result_ttl (float | dt.timedelta | None): Time to live for the job result
-            ttl (float | dt.timedelta | None): Time to live for the job
-            queue_name (str | None): Name of the queue to use (defaults to first queue)
-            run_at (dt.datetime | None): Schedule the job to run at a specific time
-            run_in (dt.timedelta | None): Schedule the job to run after a delay
-            retry (int | dict | None): Retry configuration. When it is an int, it will be
-                converted to a Retry with max retries=retry. When it is a dict, it will be
-                converted to a Retry with the given parameters.
-            repeat (int | dict | None): Repeat configuration. When it is an int, it will be
-                converted to a Repeat with max repeats=repeat. When it is a dict, it will be
-                converted to a Repeat with the given parameters.
-            **job_kwargs: Additional job parameters for the rq job.
+            func: Function to execute. Must be importable from the worker process.
+            func_args: Positional arguments to pass to the function.
+            func_kwargs: Keyword arguments to pass to the function.
+            job_id: Optional unique identifier for the job. If None, a UUID is generated.
+            result_ttl: Time to live for the job result, as seconds or timedelta.
+                After this time, the result may be removed from Redis.
+            ttl: Maximum time the job can exist in Redis, as seconds or timedelta.
+                After this time, the job will be removed even if not complete.
+            queue_name: Name of the queue to place the job in. If None, uses the
+                first queue from configuration.
+            run_at: Schedule the job to run at a specific datetime.
+            run_in: Schedule the job to run after a delay.
+            retry: Number of retries or retry configuration dictionary.
+                Example dict: {"max": 3, "interval": 60}
+            repeat: Number of repetitions or repeat configuration dictionary.
+                Example dict: {"max": 5, "interval": 3600}
+            meta: Additional metadata to store with the job.
+            **job_kwargs: Additional arguments for RQ's Job class.
+
         Returns:
-            Job: Enqueued job object
+            Job: The created job instance.
+
+        Raises:
+            ValueError: If the function is not serializable or arguments are invalid.
+            RuntimeError: If Redis connection fails.
+
+        Example:
+            ```python
+            def my_task(x: int, y: int = 0) -> int:
+                return x + y
+
+            # Add immediate job
+            job = worker.add_job(
+                my_task,
+                func_args=(1,),
+                func_kwargs={"y": 2},
+                result_ttl=3600  # Keep result for 1 hour
+            )
+
+            # Add scheduled job
+            tomorrow = dt.datetime.now() + dt.timedelta(days=1)
+            job = worker.add_job(
+                my_task,
+                func_args=(1, 2),
+                run_at=tomorrow,
+                queue_name="scheduled"
+            )
+
+            # Add job with retries
+            job = worker.add_job(
+                my_task,
+                func_args=(1, 2),
+                retry={"max": 3, "interval": 60}  # 3 retries, 1 minute apart
+            )
+
+            # Add repeating job
+            job = worker.add_job(
+                my_task,
+                func_args=(1, 2),
+                repeat={"max": 5, "interval": 3600}  # 5 times, hourly
+            )
+            ```
         """
         job_id = job_id or str(uuid.uuid4())
         if isinstance(result_ttl, (int, float)):
@@ -353,11 +614,12 @@ class RQWorker(BaseWorker):
         # args = args or ()
         # kwargs = kwargs or {}
         if queue_name is None:
-            queue_name = random.choice(list(self._queues.keys()))
-        elif queue_name not in self._queues:
-            queue_name_new = random.choice(list(self._queues.keys()))
-            logger.warning(f"Queue '{queue_name}' not found, using '{queue_name_new}'")
-            queue_name = queue_name_new
+            queue_name = self._queue_names[0]
+        elif queue_name not in self._queue_names:
+            logger.warning(
+                f"Queue '{queue_name}' not found, using '{self._queue_names[0]}'"
+            )
+            queue_name = self._queue_names[0]
 
         if repeat:
             # If repeat is an int, convert it to a Repeat instance
@@ -390,6 +652,7 @@ class RQWorker(BaseWorker):
                 ttl=int(ttl.total_seconds()) if ttl else None,
                 retry=retry,
                 repeat=repeat,
+                meta=meta,
                 **job_kwargs,
             )
             logger.info(
@@ -407,6 +670,7 @@ class RQWorker(BaseWorker):
                 ttl=int(ttl.total_seconds()) if ttl else None,
                 retry=retry,
                 repeat=repeat,
+                meta=meta,
                 **job_kwargs,
             )
             logger.info(
@@ -423,52 +687,66 @@ class RQWorker(BaseWorker):
                 ttl=int(ttl.total_seconds()) if ttl else None,
                 retry=retry,
                 repeat=repeat,
+                meta=meta,
                 **job_kwargs,
             )
             logger.info(
                 f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'"
             )
         return job
-    
-    def run_job(
-            self,
-            func: Callable,
-            func_args: tuple | None = None,
-            func_kwargs: dict[str, Any] | None = None,
-            job_id: str | None = None,
-            result_ttl: float | dt.timedelta | None = None,
-            ttl: float | dt.timedelta | None = None,
-            queue_name: str | None = None,
-            retry: int | dict | None = None,
-            repeat: int | dict | None = None,
-            **job_kwargs)-> Any:
-        """
-        Run a job immediately  and return the result.
-        
-        This method is a wrapper around the add_job method, but it runs the job
-        immediatly and returns the result.
-        
-        Args:
-            func (Callable): Function to execute
-            func_args (tuple | None): Positional arguments for the function
-            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
-            job_id (str | None): Optional job ID
-            result_ttl (float | dt.timedelta | None): Time to live for the job result
-            ttl (float | dt.timedelta | None): Time to live for the job
-            queue_name (str | None): Name of the queue to use (defaults to first queue)
-            run_at (dt.datetime | None): Schedule the job to run at a specific time
-            run_in (dt.timedelta | None): Schedule the job to run after a delay
-            retry (int | dict | None): Retry configuration. When it is an int, it will be
-                converted to a Retry with max retries=retry. When it is a dict, it will be
-                converted to a Retry with the given parameters.
-            repeat (int | dict | None): Repeat configuration. When it is an int, it will be
-                converted to a Repeat with max repeats=repeat. When it is a dict, it will be
-                converted to a Repeat with the given parameters.
-            **job_kwargs: Additional job parameters for the rq job.
-        
-        Returns:
 
-            Any: Result of the job
+    def run_job(
+        self,
+        func: Callable,
+        func_args: tuple | None = None,
+        func_kwargs: dict[str, Any] | None = None,
+        job_id: str | None = None,
+        result_ttl: float | dt.timedelta | None = None,
+        ttl: float | dt.timedelta | None = None,
+        queue_name: str | None = None,
+        retry: int | dict | None = None,
+        repeat: int | dict | None = None,
+        meta: dict | None = None,
+        **job_kwargs,
+    ) -> Any:
+        """Run a job immediately and return its result.
+
+        This method is a wrapper around add_job that waits for the job to complete
+        and returns its result.
+
+        Args:
+            func: Function to execute. Must be importable from the worker process.
+            func_args: Positional arguments to pass to the function.
+            func_kwargs: Keyword arguments to pass to the function.
+            job_id: Optional unique identifier for the job.
+            result_ttl: Time to live for the job result.
+            ttl: Maximum time the job can exist.
+            queue_name: Name of the queue to use.
+            retry: Number of retries or retry configuration.
+            repeat: Number of repetitions or repeat configuration.
+            meta: Additional metadata to store with the job.
+            **job_kwargs: Additional arguments for RQ's Job class.
+
+        Returns:
+            Any: The result returned by the executed function.
+
+        Raises:
+            Exception: Any exception raised by the executed function.
+            TimeoutError: If the job times out before completion.
+
+        Example:
+            ```python
+            def add(x: int, y: int) -> int:
+                return x + y
+
+            # Run job and get result immediately
+            result = worker.run_job(
+                add,
+                func_args=(1, 2),
+                retry=3  # Retry up to 3 times on failure
+            )
+            assert result == 3
+            ```
         """
         job = self.add_job(
             func=func,
@@ -480,20 +758,22 @@ class RQWorker(BaseWorker):
             queue_name=queue_name,
             retry=retry,
             repeat=repeat,
+            meta=meta,
             **job_kwargs,
-            )
-        
+        )
+        while not job.is_finished:
+            job.refresh()
+            time.sleep(0.1)
         return job.result
 
     def _get_job_queue_name(self, job: str | Job) -> str | None:
-        """
-        Get the queue name for a job.
+        """Get the queue name for a job.
 
         Args:
-            job: Job ID or Job object
+            job: Job ID or Job object.
 
         Returns:
-            str | None: Queue name if found, None otherwise
+            str | None: Name of the queue containing the job, or None if not found.
         """
         job_id = job if isinstance(job, str) else job.id
         for queue_name in self.job_ids:
@@ -504,18 +784,28 @@ class RQWorker(BaseWorker):
     def get_jobs(
         self, queue_name: str | list[str] | None = None
     ) -> dict[str, list[Job]]:
-        """
-        Get all jobs in the queue.
+        """Get all jobs from specified queues.
 
         Args:
-            queue_name: Optional name of the queue to get jobs from.
-                        If None, gets jobs from all queues.
+            queue_name: Optional queue name or list of queue names to get jobs from.
+                If None, gets jobs from all queues.
 
         Returns:
-            list: List of jobs
+            dict[str, list[Job]]: Dictionary mapping queue names to lists of jobs.
+
+        Example:
+            ```python
+            # Get jobs from all queues
+            jobs = worker.get_jobs()
+            for queue_name, queue_jobs in jobs.items():
+                print(f"Queue {queue_name}: {len(queue_jobs)} jobs")
+
+            # Get jobs from specific queues
+            jobs = worker.get_jobs(["high", "default"])
+            ```
         """
         if queue_name is None:
-            queue_name = list(self._queues.keys())
+            queue_name = self._queue_names
         elif isinstance(queue_name, str):
             queue_name = [queue_name]
         jobs = {
@@ -524,14 +814,20 @@ class RQWorker(BaseWorker):
         return jobs
 
     def get_job(self, job_id: str) -> Job | None:
-        """
-        Get a job by its ID.
+        """Get a specific job by its ID.
 
         Args:
-            job_id: ID of the job
+            job_id: Unique identifier of the job to retrieve.
 
         Returns:
-            Job | None: Job object if found, None otherwise
+            Job | None: The job object if found, None otherwise.
+
+        Example:
+            ```python
+            job = worker.get_job("550e8400-e29b-41d4-a716-446655440000")
+            if job:
+                print(f"Job status: {job.get_status()}")
+            ```
         """
         queue_name = self._get_job_queue_name(job=job_id)
         if queue_name is None:
@@ -544,14 +840,23 @@ class RQWorker(BaseWorker):
         return job
 
     def get_job_result(self, job: str | Job, delete_result: bool = False) -> Any:
-        """
-        Get the result of a job.
+        """Get the result of a completed job.
 
         Args:
-            job: Job ID or Job object
+            job: Job ID or Job object.
+            delete_result: If True, deletes the job and its result after retrieval.
 
         Returns:
-            Any: Result of the job
+            Any: The result of the job if available.
+
+        Example:
+            ```python
+            # Get result and keep the job
+            result = worker.get_job_result("job-123")
+
+            # Get result and clean up
+            result = worker.get_job_result("job-123", delete_result=True)
+            ```
         """
         if isinstance(job, str):
             job = self.get_job(job_id=job)
@@ -601,7 +906,6 @@ class RQWorker(BaseWorker):
         if isinstance(job, str):
             job = self.get_job(job)
             if job is None:
-                logger.error(f"Job {job} not found in any queue")
                 return False
         if ttl:
             job.cleanup(ttl=ttl, **kwargs)
@@ -623,12 +927,12 @@ class RQWorker(BaseWorker):
                 If None, cancels jobs from all queues.
         """
         if queue_name is None:
-            queue_name = list(self._queues.keys())
+            queue_name = self._queue_names
         elif isinstance(queue_name, str):
             queue_name = [queue_name]
 
         for queue_name in queue_name:
-            if queue_name not in self._queues:
+            if queue_name not in self._queue_names:
                 logger.warning(f"Queue '{queue_name}' not found, skipping")
                 continue
 
@@ -647,12 +951,12 @@ class RQWorker(BaseWorker):
 
         """
         if queue_name is None:
-            queue_name = list(self._queues.keys())
+            queue_name = self._queue_names
         elif isinstance(queue_name, str):
             queue_name = [queue_name]
 
         for queue_name in queue_name:
-            if queue_name not in self._queues:
+            if queue_name not in self._queue_names:
                 logger.warning(f"Queue '{queue_name}' not found, skipping")
                 continue
 
@@ -661,22 +965,40 @@ class RQWorker(BaseWorker):
 
     @property
     def job_ids(self):
-        """
-        Get all job IDs from all queues.
+        """Get all job IDs from all queues.
+
+        Returns:
+            dict[str, list[str]]: Dictionary mapping queue names to lists of job IDs.
+
+        Example:
+            ```python
+            all_ids = worker.job_ids
+            for queue_name, ids in all_ids.items():
+                print(f"Queue {queue_name}: {len(ids)} jobs")
+            ```
         """
         job_ids = {}
-        for queue_name in self._queues:
+        for queue_name in self._queue_names:
             job_ids[queue_name] = self._queues[queue_name].job_ids
 
         return job_ids
 
     @property
     def jobs(self):
-        """
-        Get all jobs from all queues.
+        """Get all jobs from all queues.
+
+        Returns:
+            dict[str, list[Job]]: Dictionary mapping queue names to lists of jobs.
+
+        Example:
+            ```python
+            all_jobs = worker.jobs
+            for queue_name, queue_jobs in all_jobs.items():
+                print(f"Queue {queue_name}: {len(queue_jobs)} jobs")
+            ```
         """
         jobs = {}
-        for queue_name in self._queues:
+        for queue_name in self._queue_names:
             jobs[queue_name] = self._queues[queue_name].get_jobs()
 
         return jobs
@@ -690,49 +1012,74 @@ class RQWorker(BaseWorker):
         func_kwargs: dict[str, Any] | None = None,
         cron: str | None = None,  # Cron expression for scheduling
         interval: int | None = None,  # Interval in seconds
-        repeat: int | None = None,
-        result_ttl: float | dt.timedelta | None = None,
-        ttl: float | dt.timedelta | None = None,
+        date: dt.datetime | None = None,  # Date to run the job
         schedule_id: str | None = None,
-        use_local_time_zone: bool = True,
-        queue_name: str | None = None,
         **schedule_kwargs,
     ) -> Job:
-        """
-        Schedule a job for repeated execution.
+        """Schedule a job for repeated or one-time execution.
 
         Args:
-            func (Callable): Function to execute
-            func_args (tuple | None): Positional arguments for the function
-            func_kwargs (dict[str, Any] | None): Keyword arguments for the function
-            cron (str | None): Cron expression for scheduling
-            interval (int | None): Interval in seconds
-            repeat (int | None): Repeat count
-            result_ttl (float | dt.timedelta | None): Time to live for the job result
-            ttl (float | dt.timedelta | None): Time to live for the job
-            schedule_id (str | None): Optional schedule ID
-            use_local_time_zone (bool): Whether to use local time zone for scheduling
-            queue_name (str | None): Name of the queue to use (defaults to first queue)
-            **schedule_kwargs: Additional schedule parameters for the rq-scheduler job.
-
+            func: Function to execute. Must be importable from the worker process.
+            func_args: Positional arguments to pass to the function.
+            func_kwargs: Keyword arguments to pass to the function.
+            cron: Cron expression for scheduling (e.g. "0 * * * *" for hourly).
+            interval: Interval in seconds for recurring execution.
+            date: Specific datetime for one-time execution.
+            schedule_id: Optional unique identifier for the schedule.
+            **schedule_kwargs: Additional scheduling parameters:
+                - repeat: Number of repetitions (int or dict)
+                - result_ttl: Time to live for results (float or timedelta)
+                - ttl: Time to live for the schedule (float or timedelta)
+                - use_local_time_zone: Whether to use local time (bool)
+                - queue_name: Queue to use for the scheduled jobs
 
         Returns:
-            Job: Scheduled job object
+            Job: The scheduled job instance.
+
+        Raises:
+            ValueError: If no scheduling method specified or invalid cron expression.
+            RuntimeError: If Redis connection fails.
+
+        Example:
+            ```python
+            def my_task(msg: str) -> None:
+                print(f"Task: {msg}")
+
+            # Schedule with cron (every hour)
+            job = worker.add_schedule(
+                my_task,
+                func_kwargs={"msg": "Hourly check"},
+                cron="0 * * * *"
+            )
+
+            # Schedule with interval (every 5 minutes)
+            job = worker.add_schedule(
+                my_task,
+                func_kwargs={"msg": "Regular check"},
+                interval=300
+            )
+
+            # Schedule for specific time
+            tomorrow = dt.datetime.now() + dt.timedelta(days=1)
+            job = worker.add_schedule(
+                my_task,
+                func_kwargs={"msg": "One-time task"},
+                date=tomorrow
+            )
+            ```
         """
         schedule_id = schedule_id or str(uuid.uuid4())
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
 
         # Use the specified scheduler or default to the first one
-        if queue_name is None:
-            queue_name = random.choice(list(self._queues.keys()))
-        elif queue_name not in self._queues:
-            queue_name_new = random.choice(list(self._queues.keys()))
-            logger.warning(f"Queue '{queue_name}' not found, using '{queue_name_new}'")
-            queue_name = queue_name_new
 
-        scheduler = self._schedulers[queue_name]
+        scheduler = self._scheduler
 
+        use_local_time_zone = schedule_kwargs.get("use_local_time_zone", True)
+        repeat = schedule_kwargs.get("repeat", None)
+        result_ttl = schedule_kwargs.get("result_ttl", None)
+        ttl = schedule_kwargs.get("ttl", None)
         if cron:
             schedule = scheduler.cron(
                 cron_string=cron,
@@ -744,12 +1091,12 @@ class RQWorker(BaseWorker):
                 result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
                 ttl=int(ttl.total_seconds()) if ttl else None,
                 use_local_time_zone=use_local_time_zone,
-                queue_name=queue_name,
+                queue_name=self._scheduler_name,
                 meta={"cron": cron},
                 **schedule_kwargs,
             )
             logger.info(
-                f"Scheduled job {schedule.id} ({func.__name__}) on queue '{queue_name}' with cron '{get_description(cron)}'"
+                f"Scheduled job {schedule.id} ({func.__name__}) with cron '{get_description(cron)}'"
             )
 
         if interval:
@@ -763,52 +1110,82 @@ class RQWorker(BaseWorker):
                 repeat=repeat,  # Infinite by default
                 result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
                 ttl=int(ttl.total_seconds()) if ttl else None,
-                queue_name=queue_name,
+                queue_name=self._scheduler_name,
                 meta={"interval": interval},
             )
             logger.info(
-                f"Scheduled job {schedule.id} ({func.__name__}) on queue '{queue_name}' with interval '{precisedelta(interval)}'"
+                f"Scheduled job {schedule.id} ({func.__name__})  with interval '{precisedelta(interval)}'"
             )
+
+        if date:
+            schedule = scheduler.schedule(
+                scheduled_time=date,
+                func=func,
+                args=func_args,
+                kwargs=func_kwargs,
+                id=schedule_id,
+                repeat=1,  # Infinite by default
+                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
+                ttl=int(ttl.total_seconds()) if ttl else None,
+                queue_name=self._scheduler_name,
+                meta={"date": date},
+            )
+            logger.info(
+                f"Scheduled job {schedule.id} ({func.__name__}) to run at '{date}'"
+            )
+
 
         return schedule
 
     def _get_schedule_queue_name(self, schedule: str | Job) -> str | None:
-        """
-        Get the queue name for a schedule.
+        """Get the queue name for a schedule.
 
         Args:
-            schedule: Schedule ID or Job object
+            schedule: Schedule ID or Job object.
 
         Returns:
-            str | None: Queue name if found, None otherwise
+            str | None: Name of the scheduler queue.
         """
-        schedule_id = schedule if isinstance(schedule, str) else schedule.id
-        for queue_name in self.schedule_ids:
-            if schedule_id in self.schedule_ids[queue_name]:
-                return queue_name
-        return None
+        return self._scheduler_name
 
     def get_schedules(
-        self, queue_name: str | list[str] | None = None
+        self,
+        until: Any | None = None,
+        with_times: bool = False,
+        offset: Any | None = None,
+        length: Any | None = None,
     ) -> dict[str, list[Job]]:
-        """
-        Get all schedules.
+        """Get all schedules from the scheduler.
 
         Args:
-            queue_name: Optional name of the queue to get schedules from.
-                        If None, gets schedules from all queues.
+            until: Get schedules until this time.
+            with_times: Include next run times in the results.
+            offset: Number of schedules to skip.
+            length: Maximum number of schedules to return.
 
         Returns:
-            list: List of scheduled jobs
+            dict[str, list[Job]]: Dictionary mapping queue names to lists of schedules.
+
+        Example:
+            ```python
+            # Get all schedules
+            schedules = worker.get_schedules()
+
+            # Get next 10 schedules with run times
+            schedules = worker.get_schedules(
+                with_times=True,
+                length=10
+            )
+            ```
         """
-        if queue_name is None:
-            queue_name = list(self._schedulers.keys())
-        elif isinstance(queue_name, str):
-            queue_name = [queue_name]
-        schedules = {
-            queue_name: list(self._schedulers[queue_name].get_jobs())
-            for queue_name in queue_name
-        }
+        schedules = list(
+            self._scheduler.get_jobs(
+                until=until, with_times=with_times, offset=offset, length=length
+            )
+        )
+        if not schedules:
+            logger.info("No schedules found")
+            return []
         return schedules
 
     def get_schedule(self, schedule_id: str) -> Job | None:
@@ -825,14 +1202,16 @@ class RQWorker(BaseWorker):
         return schedule
 
     def _get_schedule_results(self, schedule: str | Job) -> list[Result]:
-        """
-        Get the result of a schedule.
+        """Get all results from a schedule's execution history.
 
         Args:
-            schedule: Schedule ID or Job object
+            schedule: Schedule ID or Job object.
 
         Returns:
-            Any: Result of the schedule
+            list[Result]: List of all results from the schedule's executions.
+
+        Raises:
+            ValueError: If schedule not found.
         """
         if isinstance(schedule, str):
             schedule = self.get_schedule(schedule_id=schedule)
@@ -846,18 +1225,28 @@ class RQWorker(BaseWorker):
     def get_schedule_latest_result(
         self, schedule: str | Job, delete_result: bool = False
     ) -> Any:
-        """
-        Get the latest result of a schedule.
+        """Get the most recent result of a schedule.
 
         Args:
-            schedule: Schedule ID or Job object
-            delete_result: Whether to delete the result after fetching
+            schedule: Schedule ID or Job object.
+            delete_result: If True, deletes the schedule and results after retrieval.
 
         Returns:
-            Any: Result of the schedule
-        """
+            Any: The most recent result of the schedule if available.
 
-        result = self._backend.get_schedule_result(schedule=schedule)[-1]
+        Example:
+            ```python
+            # Get latest result
+            result = worker.get_schedule_latest_result("schedule-123")
+
+            # Get result and clean up
+            result = worker.get_schedule_latest_result(
+                "schedule-123",
+                delete_result=True
+            )
+            ```
+        """
+        result = self._get_schedule_result(schedule=schedule)[-1]
 
         if delete_result:
             self.delete_schedule(schedule)
@@ -867,15 +1256,33 @@ class RQWorker(BaseWorker):
     def get_schedule_result(
         self, schedule: str | Job, index: int | list[str] | slice | str
     ) -> list[Result]:
-        """
-        Get the result of a schedule at a specific index.
+        """Get specific results from a schedule's execution history.
 
         Args:
-            schedule: Schedule ID or Job object
-            index: Index of the result to retrieve
+            schedule: Schedule ID or Job object.
+            index: Which results to retrieve. Can be:
+                - int: Specific index
+                - list[str]: List of indices
+                - slice: Range of indices
+                - str: "all", "latest", or "earliest"
 
         Returns:
-            list[Result]: Result of the schedule at the specified index
+            list[Result]: List of requested results.
+
+        Example:
+            ```python
+            # Get all results
+            results = worker.get_schedule_result("schedule-123", "all")
+
+            # Get latest result
+            result = worker.get_schedule_result("schedule-123", "latest")
+
+            # Get specific results
+            results = worker.get_schedule_result("schedule-123", [0, 2, 4])
+
+            # Get range of results
+            results = worker.get_schedule_result("schedule-123", slice(0, 5))
+            ```
         """
         results = self._get_schedule_results(schedule=schedule)
         if not results:
@@ -905,41 +1312,103 @@ class RQWorker(BaseWorker):
             return results[index].return_value
 
     def cancel_schedule(self, schedule: str | Job) -> bool:
-        """
-        Cancel a schedule.
+        """Cancel a schedule.
+
+        This method stops any future executions of the schedule without removing
+        past results.
 
         Args:
-            schedule (str | Job): ID or Job object of the schedule to cancel
+            schedule: Schedule ID or Job object to cancel.
 
         Returns:
-            bool: True if the schedule was canceled, False otherwise
+            bool: True if successfully canceled, False if schedule not found.
 
+        Example:
+            ```python
+            # Cancel by ID
+            worker.cancel_schedule("schedule-123")
+
+            # Cancel using job object
+            schedule = worker.get_schedule("schedule-123")
+            if schedule:
+                worker.cancel_schedule(schedule)
+            ```
         """
-        queue_name = self._get_schedule_queue_name(schedule=schedule)
-        if queue_name is None:
-            logger.error(f"Schedule {schedule} not found in any queue")
-            return False
-       
         if schedule is None:
-            logger.error(f"Schedule {schedule} not found in queue '{queue_name}'")
+            logger.error(f"Schedule {schedule} not found")
             return False
 
-        self._schedulers[queue_name].cancel(schedule)
-        logger.info(f"Canceled schedule {schedule.id} from queue '{queue_name}'")
+        self._scheduler.cancel(schedule)
+        logger.info(
+            f"Canceled schedule {schedule.id if isinstance(schedule, Job) else schedule}"
+        )
         return True
 
     def cancel_all_schedules(self) -> None:
-        """Cancel all schedules from all queues."""
-        for queue_name, scheduler in self._schedulers.items():
-            for job in scheduler.get_jobs():
-                scheduler.cancel(job.id)
-            logger.info(f"Canceled all schedules from queue '{queue_name}'")
+        """Cancel all schedules in the scheduler.
+
+        This method stops all future executions of all schedules without removing
+        past results.
+
+        Example:
+            ```python
+            # Stop all scheduled jobs
+            worker.cancel_all_schedules()
+            ```
+        """
+        for job in self._scheduler.get_jobs():
+            self._scheduler.cancel(job.id)
+            logger.info(f"Canceled schedule {job.id} ")
         logger.info("Canceled all schedules from all queues.")
+
+    def delete_schedule(self, schedule: str | Job) -> bool:
+        """Delete a schedule and optionally its results.
+
+        This method removes the schedule and optionally its execution history
+        from Redis.
+
+        Args:
+            schedule: Schedule ID or Job object to delete.
+
+        Returns:
+            bool: True if successfully deleted, False if schedule not found.
+
+        Example:
+            ```python
+            # Delete schedule and its history
+            worker.delete_schedule("schedule-123")
+            ```
+        """
+        return self.delete_job(schedule)
+    
+    def delete_all_schedules(self) -> None:
+        """Delete all schedules and their results.
+
+        This method removes all schedules and their execution histories from Redis.
+
+        Example:
+            ```python
+            # Remove all schedules and their histories
+            worker.delete_all_schedules()
+            ```
+        """
+        for schedule in self.schedule_ids:
+            self.delete_schedule(schedule)
+            logger.info(f"Deleted schedule {schedule}")
+        logger.info("Deleted all schedules from all queues.")
 
     @property
     def schedules(self):
-        """
-        Get all schedules from all schedulers.
+        """Get all schedules from all schedulers.
+
+        Returns:
+            list[Job]: List of all scheduled jobs.
+
+        Example:
+            ```python
+            all_schedules = worker.schedules
+            print(f"Total schedules: {len(all_schedules)}")
+            ```
         """
         schedules = self.get_schedules()
 
@@ -947,13 +1416,16 @@ class RQWorker(BaseWorker):
 
     @property
     def schedule_ids(self):
+        """Get all schedule IDs.
+
+        Returns:
+            list[str]: List of unique identifiers for all schedules.
+
+        Example:
+            ```python
+            ids = worker.schedule_ids
+            print(f"Schedule IDs: {', '.join(ids)}")
+            ```
         """
-        Get all schedule IDs from all schedulers.
-        """
-        schedule_ids = {}
-        for queue_name in self.schedules:
-            schedule_ids[queue_name] = [
-                schedule.id
-                for schedule in self.get_schedules(queue_name=queue_name)[queue_name]
-            ]
+        schedule_ids = [schedule.id for schedule in self.schedules]
         return schedule_ids

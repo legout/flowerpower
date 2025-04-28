@@ -1,0 +1,39 @@
+name: null
+worker:
+  type: rq
+  backend:
+    type: redis
+    uri: null
+    username: null
+    password: null
+    host: localhost
+    port: 6379
+    database: 0
+    ssl: false
+    cert_file: null
+    key_file: null
+    ca_file: null
+    verify_ssl: false
+    queues:
+    - default
+    - high
+    - low
+    - scheduler
+    num_workers: 8
+adapter:
+  hamilton_tracker:
+    username: null
+    api_url: http://localhost:8241
+    ui_url: http://localhost:8242
+    api_key: null
+    verify: false
+  mlflow:
+    tracking_uri: null
+    registry_uri: null
+    artifact_location: null
+  ray:
+    ray_init_config: null
+    shutdown_ray_on_completion: false
+  opentelemetry:
+    host: localhost
+    port: 6831

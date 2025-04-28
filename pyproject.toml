@@ -71,7 +71,7 @@ opentelemetry = [
 ]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
-scheduler = ['aiosqlite>=0.21.0', 'apscheduler>=4.0.0a5', 'asyncpg>=0.29.0', 'greenlet>=3.0.3', 'sqlalchemy>=2.0.30']
+scheduler = ['aiosqlite>=0.21.0', 'apscheduler==4.0.0a5', 'asyncpg>=0.29.0', 'greenlet>=3.0.3', 'sqlalchemy>=2.0.30']
 
 tui       = ["textual>=0.85.2"]
 ui        = ["sf-hamilton-ui>=0.0.11"]
@@ -134,4 +134,7 @@ openlineage = [
 ]
 scheduler = [
     "cron-descriptor>=1.4.5",
+]
+opentelemetry = [
+    "opentelemetry-exporter-jaeger>=1.21.0",
 ]

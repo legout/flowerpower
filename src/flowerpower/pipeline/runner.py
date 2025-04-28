@@ -444,3 +444,35 @@ class PipelineRunner:
             logger.info("Executor shut down.")
 
         return res
+
+
+def run_pipeline(
+    project_cfg: ProjectConfig,
+    pipeline_cfg: PipelineConfig,
+    inputs: dict | None = None,
+    final_vars: list[str] | None = None,
+    config: dict | None = None,
+    cache: dict | None = None,
+    executor_cfg: str | dict | ExecutorConfig | None = None,
+    with_adapter_cfg: dict | WithAdapterConfig | None = None,
+    pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
+    project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+    adapter: dict[str, Any] | None = None,
+    reload: bool = False,
+    log_level: str | None = None,
+) -> dict[str, Any]:
+    """Run the pipeline with the given parameters."""
+    with PipelineRunner(project_cfg, pipeline_cfg) as runner:
+        return runner.run(
+            inputs=inputs,
+            final_vars=final_vars,
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+            reload=reload,
+            log_level=log_level,
+        )

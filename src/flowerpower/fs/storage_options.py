@@ -31,7 +31,7 @@ class BaseStorageOptions(BaseModel):
             yaml.safe_dump(data, f)
 
     def to_filesystem(self) -> AbstractFileSystem:
-        return filesystem(**self.to_dict())
+        return filesystem(**self.to_dict(with_protocol=True))
 
     def update(self, **kwargs):
         self = self.model_copy(update=kwargs)
@@ -47,8 +47,11 @@ class GcsStorageOptions(BaseStorageOptions):
 
 class AwsStorageOptions(BaseStorageOptions):
     protocol: str = "s3"
+    key: str | None = None
     access_key_id: str | None = None
+    secret: str | None = None
     secret_access_key: str | None = None
+    token: str | None = None
     session_token: str | None = None
     endpoint_url: str | None = None
     region: str | None = None
@@ -57,6 +60,13 @@ class AwsStorageOptions(BaseStorageOptions):
     profile: str | None = None
 
     def model_post_init(self, __context):
+        if self.access_key_id is None and self.key is not None:
+            self.access_key_id = self.key
+        if self.secret_access_key is None and self.secret is not None:
+            self.secret_access_key = self.secret
+        if self.session_token is None and self.token is not None:
+            self.session_token = self.token
+            
         if self.profile is not None:
             super().__init__(
                 **self.from_aws_credentials(

@@ -1,16 +1,18 @@
 import datetime as dt
-import importlib
-import importlib.util
 import posixpath
 import sys
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable  # Added Callable
+from typing import Any, Callable, TypeVar, Union
 from uuid import UUID
 
 from loguru import logger
 from munch import Munch
-from rich.table import Table  # Keep Table for get_summary return type hint
+
+try:
+    from graphviz import Digraph
+except ImportError:
+    Digraph = Any  # Type alias for when graphviz isn't installed
 
 from .. import settings
 from ..cfg import PipelineConfig, ProjectConfig
@@ -21,23 +23,49 @@ from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .registry import PipelineRegistry
-from .runner import PipelineRunner
+from .runner import PipelineRunner, run_pipeline
 from .scheduler import PipelineScheduler
 from .visualizer import PipelineVisualizer
-
-# Conditional imports can be removed if not directly used by PipelineManager itself
-# if importlib.util.find_spec("opentelemetry"): ...
 
 
 setup_logging()
 
+GraphType = TypeVar('GraphType')  # Type variable for graphviz.Digraph
 
 class PipelineManager:
-    """
-    Central manager for FlowerPower pipelines.
+    """Central manager for FlowerPower pipeline operations.
 
-    Handles configuration loading, pipeline discovery, execution (via Runner),
-    scheduling (via Scheduler), visualization (via Visualizer), and import/export (via IOManager).
+    This class provides a unified interface for managing pipelines, including:
+    - Configuration management and loading
+    - Pipeline creation, deletion, and discovery
+    - Pipeline execution via PipelineRunner
+    - Job scheduling via PipelineScheduler
+    - Visualization via PipelineVisualizer
+    - Import/export operations via PipelineIOManager
+
+    Attributes:
+        registry (PipelineRegistry): Handles pipeline registration and discovery
+        scheduler (PipelineScheduler): Manages job scheduling and execution
+        visualizer (PipelineVisualizer): Handles pipeline visualization
+        io (PipelineIOManager): Manages pipeline import/export operations
+        project_cfg (ProjectConfig): Current project configuration
+        pipeline_cfg (PipelineConfig): Current pipeline configuration
+        pipelines (list[str]): List of available pipeline names
+        current_pipeline_name (str): Name of the currently loaded pipeline
+        summary (dict[str, dict | str]): Summary of all pipelines
+
+    Example:
+        >>> from flowerpower.pipeline import PipelineManager
+        >>> 
+        >>> # Create manager with default settings
+        >>> manager = PipelineManager()
+        >>> 
+        >>> # Create manager with custom settings
+        >>> manager = PipelineManager(
+        ...     base_dir="/path/to/project",
+        ...     worker_type="rq",
+        ...     log_level="DEBUG"
+        ... )
     """
 
     def __init__(
@@ -47,20 +75,49 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str | None = None,
         pipelines_dir: str | None = None,
-        worker_type: str | None = None,  # Explicit worker type override
+        worker_type: str | None = None,
         log_level: str | None = None,
-    ):
-        """
-        Initializes the PipelineManager.
+    ) -> None:
+        """Initialize the PipelineManager.
 
         Args:
-            base_dir (str | None): The FlowerPower base path. Defaults to CWD.
-            storage_options (dict | Munch | BaseStorageOptions | None): Storage options. Defaults to {}.
-            fs (AbstractFileSystem | None): Pre-configured fsspec filesystem. Defaults to auto-detection based on base_dir.
-            cfg_dir (str | None): Override default configuration directory ('conf').
-            pipelines_dir (str | None): Override default pipelines directory ('pipelines').
-            worker_type (str | None): Override the worker type defined in project config or settings.
-            log_level (str | None): Logging level for the manager. Defaults to None (uses project config or settings).
+            base_dir: Root directory for the FlowerPower project. Defaults to current
+                working directory if not specified.
+            storage_options: Configuration options for filesystem access. Can be:
+                - dict: Raw key-value options
+                - Munch: Dot-accessible options object
+                - BaseStorageOptions: Structured options class
+                Used for S3, GCS, etc. Example: {"key": "abc", "secret": "xyz"}
+            fs: Pre-configured fsspec filesystem instance. If provided, used instead
+                of creating new filesystem from base_dir and storage_options.
+            cfg_dir: Override default configuration directory name ('conf').
+                Example: "config" or "settings".
+            pipelines_dir: Override default pipelines directory name ('pipelines').
+                Example: "flows" or "dags".
+            worker_type: Override worker type from project config/settings.
+                Valid values: "rq", "apscheduler", or "huey".
+            log_level: Set logging level for the manager.
+                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+
+        Raises:
+            ValueError: If provided configuration paths don't exist or can't be created
+            RuntimeError: If filesystem operations fail during initialization
+            ImportError: If required dependencies for specified worker type not installed
+
+        Example:
+            >>> # Basic initialization
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Custom configuration with S3 storage
+            >>> manager = PipelineManager(
+            ...     base_dir="s3://my-bucket/project",
+            ...     storage_options={
+            ...         "key": "ACCESS_KEY",
+            ...         "secret": "SECRET_KEY"
+            ...     },
+            ...     worker_type="rq",
+            ...     log_level="DEBUG"
+            ... )
         """
         if log_level:
             setup_logging(level=log_level)
@@ -85,11 +142,9 @@ class PipelineManager:
         except Exception as e:
             logger.error(f"Error creating essential directories: {e}")
             # Consider raising an error here depending on desired behavior
-        
-        # Sync cache if applicable
-        self._sync_cache()
+
         # Ensure pipeline modules can be imported
-        self._append_modules_path()
+        self._add_modules_path()
 
         # Instantiate components using the loaded project config
         self.registry = PipelineRegistry(
@@ -113,6 +168,19 @@ class PipelineManager:
         
 
     def __enter__(self) -> "PipelineManager":
+        """Enter the context manager.
+
+        Enables use of the manager in a with statement for automatic resource cleanup.
+
+        Returns:
+            PipelineManager: Self for use in context manager.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> with PipelineManager() as manager:
+            ...     result = manager.run("my_pipeline")
+        """
         return self
 
     def __exit__(
@@ -121,48 +189,103 @@ class PipelineManager:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        # Add any cleanup code here if needed
+        """Exit the context manager.
+
+        Handles cleanup of resources when exiting a with statement.
+
+        Args:
+            exc_type: Type of exception that occurred, if any
+            exc_val: Exception instance that occurred, if any
+            exc_tb: Traceback of exception that occurred, if any
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> with PipelineManager() as manager:
+            ...     try:
+            ...         result = manager.run("my_pipeline")
+            ...     except Exception as e:
+            ...         print(f"Error: {e}")
+            ...     # Resources automatically cleaned up here
+        """
+        # Add cleanup code if needed
         pass
 
-    # _get_schedules method removed, moved to PipelineScheduler
-    def _sync_cache(self):
-        """
-        Sync the filesystem.
+    def _get_run_func_for_job(self, name: str, reload: bool = False) -> Callable:
+        """Create a PipelineRunner instance and return its run method.
+
+        This internal helper method ensures that each job gets a fresh runner
+        with the correct configuration state.
+
+        Args:
+            name: Name of the pipeline to create runner for
+            reload: Whether to reload pipeline configuration
 
         Returns:
-            None
+            Callable: Bound run method from a fresh PipelineRunner instance
+
+        Example:
+            >>> # Internal usage
+            >>> manager = PipelineManager()
+            >>> run_func = manager._get_run_func_for_job("data_pipeline")
+            >>> result = run_func(inputs={"date": "2025-04-28"})
         """
-        # Use fs from project_cfg
+        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
+        return runner.run
+
+    def _add_modules_path(self) -> None:
+        """Add pipeline module paths to Python path.
+
+        This internal method ensures that pipeline modules can be imported by:
+        1. Syncing filesystem cache if needed
+        2. Adding project root to Python path
+        3. Adding pipelines directory to Python path
+
+        Raises:
+            RuntimeError: If filesystem sync fails or paths are invalid
+
+        Example:
+            >>> # Internal usage
+            >>> manager = PipelineManager()
+            >>> manager._add_modules_path()
+            >>> import my_pipeline  # Now importable
+        """
         if self._fs.is_cache_fs:
-            self._fs.sync_cache()
+            self._fs.sync()
 
-    def _append_modules_path(self):
-        """
-        Append the modules path to sys.path.
-        This is necessary for dynamic module loading.
-        Returns:
-            None
-        """
-        # Use paths from project_cfg
-        # Note: fs.path might not be reliable for all filesystems (e.g., S3)
-        # Using the derived pipelines_dir relative to base_dir is safer.
-        # However, for sys.path, we often need the *local* path if using CacheFileSystem.
-        local_pipelines_path = posixpath.join(self._base_dir, self._pipelines_dir)
-        if local_pipelines_path not in sys.path:
-            # Add the potentially cached local path
-            sys.path.append(local_pipelines_path)
-            logger.debug(f"Appended {local_pipelines_path} to sys.path")
-        # Also add the base directory itself, as pipelines might import from src
-        if self._base_dir not in sys.path:
-            sys.path.insert(0, self._base_dir)  # Insert at beginning
-            logger.debug(f"Inserted {self._base_dir} into sys.path")
+        if self._fs.path not in sys.path:
+            sys.path.insert(0, self._fs.path)
+
+        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+        if modules_path not in sys.path:
+            sys.path.insert(0, modules_path)
 
     def _load_project_cfg(self, reload: bool = False) -> ProjectConfig:
-        """
-        Load the project configuration.
+        """Load or reload the project configuration.
+
+        This internal method handles loading project-wide settings from the config
+        directory, applying overrides, and maintaining configuration state.
+
+        Args:
+            reload: Force reload configuration even if already loaded.
+                Defaults to False for caching behavior.
 
         Returns:
-            ProjectConfig: The loaded project configuration.
+            ProjectConfig: The loaded project configuration object with any
+                specified overrides applied.
+
+        Raises:
+            FileNotFoundError: If project configuration file doesn't exist
+            ValueError: If configuration format is invalid
+            RuntimeError: If filesystem operations fail during loading
+
+        Example:
+            >>> # Internal usage
+            >>> manager = PipelineManager()
+            >>> project_cfg = manager._load_project_cfg(reload=True)
+            >>> print(project_cfg.worker.type)
+            'rq'
         """
         if hasattr(self, "_project_cfg") and not reload:
             return self._project_cfg
@@ -178,46 +301,75 @@ class PipelineManager:
         return self._project_cfg
 
     def _load_pipeline_cfg(self, name: str, reload: bool = False) -> PipelineConfig:
-        """
-        Load the pipeline configuration.
+        """Load or reload configuration for a specific pipeline.
+
+        This internal method handles loading pipeline-specific settings from the config
+        directory and maintaining the configuration cache state.
 
         Args:
-            name (str): The name of the pipeline.
+            name: Name of the pipeline whose configuration to load
+            reload: Force reload configuration even if already loaded.
+                When False, returns cached config if available.
 
         Returns:
-            PipelineConfig: The loaded pipeline configuration.
+            PipelineConfig: The loaded pipeline configuration object
+
+        Raises:
+            FileNotFoundError: If pipeline configuration file doesn't exist
+            ValueError: If configuration format is invalid
+            RuntimeError: If filesystem operations fail during loading
+
+        Example:
+            >>> # Internal usage
+            >>> manager = PipelineManager()
+            >>> cfg = manager._load_pipeline_cfg("data_pipeline", reload=True)
+            >>> print(cfg.run.executor.type)
+            'async'
         """
         if name == self._current_pipeline_name and not reload:
             return self._pipeline_cfg
 
         self._current_pipeline_name = name
-        # Use project_cfg attributes for loading pipeline config
         self._pipeline_cfg = PipelineConfig.load(
             base_dir=self._base_dir,
             name=name,
             fs=self._fs,
             storage_options=self._storage_options,
-            # cfg_dir is implicitly handled by PipelineConfig.load using base_dir
         )
         return self._pipeline_cfg
 
     @property
     def current_pipeline_name(self) -> str:
-        """
-        Get the name of the current pipeline.
+        """Get the name of the currently loaded pipeline.
 
         Returns:
-            str: The name of the current pipeline.
+            str: Name of the currently loaded pipeline, or empty string if none loaded.
+
+        Example:
+            >>> manager = PipelineManager()
+            >>> manager._load_pipeline_cfg("example_pipeline")
+            >>> print(manager.current_pipeline_name)
+            'example_pipeline'
         """
         return self._current_pipeline_name
 
     @property
     def project_cfg(self) -> ProjectConfig:
-        """
-        Get the project configuration object.
+        """Get the project configuration.
+
+        Loads configuration if not already loaded.
 
         Returns:
-            ProjectConfig: The project configuration object.
+            ProjectConfig: Project-wide configuration object.
+
+        Raises:
+            RuntimeError: If configuration loading fails.
+
+        Example:
+            >>> manager = PipelineManager()
+            >>> cfg = manager.project_cfg
+            >>> print(cfg.worker.type)
+            'rq'
         """
         if not hasattr(self, "_project_cfg"):
             self._load_project_cfg()
@@ -225,11 +377,20 @@ class PipelineManager:
 
     @property
     def pipeline_cfg(self) -> PipelineConfig:
-        """
-        Get the pipeline configuration object.
+        """Get the configuration for the currently loaded pipeline.
 
         Returns:
-            PipelineConfig: The pipeline configuration object.
+            PipelineConfig: Pipeline-specific configuration object.
+
+        Warns:
+            UserWarning: If no pipeline is currently loaded.
+
+        Example:
+            >>> manager = PipelineManager()
+            >>> manager._load_pipeline_cfg("example_pipeline")
+            >>> cfg = manager.pipeline_cfg
+            >>> print(cfg.run.executor)
+            'local'
         """
         if not hasattr(self, "_pipeline_cfg"):
             logger.warning("Pipeline config not loaded.")
@@ -253,58 +414,143 @@ class PipelineManager:
         reload: bool = False,
         log_level: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Run a pipeline synchronously using PipelineRunner.
+        """Execute a pipeline synchronously and return its results.
+
+        This is the main method for running pipelines directly. It handles configuration
+        loading, adapter setup, and execution via PipelineRunner.
 
         Args:
-            name (str): The name of the pipeline.
-            inputs (dict | None): Inputs for the pipeline run (overrides config).
-            final_vars (list | None): Final variables for the pipeline run (overrides config).
-            config (dict | None): Hamilton driver config (overrides config).
-            cache (dict | None): Cache configuration (overrides config).
-            executor_cfg (... | None): Executor config (overrides config).
-            with_adapter_cfg (... | None): Adapter enablement config (overrides config).
-            pipeline_adapter_cfg (... | None): Pipeline adapter settings (overrides config).
-            project_adapter_cfg (... | None): Project adapter settings (overrides config).
-            adapter (dict | None): Additional Hamilton adapters (overrides config).
-            reload (bool): Whether to reload module and pipeline config. Defaults to False.
-            log_level (str | None): Log level for the run (overrides config).
+            name: Name of the pipeline to run
+            inputs: Override pipeline input values. Example: {"data_date": "2025-04-28"}
+            final_vars: Override output variables to compute. Example: ["final_result"]
+            config: Override Hamilton driver configuration. Example: {"result_builder": "pandas"}
+            cache: Cache configuration for results. Example: {"type": "memory", "ttl": 3600}
+            executor_cfg: Execution configuration, can be:
+                - str: Executor name, e.g. "threadpool", "local"
+                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
+                - ExecutorConfig: Structured config object
+            with_adapter_cfg: Enable/disable specific adapters.
+                Example: {"opentelemetry": True, "tracker": False}
+            pipeline_adapter_cfg: Pipeline-specific adapter settings.
+                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+            project_adapter_cfg: Project-level adapter settings.
+                Example: {"opentelemetry": {"endpoint": "http://localhost:4317"}}
+            adapter: Additional Hamilton adapters to inject.
+                Example: {"custom_adapter": CustomAdapterInstance()}
+            reload: Whether to reload pipeline module and config before running
+            log_level: Override logging level for this run.
+                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
         Returns:
-            dict[str, Any]: The result of executing the pipeline.
+            dict[str, Any]: Pipeline execution results, mapping output variable names
+                to their computed values.
+
+        Raises:
+            ValueError: If pipeline name doesn't exist or configuration is invalid
+            ImportError: If pipeline module cannot be imported
+            RuntimeError: If execution fails due to pipeline or adapter errors
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Basic pipeline run
+            >>> results = manager.run("data_pipeline")
+            >>> 
+            >>> # Complex run with overrides
+            >>> results = manager.run(
+            ...     name="ml_pipeline",
+            ...     inputs={
+            ...         "training_date": "2025-04-28",
+            ...         "model_params": {"n_estimators": 100}
+            ...     },
+            ...     final_vars=["model", "metrics"],
+            ...     executor_cfg={"type": "threadpool", "max_workers": 4},
+            ...     with_adapter_cfg={"tracker": True},
+            ...     reload=True
+            ... )
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
 
         # Instantiate PipelineRunner for this specific run
-        with PipelineRunner(
-            project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
-        ) as runner:
+        #with PipelineRunner(
+        #    project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
+        #) as runner:
             # Delegate execution, passing all relevant arguments
-            res = runner.run(
-                inputs=inputs,
-                final_vars=final_vars,
-                config=config,
-                cache=cache,
-                executor_cfg=executor_cfg,
-                with_adapter_cfg=with_adapter_cfg,
-                pipeline_adapter_cfg=pipeline_adapter_cfg,
-                project_adapter_cfg=project_adapter_cfg,
-                adapter=adapter,
-                reload=reload,  # Runner handles module reload if needed
-                log_level=log_level,
-            )
+        res = run_pipeline(
+            project_cfg=   self.project_cfg,
+            pipeline_cfg=pipeline_cfg,
+            inputs=inputs,
+            final_vars=final_vars,
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+            reload=reload,  # Runner handles module reload if needed
+            log_level=log_level,
+        )
         return res
 
     # --- Delegated Methods ---
 
     # Registry Delegations
-    def new(self, name: str, overwrite: bool = False):
-        """Adds a new pipeline structure (config and module file)."""
-        return self.registry.new(name=name, overwrite=overwrite)
+    def new(self, name: str, overwrite: bool = False) -> None:
+        """Create a new pipeline with the given name.
 
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
-        """Deletes pipeline files (config and/or module)."""
-        return self.registry.delete(name=name, cfg=cfg, module=module)
+        Creates necessary configuration files and pipeline module template.
+
+        Args:
+            name: Name for the new pipeline. Must be a valid Python identifier.
+            overwrite: Whether to overwrite existing pipeline with same name.
+                Default False for safety.
+
+        Raises:
+            ValueError: If name is invalid or pipeline exists and overwrite=False
+            RuntimeError: If file creation fails
+            PermissionError: If lacking write permissions
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> # Create new pipeline
+            >>> manager = PipelineManager()
+            >>> manager.new("data_transformation")
+            >>> 
+            >>> # Overwrite existing pipeline
+            >>> manager.new("data_transformation", overwrite=True)
+        """
+        self.registry.new(name=name, overwrite=overwrite)
+
+    def delete(self, name: str, cfg: bool = True, module: bool = False) -> None:
+        """
+        Delete a pipeline and its associated files.
+
+        Args:
+            name: Name of the pipeline to delete
+            cfg: Whether to delete configuration files. Default True.
+            module: Whether to delete Python module file. Default False
+                for safety since it may contain custom code.
+
+        Raises:
+            FileNotFoundError: If specified pipeline files don't exist
+            PermissionError: If lacking delete permissions
+            RuntimeError: If deletion fails partially, leaving inconsistent state
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> # Delete pipeline config only
+            >>> manager = PipelineManager()
+            >>> manager.delete("old_pipeline")
+            >>> 
+            >>> # Delete both config and module
+            >>> manager.delete("test_pipeline", module=True)
+        """
+        self.registry.delete(name=name, cfg=cfg, module=module)
 
     def get_summary(
         self,
@@ -313,7 +559,37 @@ class PipelineManager:
         code: bool = True,
         project: bool = True,
     ) -> dict[str, dict | str]:
-        """Gets a summary dictionary of project/pipeline config and code."""
+        """Get a detailed summary of pipeline(s) configuration and code.
+
+        Args:
+            name: Specific pipeline to summarize. If None, summarizes all.
+            cfg: Include pipeline configuration details. Default True.
+            code: Include pipeline module code. Default True.
+            project: Include project configuration. Default True.
+
+        Returns:
+            dict[str, dict | str]: Nested dictionary containing requested
+                summaries. Structure varies based on input parameters:
+                - With name: {"config": dict, "code": str, "project": dict}
+                - Without name: {pipeline_name: {"config": dict, ...}, ...}
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Get summary of specific pipeline
+            >>> summary = manager.get_summary("data_pipeline")
+            >>> print(summary["config"]["schedule"]["enabled"])
+            True
+            >>> 
+            >>> # Get summary of all pipelines' code
+            >>> all_code = manager.get_summary(
+            ...     cfg=False, 
+            ...     code=True, 
+            ...     project=False
+            ... )
+        """
         return self.registry.get_summary(name=name, cfg=cfg, code=code, project=project)
 
     def show_summary(
@@ -325,7 +601,25 @@ class PipelineManager:
         to_html: bool = False,
         to_svg: bool = False,
     ) -> None | str:
-        """Prints a formatted summary of project/pipeline config and code."""
+        """
+        Show a summary of the pipelines.
+
+        Args:
+            name (str | None, optional): The name of the pipeline. Defaults to None.
+            cfg (bool, optional): Whether to show the configuration. Defaults to True.
+            code (bool, optional): Whether to show the module. Defaults to True.
+            project (bool, optional): Whether to show the project configuration. Defaults to True.
+            to_html (bool, optional): Whether to export the summary to HTML. Defaults to False.
+            to_svg (bool, optional): Whether to export the summary to SVG. Defaults to False.
+
+        Returns:
+            None | str: The summary of the pipelines. If `to_html` is True, returns the HTML string.
+                If `to_svg` is True, returns the SVG string.
+
+        Examples:
+            >>> pm = PipelineManager()
+            >>> pm.show_summary()
+        """
         return self.registry.show_summary(
             name=name,
             cfg=cfg,
@@ -336,21 +630,80 @@ class PipelineManager:
         )
 
     def show_pipelines(self) -> None:
-        """Prints a table of available pipelines."""
-        return self.registry.show_pipelines()
+        """Display all available pipelines in a formatted table.
+
+        The table includes pipeline names, types, and enablement status.
+        Uses rich formatting for terminal display.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> manager.show_pipelines()
+            ╭──────────────────────────────────────╮
+            │ Available Pipelines                  │
+            ├──────────────┬─────────┬────────────┤
+            │ Name         │ Type    │ Enabled    │
+            ├──────────────┼─────────┼────────────┤
+            │ data_intake  │ batch   │ ✓          │
+            │ ml_training  │ batch   │ ✓          │
+            │ monitoring   │ stream  │ ✗          │
+            ╰──────────────┴─────────┴────────────╯
+        """
+        self.registry.show_pipelines()
 
     def list_pipelines(self) -> list[str]:
-        """Returns a list of available pipeline names."""
+        """Get list of all available pipeline names.
+
+        Returns:
+            list[str]: Names of all registered pipelines, sorted alphabetically.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> pipelines = manager.list_pipelines()
+            >>> print(pipelines)
+            ['data_ingestion', 'model_training', 'reporting']
+        """
         return self.registry.list_pipelines()
 
     @property
     def pipelines(self) -> list[str]:
-        """Gets the list of available pipeline names."""
+        """Get list of all available pipeline names.
+
+        Similar to list_pipelines() but as a property.
+
+        Returns:
+            list[str]: Names of all registered pipelines, sorted alphabetically.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> print(manager.pipelines)
+            ['data_ingestion', 'model_training', 'reporting']
+        """
         return self.registry.pipelines
 
     @property
     def summary(self) -> dict[str, dict | str]:
-        """Gets the summary dictionary for all pipelines."""
+        """Get complete summary of all pipelines.
+
+        Returns:
+            dict[str, dict | str]: Full summary including configuration,
+            code, and project settings for all pipelines.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> summary = manager.summary
+            >>> for name, details in summary.items():
+            ...     print(f"{name}: {details['config']['type']}")
+            data_pipeline: batch
+            ml_pipeline: streaming
+        """
         return self.registry.summary
 
     # IO Delegations
@@ -361,8 +714,50 @@ class PipelineManager:
         src_fs: AbstractFileSystem | None = None,
         storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Imports a pipeline from a source directory."""
+    ) -> None:
+        """Import a pipeline from another FlowerPower project.
+
+        Copies both pipeline configuration and code files from the source location
+        to the current project.
+
+        Args:
+            name: Name to give the imported pipeline
+            base_dir: Source FlowerPower project directory or URI
+                Examples:
+                    - Local: "/path/to/other/project"
+                    - S3: "s3://bucket/project"
+                    - GitHub: "github://org/repo/project"
+            src_fs: Pre-configured filesystem for source location
+                Example: S3FileSystem(key='...', secret='...')
+            storage_options: Options for source filesystem access
+                Example: {"project": "my-gcp-project"}
+            overwrite: Whether to replace existing pipeline if name exists
+
+        Raises:
+            ValueError: If pipeline name exists and overwrite=False
+            FileNotFoundError: If source pipeline not found
+            RuntimeError: If import fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> from s3fs import S3FileSystem
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Import from local filesystem
+            >>> manager.import_pipeline(
+            ...     "new_pipeline",
+            ...     "/path/to/other/project"
+            ... )
+            >>> 
+            >>> # Import from S3 with custom filesystem
+            >>> s3 = S3FileSystem(anon=False)
+            >>> manager.import_pipeline(
+            ...     "s3_pipeline",
+            ...     "s3://bucket/project",
+            ...     src_fs=s3
+            ... )
+        """
         return self.io.import_pipeline(
             name=name,
             src_base_dir=base_dir,
@@ -376,15 +771,59 @@ class PipelineManager:
         pipelines: dict[str, str] | list[str],
         base_dir: str,  # Base dir for source if pipelines is a list
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        src_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Imports multiple pipelines."""
+    ) -> None:
+        """Import multiple pipelines from another project or location.
+
+        Supports two import modes:
+        1. Dictionary mode: Map source names to new names
+        2. List mode: Import keeping original names
+
+        Args:
+            pipelines: Pipeline specifications, either:
+                - dict: Map of {new_name: source_name}
+                - list: List of pipeline names to import as-is
+            base_dir: Source FlowerPower project directory or URI
+            src_fs: Pre-configured filesystem for source location
+            src_storage_options: Options for source filesystem access
+            overwrite: Whether to replace existing pipelines
+
+        Raises:
+            ValueError: If any pipeline exists and overwrite=False
+            FileNotFoundError: If source pipelines not found
+            RuntimeError: If import operation fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Import with name mapping
+            >>> manager.import_many(
+            ...     pipelines={
+            ...         "new_ingest": "data_ingest",
+            ...         "new_process": "data_process"
+            ...     },
+            ...     base_dir="/path/to/source",
+            ...     overwrite=True
+            ... )
+            >>> 
+            >>> # Import keeping original names
+            >>> manager.import_many(
+            ...     pipelines=["pipeline1", "pipeline2"],
+            ...     base_dir="s3://bucket/source",
+            ...     src_storage_options={
+            ...         "key": "ACCESS_KEY",
+            ...         "secret": "SECRET_KEY"
+            ...     }
+            ... )
+        """
         return self.io.import_many(
             pipelines=pipelines,
             src_base_dir=base_dir,
             src_fs=src_fs,
-            src_storage_options=storage_options,
+            src_storage_options=src_storage_options,
             overwrite=overwrite,
         )
 
@@ -392,14 +831,42 @@ class PipelineManager:
         self,
         base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        src_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Imports all pipelines found in a source directory."""
+    ) -> None:
+        """Import all pipelines from another FlowerPower project.
+
+        Args:
+            base_dir: Source project directory or URI
+            src_fs: Pre-configured source filesystem
+            src_storage_options: Source filesystem options
+            overwrite: Whether to replace existing pipelines
+
+        Raises:
+            FileNotFoundError: If source location not found
+            RuntimeError: If import fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Import all from backup
+            >>> manager.import_all("/path/to/backup")
+            >>> 
+            >>> # Import all from S3 with credentials
+            >>> manager.import_all(
+            ...     "s3://bucket/backup",
+            ...     src_storage_options={
+            ...         "key": "ACCESS_KEY",
+            ...         "secret": "SECRET_KEY"
+            ...     }
+            ... )
+        """
         return self.io.import_all(
             src_base_dir=base_dir,
             src_fs=src_fs,
-            src_storage_options=storage_options,
+            src_storage_options=src_storage_options,
             overwrite=overwrite,
         )
 
@@ -408,15 +875,57 @@ class PipelineManager:
         name: str,
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Exports a single pipeline to a destination directory."""
+    ) -> None:
+        """Export a pipeline to another location or project.
+
+        Copies pipeline configuration and code files to the destination location
+        while preserving directory structure.
+
+        Args:
+            name: Name of pipeline to export
+            base_dir: Destination directory or URI
+                Examples:
+                    - Local: "/path/to/backup"
+                    - S3: "s3://bucket/backups"
+                    - GCS: "gs://bucket/exports"
+            dest_fs: Pre-configured filesystem for destination
+                Example: GCSFileSystem(token='...')
+            dest_storage_options: Options for destination filesystem
+                Example: {"key": "...", "secret": "..."}
+            overwrite: Whether to replace existing files at destination
+
+        Raises:
+            ValueError: If pipeline doesn't exist
+            FileNotFoundError: If destination not accessible
+            RuntimeError: If export fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> from gcsfs import GCSFileSystem
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Export to local backup
+            >>> manager.export_pipeline(
+            ...     "my_pipeline",
+            ...     "/path/to/backup"
+            ... )
+            >>> 
+            >>> # Export to Google Cloud Storage
+            >>> gcs = GCSFileSystem(project='my-project')
+            >>> manager.export_pipeline(
+            ...     "prod_pipeline",
+            ...     "gs://my-bucket/backups",
+            ...     dest_fs=gcs
+            ... )
+        """
         return self.io.export_pipeline(
             name=name,
             dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            des_storage_options=storage_options,
+            dest_storage_options=dest_storage_options,
             overwrite=overwrite,
         )
 
@@ -425,15 +934,53 @@ class PipelineManager:
         pipelines: list[str],
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Exports multiple specified pipelines."""
+    ) -> None:
+        """Export multiple pipelines to another location.
+
+        Efficiently exports multiple pipelines in a single operation,
+        preserving directory structure and metadata.
+
+        Args:
+            pipelines: List of pipeline names to export
+            base_dir: Destination directory or URI
+                Examples:
+                    - Local: "/path/to/exports"
+                    - S3: "s3://bucket/exports"
+                    - Azure: "abfs://container/exports"
+            dest_fs: Pre-configured filesystem for destination
+                Example: S3FileSystem(anon=False, key='...', secret='...')
+            dest_storage_options: Options for destination filesystem access
+                Example: {"account_name": "storage", "sas_token": "..."}
+            overwrite: Whether to replace existing files at destination
+
+        Raises:
+            ValueError: If any pipeline doesn't exist
+            FileNotFoundError: If destination not accessible
+            RuntimeError: If export operation fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> from azure.storage.filedatalake import DataLakeServiceClient
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Export multiple pipelines to Azure Data Lake
+            >>> manager.export_many(
+            ...     pipelines=["ingest", "process", "report"],
+            ...     base_dir="abfs://data/backups",
+            ...     dest_storage_options={
+            ...         "account_name": "myaccount",
+            ...         "sas_token": "...",
+            ...     }
+            ... )
+        """
         return self.io.export_many(
             pipelines=pipelines,
             dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            dest_storage_options=storage_options,
+            dest_storage_options=dest_storage_options,
             overwrite=overwrite,
         )
 
@@ -441,30 +988,132 @@ class PipelineManager:
         self,
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: BaseStorageOptions | None = None,
         overwrite: bool = False,
-    ):
-        """Exports all pipelines found in the registry."""
+    ) -> None:
+        """Export all pipelines to another location.
+
+        Args:
+            base_dir: Destination directory or URI
+            dest_fs: Pre-configured destination filesystem
+            dest_storage_options: Destination filesystem options
+            overwrite: Whether to replace existing files
+
+        Raises:
+            FileNotFoundError: If destination not accessible
+            RuntimeError: If export fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Export all to backup directory
+            >>> manager.export_all("/path/to/backup")
+            >>> 
+            >>> # Export all to cloud storage
+            >>> manager.export_all(
+            ...     "gs://bucket/pipelines",
+            ...     dest_storage_options={
+            ...         "token": "SERVICE_ACCOUNT_TOKEN",
+            ...         "project": "my-project"
+            ...     }
+            ... )
+        """
         return self.io.export_all(
             dest_base_dir=base_dir,
             dest_fs=dest_fs,
-            dest_storage_options=storage_options,
+            dest_storage_options=dest_storage_options,
             overwrite=overwrite,
         )
 
     # Visualizer Delegations
-    def save_dag(self, name: str, format: str = "png", reload: bool = False):
-        """Saves the DAG visualization of a pipeline to a file."""
-        # Reload might be needed if code changed since manager init
-        return self.visualizer.save_dag(name=name, format=format, reload=reload)
+    def save_dag(self, name: str, format: str = "png", reload: bool = False) -> None:
+        """Save pipeline DAG visualization to a file.
+
+        Creates a visual representation of the pipeline's directed acyclic graph (DAG)
+        showing function dependencies and data flow.
+
+        Args:
+            name: Name of the pipeline to visualize
+            format: Output file format. Supported formats:
+                - "png": Standard bitmap image
+                - "svg": Scalable vector graphic
+                - "pdf": Portable document format
+                - "dot": Graphviz DOT format
+            reload: Whether to reload pipeline before visualization
+
+        Raises:
+            ValueError: If pipeline name doesn't exist
+            ImportError: If required visualization dependencies missing
+            RuntimeError: If graph generation fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Save as PNG
+            >>> manager.save_dag("data_pipeline")
+            >>> 
+            >>> # Save as SVG with reload
+            >>> manager.save_dag(
+            ...     name="ml_pipeline",
+            ...     format="svg",
+            ...     reload=True
+            ... )
+        """
+        self.visualizer.save_dag(name=name, format=format, reload=reload)
 
     def show_dag(
-        self, name: str, format: str = "png", reload: bool = False, raw: bool = False
-    ):
-        """Displays or returns the DAG visualization object for a pipeline."""
-        # Reload might be needed
+        self,
+        name: str,
+        format: str = "png",
+        reload: bool = False,
+        raw: bool = False
+    ) -> Union[GraphType, None]:
+        """Display pipeline DAG visualization interactively.
+
+        Similar to save_dag() but displays the graph immediately in notebook
+        environments or returns the raw graph object for custom rendering.
+
+        Args:
+            name: Name of the pipeline to visualize
+            format: Output format (see save_dag() for options)
+            reload: Whether to reload pipeline before visualization
+            raw: If True, return the raw graph object instead of displaying
+
+        Returns:
+            Union[GraphType, None]: Raw graph object if raw=True, else None after
+                displaying the visualization
+
+        Raises:
+            ValueError: If pipeline name doesn't exist
+            ImportError: If visualization dependencies missing
+            RuntimeError: If graph generation fails
+            
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Display in notebook
+            >>> manager.show_dag("data_pipeline")
+            >>> 
+            >>> # Get raw graph for custom rendering
+            >>> graph = manager.show_dag(
+            ...     name="ml_pipeline",
+            ...     format="svg",
+            ...     raw=True
+            ... )
+            >>> # Custom rendering
+            >>> graph.render("custom_vis", view=True)
+        """
         return self.visualizer.show_dag(
-            name=name, format=format, reload=reload, raw=raw
+            name=name,
+            format=format,
+            reload=reload,
+            raw=raw
         )
 
     # Scheduler Delegations
@@ -487,16 +1136,71 @@ class PipelineManager:
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
         adapter: dict[str, Any] | None = None,
-        reload: bool = False,  # Reload config/module before creating run_func
+        reload: bool = False,
         log_level: str | None = None,
-        **kwargs,  # Worker specific args
-    ) -> str | UUID:
-        """Submits an immediate job run via the PipelineScheduler."""
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Execute a pipeline job immediately through the task queue.
+
+        Unlike the run() method which executes synchronously, this method runs
+        the pipeline through the configured worker system (RQ, APScheduler, etc.).
+
+        Args:
+            name: Name of the pipeline to run
+            inputs: Override pipeline inputs
+                Example: {"start_date": "2025-04-28", "end_date": "2025-04-29"}
+            final_vars: Specific output variables to compute
+                Example: ["daily_metrics", "summary_report"]
+            config: Hamilton driver configuration
+                Example: {"result_builder": "pandas", "enable_cache": True}
+            executor_cfg: Execution strategy configuration
+                Example: {"type": "async", "max_workers": 4}
+            with_adapter_cfg: Adapter enablement settings
+                Example: {"enable_tracking": True, "enable_validation": True}
+            pipeline_adapter_cfg: Pipeline-specific adapter settings
+                Example: {"tracker": {"project_id": "123"}}
+            project_adapter_cfg: Project-wide adapter settings
+                Example: {"telemetry": {"endpoint": "http://collector:4317"}}
+            adapter: Additional custom adapters
+                Example: {"custom": CustomAdapterInstance()}
+            reload: Whether to reload pipeline configuration
+            log_level: Override logging level for this run
+            **kwargs: Worker-specific arguments
+                For RQ:
+                    - queue_name: Queue to use (str)
+                    - retry: Number of retries (int)
+                For APScheduler:
+                    - job_executor: Executor type (str)
+
+        Returns:
+            dict[str, Any]: Job execution results
+
+        Raises:
+            ValueError: If pipeline or configuration is invalid
+            RuntimeError: If job execution fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Simple job execution
+            >>> result = manager.run_job("data_pipeline")
+            >>> 
+            >>> # Complex job with retry logic
+            >>> result = manager.run_job(
+            ...     name="ml_training",
+            ...     inputs={"training_date": "2025-04-28"},
+            ...     executor_cfg={"type": "async"},
+            ...     with_adapter_cfg={"enable_tracking": True},
+            ...     retry=3,
+            ...     queue_name="ml_jobs"
+            ... )
+        """
         run_func = self._get_run_func_for_job(name, reload)
         return self.scheduler.run_job(
             run_func=run_func,
-            name=name,  # Pass name for logging in scheduler
-            # Pass run parameters
+            name=name,
             inputs=inputs,
             final_vars=final_vars,
             config=config,
@@ -505,9 +1209,9 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            reload=reload,  # Note: reload already happened in _get_run_func_for_job
+            reload=reload,
             log_level=log_level,
-            **kwargs,  # Pass worker args
+            **kwargs,
         )
 
     def add_job(
@@ -526,7 +1230,43 @@ class PipelineManager:
         result_ttl: float | dt.timedelta = 0,
         **kwargs,  # Worker specific args
     ) -> str | UUID:
-        """Submits an immediate job run with result storage via the PipelineScheduler."""
+        """Adds a jobt to the task queue.
+
+        Args:
+            name (str): The name of the pipeline to run.
+            inputs (dict | None): Inputs for the pipeline run (overrides config).
+            final_vars (list[str] | None): Final variables for the pipeline run (overrides config).
+            config (dict | None): Hamilton driver config (overrides config).
+            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
+            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
+            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
+            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration (overrides config).
+            adapter (dict[str, Any] | None): Additional Hamilton adapters (overrides config).
+            reload (bool): Whether to reload module and pipeline config. Defaults to False.
+            log_level (str | None): Log level for the run (overrides config).
+            result_ttl (float | dt.timedelta, optional): Time to live for the job result. Defaults to 0.
+            **kwargs: Additional keyword arguments passed to the worker's add_job method.
+                For RQ this includes:
+                    - result_ttl: Time to live for the job result (float or timedelta)
+                    - ttl: Time to live for the job (float or timedelta)
+                    - queue_name: Name of the queue to use (str)
+                    - retry: Number of retries (int)
+                    - repeat: Repeat count (int or dict)
+                For APScheduler, this includes:
+                    - job_executor: Job executor to use (str)
+
+        Returns:
+            str | UUID: The ID of the job.
+        
+        Raises:
+            ValueError: If the job ID is not valid or if the job cannot be scheduled.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> pm = PipelineManager()
+            >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
+
+        """
         run_func = self._get_run_func_for_job(name, reload)
         return self.scheduler.add_job(
             run_func=run_func,
@@ -550,42 +1290,98 @@ class PipelineManager:
     def schedule(
         self,
         name: str,
-        # --- Run Parameters (passed to run_func) ---
         inputs: dict | None = None,
         final_vars: list[str] | None = None,
-        config: dict | None = None,  # Driver config
+        config: dict | None = None,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
         adapter: dict[str, Any] | None = None,
-        reload: bool = False,  # Reload config/module before creating run_func for schedule
+        reload: bool = False,
         log_level: str | None = None,
-        # --- Schedule Parameters (passed to worker.add_schedule) ---
-        trigger_type: str | None = None,
-        id_: str | None = None,
-        paused: bool | None = None,
-        coalesce: str | None = None,
-        misfire_grace_time: float | dt.timedelta | None = None,
-        max_jitter: float | dt.timedelta | None = None,
-        max_running_jobs: int | None = None,
-        conflict_policy: str | None = None,
+        cron: str | dict[str, str | int] | None = None,
+        interval: int | str | dict[str, str | int] | None = None,
+        date: dt.datetime | None = None,
         overwrite: bool = False,
-        # --- Trigger Parameters ---
-        **kwargs,  # Trigger specific args + any other worker args
+        schedule_id: str | None = None,
+        **kwargs: Any,
     ) -> str | UUID:
-        """Schedules a pipeline run via the PipelineScheduler."""
-        # Need the specific pipeline's config to resolve defaults for the schedule call
+        """Schedule a pipeline to run on a recurring or future basis.
+
+        Args:
+            name: Pipeline name to schedule
+            inputs: Pipeline input overrides
+                Example: {"data_date": "{{ execution_date }}"}
+            final_vars: Specific outputs to compute
+            config: Hamilton driver configuration
+            executor_cfg: Execution configuration
+            with_adapter_cfg: Adapter enablement settings
+            pipeline_adapter_cfg: Pipeline adapter settings
+            project_adapter_cfg: Project adapter settings
+            adapter: Additional custom adapters
+            reload: Whether to reload configuration
+            log_level: Override logging level
+            cron: Cron expression or settings
+                Example string: "0 0 * * *" (daily at midnight)
+                Example dict: {"minute": "0", "hour": "*/2"} (every 2 hours)
+            interval: Time interval for recurring execution
+                Example int: 3600 (every hour in seconds)
+                Example dict: {"hours": 1, "minutes": 30} (every 90 minutes)
+            date: Specific future execution date
+                Example: datetime(2025, 4, 28, 12, 0)
+            overwrite: Whether to overwrite existing schedule
+            schedule_id: Custom ID for the schedule
+            **kwargs: Worker-specific scheduling options
+                For RQ:
+                    - result_ttl: Result lifetime (int seconds)
+                    - queue_name: Queue to use (str)
+                For APScheduler:
+                    - misfire_grace_time: Late execution window
+                    - coalesce: Combine missed executions (bool)
+                    - max_running_jobs: Concurrent instances limit (int)
+
+        Returns:
+            str | UUID: Unique identifier for the created schedule
+
+        Raises:
+            ValueError: If schedule parameters are invalid
+            RuntimeError: If scheduling fails
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> from datetime import datetime, timedelta
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Daily schedule with cron
+            >>> schedule_id = manager.schedule(
+            ...     name="daily_metrics",
+            ...     cron="0 0 * * *",
+            ...     inputs={"date": "{{ execution_date }}"}
+            ... )
+            >>> 
+            >>> # Interval-based schedule
+            >>> schedule_id = manager.schedule(
+            ...     name="monitoring",
+            ...     interval={"minutes": 15},
+            ...     with_adapter_cfg={"enable_alerts": True}
+            ... )
+            >>> 
+            >>> # Future one-time execution
+            >>> future_date = datetime.now() + timedelta(days=1)
+            >>> schedule_id = manager.schedule(
+            ...     name="batch_process",
+            ...     date=future_date,
+            ...     executor_cfg={"type": "async"}
+            ... )
+        """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        # Create the run function *now* with potentially reloaded config/module
-        run_func = self._get_run_func_for_job(
-            name, reload=False
-        )  # Reload already done above
+        run_func = self._get_run_func_for_job(name, reload)
 
         return self.scheduler.schedule(
             run_func=run_func,
-            pipeline_cfg=pipeline_cfg,  # Pass config for default resolution
-            # Pass run parameters (overrides)
+            pipeline_cfg=pipeline_cfg,
             inputs=inputs,
             final_vars=final_vars,
             config=config,
@@ -594,25 +1390,41 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            reload=reload,  # Pass reload flag (though effect happened in run_func creation)
+            reload=reload,
             log_level=log_level,
-            # Pass schedule parameters (overrides)
-            trigger_type=trigger_type,
-            id_=id_,
-            paused=paused,
-            coalesce=coalesce,
-            misfire_grace_time=misfire_grace_time,
-            max_jitter=max_jitter,
-            max_running_jobs=max_running_jobs,
-            conflict_policy=conflict_policy,
+            cron=cron,
+            interval=interval,
+            date=date,
             overwrite=overwrite,
-            # Pass trigger/worker args
+            schedule_id=schedule_id,
             **kwargs,
         )
 
-    def schedule_all(self, **kwargs):
-        """Schedules all pipelines enabled in their configuration."""
-        # This logic now resides within PipelineManager
+    def schedule_all(self, **kwargs: Any) -> None:
+        """Schedule all pipelines that are enabled in their configuration.
+
+        For each enabled pipeline, applies its configured schedule settings
+        and any provided overrides.
+
+        Args:
+            **kwargs: Overrides for schedule settings that apply to all pipelines.
+                See schedule() method for supported arguments.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> 
+            >>> # Schedule all with default settings
+            >>> manager.schedule_all()
+            >>> 
+            >>> # Schedule all with common overrides
+            >>> manager.schedule_all(
+            ...     max_running_jobs=2,
+            ...     coalesce=True,
+            ...     misfire_grace_time=300
+            ... )
+        """
         scheduled_ids = []
         errors = []
         pipeline_names = self.list_pipelines()
@@ -623,8 +1435,6 @@ class PipelineManager:
         logger.info(f"Attempting to schedule {len(pipeline_names)} pipelines...")
         for name in pipeline_names:
             try:
-                # Load config to check if enabled and get defaults
-                # Use reload=True to ensure fresh config check for enablement
                 pipeline_cfg = self._load_pipeline_cfg(name=name, reload=True)
 
                 if not pipeline_cfg.schedule.enabled:
@@ -634,8 +1444,6 @@ class PipelineManager:
                     continue
 
                 logger.info(f"Scheduling [cyan]{name}[/cyan]...")
-                # Schedule method handles defaults using the passed pipeline_cfg
-                # Pass reload=False as config is already loaded fresh
                 schedule_id = self.schedule(name=name, reload=False, **kwargs)
                 scheduled_ids.append(schedule_id)
             except Exception as e:
@@ -649,11 +1457,23 @@ class PipelineManager:
 
     @property
     def schedules(self) -> list[Any]:
-        """Gets the current list of schedules from the worker."""
-        # Delegate to scheduler's internal method or property if it exists
-        # Assuming _get_schedules is the way for now
+        """Get list of current pipeline schedules.
+
+        Retrieves all active schedules from the worker system.
+
+        Returns:
+            list[Any]: List of schedule objects. Exact type depends on worker:
+                - RQ: List[rq.job.Job]
+                - APScheduler: List[apscheduler.schedulers.base.Schedule]
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>> 
+            >>> manager = PipelineManager()
+            >>> for schedule in manager.schedules:
+            ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
+        """
         try:
-            # Accessing private method, consider adding public property to Scheduler
             return self.scheduler._get_schedules()
         except Exception as e:
             logger.error(f"Failed to retrieve schedules: {e}")

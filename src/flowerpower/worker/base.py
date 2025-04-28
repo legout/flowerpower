@@ -4,9 +4,8 @@ Base scheduler interface for FlowerPower.
 This module defines the abstract base classes for scheduling operations
 that can be implemented by different backend providers (APScheduler, RQ, etc.).
 """
-
+import posixpath
 import abc
-import datetime as dt
 import sys
 import urllib.parse
 from dataclasses import dataclass, field
@@ -313,6 +312,10 @@ class BaseWorker:
             self.stop_worker()
         if hasattr(self, "_worker_pool") and self._worker_pool is not None:
             self.stop_worker_pool()
+        if hasattr(self, "_worker") and self._worker is not None:
+            self.stop_worker()
+        if hasattr(self, "_scheduler") and self._scheduler is not None:
+            self.stop_scheduler()
         return False  # Don't suppress exceptions
 
     def __init__(
@@ -323,6 +326,7 @@ class BaseWorker:
         backend: BaseBackend | None = None,
         storage_options: dict = None,
         fs: AbstractFileSystem | None = None,
+        **kwargs
     ):
         """
         Initialize the APScheduler backend.
@@ -340,18 +344,17 @@ class BaseWorker:
         self._storage_options = storage_options or {}
         self._backend = backend
         self._type = type
+        self._pipelines_dir = kwargs.get("pipelines_dir", "pipelines")
+        self._conf_dir = "conf"
+
 
         if fs is None:
             fs = get_filesystem(self._base_dir, **(self._storage_options or {}))
         self._fs = fs
 
-        self._conf_path = "conf"
-        self._pipelines_path = "pipelines"
-
+        self._add_modules_path() 
         self._load_config()
 
-        # Add pipelines path to sys.path
-        sys.path.append(self._pipelines_path)
 
     def _load_config(self) -> None:
         """Load the configuration.
@@ -362,3 +365,20 @@ class BaseWorker:
         self.cfg = ProjectConfig.load(
             base_dir=self._base_dir, worker_type=self._type, fs=self._fs
         ).worker
+
+    def _add_modules_path(self):
+        """
+        Sync the filesystem.
+
+        Returns:
+            None
+        """
+        if self._fs.is_cache_fs:
+            self._fs.sync()
+
+        if self._fs.path not in sys.path:
+            sys.path.insert(0, self._fs.path)
+
+        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+        if modules_path not in sys.path:
+            sys.path.insert(0, modules_path)

@@ -30,6 +30,7 @@ def load_module(name: str, reload: bool = False):
     return importlib.import_module(name)
 
 
+
 class BasePipeline:
     """
     Base class for all pipelines.
@@ -59,7 +60,7 @@ class BasePipeline:
         except Exception as e:
             logger.error(f"Error creating directories: {e}")
 
-        self._sync_fs()
+        self._add_modules_path()
 
     def __enter__(self) -> "BasePipeline":
         return self
@@ -72,7 +73,7 @@ class BasePipeline:
     ) -> None:
         pass
 
-    def _sync_fs(self):
+    def _add_modules_path(self):
         """
         Sync the filesystem.
 
@@ -84,7 +85,7 @@ class BasePipeline:
 
         modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
         if modules_path not in sys.path:
-            sys.path.append(modules_path)
+            sys.path.insert(0, modules_path)
 
     def _load_project_cfg(self) -> ProjectConfig:
         """

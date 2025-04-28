@@ -9,10 +9,7 @@ except ImportError:
     GEVENT_AVAILABLE = False
     raise ImportError("Gevent is required for GeventWorker. Please install it with 'pip install gevent'.")
 
-import logging
-import os
-import time
-import traceback
+
 import datetime as dt
 
 from rq import worker

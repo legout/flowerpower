@@ -9,8 +9,8 @@ from .worker import WorkerConfig
 
 class ProjectConfig(BaseConfig):
     name: str | None = msgspec.field(default=None)
-    worker: WorkerConfig = msgspec.field(default=WorkerConfig)
-    adapter: AdapterConfig = msgspec.field(default=AdapterConfig)
+    worker: WorkerConfig = msgspec.field(default_factory=WorkerConfig)
+    adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
 
     def __post_init__(self):
         if isinstance(self.worker, dict):
