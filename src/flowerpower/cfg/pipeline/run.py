@@ -1,5 +1,3 @@
-import os
-
 import msgspec
 from munch import munchify
 

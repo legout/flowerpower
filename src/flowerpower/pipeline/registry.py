@@ -76,7 +76,7 @@ class PipelineRegistry:
         Args:
             name (str): The name of the pipeline.
             overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
-            worker_type (str | None): The type of worker to use. Defaults to None.
+            job_queue_type (str | None): The type of worker to use. Defaults to None.
 
         Raises:
             ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
