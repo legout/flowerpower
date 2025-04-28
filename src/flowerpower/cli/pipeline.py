@@ -1,7 +1,9 @@
 import importlib.util
 
 import typer
+from typing_extensions import Annotated
 from loguru import logger
+
 
 # Import your existing pipeline functions
 # from ..pipeline import (
@@ -19,7 +21,7 @@ from loguru import logger
 #     show_summary as show_pipeline_summary_,
 #     # start_mqtt_listener as start_mqtt_listener_,
 # )
-from ..pipeline import Pipeline, PipelineManager
+from ..pipeline import Pipeline, PipelineManager, HookType
 from .utils import parse_dict_or_list_param, parse_param_dict
 
 # Optional imports
@@ -480,6 +482,7 @@ def delete(
     base_dir: str | None = None,
     cfg: bool = False,
     module: bool = False,
+    hooks: bool = False,
     storage_options: str | None = None,
 ):
     """
@@ -490,6 +493,7 @@ def delete(
         base_dir: Base directory for the pipeline
         cfg: Remove associated configuration
         module: Remove associated module
+        hooks: Remove associated hooks
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
     Examples:
@@ -502,12 +506,12 @@ def delete(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.delete(cfg=cfg, module=module)
+        pipeline.delete(cfg=cfg, module=module, hooks=hooks)
 
 
 @app.command()
 def show_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None
+    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
 ):
     """
     Show the DAG of the specified pipeline.
@@ -516,23 +520,25 @@ def show_dag(
         name: Name of the pipeline to show
         base_dir: Base directory for the pipeline
         storage_options: Storage options as JSON, dict string, or key=value pairs
+        config: Config for the hamilton pipeline executor
 
     Examples:
     pipeline show-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
 
     with Pipeline(
         name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.show_dag()
+        pipeline.show_dag(config=parsed_config)
 
 
 @app.command()
 def save_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None
+    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
 ):
     """
     Save the DAG of the specified pipeline.
@@ -541,18 +547,20 @@ def save_dag(
         name: Name of the pipeline to save
         base_dir: Base directory for the pipeline
         storage_options: Storage options as JSON, dict string, or key=value pairs
+        config: Config for the hamilton pipeline executor
 
     Examples:
     pipeline save-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
 
     with Pipeline(
         name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.save_dag()
+        pipeline.save_dag(config=parsed_config)
 
 
 @app.command()
@@ -603,3 +611,37 @@ def show_summary(
         storage_options=parsed_storage_options or {},
     ) as manager:
         manager.show_summary(name=name, cfg=cfg, module=module)
+
+@app.command()
+def add_hook(
+    name: str,
+    type: Annotated[HookType, typer.Option(help="Type of the hook to add")],
+    to: str | None = None,
+    function_name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: str | None = None,
+):
+    """
+    Add a hook to the specified pipeline.
+
+    Args:
+        name: Name of the pipeline to add the hook to
+        type: Type of the hook to add
+        to: File in which to add the hook. If not provided, the hook will be added to the hook.py file in the pipelines hook folder.
+        function_name: the name of the hook function. If not provided uses the default name of the hook type.
+        base_dir: Base directory for the pipeline
+        storage_options: Storage options as JSON, dict string, or key=value pairs
+
+    Examples:
+    pipeline add-hook my_pipeline mqtt-build-config
+    """
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    if to is not None and not to.endswith(".py"):
+        to = to + ".py"
+
+    with PipelineManager(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+    ) as manager:
+        manager.add_hook(name, type=type, to=to, function_name=function_name)

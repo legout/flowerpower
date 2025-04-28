@@ -27,6 +27,7 @@ def init(
 
     fs.makedirs("conf/pipelines", exist_ok=True)
     fs.makedirs("pipelines", exist_ok=True)
+    fs.makedirs("hooks", exist_ok=True)
 
     cfg = Config.load(base_dir=posixpath.join(base_dir, name), name=name)
 

@@ -341,6 +341,7 @@ class MQTTManager:
         fs: AbstractFileSystem | None = None,
         background: bool = False,
         qos: int = 0,
+        config_hook: Callable[[bytes, int], dict] | None = None,
         **kwargs,
     ):
         """
@@ -371,12 +372,18 @@ class MQTTManager:
         if inputs is None:
             inputs = {}
 
+        if config_hook is not None and not callable(config_hook):
+            raise ValueError("config_hook must be a callable function")
+
         def on_message(client, userdata, msg):
             logger.info(f"Received message on topic {topic}")
 
             inputs["payload"] = msg.payload
             inputs["topic"] = msg.topic
 
+            if config_hook is not None:
+                config = config_hook(inputs["payload"], inputs["topic"])
+                logger.debug(f"Config from hook: {config}")
             with Pipeline(
                 name=name, storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
@@ -500,6 +507,7 @@ def run_pipeline_on_message(
     qos: int = 0,
     client_id: str | None = None,
     client_id_suffix: str | None = None,
+    config_hook: Callable[[bytes, int], dict] | None = None,
     **kwargs,
 ):
     """
@@ -526,7 +534,12 @@ def run_pipeline_on_message(
         host: Host for the MQTT client
         port: Port for the MQTT client
         username: Username for the MQTT client
-        password: Password for the MQTT
+        password: Password for the MQTT Client
+        clean_session: Clean session for the MQTT client
+        qos: Quality of Service for the MQTT client
+        client_id: Client ID for the MQTT client
+        client_id_suffix: Client ID suffix for the MQTT client
+        config_hook: Hook function to modify the configuration of the pipeline
         **kwargs: Additional keyword arguments
     """
     try:
@@ -591,5 +604,6 @@ def run_pipeline_on_message(
         fs=fs,
         background=background,
         qos=qos,
+        config_hook=config_hook,
         **kwargs,
     )

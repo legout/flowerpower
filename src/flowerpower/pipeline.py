@@ -38,7 +38,9 @@ from .cfg import (  # PipelineRunConfig,; PipelineScheduleConfig,; PipelineTrack
 from .fs import get_filesystem
 from .fs.storage_options import BaseStorageOptions
 from .utils.misc import view_img
-from .utils.templates import PIPELINE_PY_TEMPLATE
+from .utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
+
+
 
 if importlib.util.find_spec("apscheduler"):
     from .scheduler import SchedulerManager
@@ -56,6 +58,15 @@ from munch import Munch
 from .utils.executor import get_executor
 from .utils.trigger import get_trigger  # , ALL_TRIGGER_KWARGS
 
+from enum import Enum
+
+class HookType(str, Enum):
+    MQTT_BUILD_CONFIG = "mqtt-build-config"
+
+    def default_function_name(self) -> str:
+        match self.value:
+            case HookType.MQTT_BUILD_CONFIG:
+                return self.value.replace("-", "_")
 
 class PipelineManager:
     def __init__(
@@ -752,12 +763,22 @@ class PipelineManager:
                     f"Pipeline {self.cfg.project.name}.{name.replace('.', '/')} already exists. "
                     "Use `overwrite=True` to overwrite."
                 )
+        if self._fs.exists(f"hooks/{name.replace(".", "/")}"):
+            if overwrite:
+                self._fs.rm(f"hooks/{name.replace(".", "/")}", recursive=True) #Delete all hooks in the folder
+            else:
+                raise ValueError(
+                    f"Pipeline {self.cfg.project.name}.{name.replace(".", "/")} alreads exists. "
+                    "Use `overwrite=True`to overwrite."
+                )
 
         pipeline_path = f"{self._pipelines_dir}/{name.replace('.', '/')}.py"
         cfg_path = f"{self._cfg_dir}/pipelines/{name.replace('.', '/')}.yml"
+        hook_path = f"hooks/{name.replace(".", "/")}"
 
         self._fs.makedirs(pipeline_path.rsplit("/", 1)[0], exist_ok=True)
         self._fs.makedirs(cfg_path.rsplit("/", 1)[0], exist_ok=True)
+        self._fs.makedirs(hook_path, exist_ok=True)
 
         with self._fs.open(pipeline_path, "w") as f:
             f.write(
@@ -1148,7 +1169,7 @@ class PipelineManager:
             overwrite=overwrite,
         )
 
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
+    def delete(self, name: str, cfg: bool = True, module: bool = False, hooks: bool = True):
         """
         Delete a pipeline.
 
@@ -1156,6 +1177,7 @@ class PipelineManager:
             name (str): The name of the pipeline to delete.
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file. Defaults to False.
+            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True.
 
         Returns:
             None
@@ -1176,12 +1198,20 @@ class PipelineManager:
             if self._fs.exists(f"{self._pipelines_dir}/{name}.py"):
                 self._fs.rm(f"{self._pipelines_dir}/{name}.py")
                 rich.print(
-                    f"🗑️ Deleted pipeline config for {self.cfg.project.name}.{name}"
+                    f"🗑️ Deleted pipeline module for {self.cfg.project.name}.{name}"
                 )
 
-    def _display_all_function(self, name: str, reload: bool = True):
+        if hooks:
+            if self._fs.exists(f"hooks/{name}/"):
+                self._fs.rm(f"hooks/{name}/", recursive=True)
+                rich.print(
+                    f"🗑️ Deleted pipeline hooks for {self.cfg.project.name}.{name}"
+                )
+        
+
+    def _display_all_function(self, name: str, reload: bool = True, config: dict | None = None):
         dr, _ = self._get_driver(
-            name=name, executor=None, with_tracker=False, reload=reload
+            name=name, executor=None, with_tracker=False, reload=reload, config=config
         )
         return dr.display_all_functions()
 
@@ -1190,6 +1220,7 @@ class PipelineManager:
         name: str,
         format: str = "png",
         reload: bool = False,
+        config: dict | None = None,
     ):
         """
         Save a image of the graph of functions for a given name.
@@ -1208,7 +1239,7 @@ class PipelineManager:
             pm.save_dag("my_pipeline")
             ```
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._display_all_function(name=name, reload=reload, config=config)
 
         self._fs.makedirs("graphs", exist_ok=True)
         dag.render(
@@ -1226,6 +1257,7 @@ class PipelineManager:
         format: str = "png",
         reload: bool = False,
         raw: bool = False,
+        config: dict | None = None,
     ):
         """
         Display the graph of functions for a given name. By choosing the `raw` option, the graph object is returned.
@@ -1247,7 +1279,7 @@ class PipelineManager:
             pm.show_dag("my_pipeline")
             ```
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._display_all_function(name=name, reload=reload, config=config)
         if raw:
             return dag
         view_img(dag.pipe(format), format=format)
@@ -1519,6 +1551,51 @@ class PipelineManager:
             ```
         """
         return self._all_pipelines(show=False)
+
+    def add_hook(self, name: str, type: HookType, to: str | None = None, function_name: str|None = None):
+        """
+        Add a hook to the pipeline module.
+
+        Args:
+            name (str): The name of the pipeline
+            type (HookType): The type of the hook.
+            to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
+            function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
+
+        Returns:
+            None
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.add_hook(HookType.PRE_EXECUTE)
+            ```
+        """
+
+        
+        if to is None:
+            to = f"hooks/{name}/hook.py"
+        else:
+            to = f"hooks/{name}/{to}"
+
+        match type:
+            case HookType.MQTT_BUILD_CONFIG:
+                template = HOOK_TEMPLATE__MQTT_BUILD_CONFIG
+
+        if function_name is None:
+            function_name = type.default_function_name()
+
+        if not self._fs.exists(to):
+            self._fs.makedirs(os.path.dirname(to), exist_ok=True)
+
+        with self._fs.open(to, "a") as f:
+            f.write(
+                template.format(
+                function_name=function_name
+                )
+            )
+
+        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")       
 
 
 class Pipeline:
@@ -1825,13 +1902,14 @@ class Pipeline:
                 overwrite=overwrite,
             )
 
-    def delete(self, cfg: bool = True, module: bool = False):
+    def delete(self, cfg: bool = True, module: bool = False, hooks: bool = True):
         """Delete the pipeline.
 
         Args:
             cfg (bool, optional): Whether to delete the pipeline configuration. Defaults to True.
             module (bool, optional): Whether to delete the pipeline module file.
                 Defaults to False.
+            hooks (bool, optional): Whether to delete the pipeline's hooks. Defaults to True.
 
         Examples:
             ```python
@@ -1843,9 +1921,9 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            pm.delete(self.name, cfg=cfg, module=module)
+            pm.delete(self.name, cfg=cfg, module=module, hooks=hooks)
 
-    def save_dag(self, format="png"):
+    def save_dag(self, format="png", config: dict | None = None):
         """Save a image of the graph of functions for a given name.
 
         Args:
@@ -1861,10 +1939,11 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            pm.save_dag(self.name, format)
+            pm.save_dag(self.name, format, config=config)
 
     def show_dag(
         self,
+        config: dict | None = None,
     ):
         """Display the graph of functions for a given name.
 
@@ -1878,7 +1957,7 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            return pm.show_dag(self.name)
+            return pm.show_dag(self.name, config=config)
 
     def get_summary(
         self, cfg: bool = True, module: bool = True
@@ -2417,3 +2496,4 @@ def list_pipelines(
         fs=fs,
     ) as pm:
         return pm.list_pipelines()
+

@@ -1,12 +1,11 @@
 import typer
-import importlib
 import sys
 from ..mqtt import (
     start_listener as start_listener_,
     run_pipeline_on_message as run_pipeline_on_message_,
 )
-from .utils import parse_dict_or_list_param
-
+from .utils import parse_dict_or_list_param, load_hook
+import importlib
 app = typer.Typer(help="MQTT management commands")
 
 
@@ -78,6 +77,7 @@ def run_pipeline_on_message(
     qos: int = 0,
     client_id: str | None = None,
     client_id_suffix: str | None = None,
+    config_hook: str | None = None,
 ):
     """Run a pipeline on a message
 
@@ -107,6 +107,11 @@ def run_pipeline_on_message(
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
+    config_hook_function = None
+    if config_hook: 
+        config_hook_function = load_hook(name, config_hook, base_dir, storage_options)
+
+
     run_pipeline_on_message_(
         name=name,
         topic=topic,
@@ -128,4 +133,5 @@ def run_pipeline_on_message(
         qos=qos,
         client_id=client_id,
         client_id_suffix=client_id_suffix,
+        config_hook=config_hook_function,
     )
