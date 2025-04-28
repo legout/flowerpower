@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.11.7  # Use the latest version
+    hooks:
+      - id: ruff-format
+        args: [--preview]
+      
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1  # Use the latest version
+    hooks:
+      - id: isort
+  
+  - repo: local
+    hooks:
+      - id: version-tagging
+        name: Version tagging and changelog update
+        entry: .github/hooks/version-hook.sh
+        language: script
+        pass_filenames: false
+        stages: [push]  # Run on push, not commit
+        always_run: true
+        verbose: true
