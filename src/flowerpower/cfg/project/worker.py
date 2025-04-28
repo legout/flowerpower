@@ -132,20 +132,10 @@ class WorkerConfig(BaseConfig):
                         )
             elif self.type == "apscheduler":
                 if self.backend is None:
-                    self.backend = APSBackendConfig(
-                        data_store=APSDataStoreConfig(),
-                        event_broker=APSEventBrokerConfig(),
-                    )
+                    self.backend = APSBackendConfig( )
                 else:
                     if isinstance(self.backend, dict):
-                        self.backend = APSBackendConfig(
-                            data_store=APSDataStoreConfig.from_dict(
-                                self.backend.get("data_store", {})
-                            ),
-                            event_broker=APSEventBrokerConfig.from_dict(
-                                self.backend.get("event_broker", {})
-                            ),
-                        )
+                        self.backend = APSBackendConfig.from_dict(self.backend)
                     elif isinstance(self.backend, APSBackendConfig):
                         pass
                     else:

@@ -22,7 +22,7 @@ from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
-from .registry import PipelineRegistry
+from .registry import PipelineRegistry, HookType
 from .runner import PipelineRunner, run_pipeline
 from .scheduler import PipelineScheduler
 from .visualizer import PipelineVisualizer
@@ -639,15 +639,7 @@ class PipelineManager:
             >>>
             >>> manager = PipelineManager()
             >>> manager.show_pipelines()
-            ╭──────────────────────────────────────╮
-            │ Available Pipelines                  │
-            ├──────────────┬─────────┬────────────┤
-            │ Name         │ Type    │ Enabled    │
-            ├──────────────┼─────────┼────────────┤
-            │ data_intake  │ batch   │ ✓          │
-            │ ml_training  │ batch   │ ✓          │
-            │ monitoring   │ stream  │ ✗          │
-            ╰──────────────┴─────────┴────────────╯
+           
         """
         self.registry.show_pipelines()
 
@@ -704,6 +696,41 @@ class PipelineManager:
             ml_pipeline: streaming
         """
         return self.registry.summary
+    
+    def add_hook(
+            self, name:str, type:HookType, to:str|None, function_name:str|None,
+    )->None:
+        """Add a hook to the pipeline module.
+        
+        Args:
+            name (str): The name of the pipeline
+            type (HookType): The type of the hook.
+            to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
+            function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
+            
+        Returns:
+            None
+        
+        Raises:
+            ValueError: If the hook type is not valid
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>>
+            >>> manager = PipelineManager()
+            >>> manager.add_hook(
+            ...     name="data_pipeline",
+            ...     type=HookType.PRE_EXECUTE,
+            ...     to="pre_execute_hook",
+            ...     function_name="my_pre_execute_function"
+            ... )
+            """
+        self.registry.add_hook(
+            name=name,
+            type=type,
+            to=to,
+            function_name=function_name,
+        )
 
     # IO Delegations
     def import_pipeline(
@@ -1470,3 +1497,4 @@ class PipelineManager:
         except Exception as e:
             logger.error(f"Failed to retrieve schedules: {e}")
             return []
+

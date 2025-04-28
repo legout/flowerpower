@@ -14,10 +14,10 @@ app = typer.Typer()
 app.add_typer(pipeline_app, name="pipeline")
 app.add_typer(web_app, name="web")  # Add the web app as a command
 
-if importlib.util.find_spec("apscheduler"):
-    from .scheduler import app as scheduler_app
+if importlib.util.find_spec("apscheduler") or importlib.util.find_spec("rq"):
+    from .worker import app as worker_app
 
-    app.add_typer(scheduler_app, name="scheduler")
+    app.add_typer(worker_app, name="worker")
 
 if importlib.util.find_spec("paho"):
     from .mqtt import app as mqtt_app

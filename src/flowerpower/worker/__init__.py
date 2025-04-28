@@ -6,6 +6,7 @@ from ._huey import HueyWorker
 from .apscheduler import APSBackend, APSWorker
 from .base import BaseBackend, BaseWorker
 from .rq import RQBackend, RQWorker
+from ..cfg.project import ProjectConfig
 
 setup_logging()
 
@@ -56,7 +57,7 @@ class Worker:
 
     def __new__(
         cls,
-        type: str = "rq",
+        type: str |None = None,
         name: str | None = None,
         base_dir: str | None = None,
         backend: BaseBackend | None = None,
@@ -123,6 +124,10 @@ class Worker:
             )
             ```
         """
+        if type is None:
+            type = ProjectConfig.load(
+                base_dir=base_dir, name=name, fs=fs, storage_options=storage_options).worker.type
+            
         if type == "rq":
             return RQWorker(
                 name=name,
