@@ -382,8 +382,9 @@ class MQTTManager:
             inputs["topic"] = msg.topic
 
             if config_hook is not None:
-                config = config_hook(inputs["payload"], inputs["topic"])
+                _config = config_hook(inputs["payload"], inputs["topic"])
                 logger.debug(f"Config from hook: {config}")
+
             with Pipeline(
                 name=name, storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
@@ -393,7 +394,7 @@ class MQTTManager:
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,
-                            config=config,
+                            config= config if config_hook is None else _config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
                             with_progressbar=with_progressbar,
@@ -406,7 +407,7 @@ class MQTTManager:
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,
-                            config=config,
+                            config=config if config_hook is None else _config,
                             with_tracker=with_tracker,
                             with_opentelemetry=with_opentelemetry,
                             with_progressbar=with_progressbar,
