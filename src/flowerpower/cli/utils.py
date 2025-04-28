@@ -10,6 +10,10 @@ import posixpath
 
 from flowerpower.pipeline import PipelineManager
 
+from ..utils.logging import setup_logging
+
+setup_logging()
+
 
 # Parse additional parameters
 def parse_param_dict(param_str: str | None) -> dict:

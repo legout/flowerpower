@@ -1,18 +1,45 @@
-from munch import Munch, munchify
-from pydantic import Field
+import os
 
+import msgspec
+from munch import munchify
+
+from ... import settings
 from ..base import BaseConfig
 
 
-class PipelineRunConfig(BaseConfig):
-    final_vars: list[str] = Field(default_factory=list)
-    inputs: dict | Munch = Field(default_factory=dict)
-    executor: str | None = None
-    config: dict | Munch = Field(default_factory=dict)
-    with_tracker: bool = False
-    with_opentelemetry: bool = False
-    with_progressbar: bool = False
+class WithAdapterConfig(BaseConfig):
+    tracker: bool = msgspec.field(default=False)
+    mlflow: bool = msgspec.field(default=False)
+    # openlineage: bool = msgspec.field(default=False)
+    ray: bool = msgspec.field(default=False)
+    opentelemetry: bool = msgspec.field(default=False)
+    progressbar: bool = msgspec.field(default=False)
+    future: bool = msgspec.field(default=False)
 
-    def model_post_init(self, __context):
+
+class ExecutorConfig(BaseConfig):
+    type: str | None = msgspec.field(default=settings.EXECUTOR)
+    max_workers: int | None = msgspec.field(default=settings.EXECUTOR_MAX_WORKERS)
+    num_cpus: int | None = msgspec.field(default=settings.EXECUTOR_NUM_CPUS)
+
+
+class RunConfig(BaseConfig):
+    inputs: dict | None = msgspec.field(default_factory=dict)
+    final_vars: list[str] | None = msgspec.field(default_factory=list)
+    config: dict | None = msgspec.field(default_factory=dict)
+    cache: dict | bool | None = msgspec.field(default_factory=dict)
+    with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
+    executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
+    log_level: str | None = msgspec.field(default=None)
+
+    def __post_init__(self):
         if isinstance(self.inputs, dict):
             self.inputs = munchify(self.inputs)
+        if isinstance(self.config, dict):
+            self.config = munchify(self.config)
+        if isinstance(self.cache, (dict)):
+            self.cache = munchify(self.cache)
+        if isinstance(self.with_adapter, dict):
+            self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
+        if isinstance(self.executor, dict):
+            self.executor = ExecutorConfig.from_dict(self.executor)

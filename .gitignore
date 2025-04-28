@@ -30,3 +30,8 @@ test4.db*
 .gitignore
 flowerpower.db*
 .sesskey
+*.db
+abc.py
+src/flowerpower/worker/rq/worker.py
+ToDo.md
+func.py
