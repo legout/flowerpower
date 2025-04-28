@@ -13,7 +13,10 @@ from munch import Munch
 from paho.mqtt.client import CallbackAPIVersion, Client
 
 from .cfg import Config
-from .pipeline import Pipeline
+from .pipeline.manager import Pipeline
+from .utils.logging import setup_logging
+
+setup_logging()
 
 
 class MQTTManager:

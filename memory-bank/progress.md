@@ -5,4 +5,23 @@
 
 *   [2025-04-10 21:14:00] - **Task Started:** Implement a unified interface for RQ, Huey, and APScheduler.
 *   [2025-04-10 21:15:00] - **Status:** Designed the unified interface, created the core files and configuration classes. Encountered issues with RQ and Huey adapters. APScheduler adapter not implemented due to missing library.
+<<<<<<< HEAD
 *   [2025-04-11 12:17:24] - **Task Completed:** Created worker interface examples (apscheduler_example.py, rq_example.py, huey_example.py) in examples/ directory.
+=======
+*   [2025-04-11 12:17:24] - **Task Completed:** Created worker interface examples (apscheduler_example.py, rq_example.py, huey_example.py) in examples/ directory.
+*   [2025-04-12 15:30:47] - **Task Completed:** Refactored `BaseBackendType` Enum in `src/flowerpower/worker/base.py` to use a data-driven approach for backend properties, improving readability and maintainability.
+*   [2025-04-12 15:59:31] - **Task Completed:** Improved and optimized code in `src/flowerpower/worker/apscheduler/trigger.py` using best practices (Enum, Factory pattern), enhancing readability, maintainability, and error handling.
+*   [2025-04-13 18:43:22] - **Task Completed:** Refactored configuration classes in `src/flowerpower/cfg/` and subdirectories from pydantic (`Field`, `model_post_init`) to msgspec (`field`, `__post_init__`).
+*   [2025-04-14 16:37:45] - **Status:** Implemented Huey trigger classes (`HueyCronTrigger`, `HueyIntervalTrigger`, `HueyDateTrigger`) in `src/flowerpower/worker/huey/trigger.py` and updated `src/flowerpower/worker/huey/__init__.py` to export them. This maps FlowerPower's abstract triggers to Huey's scheduling mechanisms.
+*   [2025-04-14 22:49:46] - **Task Completed:** Reviewed, fixed, and optimized code in `src/flowerpower/worker/__init__.py` and `src/flowerpower/worker/base.py`. Improvements include type hints, URI generation logic (robustness, security), SSL handling, and code clarity.
+*   [2025-04-15 09:44:36] - **Task Started:** Create an example script to test different worker backends.
+*   [2025-04-15 09:48:38] - **Status:** Updated `examples/workers/worker_example.py` to use `typer` instead of `argparse` and assume `flowerpower` is installed.
+*   [2025-04-15 09:54:17] - **Task Completed:** Enhanced `examples/workers/worker_example.py` to allow backend configuration via `typer` options (--backend-host, --backend-port, --backend-db, --backend-user, --password, --backend-ssl, --backend-uri). This enables testing workers with specific backend connection details.
+
+*   [2025-04-15 10:24:48] - **Task Completed:** Added `Backend` factory class to `src/flowerpower/worker/__init__.py` to configure `RQBackend` or `APSBackend`. Updated imports, `__all__`, and added type hints.
+*   [2025-04-15 10:51:49] - **Task Completed:** Refactored `src/flowerpower/pipeline.py` to replace `SchedulerManager` with the new unified `Worker` class. This involved updating imports, class instantiations, method calls (e.g., `add_job`, `add_schedule`), return types, and docstrings to align with the `BaseWorker` interface.
+*   [2025-04-15 22:07:05] - **Status:** Task interrupted and resumed. Initiated Memory Bank Update (UMB).
+*   [2025-04-16 09:23:44] - **Task Completed:** Completed Memory Bank Update (UMB) by updating activeContext.md and progress.md.
+*   [2025-04-16 10:21:28] - **Task Started:** Extract PipelineRunner from PipelineManager.
+*   [2025-04-16 10:21:28] - **Task Completed:** Extracted pipeline execution logic (`run`, `_get_driver`, `_resolve_parameters`) from `PipelineManager` into a new `PipelineRunner` class in `src/flowerpower/runner.py`. Updated `PipelineManager` to delegate execution.
+>>>>>>> rq-dev2

@@ -1,37 +1,94 @@
 version: "3.8"
+
+## This docker-compose file can be used to run and test FlowerPower locally.
+## It is not intended to be used in production.
+
+## The following services are included:
+## - python-dev container
+## - Code-Server
+## - Minio
+## - MQTT (Nanomq and Mosquitto)
+## - Redis
+## - Dragonfly
+## - MongoDB
+## - NodeRed
+## - PostgreSQL
+## - Hamilton UI (Backend and Frontend)
+
 services:
-  jupytercode:
-    build: 
-      context: .
-      args:
-        - CODE_VERSION=4.92.1
-        - PLATFORM=arm64
-    image: jupytercode:latest
-    user: root
-    environment:
-      - GRANT_SUDO=yes
-    ports:
-      - 8888:8888
+  # JupyCode
+  # This is a custom image based on JupyterLab that includes VSCodeServer
+  # It can be used as the test environment for FlowerPower
+
+  python-dev-worker:
+    image: python-dev-worker
+    container_name: python-dev-worker
+    build:
+      context: python-worker
+      dockerfile: Dockerfile.dev
     volumes:
-      - jupytercode:/home/jovyan
-  #
+      - python-worker:/app # Mount your code directory
+    networks:
+      - flowerpower-net
+    restart: unless-stopped
+
+  # Code-Server
+  codeserver:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: codeserver
+    env_file:
+      - .env
+    environment:
+      - PUID=1000 # Use your user's ID (run `id -u` on VPS)
+      - PGID=1000 # Use your user's group ID (run `id -g` on VPS)
+      - TZ=Europe/Berlin
+      #- PASSWORD=$CS_PW # Set a strong password in the .env file
+      #- SUDO_PASSWORD=$CS_SUDO_PW # If you need sudo within code-server
+      # - PROXY_DOMAIN=code.yourdomain.com # If using Caddy subdomains
+      #- EXTENSIONS_GALLERY=$CS_EXTENSIONS_GALLARY
+    volumes:
+      - codeserver_config:/config # Persist code-server config
+      # --- Option 2: Mount Docker socket to attach to python-dev (more complex/risky) ---
+      - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
+      # You might need another volume to install docker cli if not in base image
+    #ports:
+    #  - "8443:8443" # Expose code-server port
+    restart: unless-stopped
+    networks:
+      - flowerpower-net # Connect to Caddy's network
+
+  # Minio
+  # Often times FlowerPower pipelines will read and/or write to S3.
+  # Minio is a local S3 compatible storage solution.  
   minio:
     image: minio/minio
-    ports:
-      - 9000:9000
-      - 9001:9001
+    #ports:
+    #  - 9000:9000
+    #  - 9001:9001
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio1234
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
-  
-  mqtt:
+    networks:
+      - flowerpower-net
+
+  # MQTT 
+  # When using APScheduler as the FlowerPower worker, MQTT can be used as a event broker
+  # nanomq
+  mqtt-nanomq:
+    image: emqx/nanomq
+    ports:
+      - 1884:1883
+      - 8084:8083
+      - 8884:8883
+    networks:
+      - flowerpower-net
+
+  # mosquitto
+  mqtt-mosquitto:
     image: eclipse-mosquitto
-    volumes:
-     - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
-     - ./data/mosquitto.db:/mosquitto/data/mosquitto.db
     ports:
      - 1883:1883
     command: mosquitto -c /mosquitto/config/mosquitto.conf
@@ -42,59 +99,92 @@ services:
   #    - 1883:1883
   #    - 8083:8083
   #    - 8883:8883
+    networks:
+      - flowerpower-net
 
+  # Redis
+  # When using APScheduler as the FlowerPower worker, Redis can be used as a event broker
+  # When using RQ as the FlowerPower worker, Redis is used as the task queue
+  # Redis
   redis:
+    image: redis
+    ports:
+     - 6379:6379
+    networks:
+      - flowerpower-net
+
+  # Valkey - a Redis compatible key-value store
+  valkey:
     image: valkey/valkey
     ports:
-      - 6381:6379
+     - 6379:6379
+    networks:
+      - flowerpower-net
 
+  # Dragonfly - a Redis compatible key-value store
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
-  #   network_mode: host
-  #   ulimits:
-  #     memlock: -1
+    ulimits:
+      memlock: -1
     ports:
-      - 6380:6379
-  
+     - 6379:6379
+    networks:
+      - flowerpower-net
+
+  # MongoDB
+  # When using APScheduler as the FlowerPower worker, MongoDB can be used as a data store
   mongodb:
     image: mongo
     ports:
-      - 27017:27017
+     - 27017:27017
+    networks:
+      - flowerpower-net
 
-  nodered:
-    image: nodered/node-red
-    volumes:
-      - nodered:/data
-    ports: 
-      - 1880:1880
-  
+  # PostgreSQL
+  # When using RQ as the FlowerPower worker, PostgreSQL can be used as a data store and event broker
   postgres:
     image: postgres
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+     - 5432:5432
+    networks:
+      - flowerpower-net
+
+  ## Hamilton UI ##
+  # Hamilton UI is a web-based interface for Hamilton, the data pipeline framework used in FlowerPower
+  # PosgreSQL
+  postgres-hamilton:
+    image: postgres
+    container_name: hamilton-postgres
+    volumes:
+      - hamilton_pg_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=flowerpower
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-    ports:
-      - 5432:5432
+      - PGPORT=5433
+    #ports:
+    #  - 5433:5433
+    networks:
+      - flowerpower-net
 
+  # Backend
   backend:
     container_name: hamilton-ui-backend
     image: dagworks/ui-backend:latest
-    #build:
-    #    context: backend
-    #    dockerfile: Dockerfile.backend
+
     entrypoint: [ "/bin/bash", "-c", "cd /code/server && ls && ./entrypoint.sh" ]
     volumes:
-      #- ./backend:/code
-      - /data/hamilton_ui:/data/
+      - hamilton_ui_data:/data/
     ports:
-      - 8241:8241
+     - 8241:8241
     #env_file: .env
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
+      - DB_HOST=postgres-hamilton
+      - DB_PORT=5433
       - DB_NAME=flowerpower
       - DB_USER=postgres
       - DB_PASSWORD=password # Purely for local! Do not deploy to production!
@@ -108,38 +198,69 @@ services:
       - HAMILTON_CAPTURE_DATA_STATISTICS=false
       - HAMILTON_MAX_LIST_LENGTH_CAPTURE
       - HAMILTON_MAX_DICT_LENGTH_CAPTURE
-
+    networks:
+      - flowerpower-net
     restart: unless-stopped
 
+  # Frontend
   frontend:
     container_name: hamilton-ui-frontend
     image: dagworks/ui-frontend:latest
-    #build:
-    #  context: frontend
-    #  dockerfile: Dockerfile.frontend
-    #  args:
-    #    - REACT_APP_AUTH_MODE=local
-    #    - REACT_APP_USE_POSTHOG=false
-    #volumes:
-      # - ./frontend:/usr/src/app
-      # - /usr/src/app/node_modules
-    ports:
-      - 8242:8242
+    #ports:
+    #  - 8242:8242
     environment:
       - NGINX_PORT=8242
       - NODE_ENV=development
       - REACT_APP_AUTH_MODE=local
       - REACT_APP_USE_POSTHOG=false
       - REACT_APP_API_URL=http://backend:8241
+    networks:
+      - flowerpower-net
     depends_on:
       - backend
-
     restart: unless-stopped
 
+  caddy:
+    image: caddy:latest
+    container_name: caddyP
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # Needed for HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile # Mount your Caddy config
+      - caddy_data:/data # Persist Caddy's state (certs etc.)
+      - caddy_config:/config
+    restart: unless-stopped
+    networks:
+      - flowerpower-net
+    environment:
+      - HOSTNAME=flowerpower.local
+
+  dockge:
+    image: louislam/dockge:latest
+    container_name: dockge
+    #ports:
+    #  - "5001:5001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockge_data:/data
+    networks:
+      - flowerpower-net
+    restart: unless-stopped
+
+networks:
+  flowerpower-net:
+    driver: bridge
+
 volumes:
-  jupytercode:
+  codeserver_config:
+  caddy_data:
+  caddy_config:
+  python-worker:
   minio_data:
-  #minio_config:
-  nodered:
+  nodered_data:
   postgres_data:
-  backend_data:
+  hamilton_ui_data:
+  hamilton_pg_data:
+  dockge_data:

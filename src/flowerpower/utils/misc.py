@@ -3,8 +3,11 @@ import os
 import subprocess
 import tempfile
 import time
+from typing import Any
 
-import tqdm
+import msgspec
+
+# import tqdm
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa
@@ -345,8 +348,8 @@ if importlib.util.find_spec("joblib"):
         all_iterables = iterables + list(iterable_kwargs.values())
         param_combinations = list(zip(*all_iterables))  # Convert to list for tqdm
 
-        if verbose:
-            param_combinations = tqdm.tqdm(param_combinations)
+        # if verbose:
+        #    param_combinations = tqdm.tqdm(param_combinations)
 
         return Parallel(**parallel_kwargs)(
             delayed(func)(
@@ -410,3 +413,49 @@ def view_img(data: str | bytes, format: str = "svg"):
 
     time.sleep(2)  # Wait for viewer to open
     os.unlink(tmp_path)
+
+
+def update_config_from_dict(
+    struct: msgspec.Struct, data: dict[str, Any]
+) -> msgspec.Struct:
+    """
+    Updates a msgspec.Struct instance with values from a dictionary.
+    Handles nested msgspec.Struct objects and nested dictionaries.
+
+    Args:
+        obj: The msgspec.Struct object to update
+        update_dict: Dictionary containing update values
+
+    Returns:
+        Updated msgspec.Struct instance
+    """
+    # Convert the struct to a dictionary for easier manipulation
+    obj_dict = msgspec.to_builtins(struct)
+
+    # Update the dictionary recursively
+    for key, value in data.items():
+        if key in obj_dict:
+            if isinstance(value, dict) and isinstance(obj_dict[key], dict):
+                # Handle nested dictionaries
+                obj_dict[key] = update_nested_dict(obj_dict[key], value)
+            else:
+                # Direct update for non-nested values
+                obj_dict[key] = value
+
+    # Convert back to the original struct type
+    return msgspec.convert(obj_dict, type(struct))
+
+
+def update_nested_dict(
+    original: dict[str, Any], updates: dict[str, Any]
+) -> dict[str, Any]:
+    """Helper function to update nested dictionaries"""
+    result = original.copy()
+    for key, value in updates.items():
+        if key in result and isinstance(value, dict) and isinstance(result[key], dict):
+            # Recursively update nested dictionaries
+            result[key] = update_nested_dict(result[key], value)
+        else:
+            # Direct update
+            result[key] = value
+    return result

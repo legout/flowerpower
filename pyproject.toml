@@ -11,9 +11,10 @@ dependencies = [
   "aiosqlite>=0.21.0",
   'dill>=0.3.8',
   'fsspec>=2024.10.0',
+  "humanize>=4.12.2",
+  "msgspec>=0.19.0",
   'munch>=4.0.0',
   "orjson>=3.10.15",
-  'pendulum>=3.0.0',
   'pyarrow<19.0.0',
   'pydantic>=2.10.2',
   'python-dotenv>=1.0.1',
@@ -22,7 +23,6 @@ dependencies = [
   's3fs>=2024.10.0',
   'sf-hamilton-sdk>=0.5.2',
   'sf-hamilton[visualization,rich,tqdm]>=1.69.0',
-  'tqdm>=4.67.1',
   'typer>=0.12.3',
 ]
 
@@ -35,6 +35,8 @@ dependencies = [
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
+apscheduler = ['aiosqlite>=0.21.0', 'apscheduler==4.0.0a5', 'asyncpg>=0.29.0', 'greenlet>=3.0.3', 'sqlalchemy>=2.0.30',   "cron-descriptor>=1.4.5",
+]
 io = [
   "adbc-driver-manager>=1.4.0",
   #"connectorx>=0.4.1",
@@ -76,20 +78,14 @@ opentelemetry = [
 ]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
-scheduler = ['aiosqlite>=0.21.0', 'apscheduler>=4.0.0a5', 'asyncpg>=0.29.0', 'greenlet>=3.0.3', 'sqlalchemy>=2.0.30']
-
+rq = [  "rq>=2.3.1",
+  "rq-scheduler>=0.14.0",   "cron-descriptor>=1.4.5",
+]
 tui       = ["textual>=0.85.2"]
 ui        = ["sf-hamilton-ui>=0.0.11"]
 webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11"]
-web = [
-    "datastar-py>=0.4.2",
-    "fastapi>=0.115.10",
-    "htmy>=0.5.0",
-    "htpy>=25.2.0",
-    "python-fasthtml>=0.12.4",
-    "python-multipart>=0.0.20",
-    "sanic>=24.12.0",
-    "starlette>=0.45.3",
+openlineage = [
+    "openlineage-python>=1.32.0",
 ]
 
 
@@ -99,10 +95,11 @@ dev-dependencies = [
   "isort>=5.13.2",
   "ruff>=0.7.1",
   "jupyterlab>=4.3.0",
-  "greenlet>=3.1.1",
   "pytest>=8.3.4",
   "mocker>=1.1.1",
   "marimo>=0.10.19",
   "pre-commit>=4.2.0",
 ]
 package = true
+
+
