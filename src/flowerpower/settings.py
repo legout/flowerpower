@@ -2,6 +2,7 @@ import os
 
 PIPELINES_DIR = os.getenv("FP_PIPELINES_DIR", "pipelines")
 CONFIG_DIR = os.getenv("FP_CONFIG_DIR", "conf")
+HOOKS_DIR = os.getenv("FP_HOOKS_DIR", "hooks")
 
 # EXECUTOR
 EXECUTOR = os.getenv("FP_EXECUTOR", "threadpool")
@@ -14,7 +15,7 @@ EXECUTOR_NUM_CPUS = int(os.getenv("FP_EXECUTOR_NUM_CPUS", os.cpu_count() or 1))
 LOG_LEVEL = os.getenv("FP_LOG_LEVEL", "INFO")
 
 # WORKER
-DEFAULT_JOB_QUEUE_TYPE = os.getenv("FP_JOB_QUEUE_TYPE", "rq")
+DEFAULT_JOB_QUEUE = os.getenv("FP_JOB_QUEUE_TYPE", "rq")
 # RQ WORKER
 RQ_BACKEND = os.getenv("FP_RQ_BACKEND", "redis")
 RQ_QUEUES = (

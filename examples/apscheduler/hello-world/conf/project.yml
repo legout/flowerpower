@@ -1,5 +1,5 @@
-name: null
-worker:
+name: apscheduler
+job_queue:
   type: apscheduler
   backend:
     data_store:
@@ -33,7 +33,7 @@ worker:
     cleanup_interval: 300
     max_concurrent_jobs: 10
     default_job_executor: threadpool
-    num_workers: 10
+    num_workers: 50
 adapter:
   hamilton_tracker:
     username: null

@@ -27,7 +27,7 @@ class RunConfig(BaseConfig):
     inputs: dict | None = msgspec.field(default_factory=dict)
     final_vars: list[str] | None = msgspec.field(default_factory=list)
     config: dict | None = msgspec.field(default_factory=dict)
-    cache: dict | bool | None = msgspec.field(default_factory=dict)
+    cache: dict | bool | None = msgspec.field(default=False)
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     log_level: str | None = msgspec.field(default=None)

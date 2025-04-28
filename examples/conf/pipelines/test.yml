@@ -14,25 +14,15 @@ adapter:
     run_id: null
     run_name: null
     run_tags: {}
-params: 
-  avg_x_wk_spend:
-    rolling: 3
-  spend_zero_mean:
-    offset: 0
+params: {}
 run:
-  cache: false
-  config: 
-    range: 10_000
+  cache: {}
+  config: {}
   executor:
-    max_workers: 40
-    num_cpus: 8
+    max_workers: 50
+    num_cpus: 10
     type: threadpool
-  final_vars:
-    - spend
-    - signups
-    - avg_x_wk_spend
-    - spend_per_signup
-    - spend_zero_mean_unit_variance
+  final_vars: []
   inputs: {}
   log_level: null
   with_adapter:
@@ -43,6 +33,6 @@ run:
     ray: false
     tracker: false
 schedule:
-  cron: "* * * * *"
-  interval: null
+  cron: null
   date: null
+  interval: null

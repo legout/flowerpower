@@ -6,15 +6,19 @@ from pathlib import Path
 import rich
 from fsspec.spec import AbstractFileSystem
 
-from .cfg import Config
+from .cfg import ProjectConfig
 from .fs import get_filesystem
-
+from . import settings
 
 def init(
     name: str | None = None,
     base_dir: str | None = None,
     storage_options: dict = {},
     fs: AbstractFileSystem | None = None,
+    job_queue_type: str = settings.DEFAULT_JOB_QUEUE,
+    cfg_dir: str = settings.CONFIG_DIR,
+    pipelines_dir: str = settings.PIPELINES_DIR,
+    hooks_dir: str = settings.HOOKS_DIR,
 ):
     if name is None:
         name = str(Path.cwd().name)
@@ -25,11 +29,11 @@ def init(
 
     fs = get_filesystem(posixpath.join(base_dir, name), **storage_options)
 
-    fs.makedirs("conf/pipelines", exist_ok=True)
-    fs.makedirs("pipelines", exist_ok=True)
-    fs.makedirs("hooks", exist_ok=True)
+    fs.makedirs(f"{cfg_dir}/pipelines", exist_ok=True)
+    fs.makedirs(pipelines_dir, exist_ok=True)
+    fs.makedirs(hooks_dir, exist_ok=True)
 
-    cfg = Config.load(base_dir=posixpath.join(base_dir, name), name=name)
+    cfg = ProjectConfig.load(base_dir=posixpath.join(base_dir, name), name=name, job_queue_type=job_queue_type)
 
     with open(posixpath.join(base_dir, name, "README.md"), "w") as f:
         f.write(
@@ -55,9 +59,9 @@ def init(
             [dim]More options:[/dim]
                 [blue underline]https://docs.astral.sh/uv/getting-started/installation/[/blue underline]
 
-    🚀  Initialize your project:
+    🚀  Initialize uv in your flowerpower project:
             [dim]Run the following in your project directory:[/dim]
-            [bold white]uv init --app --no-readme --vcs git[/bold white]
+            [bold white]uv init --bare --no-readme[/bold white]
     """
     )
 
