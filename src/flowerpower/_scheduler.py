@@ -73,8 +73,8 @@ class SchedulerManager(Scheduler):
             job_executors=self._job_executors,
             identity=self.name,
             logger=logger,
-            cleanup_interval=self.cfg.project.worker.cleanup_interval,
-            max_concurrent_jobs=self.cfg.project.worker.max_concurrent_jobs,
+            cleanup_interval=self.cfg.project.job_queue.cleanup_interval,
+            max_concurrent_jobs=self.cfg.project.job_queue.max_concurrent_jobs,
             **kwargs,
         )
 
@@ -117,13 +117,13 @@ class SchedulerManager(Scheduler):
             None
         """
         self._data_store, self._sqla_engine = setup_data_store(
-            type=self.cfg.project.worker.data_store.get("type", "memory"),
-            engine_or_uri=self.cfg.project.worker.data_store.get("uri", None),
-            schema=self.cfg.project.worker.data_store.get("schema", "flowerpower"),
-            username=self.cfg.project.worker.data_store.get("username", None),
-            password=self.cfg.project.worker.data_store.get("password", None),
-            ssl=self.cfg.project.worker.data_store.get("ssl", False),
-            **self.cfg.project.worker.data_store.get("kwargs", {}),
+            type=self.cfg.project.job_queue.data_store.get("type", "memory"),
+            engine_or_uri=self.cfg.project.job_queue.data_store.get("uri", None),
+            schema=self.cfg.project.job_queue.data_store.get("schema", "flowerpower"),
+            username=self.cfg.project.job_queue.data_store.get("username", None),
+            password=self.cfg.project.job_queue.data_store.get("password", None),
+            ssl=self.cfg.project.job_queue.data_store.get("ssl", False),
+            **self.cfg.project.job_queue.data_store.get("kwargs", {}),
         )
 
     def _setup_event_broker(self):
@@ -142,13 +142,13 @@ class SchedulerManager(Scheduler):
             None
         """
         self._event_broker = setup_event_broker(
-            type=self.cfg.project.worker.event_broker.get("type", "memory"),
-            uri=self.cfg.project.worker.event_broker.get("uri", None),
+            type=self.cfg.project.job_queue.event_broker.get("type", "memory"),
+            uri=self.cfg.project.job_queue.event_broker.get("uri", None),
             sqla_engine=self._sqla_engine,
-            host=self.cfg.project.worker.event_broker.get("host", None),
-            port=self.cfg.project.worker.event_broker.get("port", 0),
-            username=self.cfg.project.worker.event_broker.get("username", None),
-            password=self.cfg.project.worker.event_broker.get("password", None),
+            host=self.cfg.project.job_queue.event_broker.get("host", None),
+            port=self.cfg.project.job_queue.event_broker.get("port", 0),
+            username=self.cfg.project.job_queue.event_broker.get("username", None),
+            password=self.cfg.project.job_queue.event_broker.get("password", None),
         )
 
     def _setup_job_executors(self):

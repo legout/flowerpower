@@ -14,24 +14,24 @@ EXECUTOR_NUM_CPUS = int(os.getenv("FP_EXECUTOR_NUM_CPUS", os.cpu_count() or 1))
 LOG_LEVEL = os.getenv("FP_LOG_LEVEL", "INFO")
 
 # WORKER
-DEFAULT_WORKER_TYPE = os.getenv("FP_WORKER_TYPE", "rq")
+DEFAULT_JOB_QUEUE_TYPE = os.getenv("FP_JOB_QUEUE_TYPE", "rq")
 # RQ WORKER
-RQ_WORKER_BACKEND = os.getenv("FP_RQ_WORKER_BACKEND", "redis")
-RQ_WORKER_QUEUES = (
-    os.getenv("FP_RQ_WORKER_QUEUES", "default, high, low, scheduler")
+RQ_BACKEND = os.getenv("FP_RQ_BACKEND", "redis")
+RQ_QUEUES = (
+    os.getenv("FP_RQ_QUEUES", "default, high, low, scheduler")
     .replace(" ", "")
     .split(",")
 )
-RQ_WORKER_NUM_WORKERS = int(os.getenv("FP_RQ_WORKER_NUM_WORKERS", EXECUTOR_NUM_CPUS))
+RQ_NUM_WORKERS = int(os.getenv("FP_RQ_NUM_WORKERS", EXECUTOR_NUM_CPUS))
 
 # APS WORKER
-APS_WORKER_BACKEND_DS = os.getenv("FP_APS_WORKER_DS_BACKEND", "postgresql")
-APS_WORKER_SCHEMA = os.getenv("FP_APS_WORKER_SCHEMA", "flowerpower")
-APS_WORKER_BACKEND_EB = os.getenv("FP_APS_WORKER_EB_BACKEND", "postgresql")
-APS_WORKER_CLEANUP_INTERVAL = int(os.getenv("FP_APS_WORKER_CLEANUP_INTERVAL", 300))
-APS_WORKER_MAX_CONCURRENT_JOBS = int(os.getenv("FP_APS_WORKER_MAX_CONCURRENT_JOBS", 10))
-APS_WORKER_DEFAULT_EXECUTOR = os.getenv("FP_APS_WORKER_DEFAULT_EXECUTOR", EXECUTOR)
-APS_WORKER_NUM_WORKERS = int(os.getenv("FP_APS_WORKER_NUM_WORKERS", EXECUTOR_MAX_WORKERS))
+APS_BACKEND_DS = os.getenv("FP_APS_DS_BACKEND", "postgresql")
+APS_SCHEMA_DS = os.getenv("FP_APS_SCHEMA", "flowerpower")
+APS_BACKEND_EB = os.getenv("FP_APS_EB_BACKEND", "postgresql")
+APS_CLEANUP_INTERVAL = int(os.getenv("FP_APS_CLEANUP_INTERVAL", 300))
+APS_MAX_CONCURRENT_JOBS = int(os.getenv("FP_APS_MAX_CONCURRENT_JOBS", 10))
+APS_DEFAULT_EXECUTOR = os.getenv("FP_APS_DEFAULT_EXECUTOR", EXECUTOR)
+APS_NUM_WORKERS = int(os.getenv("FP_APS_NUM_WORKERS", EXECUTOR_MAX_WORKERS))
 
 # Define backend properties in a dictionary for easier maintenance
 BACKEND_PROPERTIES = {

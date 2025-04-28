@@ -24,7 +24,7 @@ from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .registry import PipelineRegistry, HookType
 from .runner import PipelineRunner, run_pipeline
-from .scheduler import PipelineScheduler
+from .job_queue import PipelineJobQueue
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -63,7 +63,7 @@ class PipelineManager:
         >>> # Create manager with custom settings
         >>> manager = PipelineManager(
         ...     base_dir="/path/to/project",
-        ...     worker_type="rq",
+        ...     job_queue_type="rq",
         ...     log_level="DEBUG"
         ... )
     """
@@ -75,7 +75,7 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str | None = None,
         pipelines_dir: str | None = None,
-        worker_type: str | None = None,
+        job_queue_type: str | None = None,
         log_level: str | None = None,
     ) -> None:
         """Initialize the PipelineManager.
@@ -94,7 +94,7 @@ class PipelineManager:
                 Example: "config" or "settings".
             pipelines_dir: Override default pipelines directory name ('pipelines').
                 Example: "flows" or "dags".
-            worker_type: Override worker type from project config/settings.
+            job_queue_type: Override worker type from project config/settings.
                 Valid values: "rq", "apscheduler", or "huey".
             log_level: Set logging level for the manager.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
@@ -115,7 +115,7 @@ class PipelineManager:
             ...         "key": "ACCESS_KEY",
             ...         "secret": "SECRET_KEY"
             ...     },
-            ...     worker_type="rq",
+            ...     job_queue_type="rq",
             ...     log_level="DEBUG"
             ... )
         """
@@ -131,7 +131,7 @@ class PipelineManager:
         # Store overrides for ProjectConfig loading
         self._cfg_dir = cfg_dir or settings.CONFIG_DIR
         self._pipelines_dir = pipelines_dir or settings.PIPELINES_DIR
-        self._worker_type = worker_type
+        self._job_queue_type = job_queue_type
 
         self._load_project_cfg(reload=True)  # Load project config
 
@@ -153,12 +153,12 @@ class PipelineManager:
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
         )
-        self.scheduler = PipelineScheduler(
+        self.job_queue = PipelineJobQueue(
             project_cfg=self.project_cfg,
             fs=self._fs,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
-            worker_type=self._worker_type,
+            job_queue_type=self._job_queue_type,
         )
         self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
         self.io = PipelineIOManager(registry=self.registry)
@@ -292,7 +292,7 @@ class PipelineManager:
         # Pass overrides to ProjectConfig.load
         self._project_cfg = ProjectConfig.load(
             base_dir=self._base_dir,
-            worker_type=self._worker_type,
+            job_queue_type=self._job_queue_type,
             fs=self._fs,  # Pass pre-configured fs if provided
             storage_options=self._storage_options,
         )
@@ -472,11 +472,6 @@ class PipelineManager:
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
 
-        # Instantiate PipelineRunner for this specific run
-        # with PipelineRunner(
-        #    project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
-        # ) as runner:
-        # Delegate execution, passing all relevant arguments
         res = run_pipeline(
             project_cfg=self.project_cfg,
             pipeline_cfg=pipeline_cfg,
@@ -1150,6 +1145,7 @@ class PipelineManager:
         inputs: dict | None = None,
         final_vars: list[str] | None = None,
         config: dict | None = None,
+        cache: bool | dict = False,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
@@ -1172,6 +1168,8 @@ class PipelineManager:
                 Example: ["daily_metrics", "summary_report"]
             config: Hamilton driver configuration
                 Example: {"result_builder": "pandas", "enable_cache": True}
+            cache: Activate caching. Can be a boolean or a dict with cache settings.
+                Example: True or {"recompute": ["node1", "node2"]}
             executor_cfg: Execution strategy configuration
                 Example: {"type": "async", "max_workers": 4}
             with_adapter_cfg: Adapter enablement settings
@@ -1184,7 +1182,7 @@ class PipelineManager:
                 Example: {"custom": CustomAdapterInstance()}
             reload: Whether to reload pipeline configuration
             log_level: Override logging level for this run
-            **kwargs: Worker-specific arguments
+            **kwargs: JobQueue-specific arguments
                 For RQ:
                     - queue_name: Queue to use (str)
                     - retry: Number of retries (int)
@@ -1217,18 +1215,19 @@ class PipelineManager:
             ... )
         """
         run_func = self._get_run_func_for_job(name, reload)
-        return self.scheduler.run_job(
+        return self.job_queue.run_job(
             run_func=run_func,
             name=name,
             inputs=inputs,
             final_vars=final_vars,
             config=config,
+            cache=cache,
             executor_cfg=executor_cfg,
             with_adapter_cfg=with_adapter_cfg,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            reload=reload,
+            #reload=reload,
             log_level=log_level,
             **kwargs,
         )
@@ -1247,7 +1246,9 @@ class PipelineManager:
         reload: bool = False,  # Reload config/module before creating run_func
         log_level: str | None = None,
         result_ttl: float | dt.timedelta = 0,
-        **kwargs,  # Worker specific args
+        run_at: dt.datetime | None = None,
+        run_in: dt.datetime | None = None,
+        **kwargs,  # JobQueue specific args
     ) -> str | UUID:
         """Adds a jobt to the task queue.
 
@@ -1287,7 +1288,7 @@ class PipelineManager:
 
         """
         run_func = self._get_run_func_for_job(name, reload)
-        return self.scheduler.add_job(
+        return self.job_queue.add_job(
             run_func=run_func,
             name=name,  # Pass name for logging
             # Pass run parameters
@@ -1299,10 +1300,11 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            reload=reload,  # Note: reload already happened
+            #reload=reload,  # Note: reload already happened
             log_level=log_level,
-            # Pass scheduler-specific args
             result_ttl=result_ttl,
+            run_at=run_at,
+            run_in=run_in,
             **kwargs,  # Pass worker args
         )
 
@@ -1351,7 +1353,7 @@ class PipelineManager:
                 Example: datetime(2025, 4, 28, 12, 0)
             overwrite: Whether to overwrite existing schedule
             schedule_id: Custom ID for the schedule
-            **kwargs: Worker-specific scheduling options
+            **kwargs: JobQueue-specific scheduling options
                 For RQ:
                     - result_ttl: Result lifetime (int seconds)
                     - queue_name: Queue to use (str)
@@ -1398,7 +1400,7 @@ class PipelineManager:
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         run_func = self._get_run_func_for_job(name, reload)
 
-        return self.scheduler.schedule(
+        return self.job_queue.schedule(
             run_func=run_func,
             pipeline_cfg=pipeline_cfg,
             inputs=inputs,
@@ -1493,7 +1495,7 @@ class PipelineManager:
             ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
         """
         try:
-            return self.scheduler._get_schedules()
+            return self.job_queue._get_schedules()
         except Exception as e:
             logger.error(f"Failed to retrieve schedules: {e}")
             return []

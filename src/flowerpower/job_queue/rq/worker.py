@@ -24,7 +24,7 @@ from rq_scheduler import Scheduler
 
 from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
-from ..base import BaseWorker
+from ..base import BaseJobQueue
 from .setup import RQBackend
 
 setup_logging()
@@ -45,7 +45,7 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
         logger.warning(f"Could not set multiprocessing start method to 'fork': {e}")
 
 
-class RQWorker(BaseWorker):
+class RQWorker(BaseJobQueue):
     """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
 
     This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.

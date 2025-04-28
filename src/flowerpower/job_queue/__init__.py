@@ -2,23 +2,22 @@ from typing import Any, Optional
 
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
-from ._huey import HueyWorker
 from .apscheduler import APSBackend, APSWorker
-from .base import BaseBackend, BaseWorker
+from .base import BaseBackend, BaseJobQueue
 from .rq import RQBackend, RQWorker
 from ..cfg.project import ProjectConfig
 
 setup_logging()
 
 
-class Worker:
-    """A factory class for creating worker instances for job scheduling and execution.
+class JobQueue:
+    """A factory class for creating job queue instances for job scheduling and execution.
 
-    This class provides a unified interface for creating different types of worker instances
-    (RQ, APScheduler, Huey) based on the specified backend type. Each worker type provides
+    This class provides a unified interface for creating different types of job queue instances
+    (RQ, APScheduler, Huey) based on the specified backend type. Each job queue type provides
     different capabilities for job scheduling and execution.
 
-    The worker instances handle:
+    The job queue instances handle:
     - Job scheduling and execution
     - Background task processing
     - Job queue management
@@ -26,32 +25,25 @@ class Worker:
 
     Example:
         ```python
-        # Create an RQ worker
-        rq_worker = Worker(
+        # Create an RQ job queue
+        rq_worker = JobQueue(
             type="rq",
             name="my_worker",
             log_level="DEBUG"
         )
 
-        # Create an APScheduler worker with custom backend
-        from flowerpower.worker.apscheduler import APSBackend
+        # Create an APScheduler job queue with custom backend
+        from flowerpower.job_queue.apscheduler import APSBackend
         backend_config = APSBackend(
             data_store={"type": "postgresql", "uri": "postgresql+asyncpg://user:pass@localhost/db"},
             event_broker={"type": "redis", "uri": "redis://localhost:6379/0"}
         )
-        aps_worker = Worker(
+        aps_worker = JobQueue(
             type="apscheduler",
             name="scheduler",
             backend=backend_config
         )
 
-        # Create a Huey worker with filesystem access
-        from fsspec.implementations.local import LocalFileSystem
-        huey_worker = Worker(
-            type="huey",
-            name="file_processor",
-            fs=LocalFileSystem()
-        )
         ```
     """
 
@@ -59,23 +51,22 @@ class Worker:
         cls,
         type: str |None = None,
         name: str | None = None,
-        base_dir: str | None = None,
+        base_dir: str | None = ".",
         backend: BaseBackend | None = None,
         storage_options: Optional[dict[str, Any]] = None,
         fs: AbstractFileSystem | None = None,
         log_level: str | None = None,
         **kwargs,
-    ) -> BaseWorker:
-        """Create a new worker instance based on the specified backend type.
+    ) -> BaseJobQueue:
+        """Create a new job queue instance based on the specified backend type.
 
         Args:
-            type: The type of worker to create. Valid values are:
-                - "rq": Redis Queue worker for Redis-based job queuing
-                - "apscheduler": APScheduler worker for advanced job scheduling
-                - "huey": Huey worker for lightweight task queueing. Note: This
-            name: Name of the worker instance. Used for identification in logs
+            type: The type of job queue to create. Valid values are:
+                - "rq": Redis Queue job queue for Redis-based job queuing
+                - "apscheduler": APScheduler job queue for advanced job scheduling
+            name: Name of the job queue instance. Used for identification in logs
                 and monitoring.
-            base_dir: Base directory for worker files and configuration. Defaults
+            base_dir: Base directory for job queue files and configuration. Defaults
                 to current working directory if not specified.
             backend: Pre-configured backend instance. If not provided, one will
                 be created based on configuration settings.
@@ -83,29 +74,29 @@ class Worker:
                 Example: {"mode": "async", "root": "/tmp", "protocol": "s3"}
             fs: Custom filesystem implementation for storage operations.
                 Example: S3FileSystem, LocalFileSystem, etc.
-            log_level: Logging level for the worker. Valid values are:
+            log_level: Logging level for the job queue. Valid values are:
                 "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
             **kwargs: Additional configuration options passed to the specific
-                worker implementation.
+                job queue implementation.
 
         Returns:
-            BaseWorker: An instance of the specified worker type (RQWorker,
-                APSWorker, or HueyWorker).
+            BaseJobQueue: An instance of the specified job queue type (RQWorker,
+                APSWorker).
 
         Raises:
-            ValueError: If an invalid worker type is specified.
-            ImportError: If required dependencies for the chosen worker type
+            ValueError: If an invalid job queue type is specified.
+            ImportError: If required dependencies for the chosen job queue type
                 are not installed.
-            RuntimeError: If worker initialization fails due to configuration
+            RuntimeError: If job queue initialization fails due to configuration
                 or connection issues.
 
         Example:
             ```python
-            # Basic RQ worker
-            worker = Worker(type="rq", name="basic_worker")
+            # Basic RQ job queue
+            worker = JobQueue(type="rq", name="basic_worker")
 
             # APScheduler with custom logging and storage
-            worker = Worker(
+            worker = JobQueue(
                 type="apscheduler",
                 name="scheduler",
                 base_dir="/app/data",
@@ -113,20 +104,11 @@ class Worker:
                 log_level="DEBUG"
             )
 
-            # Huey worker with custom backend
-            # !! The Huey worker is still a work in progress. Do not use yet. !!
-            from flowerpower.worker import Backend
-            backend = Backend("huey", redis_url="redis://localhost:6379/0")
-            worker = Worker(
-                type="huey",
-                name="task_processor",
-                backend=backend
-            )
             ```
         """
         if type is None:
             type = ProjectConfig.load(
-                base_dir=base_dir, name=name, fs=fs, storage_options=storage_options).worker.type
+                base_dir=base_dir, name=name, fs=fs, storage_options=storage_options or {}).job_queue.type
             
         if type == "rq":
             return RQWorker(
@@ -148,19 +130,18 @@ class Worker:
                 log_level=log_level,
                 **kwargs,
             )
-        elif type == "huey":
-            return HueyWorker(name, base_dir, backend, storage_options, fs, **kwargs)
+        
         else:
             raise ValueError(
-                f"Invalid backend type: {type}. Valid types: ['rq', 'apscheduler', 'huey']"
+                f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
             )
 
 
 class Backend:
-    """A factory class for creating backend instances for different worker types.
+    """A factory class for creating backend instances for different job queue types.
 
     This class provides a unified interface for creating backend instances that handle
-    the storage, queuing, and event management for different worker types. Each backend
+    the storage, queuing, and event management for different job queue types. Each backend
     type provides specific implementations for:
     - Job storage and persistence
     - Queue management
@@ -171,14 +152,14 @@ class Backend:
         ```python
         # Create RQ backend with Redis
         rq_backend = Backend(
-            worker_type="rq",
+            job_queue_type="rq",
             uri="redis://localhost:6379/0",
             queues=["high", "default", "low"]
         )
 
         # Create APScheduler backend with PostgreSQL and Redis
         aps_backend = Backend(
-            worker_type="apscheduler",
+            job_queue_type="apscheduler",
             data_store={
                 "type": "postgresql",
                 "uri": "postgresql+asyncpg://user:pass@localhost/db"
@@ -193,13 +174,13 @@ class Backend:
 
     def __new__(
         cls,
-        worker_type: str,
+        job_queue_type: str,
         **kwargs,
     ) -> BaseBackend:
-        """Create a new backend instance based on the specified worker type.
+        """Create a new backend instance based on the specified job queue type.
 
         Args:
-            worker_type: The type of backend to create. Valid values are:
+            job_queue_type: The type of backend to create. Valid values are:
                 - "rq": Redis Queue backend using Redis
                 - "apscheduler": APScheduler backend supporting various databases
                     and event brokers
@@ -216,10 +197,10 @@ class Backend:
 
         Returns:
             BaseBackend: An instance of RQBackend or APSBackend depending on
-                the specified worker type.
+                the specified job queue type.
 
         Raises:
-            ValueError: If an invalid worker type is specified.
+            ValueError: If an invalid job queue type is specified.
             RuntimeError: If backend initialization fails due to configuration
                 or connection issues.
 
@@ -227,7 +208,7 @@ class Backend:
             ```python
             # Create RQ backend
             rq_backend = Backend(
-                worker_type="rq",
+                job_queue_type="rq",
                 uri="redis://localhost:6379/0",
                 queues=["high", "default", "low"],
                 result_ttl=3600
@@ -235,7 +216,7 @@ class Backend:
 
             # Create APScheduler backend with PostgreSQL and Redis
             aps_backend = Backend(
-                worker_type="apscheduler",
+                job_queue_type="apscheduler",
                 data_store={
                     "type": "postgresql",
                     "uri": "postgresql+asyncpg://user:pass@localhost/db",
@@ -250,21 +231,21 @@ class Backend:
             )
             ```
         """
-        if worker_type == "rq":
+        if job_queue_type == "rq":
             return RQBackend(**kwargs)
-        elif worker_type == "apscheduler":
+        elif job_queue_type == "apscheduler":
             return APSBackend(**kwargs)
         else:
             raise ValueError(
-                f"Invalid backend type: {worker_type}. Valid types: ['rq', 'apscheduler']"
+                f"Invalid job queue type: {job_queue_type}. Valid types: ['rq', 'apscheduler']"
             )
 
 
 __all__ = [
-    "Worker",
+    "JobQueue",
     "RQWorker",
     "APSWorker",
-    "HueyWorker",
+    #"HueyWorker",
     "Backend",
     "RQBackend",
     "APSBackend",

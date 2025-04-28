@@ -1,7 +1,6 @@
 name: null
 worker:
   type: apscheduler
-  
   backend:
     data_store:
       type: postgresql

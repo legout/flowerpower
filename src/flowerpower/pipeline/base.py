@@ -42,7 +42,7 @@ class BasePipeline:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str = "conf",
         pipelines_dir: str = "pipelines",
-        worker_type: str | None = None,  # New parameter for worker backend
+        job_queue_type: str | None = None,  # New parameter for worker backend
     ):
         self._base_dir = base_dir
         self._storage_options = storage_options
@@ -51,7 +51,7 @@ class BasePipeline:
         self._fs = fs
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
-        self._worker_type = worker_type
+        self._job_queue_type = job_queue_type
 
         try:
             self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
@@ -95,7 +95,7 @@ class BasePipeline:
         """
         return ProjectConfig.load(
             base_dir=self._base_dir,
-            worker_type=self._worker_type,
+            job_queue_type=self._job_queue_type,
             fs=self._fs,
             storage_options=self._storage_options,
         )

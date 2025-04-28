@@ -4,18 +4,18 @@ from munch import Munch
 from ...fs import AbstractFileSystem, get_filesystem
 from ..base import BaseConfig
 from .adapter import AdapterConfig
-from .worker import WorkerConfig
+from .job_queue import JobQueueConfig
 
 
 class ProjectConfig(BaseConfig):
     """A configuration class for managing project-level settings in FlowerPower.
 
-    This class handles project-wide configuration including worker and adapter settings.
+    This class handles project-wide configuration including job queue and adapter settings.
     It supports loading from and saving to YAML files, with filesystem abstraction.
 
     Attributes:
         name (str | None): The name of the project.
-        worker (WorkerConfig): Configuration for the worker component.
+        job_queue (JobQueueConfig): Configuration for the job queue component.
         adapter (AdapterConfig): Configuration for the adapter component.
 
     Example:
@@ -32,12 +32,12 @@ class ProjectConfig(BaseConfig):
     """
 
     name: str | None = msgspec.field(default=None)
-    worker: WorkerConfig = msgspec.field(default_factory=WorkerConfig)
+    job_queue: JobQueueConfig = msgspec.field(default_factory=JobQueueConfig)
     adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
 
     def __post_init__(self):
-        if isinstance(self.worker, dict):
-            self.worker = WorkerConfig.from_dict(self.worker)
+        if isinstance(self.job_queue, dict):
+            self.job_queue = JobQueueConfig.from_dict(self.job_queue)
         if isinstance(self.adapter, dict):
             self.adapter = AdapterConfig.from_dict(self.adapter)
 
@@ -46,7 +46,7 @@ class ProjectConfig(BaseConfig):
         cls,
         base_dir: str = ".",
         name: str | None = None,
-        worker_type: str | None = None,
+        job_queue_type: str | None = None,
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
     ):
@@ -55,7 +55,7 @@ class ProjectConfig(BaseConfig):
         Args:
             base_dir (str, optional): Base directory for the project. Defaults to ".".
             name (str | None, optional): Project name. Defaults to None.
-            worker_type (str | None, optional): Type of worker to use. Defaults to None.
+            job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -67,7 +67,7 @@ class ProjectConfig(BaseConfig):
             project = ProjectConfig.load(
                 base_dir="my_project",
                 name="pipeline1",
-                worker_type="local"
+                job_queue_type="rq"
                 )
             ```
         """
@@ -77,9 +77,9 @@ class ProjectConfig(BaseConfig):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
             project = ProjectConfig(name=name)
-        if worker_type is not None:
-            if worker_type != project.worker.type:
-                project.worker.update_type(worker_type)
+        if job_queue_type is not None:
+            if job_queue_type != project.job_queue.type:
+                project.job_queue.update_type(job_queue_type)
 
         return project
 
@@ -111,7 +111,7 @@ class ProjectConfig(BaseConfig):
 def init_project_config(
     base_dir: str = ".",
     name: str | None = None,
-    worker_type: str | None = None,
+    job_queue_type: str | None = None,
     fs: AbstractFileSystem | None = None,
     storage_options: dict | Munch = Munch(),
 ):
@@ -122,7 +122,7 @@ def init_project_config(
     Args:
         base_dir (str, optional): Base directory for the project. Defaults to ".".
         name (str | None, optional): Project name. Defaults to None.
-        worker_type (str | None, optional): Type of worker to use. Defaults to None.
+        job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
         storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -134,14 +134,14 @@ def init_project_config(
         project = init_project_config(
             base_dir="my_project",
             name="test_project",
-            worker_type="local"
+            job_queue_type="rq"
         )
         ```
     """
     project = ProjectConfig.load(
         base_dir=base_dir,
         name=name,
-        worker_type=worker_type,
+        job_queue_type=job_queue_type,
         fs=fs,
         storage_options=storage_options,
     )

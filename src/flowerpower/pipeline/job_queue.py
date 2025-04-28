@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=logging-fstring-interpolation
 # flake8: noqa: E501
-"""Pipeline Scheduler."""
+"""Pipeline Job Queue."""
 
 import datetime as dt
 from typing import Any, Callable
@@ -14,13 +14,14 @@ from rich import print as rprint
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
-from ..worker import Worker
+from ..job_queue import JobQueue
 from .registry import PipelineRegistry
+from .. import settings
 
 setup_logging()
 
 
-class PipelineScheduler:
+class PipelineJobQueue:
     """Handles scheduling of pipeline runs via a configured worker backend."""
 
     def __init__(
@@ -29,41 +30,41 @@ class PipelineScheduler:
         fs: AbstractFileSystem,
         cfg_dir: str,
         pipelines_dir: str,
-        worker_type: str | None = None,
+        job_queue_type: str | None = None,
     ):
-        """Initialize PipelineScheduler.
+        """Initialize PipelineJobQueue.
 
         Args:
             project_cfg: The project configuration object.
             fs: The file system to use for file operations.
             cfg_dir: The directory for configuration files.
             pipelines_dir: The directory for pipeline files.
-            worker_type: The type of worker to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
+            job_queue_type: The type of worker to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
         """
         self.project_cfg = project_cfg
         self._fs = fs
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
-        self._worker_type = worker_type or project_cfg.worker.type
-        if not self._worker_type:
+        self._job_queue_type = job_queue_type or project_cfg.job_queue.type
+        if not self._job_queue_type:
             # Fallback or default if not specified in project config
-            self._worker_type = "rq"  # Or load from settings.FP_DEFAULT_WORKER_TYPE
+            self._job_queue_type = settings.DEFAULT_JOB_QUEUE_TYPE
             logger.warning(
-                f"Worker type not specified in project config, defaulting to '{self._worker_type}'"
+                f"Job queue type not specified in project config, defaulting to '{self._job_queue_type}'"
             )
 
     @property
     def worker(self):
         """
-        Lazily instantiate and cache a Worker instance.
+        Lazily instantiate and cache a Job queue instance.
         """
         # Lazily instantiate worker using project_cfg attributes
         logger.debug(
-            f"Instantiating worker of type: {self._worker_type} for project '{self.project_cfg.name}'"
+            f"Instantiating worker of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
         )
-        # Pass the necessary parts of project_cfg to the Worker
-        return Worker(
-            type=self._worker_type,
+        # Pass the necessary parts of project_cfg to the Job queue
+        return JobQueue(
+            type=self._job_queue_type,
             fs=self._fs,
         )
 
@@ -81,6 +82,7 @@ class PipelineScheduler:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
+        cache: bool | dict = False,
         executor_cfg: str | dict | Any | None = None,
         with_adapter_cfg: dict | Any | None = None,
         pipeline_adapter_cfg: dict | Any | None = None,
@@ -99,6 +101,7 @@ class PipelineScheduler:
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
             config (dict | None): Hamilton driver config.
+            cache (bool | dict): Cache configuration.
             executor_cfg (str | dict | ExecutorConfig | None): Executor configuration.
             with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration.
             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration.
@@ -113,11 +116,13 @@ class PipelineScheduler:
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
 
+       
         pipeline_run_args = {
             # 'name' is not passed to run_func, it's part of the context already in PipelineRunner
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
+            "cache": cache,
             "executor_cfg": executor_cfg,
             "with_adapter_cfg": with_adapter_cfg,
             "pipeline_adapter_cfg": pipeline_adapter_cfg,
@@ -149,6 +154,7 @@ class PipelineScheduler:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
+        cache: bool | dict = False,
         executor_cfg: str | dict | Any | None = None,
         with_adapter_cfg: dict | Any | None = None,
         pipeline_adapter_cfg: dict | Any | None = None,
@@ -173,6 +179,7 @@ class PipelineScheduler:
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
             config (dict | None): Hamilton driver config.
+            cache (bool | dict): Cache configuration.
             executor_cfg (str | dict | ExecutorConfig | None): Executor configuration.
             with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration.
             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration.
@@ -194,6 +201,7 @@ class PipelineScheduler:
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
+            "cache": cache,
             "executor_cfg": executor_cfg,
             "with_adapter_cfg": with_adapter_cfg,
             "pipeline_adapter_cfg": pipeline_adapter_cfg,
@@ -235,6 +243,7 @@ class PipelineScheduler:
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,  # Driver config
+        cache: bool | dict = False,
         executor_cfg: str | dict | Any | None = None,
         with_adapter_cfg: dict | Any | None = None,
         pipeline_adapter_cfg: dict | Any | None = None,
@@ -259,6 +268,7 @@ class PipelineScheduler:
             inputs (dict | None): Inputs for the pipeline run (overrides config).
             final_vars (list | None): Final variables for the pipeline run (overrides config).
             config (dict | None): Hamilton driver config (overrides config).
+            cache (bool | dict): Cache configuration (overrides config).
             executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
             with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
@@ -302,30 +312,21 @@ class PipelineScheduler:
 
         # --- Resolve Parameters using pipeline_cfg for defaults ---
         schedule_cfg = pipeline_cfg.schedule
-        run_cfg = pipeline_cfg.run
+        #run_cfg = pipeline_cfg.run
 
-        # 1. Run Parameters (passed to the pipeline execution function)
         pipeline_run_args = {
-            "inputs": inputs if inputs is not None else run_cfg.inputs,
-            "final_vars": final_vars if final_vars is not None else run_cfg.final_vars,
-            "config": config if config is not None else run_cfg.config,
-            "executor_cfg": executor_cfg
-            if executor_cfg is not None
-            else run_cfg.executor,
-            "with_adapter_cfg": with_adapter_cfg
-            if with_adapter_cfg is not None
-            else run_cfg.with_adapter,
-            "pipeline_adapter_cfg": pipeline_adapter_cfg
-            if pipeline_adapter_cfg is not None
-            else pipeline_cfg.adapter,  # Default from pipeline level
-            "project_adapter_cfg": project_adapter_cfg
-            if project_adapter_cfg is not None
-            else self.project_cfg.adapter,  # Default from project level
-            "adapter": adapter,  # No default in config, only passed directly
-            "reload": reload if reload is not None else run_cfg.reload,
-            "log_level": log_level if log_level is not None else run_cfg.log_level,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "cache": cache,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
+            "reload": reload,
+            "log_level": log_level,
         }
-        # Filter out None values AFTER merging
         pipeline_run_args = {
             k: v for k, v in pipeline_run_args.items() if v is not None
         }
@@ -393,10 +394,10 @@ class PipelineScheduler:
 
         schedule_id = _generate_id(name, schedule_id, overwrite)
 
-        # --- Add Schedule via Worker ---
+        # --- Add Schedule via Job queue ---
         try:
             with self.worker as worker:
-                # Worker is now responsible for creating the trigger object
+                # Job queue is now responsible for creating the trigger object
                 # Pass trigger type and kwargs directly
                 added_id = worker.add_schedule(
                     func=run_func,

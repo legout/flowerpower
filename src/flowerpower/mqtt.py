@@ -13,7 +13,7 @@ from munch import Munch
 from paho.mqtt.client import CallbackAPIVersion, Client
 
 from .cfg import Config
-from .pipeline.manager import Pipeline
+from .pipeline.manager import PipelineManager
 from .utils.logging import setup_logging
 
 setup_logging()
@@ -291,7 +291,7 @@ class MQTTManager:
     def from_event_broker(cls, base_dir: str | None = None):
         base_dir = base_dir or str(Path.cwd())
 
-        event_broker_cfg = Config.load(base_dir=base_dir).project.worker.event_broker
+        event_broker_cfg = Config.load(base_dir=base_dir).project.job_queue.event_broker
         if event_broker_cfg is not None:
             if event_broker_cfg.get("type", None) == "mqtt":
                 logger.debug(f"{event_broker_cfg}")
@@ -398,12 +398,28 @@ class MQTTManager:
             if config_hook is not None:
                 config = config_hook(inputs["payload"], inputs["topic"])
                 logger.debug(f"Config from hook: {config}")
-            with Pipeline(
-                name=name, storage_options=storage_options, fs=fs, base_dir=base_dir
+
+            if config is None:
+                config = {}
+
+            if config_hook is not None:
+                config_ = config_hook(inputs["payload"], inputs["topic"])
+                logger.debug(f"Config from hook: {config_}")
+                if any([k in config_ for k in config.keys()]):
+                    logger.warning(
+                        "Config from hook overwrites config from pipeline"
+                    )
+                config.update(config_)
+                logger.debug(f"Config after update: {config}")
+                
+
+            with PipelineManager(
+                storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
                 try:
                     if as_job:
                         pipeline.add_job(
+                            name=name,
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,
@@ -417,6 +433,7 @@ class MQTTManager:
                         )
                     else:
                         pipeline.run(
+                            name=name,
                             inputs=inputs,
                             final_vars=final_vars,
                             executor=executor,

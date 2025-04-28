@@ -25,7 +25,7 @@ from apscheduler.executors.subprocess import ProcessPoolJobExecutor
 from apscheduler.executors.thread import ThreadPoolJobExecutor
 
 from ...utils.logging import setup_logging
-from ..base import BaseWorker
+from ..base import BaseJobQueue
 from .setup import APSBackend, APSDataStore, APSEventBroker
 from .trigger import APSTrigger
 from .utils import display_jobs, display_schedules
@@ -41,7 +41,7 @@ except Exception as e:
     logger.warning(f"Failed to patch pickle: {e}")
 
 
-class APSWorker(BaseWorker):
+class APSWorker(BaseJobQueue):
     """Implementation of BaseScheduler using APScheduler.
 
     This worker class uses APScheduler 4.0+ as the backend to schedule and manage jobs.

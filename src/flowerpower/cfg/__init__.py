@@ -49,7 +49,7 @@ class Config(BaseConfig):
         base_dir: str = ".",
         name: str | None = None,
         pipeline_name: str | None = None,
-        worker_type: str | None = None,
+        job_queue_type: str | None = None,
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
     ):
@@ -59,7 +59,7 @@ class Config(BaseConfig):
             base_dir (str, optional): Base directory for configurations. Defaults to ".".
             name (str | None, optional): Project name. Defaults to None.
             pipeline_name (str | None, optional): Pipeline name. Defaults to None.
-            worker_type (str | None, optional): Type of worker to use. Defaults to None.
+            job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -72,7 +72,7 @@ class Config(BaseConfig):
                 base_dir="my_project",
                 name="test_project",
                 pipeline_name="etl",
-                worker_type="local"
+                job_queue_type="rq"
             )
             ```
         """
@@ -81,7 +81,7 @@ class Config(BaseConfig):
         project = ProjectConfig.load(
             base_dir=base_dir,
             name=name,
-            worker_type=worker_type,
+            job_queue_type=job_queue_type,
             fs=fs,
             storage_options=storage_options,
         )
@@ -208,7 +208,7 @@ def init_config(
     base_dir: str = ".",
     name: str | None = None,
     pipeline_name: str | None = None,
-    worker_type: str | None = None,
+    job_queue_type: str | None = None,
     fs: AbstractFileSystem | None = None,
     storage_options: dict | Munch = Munch(),
 ):
@@ -221,7 +221,7 @@ def init_config(
         base_dir (str, optional): Base directory for configurations. Defaults to ".".
         name (str | None, optional): Project name. Defaults to None.
         pipeline_name (str | None, optional): Pipeline name. Defaults to None.
-        worker_type (str | None, optional): Type of worker to use. Defaults to None.
+        job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
         storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -234,7 +234,7 @@ def init_config(
             base_dir="my_project",
             name="test_project",
             pipeline_name="data-pipeline",
-            worker_type="local"
+            job_queue_type="rq"
         )
         ```
     """
@@ -247,7 +247,7 @@ def init_config(
     project_cfg = init_project_config(
         base_dir=base_dir,
         name=name,
-        worker_type=worker_type,
+        job_queue_type=job_queue_type,
         fs=fs,
         storage_options=storage_options,
     )

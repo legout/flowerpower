@@ -289,7 +289,7 @@ class BaseTrigger(abc.ABC):
         pass
 
 
-class BaseWorker:
+class BaseJobQueue:
     """
     Abstract base class for scheduler workers (APScheduler, RQ, etc.).
     Defines the required interface for all scheduler backends.
@@ -361,8 +361,8 @@ class BaseWorker:
             cfg_updates: Configuration updates to apply
         """
         self.cfg = ProjectConfig.load(
-            base_dir=self._base_dir, worker_type=self._type, fs=self._fs
-        ).worker
+            base_dir=self._base_dir, job_queue_type=self._type, fs=self._fs
+        ).job_queue
 
     def _add_modules_path(self):
         """

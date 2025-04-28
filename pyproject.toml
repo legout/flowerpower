@@ -10,6 +10,7 @@ dependencies = [
   'aiobotocore<2.18.0',
   "aiosqlite>=0.21.0",
   'dill>=0.3.8',
+  "duration-parser>=1.0.1",
   'fsspec>=2024.10.0',
   "humanize>=4.12.2",
   "msgspec>=0.19.0",

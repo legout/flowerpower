@@ -307,7 +307,7 @@ class PipelineRunner:
     def _get_driver(
         self,
         config: dict | None = None,
-        cache: dict | None = None,
+        cache: bool|dict = False,
         executor_cfg: str | dict | ExecutorConfig | None = None,
         with_adapter_cfg: dict | WithAdapterConfig | None = None,
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
@@ -320,7 +320,10 @@ class PipelineRunner:
 
         Args:
             config (dict | None): The configuration for the pipeline.
-            cache (dict | None): The cache configuration.
+            cache (bool): Use cache or not. 
+                To fine tune the cache settings, pass a dictionary with the cache settings 
+                or adjust the pipeline config.
+                If set to True, the default cache settings will be used.
             executor_cfg (str | dict | ExecutorConfig | None): The executor to use.
                 Overrides the executor settings in the pipeline config.
             with_adapter_cfg (dict | WithAdapterConfig | None): The adapter configuration.

@@ -5,14 +5,11 @@ import msgspec
 from ... import settings
 from ..base import BaseConfig
 
-# class Worker(Enum):
-#    RQ = "rq"
-#    APSCHEDULER = "apscheduler"
 
 
-class WorkerBackendConfig(BaseConfig):
+class JobQueueBackendConfig(BaseConfig):
     """
-    Worker backend configuration for FlowerPower.
+    Job Queue backend configuration for FlowerPower.
     Inherits from BaseConfig and adapts Redis logic.
     """
 
@@ -30,46 +27,46 @@ class WorkerBackendConfig(BaseConfig):
     verify_ssl: bool = msgspec.field(default=False)
 
 
-class APSDataStoreConfig(WorkerBackendConfig):
-    type: str = msgspec.field(default=settings.APS_WORKER_BACKEND_DS)
+class APSDataStoreConfig(JobQueueBackendConfig):
+    type: str = msgspec.field(default=settings.APS_BACKEND_DS)
     host: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_DS][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
             "default_host"
         ]
     )
     port: int = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_DS][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
             "default_port"
         ]
     )
-    schema: str | None = msgspec.field(default=settings.APS_WORKER_SCHEMA)
+    schema: str | None = msgspec.field(default=settings.APS_SCHEMA_DS)
     username: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_DS][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
             "default_username"
         ]
     )
 
 
-class APSEventBrokerConfig(WorkerBackendConfig):
-    type: str = msgspec.field(default=settings.APS_WORKER_BACKEND_EB)
+class APSEventBrokerConfig(JobQueueBackendConfig):
+    type: str = msgspec.field(default=settings.APS_BACKEND_EB)
     host: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_EB][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
             "default_host"
         ]
     )
     port: int = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_EB][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
             "default_port"
         ]
     )
     username: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_WORKER_BACKEND_EB][
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
             "default_username"
         ]
     )
     from_ds_sqla: bool = msgspec.field(
-        default_factory=lambda: settings.APS_WORKER_BACKEND_EB == "postgresql"
-        and settings.APS_WORKER_BACKEND_DS == "postgresql"
+        default_factory=lambda: settings.APS_BACKEND_EB == "postgresql"
+        and settings.APS_BACKEND_DS == "postgresql"
     )
 
 
@@ -79,16 +76,16 @@ class APSBackendConfig(BaseConfig):
         default_factory=APSEventBrokerConfig
     )
     cleanup_interval: int | float | dt.timedelta = msgspec.field(
-        default=settings.APS_WORKER_CLEANUP_INTERVAL
+        default=settings.APS_CLEANUP_INTERVAL
     )  # int in secods
     max_concurrent_jobs: int = msgspec.field(
-        default=settings.APS_WORKER_MAX_CONCURRENT_JOBS
+        default=settings.APS_MAX_CONCURRENT_JOBS
     )
     default_job_executor: str | None = msgspec.field(default=settings.EXECUTOR)
-    num_workers: int | None = msgspec.field(default=settings.APS_WORKER_NUM_WORKERS)
+    num_workers: int | None = msgspec.field(default=settings.APS_NUM_WORKERS)
 
 
-class RQBackendConfig(WorkerBackendConfig):
+class RQBackendConfig(JobQueueBackendConfig):
     type: str = msgspec.field(default="redis")
     host: str = msgspec.field(
         default=settings.BACKEND_PROPERTIES["redis"]["default_host"]
@@ -100,18 +97,18 @@ class RQBackendConfig(WorkerBackendConfig):
         default=settings.BACKEND_PROPERTIES["redis"]["default_database"]
     )
     queues: str | list[str] = msgspec.field(
-        default_factory=lambda: settings.RQ_WORKER_QUEUES
+        default_factory=lambda: settings.RQ_QUEUES
     )
     num_workers: int = msgspec.field(
-        default=settings.RQ_WORKER_NUM_WORKERS
+        default=settings.RQ_NUM_WORKERS
     )  # int in secods
 
 
-class HueyBackendConfig(WorkerBackendConfig):
+class HueyBackendConfig(JobQueueBackendConfig):
     pass
 
 
-class WorkerConfig(BaseConfig):
+class JobQueueConfig(BaseConfig):
     type: str | None = msgspec.field(default="rq")
     backend: dict | None = msgspec.field(default=None)
 
@@ -158,7 +155,7 @@ class WorkerConfig(BaseConfig):
                     self.backend = HueyBackendConfig(**self.backend)
             else:
                 raise ValueError(
-                    f"Invalid worker type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"
+                    f"Invalid job queue type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"
                 )
 
     def update_type(self, type: str):
