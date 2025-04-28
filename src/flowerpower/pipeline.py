@@ -63,6 +63,11 @@ from enum import Enum
 class HookType(str, Enum):
     MQTT_BUILD_CONFIG = "mqtt-build-config"
 
+    def default_function_name(self) -> str:
+        match self.value:
+            case HookType.MQTT_BUILD_CONFIG:
+                return self.value.replace("-", "_")
+
 class PipelineManager:
     def __init__(
         self,
@@ -1547,13 +1552,15 @@ class PipelineManager:
         """
         return self._all_pipelines(show=False)
 
-    def add_hook(self, name: str, type: HookType, to: str | None = None):
+    def add_hook(self, name: str, type: HookType, to: str | None = None, function_name: str|None = None):
         """
         Add a hook to the pipeline module.
 
         Args:
+            name (str): The name of the pipeline
             type (HookType): The type of the hook.
             to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
+            function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
 
         Returns:
             None
@@ -1575,15 +1582,20 @@ class PipelineManager:
             case HookType.MQTT_BUILD_CONFIG:
                 template = HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
+        if function_name is None:
+            function_name = type.default_function_name()
+
         if not self._fs.exists(to):
             self._fs.makedirs(os.path.dirname(to), exist_ok=True)
-            self._fs.write_text(
-                to,
-                template,
+
+        with self._fs.open(to, "a") as f:
+            f.write(
+                template.format(
+                function_name=function_name
+                )
             )
-        else:
-            raise ValueError(f"Hook {to} already exists.")
-        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} for {name}")       
+
+        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")       
 
 
 class Pipeline:

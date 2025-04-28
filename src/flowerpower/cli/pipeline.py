@@ -617,6 +617,7 @@ def add_hook(
     name: str,
     type: Annotated[HookType, typer.Option(help="Type of the hook to add")],
     to: str | None = None,
+    function_name: str | None = None,
     base_dir: str | None = None,
     storage_options: str | None = None,
 ):
@@ -627,6 +628,7 @@ def add_hook(
         name: Name of the pipeline to add the hook to
         type: Type of the hook to add
         to: File in which to add the hook. If not provided, the hook will be added to the hook.py file in the pipelines hook folder.
+        function_name: the name of the hook function. If not provided uses the default name of the hook type.
         base_dir: Base directory for the pipeline
         storage_options: Storage options as JSON, dict string, or key=value pairs
 
@@ -635,8 +637,11 @@ def add_hook(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
 
+    if to is not None and not to.endswith(".py"):
+        to = to + ".py"
+
     with PipelineManager(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as manager:
-        manager.add_hook(name, type=type, to=to)
+        manager.add_hook(name, type=type, to=to, function_name=function_name)

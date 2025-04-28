@@ -176,7 +176,7 @@ PARAMS = Config.load(
 """
 
 HOOK_TEMPLATE__MQTT_BUILD_CONFIG = '''
-def mqtt_build_config(payload: bytes, topic: str) -> dict:
+def {function_name}(payload: bytes, topic: str) -> dict:
     """
     MQTT hook function to build the configuration for the pipeline.
     This function is called in the on_message callback of the MQTT client.
