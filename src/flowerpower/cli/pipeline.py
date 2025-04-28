@@ -511,7 +511,7 @@ def delete(
 
 @app.command()
 def show_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None
+    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
 ):
     """
     Show the DAG of the specified pipeline.
@@ -520,23 +520,25 @@ def show_dag(
         name: Name of the pipeline to show
         base_dir: Base directory for the pipeline
         storage_options: Storage options as JSON, dict string, or key=value pairs
+        config: Config for the hamilton pipeline executor
 
     Examples:
     pipeline show-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
 
     with Pipeline(
         name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.show_dag()
+        pipeline.show_dag(config=parsed_config)
 
 
 @app.command()
 def save_dag(
-    name: str, base_dir: str | None = None, storage_options: str | None = None
+    name: str, base_dir: str | None = None, storage_options: str | None = None, config: str | None = None
 ):
     """
     Save the DAG of the specified pipeline.
@@ -545,18 +547,20 @@ def save_dag(
         name: Name of the pipeline to save
         base_dir: Base directory for the pipeline
         storage_options: Storage options as JSON, dict string, or key=value pairs
+        config: Config for the hamilton pipeline executor
 
     Examples:
     pipeline save-dag my_pipeline
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+    parsed_config = parse_dict_or_list_param(config, "dict")
 
     with Pipeline(
         name=name,
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
     ) as pipeline:
-        pipeline.save_dag()
+        pipeline.save_dag(config=parsed_config)
 
 
 @app.command()

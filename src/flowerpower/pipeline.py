@@ -1204,9 +1204,9 @@ class PipelineManager:
                 )
         
 
-    def _display_all_function(self, name: str, reload: bool = True):
+    def _display_all_function(self, name: str, reload: bool = True, config: dict | None = None):
         dr, _ = self._get_driver(
-            name=name, executor=None, with_tracker=False, reload=reload
+            name=name, executor=None, with_tracker=False, reload=reload, config=config
         )
         return dr.display_all_functions()
 
@@ -1215,6 +1215,7 @@ class PipelineManager:
         name: str,
         format: str = "png",
         reload: bool = False,
+        config: dict | None = None,
     ):
         """
         Save a image of the graph of functions for a given name.
@@ -1233,7 +1234,7 @@ class PipelineManager:
             pm.save_dag("my_pipeline")
             ```
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._display_all_function(name=name, reload=reload, config=config)
 
         self._fs.makedirs("graphs", exist_ok=True)
         dag.render(
@@ -1251,6 +1252,7 @@ class PipelineManager:
         format: str = "png",
         reload: bool = False,
         raw: bool = False,
+        config: dict | None = None,
     ):
         """
         Display the graph of functions for a given name. By choosing the `raw` option, the graph object is returned.
@@ -1272,7 +1274,7 @@ class PipelineManager:
             pm.show_dag("my_pipeline")
             ```
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._display_all_function(name=name, reload=reload, config=config)
         if raw:
             return dag
         view_img(dag.pipe(format), format=format)
@@ -1909,7 +1911,7 @@ class Pipeline:
         ) as pm:
             pm.delete(self.name, cfg=cfg, module=module, hooks=hooks)
 
-    def save_dag(self, format="png"):
+    def save_dag(self, format="png", config: dict | None = None):
         """Save a image of the graph of functions for a given name.
 
         Args:
@@ -1925,10 +1927,11 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            pm.save_dag(self.name, format)
+            pm.save_dag(self.name, format, config=config)
 
     def show_dag(
         self,
+        config: dict | None = None,
     ):
         """Display the graph of functions for a given name.
 
@@ -1942,7 +1945,7 @@ class Pipeline:
             base_dir=self._base_dir,
             fs=self._fs,
         ) as pm:
-            return pm.show_dag(self.name)
+            return pm.show_dag(self.name, config=config)
 
     def get_summary(
         self, cfg: bool = True, module: bool = True
