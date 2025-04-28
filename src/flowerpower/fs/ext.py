@@ -2,7 +2,7 @@ import datetime as dt
 import importlib
 import posixpath
 import uuid
-from typing import Generator
+from typing import Generator, Any
 
 import orjson
 import pandas as pd
@@ -31,6 +31,34 @@ else:
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:
+    """Convert a path to a glob pattern for file matching.
+
+    Intelligently converts paths to glob patterns that match files of the specified
+    format, handling various directory and wildcard patterns.
+
+    Args:
+        path: Base path to convert. Can include wildcards (* or **).
+            Examples: "data/", "data/*.json", "data/**"
+        format: File format to match (without dot). If None, inferred from path.
+            Examples: "json", "csv", "parquet"
+
+    Returns:
+        str: Glob pattern that matches files of specified format.
+            Examples: "data/**/*.json", "data/*.csv"
+
+    Example:
+        >>> # Basic directory
+        >>> path_to_glob("data", "json")
+        'data/**/*.json'
+        >>> 
+        >>> # With wildcards
+        >>> path_to_glob("data/**", "csv")
+        'data/**/*.csv'
+        >>> 
+        >>> # Format inference
+        >>> path_to_glob("data/file.parquet")
+        'data/file.parquet'
+    """
     path = path.rstrip("/")
     if format is None:
         if ".json" in path:
@@ -53,8 +81,42 @@ def path_to_glob(path: str, format: str | None = None) -> str:
 
 
 def _read_json_file(
-    path, self, include_file_path: bool = False, jsonlines: bool = False
+    path: str,
+    self: AbstractFileSystem,
+    include_file_path: bool = False,
+    jsonlines: bool = False,
 ) -> dict | list[dict]:
+    """Read a JSON file from any filesystem.
+
+    Internal function that handles both regular JSON and JSON Lines formats.
+
+    Args:
+        path: Path to JSON file
+        self: Filesystem instance to use for reading
+        include_file_path: Whether to return dict with filepath as key
+        jsonlines: Whether to read as JSON Lines format
+
+    Returns:
+        dict | list[dict]: Parsed JSON data. If include_file_path=True,
+            returns {filepath: data}
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Regular JSON
+        >>> data = _read_json_file("data.json", fs)
+        >>> print(type(data))
+        <class 'dict'>
+        >>> 
+        >>> # JSON Lines with filepath
+        >>> data = _read_json_file(
+        ...     "data.jsonl",
+        ...     fs,
+        ...     include_file_path=True,
+        ...     jsonlines=True
+        ... )
+        >>> print(list(data.keys())[0])
+        'data.jsonl'
+    """
     with self.open(path) as f:
         if jsonlines:
             data = [orjson.loads(line) for line in f.readlines()]
@@ -66,10 +128,47 @@ def _read_json_file(
 
 
 def read_json_file(
-    self, path: str, include_file_path: bool = False, jsonlines: bool = False
+    self: AbstractFileSystem,
+    path: str,
+    include_file_path: bool = False,
+    jsonlines: bool = False
 ) -> dict | list[dict]:
+    """Read a single JSON file from any filesystem.
+
+    A public wrapper around _read_json_file providing a clean interface for
+    reading individual JSON files.
+
+    Args:
+        path: Path to JSON file to read
+        include_file_path: Whether to return dict with filepath as key
+        jsonlines: Whether to read as JSON Lines format
+
+    Returns:
+        dict | list[dict]: Parsed JSON data. For regular JSON, returns a dict.
+            For JSON Lines, returns a list of dicts. If include_file_path=True,
+            returns {filepath: data}.
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Read regular JSON
+        >>> data = fs.read_json_file("config.json")
+        >>> print(data["setting"])
+        'value'
+        >>> 
+        >>> # Read JSON Lines with filepath
+        >>> data = fs.read_json_file(
+        ...     "logs.jsonl",
+        ...     include_file_path=True,
+        ...     jsonlines=True
+        ... )
+        >>> print(list(data.keys())[0])
+        'logs.jsonl'
+    """
     return _read_json_file(
-        path=path, self=self, include_file_path=include_file_path, jsonlines=jsonlines
+        path=path,
+        self=self,
+        include_file_path=include_file_path,
+        jsonlines=jsonlines,
     )
 
 
@@ -152,7 +251,7 @@ def _read_json(
 
 
 def _read_json_batches(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
@@ -161,24 +260,49 @@ def _read_json_batches(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> Generator[dict | list[dict] | pl.DataFrame | list[pl.DataFrame], None, None]:
-    """
-    Read JSON files in batches with optional parallel processing within batches.
+    """Process JSON files in batches with optional parallel reading.
+
+    Internal generator function that handles batched reading of JSON files
+    with support for parallel processing within each batch.
 
     Args:
-        path: (str | list[str]) Path to the JSON file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool) If True, return with file path as key.
-        jsonlines: (bool) If True, read JSON lines. Defaults to False.
-        as_dataframe: (bool) If True, return DataFrame. Defaults to True.
-        concat: (bool) If True, concatenate batch DataFrames. Defaults to True.
-        use_threads: (bool) If True, use parallel processing within batches.
-        verbose: (bool) If True, print verbose output.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to JSON file(s). Glob patterns supported.
+        batch_size: Number of files to process in each batch
+        include_file_path: Include source filepath in output
+        jsonlines: Whether to read as JSON Lines format
+        as_dataframe: Convert output to Polars DataFrame(s)
+        concat: Combine files within each batch
+        use_threads: Enable parallel file reading within batches
+        verbose: Print progress information
+        **kwargs: Additional arguments for DataFrame conversion
 
     Yields:
-        Data from num_batches files as dict/DataFrame based on parameters.
+        Each batch of data in requested format:
+        - dict | list[dict]: Raw JSON data
+        - pl.DataFrame: Single DataFrame if concat=True
+        - list[pl.DataFrame]: List of DataFrames if concat=False
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Process large dataset in batches
+        >>> for batch in fs._read_json_batches(
+        ...     "data/*.json",
+        ...     batch_size=100,
+        ...     as_dataframe=True,
+        ...     verbose=True
+        ... ):
+        ...     print(f"Batch shape: {batch.shape}")
+        >>> 
+        >>> # Parallel batch processing with filepath tracking
+        >>> for batch in fs._read_json_batches(
+        ...     ["logs1.jsonl", "logs2.jsonl"],
+        ...     batch_size=1,
+        ...     include_file_path=True,
+        ...     use_threads=True
+        ... ):
+        ...     print(f"Processing {batch['file_path'][0]}")
     """
     # Handle path resolution
     if isinstance(path, str):
@@ -218,10 +342,11 @@ def _read_json_batches(
                 batch_dfs = [pl.DataFrame(d) for d in batch_data]
             else:
                 batch_dfs = [
-                    pl.DataFrame(list(d.values())[0]).with_columns(
-                        pl.lit(list(d.keys())[0]).alias("file_path")
-                    )
-                    for d in batch_data
+                    [
+                        pl.DataFrame(_data[k]).with_columns(pl.lit(k).alias("file_path"))
+                        for k in _data
+                    ][0]
+                    for _data in batch_data
                 ]
 
             if concat and len(batch_dfs) > 1:
@@ -233,7 +358,7 @@ def _read_json_batches(
 
 
 def read_json(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
@@ -242,7 +367,7 @@ def read_json(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> (
     dict
     | list[dict]
@@ -250,27 +375,65 @@ def read_json(
     | list[pl.DataFrame]
     | Generator[dict | list[dict] | pl.DataFrame | list[pl.DataFrame], None, None]
 ):
-    """
-    Read a JSON file or a list of JSON files. Optionally read in batches,
-    returning a generator that sequentially yields data for specified number of files.
+    """Read JSON data from one or more files with powerful options.
+
+    Provides a flexible interface for reading JSON data with support for:
+    - Single file or multiple files
+    - Regular JSON or JSON Lines format
+    - Batch processing for large datasets
+    - Parallel processing
+    - DataFrame conversion
+    - File path tracking
 
     Args:
-        path: (str | list[str]) Path to the JSON file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool) If True, return with file path as key.
-        jsonlines: (bool) If True, read JSON lines. Defaults to False.
-        as_dataframe: (bool) If True, return DataFrame. Defaults to True.
-        concat: (bool) If True, concatenate the DataFrames. Defaults to True.
-        use_threads: (bool) If True, use parallel processing within batches. Defaults to True.
-        verbose: (bool) If True, print verbose output. Defaults to False.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to JSON file(s). Can be:
+            - Single path string (globs supported)
+            - List of path strings
+        batch_size: If set, enables batch reading with this many files per batch
+        include_file_path: Include source filepath in output
+        jsonlines: Whether to read as JSON Lines format
+        as_dataframe: Convert output to Polars DataFrame(s)
+        concat: Combine multiple files/batches into single result
+        use_threads: Enable parallel file reading
+        verbose: Print progress information
+        **kwargs: Additional arguments passed to DataFrame conversion
 
     Returns:
-        (dict | list[dict] | pl.DataFrame | list[pl.DataFrame]:
-            Dictionary, list of dictionaries, DataFrame, list of DataFrames
-    Yields:
-        (dict | list[dict] | pl.DataFrame | list[pl.DataFrame]:
-            Dictionary, list of dictionaries, DataFrame, list of DataFrames
+        Various types depending on arguments:
+        - dict: Single JSON file as dictionary
+        - list[dict]: Multiple JSON files as list of dictionaries
+        - pl.DataFrame: Single or concatenated DataFrame
+        - list[pl.DataFrame]: List of DataFrames (if concat=False)
+        - Generator: If batch_size set, yields batches of above types
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Read all JSON files in directory
+        >>> df = fs.read_json(
+        ...     "data/*.json",
+        ...     as_dataframe=True,
+        ...     concat=True
+        ... )
+        >>> print(df.shape)
+        (1000, 5)  # Combined data from all files
+        >>> 
+        >>> # Batch process large dataset
+        >>> for batch_df in fs.read_json(
+        ...     "logs/*.jsonl",
+        ...     batch_size=100,
+        ...     jsonlines=True,
+        ...     include_file_path=True
+        ... ):
+        ...     print(f"Processing {len(batch_df)} records")
+        >>> 
+        >>> # Parallel read with custom options
+        >>> dfs = fs.read_json(
+        ...     ["file1.json", "file2.json"],
+        ...     use_threads=True,
+        ...     concat=False,
+        ...     verbose=True
+        ... )
+        >>> print(f"Read {len(dfs)} files")
     """
     if batch_size is not None:
         return _read_json_batches(
@@ -299,9 +462,37 @@ def read_json(
 
 
 def _read_csv_file(
-    path, self, include_file_path: bool = False, **kwargs
+    path: str,
+    self: AbstractFileSystem,
+    include_file_path: bool = False,
+    **kwargs: Any
 ) -> pl.DataFrame:
-    print(path)
+    """Read a single CSV file from any filesystem.
+
+    Internal function that handles reading individual CSV files and optionally
+    adds the source filepath as a column.
+
+    Args:
+        path: Path to CSV file
+        self: Filesystem instance to use for reading
+        include_file_path: Add source filepath as a column
+        **kwargs: Additional arguments passed to pl.read_csv()
+
+    Returns:
+        pl.DataFrame: DataFrame containing CSV data
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> df = _read_csv_file(
+        ...     "data.csv",
+        ...     fs,
+        ...     include_file_path=True,
+        ...     delimiter="|"
+        ... )
+        >>> print("file_path" in df.columns)
+        True
+    """
+    print(path)  # Debug info
     with self.open(path) as f:
         df = pl.read_csv(f, **kwargs)
     if include_file_path:
@@ -371,29 +562,54 @@ def _read_csv(
 
 
 def _read_csv_batches(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
-) -> Generator[pl.DataFrame, None, None]:
-    """
-    Read CSV files in batches with optional parallel processing within batches.
+    **kwargs: Any,
+) -> Generator[pl.DataFrame | list[pl.DataFrame], None, None]:
+    """Process CSV files in batches with optional parallel reading.
+
+    Internal generator function that handles batched reading of CSV files
+    with support for parallel processing within each batch.
 
     Args:
-        path: (str | list[str]) Path to the CSV file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool) If True, include file_path column.
-        concat: (bool) If True, concatenate batch DataFrames.
-        use_threads: (bool) If True, use parallel processing within batches.
-        verbose: (bool) If True, print verbose output.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to CSV file(s). Glob patterns supported.
+        batch_size: Number of files to process in each batch
+        include_file_path: Add source filepath as a column
+        concat: Combine files within each batch
+        use_threads: Enable parallel file reading within batches
+        verbose: Print progress information
+        **kwargs: Additional arguments passed to pl.read_csv()
 
     Yields:
-        pl.DataFrame: DataFrame containing data from num_batches files.
+        Each batch of data in requested format:
+        - pl.DataFrame: Single DataFrame if concat=True
+        - list[pl.DataFrame]: List of DataFrames if concat=False
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Process large dataset in batches
+        >>> for batch in fs._read_csv_batches(
+        ...     "data/*.csv",
+        ...     batch_size=100,
+        ...     include_file_path=True,
+        ...     verbose=True
+        ... ):
+        ...     print(f"Batch columns: {batch.columns}")
+        >>> 
+        >>> # Parallel processing without concatenation
+        >>> for batch in fs._read_csv_batches(
+        ...     ["file1.csv", "file2.csv"],
+        ...     batch_size=1,
+        ...     concat=False,
+        ...     use_threads=True
+        ... ):
+        ...     for df in batch:
+        ...         print(f"DataFrame shape: {df.shape}")
     """
     # Handle path resolution
     if isinstance(path, str):
@@ -423,7 +639,10 @@ def _read_csv_batches(
         else:
             batch_dfs = [
                 _read_csv_file(
-                    p, self=self, include_file_path=include_file_path, **kwargs
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    **kwargs
                 )
                 for p in batch_paths
             ]
@@ -435,39 +654,67 @@ def _read_csv_batches(
 
 
 def read_csv(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
-) -> (
-    pl.DataFrame
-    | list[pl.DataFrame]
-    | Generator[pl.DataFrame | list[pl.DataFrame], None, None]
-):
-    """
-    Read a CSV file or a list of CSV files. Optionally read in batches,
-    returning a generator that sequentially yields data for specified number of files.
+    **kwargs: Any,
+) -> pl.DataFrame | list[pl.DataFrame] | Generator[pl.DataFrame | list[pl.DataFrame], None, None]:
+    """Read CSV data from one or more files with powerful options.
+
+    Provides a flexible interface for reading CSV files with support for:
+    - Single file or multiple files
+    - Batch processing for large datasets
+    - Parallel processing
+    - File path tracking
+    - Polars DataFrame output
 
     Args:
-        path: (str | list[str]) Path to the CSV file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool, optional) If True, include 'file_path' column.
-        concat: (bool, optional) If True, concatenate the batch DataFrames. Defaults to True.
-        use_threads: (bool, optional) If True, use parallel processing within batches. Defaults to True.
-        verbose: (bool, optional) If True, print verbose output. Defaults to False.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to CSV file(s). Can be:
+            - Single path string (globs supported)
+            - List of path strings
+        batch_size: If set, enables batch reading with this many files per batch
+        include_file_path: Add source filepath as a column
+        concat: Combine multiple files/batches into single DataFrame
+        use_threads: Enable parallel file reading
+        verbose: Print progress information
+        **kwargs: Additional arguments passed to pl.read_csv()
 
     Returns:
-        pl.DataFrame | list[pl.DataFrame]:
-            DataFrame or list or DataFrames containing data from num_batches files.
+        Various types depending on arguments:
+        - pl.DataFrame: Single or concatenated DataFrame
+        - list[pl.DataFrame]: List of DataFrames (if concat=False)
+        - Generator: If batch_size set, yields batches of above types
 
-    Yields:
-        pl.DataFrame | list[pl.DataFrame]:
-            DataFrame or list of DataFrames containing data from num_batches files.
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Read all CSVs in directory
+        >>> df = fs.read_csv(
+        ...     "data/*.csv",
+        ...     include_file_path=True
+        ... )
+        >>> print(df.columns)
+        ['file_path', 'col1', 'col2', ...]
+        >>> 
+        >>> # Batch process large dataset
+        >>> for batch_df in fs.read_csv(
+        ...     "logs/*.csv",
+        ...     batch_size=100,
+        ...     use_threads=True,
+        ...     verbose=True
+        ... ):
+        ...     print(f"Processing {len(batch_df)} rows")
+        >>> 
+        >>> # Multiple files without concatenation
+        >>> dfs = fs.read_csv(
+        ...     ["file1.csv", "file2.csv"],
+        ...     concat=False,
+        ...     use_threads=True
+        ... )
+        >>> print(f"Read {len(dfs)} files")
     """
     if batch_size is not None:
         return _read_csv_batches(
@@ -492,8 +739,36 @@ def read_csv(
 
 
 def _read_parquet_file(
-    path, self, include_file_path: bool = False, **kwargs
+    path: str,
+    self: AbstractFileSystem,
+    include_file_path: bool = False,
+    **kwargs: Any
 ) -> pa.Table:
+    """Read a single Parquet file from any filesystem.
+
+    Internal function that handles reading individual Parquet files and
+    optionally adds the source filepath as a column.
+
+    Args:
+        path: Path to Parquet file
+        self: Filesystem instance to use for reading
+        include_file_path: Add source filepath as a column
+        **kwargs: Additional arguments passed to pq.read_table()
+
+    Returns:
+        pa.Table: PyArrow Table containing Parquet data
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> table = _read_parquet_file(
+        ...     "data.parquet",
+        ...     fs,
+        ...     include_file_path=True,
+        ...     use_threads=True
+        ... )
+        >>> print("file_path" in table.column_names)
+        True
+    """
     table = pq.read_table(path, filesystem=self, **kwargs)
     if include_file_path:
         return table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
@@ -569,29 +844,61 @@ def _read_parquet(
 
 
 def _read_parquet_batches(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
     use_threads: bool = True,
     concat: bool = True,
     verbose: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> Generator[pa.Table | list[pa.Table], None, None]:
-    """
-    Read Parquet files in batches, yielding PyArrow Tables.
+    """Process Parquet files in batches with performance optimizations.
+
+    Internal generator function that handles batched reading of Parquet files
+    with support for:
+    - Parallel processing within batches
+    - Metadata-based optimizations
+    - Memory-efficient processing
+    - Progress tracking
+
+    Uses fast path for simple cases:
+    - Single directory with _metadata
+    - No need for filepath column
+    - Concatenated output
 
     Args:
-        path: (str | list[str]) Path to the Parquet file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool) If True, return Tables with 'file_path' column. Defaults to False.
-        use_threads: (bool) If True, read files in parallel within batches. Defaults to True.
-        concat: (bool) If True, concatenate Tables within each batch. Defaults to True.
-        verbose: (bool) If True, print progress information. Defaults to False.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to Parquet file(s). Glob patterns supported.
+        batch_size: Number of files to process in each batch
+        include_file_path: Add source filepath as a column
+        use_threads: Enable parallel file reading within batches
+        concat: Combine files within each batch
+        verbose: Print progress information
+        **kwargs: Additional arguments passed to pq.read_table()
 
     Yields:
-        pa.Table | list[pa.Table]: Table or list of Tables per batch.
+        Each batch of data in requested format:
+        - pa.Table: Single Table if concat=True
+        - list[pa.Table]: List of Tables if concat=False
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Fast path for simple case
+        >>> next(_read_parquet_batches(
+        ...     fs,
+        ...     "data/",  # Contains _metadata
+        ...     batch_size=1000
+        ... ))
+        >>> 
+        >>> # Parallel batch processing
+        >>> for batch in fs._read_parquet_batches(
+        ...     fs,
+        ...     ["file1.parquet", "file2.parquet"],
+        ...     batch_size=1,
+        ...     include_file_path=True,
+        ...     use_threads=True
+        ... ):
+        ...     print(f"Batch schema: {batch.schema}")
     """
     # Fast path for simple cases
     if not include_file_path and concat and batch_size is None:
@@ -607,12 +914,14 @@ def _read_parquet_batches(
 
     if not isinstance(path, list):
         yield _read_parquet_file(
-            path=path, self=self, include_file_path=include_file_path, **kwargs
+            path=path,
+            self=self,
+            include_file_path=include_file_path,
+            **kwargs
         )
         return
 
     # Process in batches
-
     for i in range(0, len(path), batch_size):
         batch_paths = path[i : i + batch_size]
         if use_threads and len(batch_paths) > 1:
@@ -629,7 +938,10 @@ def _read_parquet_batches(
         else:
             batch_tables = [
                 _read_parquet_file(
-                    p, self=self, include_file_path=include_file_path, **kwargs
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    **kwargs
                 )
                 for p in batch_paths
             ]
@@ -641,34 +953,72 @@ def _read_parquet_batches(
 
 
 def read_parquet(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     batch_size: int | None = None,
     include_file_path: bool = False,
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> pa.Table | list[pa.Table] | Generator[pa.Table | list[pa.Table], None, None]:
-    """
-    Read a Parquet file or a list of Parquet files. Optionally read in batches,
-    returning a generator that sequentially yields data for specified number of files.
+    """Read Parquet data with advanced features and optimizations.
+
+    Provides a high-performance interface for reading Parquet files with support for:
+    - Single file or multiple files
+    - Batch processing for large datasets
+    - Parallel processing
+    - File path tracking
+    - Automatic concatenation
+    - PyArrow Table output
+
+    The function automatically uses optimal reading strategies:
+    - Direct dataset reading for simple cases
+    - Parallel processing for multiple files
+    - Batched reading for memory efficiency
 
     Args:
-        path: (str | list[str]) Path to the Parquet file(s).
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool, optional) If True, include 'file_path' column.
-        concat: (bool, optional) If True, concatenate the batch Tables. Defaults to True.
-        use_threads: (bool, optional) If True, use parallel processing within batches. Defaults to True.
-        verbose: (bool, optional) If True, print verbose output. Defaults to False.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to Parquet file(s). Can be:
+            - Single path string (globs supported)
+            - List of path strings
+            - Directory containing _metadata file
+        batch_size: If set, enables batch reading with this many files per batch
+        include_file_path: Add source filepath as a column
+        concat: Combine multiple files/batches into single Table
+        use_threads: Enable parallel file reading
+        verbose: Print progress information
+        **kwargs: Additional arguments passed to pq.read_table()
 
     Returns:
-        pa.Table | list[pa.Table]:
-            PyArrow Table or list of PyArrow Tables containing data from num_batches files.
+        Various types depending on arguments:
+        - pa.Table: Single or concatenated Table
+        - list[pa.Table]: List of Tables (if concat=False)
+        - Generator: If batch_size set, yields batches of above types
 
-    Yields:
-        pa.Table | list[pa.Table]: PyArrow Table or list of PyArrow Tables containing data from num_batches files.
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Read all Parquet files in directory
+        >>> table = fs.read_parquet(
+        ...     "data/*.parquet",
+        ...     include_file_path=True
+        ... )
+        >>> print(table.column_names)
+        ['file_path', 'col1', 'col2', ...]
+        >>> 
+        >>> # Batch process large dataset
+        >>> for batch in fs.read_parquet(
+        ...     "data/*.parquet",
+        ...     batch_size=100,
+        ...     use_threads=True
+        ... ):
+        ...     print(f"Processing {batch.num_rows} rows")
+        >>> 
+        >>> # Read from directory with metadata
+        >>> table = fs.read_parquet(
+        ...     "data/",  # Contains _metadata
+        ...     use_threads=True
+        ... )
+        >>> print(f"Total rows: {table.num_rows}")
     """
     if batch_size is not None:
         return _read_parquet_batches(
@@ -693,7 +1043,7 @@ def read_parquet(
 
 
 def read_files(
-    self,
+    self: AbstractFileSystem,
     path: str | list[str],
     format: str,
     batch_size: int | None = None,
@@ -702,38 +1052,74 @@ def read_files(
     jsonlines: bool = False,
     use_threads: bool = True,
     verbose: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> (
     pl.DataFrame
     | pa.Table
     | list[pl.DataFrame]
     | list[pa.Table]
-    | Generator[
-        pl.DataFrame | pa.Table | list[pa.Table] | list[pl.DataFrame], None, None
-    ]
+    | Generator[pl.DataFrame | pa.Table | list[pl.DataFrame] | list[pa.Table], None, None]
 ):
-    """
-    Read a file or a list of files of the given format.
+    """Universal interface for reading data files of any supported format.
+
+    A unified API that automatically delegates to the appropriate reading function
+    based on file format, while preserving all advanced features like:
+    - Batch processing
+    - Parallel reading
+    - File path tracking
+    - Format-specific optimizations
 
     Args:
-        path: (str | list[str]) Path to the file(s).
-        format: (str) Format of the file.
-        batch_size: (int | None) Number of files to process in each batch. Defaults to None.
-        include_file_path: (bool, optional) If True, return a DataFrame with a 'file_path' column.
-            Defaults to False.
-        concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
-        jsonlines: (bool, optional) If True, read JSON lines. Defaults to False.
-        use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
-        verbose: (bool, optional) If True, print verbose output. Defaults to False.
-        **kwargs: Additional keyword arguments.
+        path: Path(s) to data file(s). Can be:
+            - Single path string (globs supported)
+            - List of path strings
+        format: File format to read. Supported values:
+            - "json": Regular JSON or JSON Lines
+            - "csv": CSV files
+            - "parquet": Parquet files
+        batch_size: If set, enables batch reading with this many files per batch
+        include_file_path: Add source filepath as column/field
+        concat: Combine multiple files/batches into single result
+        jsonlines: For JSON format, whether to read as JSON Lines
+        use_threads: Enable parallel file reading
+        verbose: Print progress information
+        **kwargs: Additional format-specific arguments
 
     Returns:
-        (pl.DataFrame | pa.Table | list[pl.DataFrame] | list[pa.Table]):
-            Polars DataFrame, Pyarrow Table or list of DataFrames, LazyFrames or Tables.
+        Various types depending on format and arguments:
+        - pl.DataFrame: For CSV and optionally JSON
+        - pa.Table: For Parquet
+        - list[pl.DataFrame | pa.Table]: Without concatenation
+        - Generator: If batch_size set, yields batches
 
-    Yields:
-        (pl.DataFrame | pa.Table):
-            Polars DataFrame, Pyarrow Table or list of DataFrames, LazyFrames or Tables.
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Read CSV files
+        >>> df = fs.read_files(
+        ...     "data/*.csv",
+        ...     format="csv",
+        ...     include_file_path=True
+        ... )
+        >>> print(type(df))
+        <class 'polars.DataFrame'>
+        >>> 
+        >>> # Batch process Parquet files
+        >>> for batch in fs.read_files(
+        ...     "data/*.parquet",
+        ...     format="parquet",
+        ...     batch_size=100,
+        ...     use_threads=True
+        ... ):
+        ...     print(f"Batch type: {type(batch)}")
+        >>> 
+        >>> # Read JSON Lines
+        >>> df = fs.read_files(
+        ...     "logs/*.jsonl",
+        ...     format="json",
+        ...     jsonlines=True,
+        ...     concat=True
+        ... )
+        >>> print(df.columns)
     """
     if format == "json":
         if batch_size is not None:
@@ -749,8 +1135,8 @@ def read_files(
                 **kwargs,
             )
         return read_json(
-            self,
-            path,
+            self=self,
+            path=path,
             include_file_path=include_file_path,
             jsonlines=jsonlines,
             concat=concat,
@@ -771,8 +1157,8 @@ def read_files(
                 **kwargs,
             )
         return read_csv(
-            self,
-            path,
+            self=self,
+            path=path,
             include_file_path=include_file_path,
             use_threads=use_threads,
             concat=concat,
@@ -792,8 +1178,8 @@ def read_files(
                 **kwargs,
             )
         return read_parquet(
-            self,
-            path,
+            self=self,
+            path=path,
             include_file_path=include_file_path,
             use_threads=use_threads,
             concat=concat,
@@ -803,26 +1189,64 @@ def read_files(
 
 
 def pyarrow_dataset(
-    self,
+    self: AbstractFileSystem,
     path: str,
-    format="parquet",
+    format: str = "parquet",
     schema: pa.Schema | None = None,
     partitioning: str | list[str] | pds.Partitioning = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> pds.Dataset:
-    """
-    Create a pyarrow dataset.
+    """Create a PyArrow dataset from files in any supported format.
+
+    Creates a dataset that provides optimized reading and querying capabilities
+    including:
+    - Schema inference and enforcement
+    - Partition discovery and pruning
+    - Predicate pushdown
+    - Column projection
 
     Args:
-        path: (str) Path to the dataset.
-        format: (str, optional) Format of the dataset. Defaults to 'parquet'.
-        schema: (pa.Schema, optional) Schema of the dataset. Defaults to None.
-        partitioning: (str | list[str] | pds.Partitioning, optional) Partitioning of the dataset.
-            Defaults to None.
-        **kwargs: Additional keyword arguments.
+        path: Base path to dataset files
+        format: File format. Currently supports:
+            - "parquet" (default)
+            - "csv"
+            - "json" (experimental)
+        schema: Optional schema to enforce. If None, inferred from data.
+        partitioning: How the dataset is partitioned. Can be:
+            - str: Single partition field
+            - list[str]: Multiple partition fields
+            - pds.Partitioning: Custom partitioning scheme
+        **kwargs: Additional arguments for dataset creation
 
     Returns:
-        (pds.Dataset): Pyarrow dataset.
+        pds.Dataset: PyArrow dataset instance
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Simple Parquet dataset
+        >>> ds = fs.pyarrow_dataset("data/")
+        >>> print(ds.schema)
+        >>> 
+        >>> # Partitioned dataset
+        >>> ds = fs.pyarrow_dataset(
+        ...     "events/",
+        ...     partitioning=["year", "month"]
+        ... )
+        >>> # Query with partition pruning
+        >>> table = ds.to_table(
+        ...     filter=(ds.field("year") == 2024)
+        ... )
+        >>> 
+        >>> # CSV with schema
+        >>> ds = fs.pyarrow_dataset(
+        ...     "logs/",
+        ...     format="csv",
+        ...     schema=pa.schema([
+        ...         ("timestamp", pa.timestamp("s")),
+        ...         ("level", pa.string()),
+        ...         ("message", pa.string())
+        ...     ])
+        ... )
     """
     return pds.dataset(
         path,
@@ -835,24 +1259,52 @@ def pyarrow_dataset(
 
 
 def pyarrow_parquet_dataset(
-    self,
+    self: AbstractFileSystem,
     path: str,
     schema: pa.Schema | None = None,
     partitioning: str | list[str] | pds.Partitioning = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> pds.Dataset:
-    """
-    Create a pyarrow dataset from a parquet_metadata file.
+    """Create a PyArrow dataset optimized for Parquet files.
+
+    Creates a dataset specifically for Parquet data, automatically handling
+    _metadata files for optimized reading.
+
+    This function is particularly useful for:
+    - Datasets with existing _metadata files
+    - Multi-file datasets that should be treated as one
+    - Partitioned Parquet datasets
 
     Args:
-        path: (str) Path to the dataset.
-        schema: (pa.Schema, optional) Schema of the dataset. Defaults to None.
-        partitioning: (str | list[str] | pds.Partitioning, optional) Partitioning of the dataset.
-            Defaults to None.
-        **kwargs: Additional keyword arguments.
+        path: Path to dataset directory or _metadata file
+        schema: Optional schema to enforce. If None, inferred from data.
+        partitioning: How the dataset is partitioned. Can be:
+            - str: Single partition field
+            - list[str]: Multiple partition fields
+            - pds.Partitioning: Custom partitioning scheme
+        **kwargs: Additional dataset arguments
 
     Returns:
-        (pds.Dataset): Pyarrow dataset.
+        pds.Dataset: PyArrow dataset instance
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Dataset with _metadata
+        >>> ds = fs.pyarrow_parquet_dataset("data/_metadata")
+        >>> print(ds.files)  # Shows all data files
+        >>> 
+        >>> # Partitioned dataset directory
+        >>> ds = fs.pyarrow_parquet_dataset(
+        ...     "sales/",
+        ...     partitioning=["year", "region"]
+        ... )
+        >>> # Query with partition pruning
+        >>> table = ds.to_table(
+        ...     filter=(
+        ...         (ds.field("year") == 2024) &
+        ...         (ds.field("region") == "EMEA")
+        ...     )
+        ... )
     """
     if not self.is_file(path):
         path = posixpath.join(path, "_metadata")
@@ -866,22 +1318,49 @@ def pyarrow_parquet_dataset(
 
 
 def pydala_dataset(
-    self,
+    self: AbstractFileSystem,
     path: str,
     partitioning: str | list[str] | pds.Partitioning = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> ParquetDataset:  # type: ignore
-    """
-    Create a pydala dataset.
+    """Create a Pydala dataset for advanced Parquet operations.
+
+    Creates a dataset with additional features beyond PyArrow including:
+    - Delta table support
+    - Schema evolution
+    - Advanced partitioning
+    - Metadata management
+    - Sort key optimization
 
     Args:
-        path: (str) Path to the dataset.
-        partitioning: (str | list[str] | pds.Partitioning, optional) Partitioning of the dataset.
-            Defaults to None.
-        **kwargs: Additional keyword arguments.
+        path: Path to dataset directory
+        partitioning: How the dataset is partitioned. Can be:
+            - str: Single partition field
+            - list[str]: Multiple partition fields
+            - pds.Partitioning: Custom partitioning scheme
+        **kwargs: Additional dataset configuration
 
     Returns:
-        (ParquetDataset): Pydala dataset.
+        ParquetDataset: Pydala dataset instance
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Create dataset
+        >>> ds = fs.pydala_dataset(
+        ...     "data/",
+        ...     partitioning=["date"]
+        ... )
+        >>> 
+        >>> # Write with delta support
+        >>> ds.write_to_dataset(
+        ...     new_data,
+        ...     mode="delta",
+        ...     delta_subset=["id"]
+        ... )
+        >>> 
+        >>> # Read with metadata
+        >>> df = ds.to_polars()
+        >>> print(df.columns)
     """
     return ParquetDataset(
         path,
@@ -892,23 +1371,62 @@ def pydala_dataset(
 
 
 def write_parquet(
-    self,
+    self: AbstractFileSystem,
     data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
     path: str,
     schema: pa.Schema | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> pq.FileMetaData:
-    """
-    Write a DataFrame to a Parquet file.
+    """Write data to a Parquet file with automatic format conversion.
+
+    Handles writing data from multiple input formats to Parquet with:
+    - Automatic conversion to PyArrow
+    - Schema validation/coercion 
+    - Metadata collection
+    - Compression and encoding options
 
     Args:
-        data: (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
-        path: (str) Path to write the data.
-        schema: (pa.Schema, optional) Schema of the data. Defaults to None.
-        **kwargs: Additional keyword arguments for `pq.write_table`.
+        data: Input data in various formats:
+            - Polars DataFrame/LazyFrame
+            - PyArrow Table
+            - Pandas DataFrame
+            - Dict or list of dicts
+        path: Output Parquet file path
+        schema: Optional schema to enforce on write
+        **kwargs: Additional arguments for pq.write_table()
 
     Returns:
-        (pq.FileMetaData): Parquet file metadata.
+        pq.FileMetaData: Metadata of written Parquet file
+
+    Raises:
+        SchemaError: If data doesn't match schema
+        ValueError: If data cannot be converted
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Write Polars DataFrame
+        >>> df = pl.DataFrame({
+        ...     "id": range(1000),
+        ...     "value": pl.Series(np.random.randn(1000))
+        ... })
+        >>> metadata = fs.write_parquet(
+        ...     df,
+        ...     "data.parquet",
+        ...     compression="zstd",
+        ...     compression_level=3
+        ... )
+        >>> print(f"Rows: {metadata.num_rows}")
+        >>> 
+        >>> # Write with schema
+        >>> schema = pa.schema([
+        ...     ("id", pa.int64()),
+        ...     ("value", pa.float64())
+        ... ])
+        >>> metadata = fs.write_parquet(
+        ...     {"id": [1, 2], "value": [0.1, 0.2]},
+        ...     "data.parquet",
+        ...     schema=schema
+        ... )
     """
     data = to_pyarrow_table(data, concat=False, unique=False)
 
@@ -922,23 +1440,40 @@ def write_parquet(
 
 
 def write_json(
-    self,
-    data: (
-        dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict]
-    ),
+    self: AbstractFileSystem,
+    data: dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
     path: str,
     append: bool = False,
 ) -> None:
-    """
-    Write a dictionary, DataFrame or Table to a JSON file.
+    """Write data to a JSON file with flexible input support.
+
+    Handles writing data in various formats to JSON or JSON Lines,
+    with optional appending for streaming writes.
 
     Args:
-        data: (dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
-        path: (str) Path to write the data.
-        append: (bool, optional) If True, append to the file. Defaults to False.
+        data: Input data in various formats:
+            - Dict or list of dicts
+            - Polars DataFrame/LazyFrame
+            - PyArrow Table
+            - Pandas DataFrame
+        path: Output JSON file path
+        append: Whether to append to existing file (JSON Lines mode)
 
-    Returns:
-        None
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Write dictionary
+        >>> data = {"name": "test", "values": [1, 2, 3]}
+        >>> fs.write_json(data, "config.json")
+        >>> 
+        >>> # Stream records
+        >>> df1 = pl.DataFrame({"id": [1], "value": ["first"]})
+        >>> df2 = pl.DataFrame({"id": [2], "value": ["second"]})
+        >>> fs.write_json(df1, "stream.jsonl", append=False)
+        >>> fs.write_json(df2, "stream.jsonl", append=True)
+        >>> 
+        >>> # Convert PyArrow
+        >>> table = pa.table({"a": [1, 2], "b": ["x", "y"]})
+        >>> fs.write_json(table, "data.json")
     """
     if isinstance(data, pl.LazyFrame):
         data = data.collect()
@@ -951,46 +1486,97 @@ def write_json(
         data = data.to_pydict()
     if append:
         with self.open(path, "ab") as f:
-            f.write(orjson.dumps(data))
-            f.write(b"\n")
+            if isinstance(data, dict):
+                f.write(orjson.dumps(data) + b"\n")
+            else:
+                for record in data:
+                    f.write(orjson.dumps(record) + b"\n")
     else:
         with self.open(path, "wb") as f:
             f.write(orjson.dumps(data))
 
 
 def write_csv(
-    self,
-    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict,
+    self: AbstractFileSystem,
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
     path: str,
-    **kwargs,
+    append: bool = False,
+    **kwargs: Any,
 ) -> None:
-    """
-    Write a DataFrame to a CSV file.
+    """Write data to a CSV file with flexible input support.
+
+    Handles writing data from multiple formats to CSV with options for:
+    - Appending to existing files
+    - Custom delimiters and formatting
+    - Automatic type conversion
+    - Header handling
 
     Args:
-        data: (pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame) Data to write.
-        path: (str) Path to write the data.
-        **kwargs: Additional keyword arguments for `pl.DataFrame.write_csv`.
+        data: Input data in various formats:
+            - Polars DataFrame/LazyFrame
+            - PyArrow Table
+            - Pandas DataFrame
+            - Dict or list of dicts
+        path: Output CSV file path
+        append: Whether to append to existing file
+        **kwargs: Additional arguments for CSV writing:
+            - delimiter: Field separator (default ",")
+            - header: Whether to write header row
+            - quote_char: Character for quoting fields
+            - date_format: Format for date/time fields
+            - float_precision: Decimal places for floats
 
-    Returns:
-        None
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> # Write Polars DataFrame
+        >>> df = pl.DataFrame({
+        ...     "id": range(100),
+        ...     "name": ["item_" + str(i) for i in range(100)]
+        ... })
+        >>> fs.write_csv(df, "items.csv")
+        >>> 
+        >>> # Append records
+        >>> new_items = pl.DataFrame({
+        ...     "id": range(100, 200),
+        ...     "name": ["item_" + str(i) for i in range(100, 200)]
+        ... })
+        >>> fs.write_csv(
+        ...     new_items,
+        ...     "items.csv",
+        ...     append=True,
+        ...     header=False
+        ... )
+        >>> 
+        >>> # Custom formatting
+        >>> data = pa.table({
+        ...     "date": [datetime.now()],
+        ...     "value": [123.456]
+        ... })
+        >>> fs.write_csv(
+        ...     data,
+        ...     "formatted.csv",
+        ...     date_format="%Y-%m-%d",
+        ...     float_precision=2
+        ... )
     """
-    if isinstance(data, dict | list):
-        data = _dict_to_dataframe(data)
-    elif isinstance(data, pl.LazyFrame):
+    if isinstance(data, pl.LazyFrame):
         data = data.collect()
-    elif isinstance(data, pa.Table):
-        data = pl.from_arrow(data)
-    elif isinstance(data, pd.DataFrame):
-        data = pl.from_pandas(data)
-
-    with self.open(path, "w") as f:
-        data.write_csv(f, **kwargs)
+    if isinstance(data, pl.DataFrame):
+        if append:
+            with self.open(path, "ab") as f:
+                data.write_csv(f, has_header=not append, **kwargs)
+        else:
+            with self.open(path, "wb") as f:
+                data.write_csv(f, **kwargs)
+    elif isinstance(data, (pa.Table, pd.DataFrame)):
+        pl.from_arrow(pa.table(data)).write_csv(path, **kwargs)
+    else:
+        pl.DataFrame(data).write_csv(path, **kwargs)
 
 
 def write_file(
     self,
-    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
+    data: pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict,
     path: str,
     format: str,
     **kwargs,
@@ -1054,7 +1640,7 @@ def write_files(
         basename: (str, optional) Basename of the files. Defaults to None.
         format: (str, optional) Format of the data. Defaults to None.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
-        unique: (bool | list[str] | str, optional) If True, remove duplicates. Defaults to False.
+        unique: (bool, optional) If True, remove duplicates. Defaults to False.
         mode: (str, optional) Write mode. Defaults to 'append'. Options: 'append', 'overwrite', 'delete_matching',
             'error_if_exists'.
         use_threads: (bool, optional) If True, use parallel processing. Defaults to True.
@@ -1202,7 +1788,7 @@ def write_pyarrow_dataset(
         max_rows_per_file: (int, optional) Maximum number of rows per file. Defaults to 2_500_000.
         row_group_size: (int, optional) Row group size. Defaults to 250_000.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
-        unique: (bool | list[str] | str, optional) If True, remove duplicates. Defaults to False.
+        unique: (bool | str | list[str], optional) If True, remove duplicates. Defaults to False.
         **kwargs: Additional keyword arguments for `pds.write_dataset`.
 
     Returns:
