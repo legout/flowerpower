@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0] - 2025-04-29
+
+### Changes
+- Update version to 0.10.0, add retry configuration, and enhance job queue handling
+- Update README.md
+- fixing imports
+- fixing imports
+- Refactor job queue imports and conditionally import backends based on availability
+
+
+
 ## [1.0.0b4] - 2025-04-29
 
 ### Changes
