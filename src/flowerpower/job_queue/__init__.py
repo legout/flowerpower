@@ -1,8 +1,10 @@
-from typing import Any, Optional
 import importlib
+from typing import Any, Optional
+
 from ..cfg.project import ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
+
 if importlib.util.find_spec("apscheduler"):
     from .apscheduler import APSBackend, APSManager
 else:
@@ -14,7 +16,6 @@ else:
     RQBackend = None
     RQManager = None
 from .base import BaseBackend, BaseJobQueueManager
-
 
 setup_logging()
 
