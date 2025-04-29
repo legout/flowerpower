@@ -23,7 +23,7 @@ setup_logging()
 
 
 class PipelineJobQueue:
-    """Handles scheduling of pipeline runs via a configured worker backend."""
+    """Handles scheduling of pipeline runs via a configured job queue backend."""
 
     def __init__(
         self,
@@ -40,7 +40,7 @@ class PipelineJobQueue:
             fs: The file system to use for file operations.
             cfg_dir: The directory for configuration files.
             pipelines_dir: The directory for pipeline files.
-            job_queue_type: The type of worker to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
+            job_queue_type: The type of job queue to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
         """
         self.project_cfg = project_cfg
         self._fs = fs
@@ -59,9 +59,9 @@ class PipelineJobQueue:
         """
         Lazily instantiate and cache a Job queue instance.
         """
-        # Lazily instantiate worker using project_cfg attributes
+        # Lazily instantiate job queue using project_cfg attributes
         logger.debug(
-            f"Instantiating worker of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
+            f"Instantiating job queue of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
         )
         # Pass the necessary parts of project_cfg to the Job queue
         return JobQueueManager(
@@ -70,11 +70,11 @@ class PipelineJobQueue:
         )
 
     def _get_schedule_ids(self) -> list[Any]:
-        """Get all schedules from the worker backend."""
+        """Get all schedules from the job queue backend."""
 
-        with self.job_queue as worker:
-            logger.debug("Fetching schedules ids from worker")
-            return worker.schedule_ids
+        with self.job_queue as job_queue:
+            logger.debug("Fetching schedules ids from job queue")
+            return job_queue.schedule_ids
 
     def run_job(
         self,
@@ -91,13 +91,17 @@ class PipelineJobQueue:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | None = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Add a job to run the pipeline immediately via the worker queue.
+        Add a job to run the pipeline immediately via the job queue queue.
 
         Args:
-            run_func (Callable): The function to execute in the worker (e.g., a configured PipelineRunner.run).
+            run_func (Callable): The function to execute in the job queue (e.g., a configured PipelineRunner.run).
             name (str): The name of the pipeline (used for logging).
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
@@ -110,7 +114,11 @@ class PipelineJobQueue:
             adapter (dict[str, Any] | None): Additional adapter configuration.
             reload (bool): Whether to reload the pipeline module.
             log_level (str | None): Log level for the run.
-            **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
+            max_retries (int): Maximum number of retries for the job.
+            retry_delay (float): Delay between retries.
+            jitter_factor (float): Jitter factor for retry delay.
+            retry_exceptions (tuple): Exceptions that should trigger a retry.
+            **kwargs: Additional keyword arguments passed directly to the job queue's add_job method.
 
         Returns:
             dict[str, Any]: The result of the job execution.
@@ -130,6 +138,10 @@ class PipelineJobQueue:
             "adapter": adapter,
             "reload": reload,
             "log_level": log_level,
+            "max_retries": max_retries,
+            "retry_delay": retry_delay,
+            "jitter_factor": jitter_factor,
+            "retry_exceptions": retry_exceptions,
         }
         pipeline_run_args = {
             k: v for k, v in pipeline_run_args.items() if v is not None
@@ -138,8 +150,8 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job '{name}': {pipeline_run_args}"
         )
 
-        with self.job_queue as worker:
-            res = worker.run_job(
+        with self.job_queue as job_queue:
+            res = job_queue.run_job(
                 func=run_func,
                 func_kwargs=pipeline_run_args,
                 **kwargs,
@@ -169,16 +181,16 @@ class PipelineJobQueue:
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
-        **kwargs,  # Allow other worker-specific args if needed
-    ) -> str | UUID:
+        **kwargs,  # Allow other job queue-specific args if needed
+    ) -> Any:
         """
-        Add a job to run the pipeline immediately via the worker queue, storing the result.
+        Add a job to run the pipeline immediately via the job queue, storing the result.
 
         Executes the job immediately and returns the job id (UUID). The job result will be stored
-        by the worker backend for the given `result_ttl` and can be fetched using the job id.
+        by the job queue backend for the given `result_ttl` and can be fetched using the job id.
 
         Args:
-            run_func (Callable): The function to execute in the worker (e.g., a configured PipelineRunner.run).
+            run_func (Callable): The function to execute in the job queue (e.g., a configured PipelineRunner.run).
             name (str): The name of the pipeline (used for logging).
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
@@ -198,10 +210,10 @@ class PipelineJobQueue:
             retry_delay (float): Delay between retries.
             jitter_factor (float): Jitter factor for retry delay.
             retry_exceptions (tuple): Exceptions that should trigger a retry.
-            **kwargs: Additional keyword arguments passed directly to the worker's add_job method.
+            **kwargs: Additional keyword arguments passed directly to the job queue's add_job method.
 
         Returns:
-            str | UUID: The ID of the added job.
+            Any: The ID of the added job or the job object itself, depending on the job queue backend.
         """
         logger.debug(f"Adding immediate job with result TTL for pipeline: {name}")
 
@@ -229,8 +241,8 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job (TTL) '{name}': {pipeline_run_args}"
         )
 
-        with self.job_queue as worker:
-            job_id = worker.add_job(
+        with self.job_queue as job_queue:
+            job = job_queue.add_job(
                 func=run_func,
                 func_kwargs=pipeline_run_args,
                 result_ttl=result_ttl,
@@ -240,10 +252,10 @@ class PipelineJobQueue:
             )
         rprint(
             f"✅ Successfully added job for "
-            f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job_id}[/green]"
+            f"[blue]{self.project_cfg.name}.{name}[/blue] with ID [green]{job if isinstance(job, (str, UUID)) else job.id}[/green]"
             f" and result TTL of {result_ttl} seconds."
         )
-        return job_id
+        return job
 
     # --- End Moved from PipelineManager ---
 
@@ -266,8 +278,8 @@ class PipelineJobQueue:
         max_retries: int | None = None,
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
-        retry_exceptions: tuple = (Exception,),
-        # --- Schedule Parameters (passed to worker.add_schedule) ---
+        retry_exceptions: tuple | None = None,
+        # --- Schedule Parameters (passed to job queue.add_schedule) ---
         cron: str | dict[str, str | int] | None = None,
         interval: int | str | dict[str, str | int] | None = None,
         date: dt.datetime | None = None,
@@ -276,10 +288,10 @@ class PipelineJobQueue:
         **kwargs,
     ) -> str | UUID:
         """
-        Schedule a pipeline for execution using the configured worker.
+        Schedule a pipeline for execution using the configured job queue.
 
         Args:
-            run_func (Callable): The function to execute in the worker.
+            run_func (Callable): The function to execute in the job queue.
             pipeline_cfg (PipelineConfig): The pipeline configuration object.
             inputs (dict | None): Inputs for the pipeline run (overrides config).
             final_vars (list | None): Final variables for the pipeline run (overrides config).
@@ -301,7 +313,7 @@ class PipelineJobQueue:
             date (dt.datetime | None): Date for date trigger.
             overwrite (bool): If True and id_ is None, generates ID '{name}-1', potentially overwriting.
             schedule_id (str | None): Optional ID for the schedule. If None, generates a new ID.
-            **kwargs: Additional keyword arguments passed to the worker's add_schedule method,
+            **kwargs: Additional keyword arguments passed to the job queue's add_schedule method,
                 For RQ this includes:
                     - repeat: Repeat count (int or dict)
                     - result_ttl: Time to live for the job result (float or timedelta)
@@ -321,7 +333,7 @@ class PipelineJobQueue:
 
         Raises:
             ValueError: If trigger_type is invalid or required args are missing.
-            Exception: Can raise exceptions from the worker backend.
+            Exception: Can raise exceptions from the job queue backend.
         """
 
         project_name = self.project_cfg.name
@@ -420,10 +432,10 @@ class PipelineJobQueue:
 
         # --- Add Schedule via Job queue ---
         try:
-            with self.job_queue as worker:
+            with self.job_queue as job_queue:
                 # Job queue is now responsible for creating the trigger object
                 # Pass trigger type and kwargs directly
-                added_id = worker.add_schedule(
+                added_id = job_queue.add_schedule(
                     func=run_func,
                     func_kwargs=pipeline_run_args,  # Pass resolved run parameters
                     cron=cron,

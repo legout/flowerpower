@@ -453,8 +453,10 @@ class MqttManager:
             if config_hook is not None:
                 config_ = config_hook(inputs["payload"], inputs["topic"])
                 logger.debug(f"Config from hook: {config_}")
+
                 if any([k in config_ for k in config.keys()]):
                     logger.warning("Config from hook overwrites config from pipeline")
+                    
                 config.update(config_)
                 logger.debug(f"Config after update: {config}")
 

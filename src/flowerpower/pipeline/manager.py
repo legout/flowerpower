@@ -230,9 +230,12 @@ class PipelineManager:
             >>> run_func = manager._get_run_func_for_job("data_pipeline")
             >>> result = run_func(inputs={"date": "2025-04-28"})
         """
+        if name == self._current_pipeline_name and not reload and hasattr(self, "_runner"):
+            return self._runner.run
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
-        return runner.run
+        self._runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
+        return self._runner.run
+        
 
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path.
@@ -481,11 +484,9 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-
-        res = run_pipeline(
-            project_cfg=self.project_cfg,
-            pipeline_cfg=pipeline_cfg,
+        #pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        run_func = self._get_run_func_for_job(name=name, reload=reload)
+        res = run_func(
             inputs=inputs,
             final_vars=final_vars,
             config=config,
@@ -1149,14 +1150,6 @@ class PipelineManager:
             name=name, format=format, reload=reload, raw=raw
         )
 
-    # Scheduler Delegations
-    def _get_run_func_for_job(self, name: str, reload: bool = False) -> Callable:
-        """Helper to create a PipelineRunner instance and return its run method."""
-        # This ensures the runner uses the correct, potentially reloaded, config for the job
-        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
-        # We return the bound method runner.run
-        return runner.run
 
     def run_job(
         self,
@@ -1243,8 +1236,9 @@ class PipelineManager:
             ...     queue_name="ml_jobs"
             ... )
         """
-        run_func = self._get_run_func_for_job(name, reload)
+        run_func = self._get_run_func_for_job(name=name, reload=reload)
         return self.job_queue.run_job(
+            #run_func=run_func,
             run_func=run_func,
             name=name,
             inputs=inputs,
@@ -1348,7 +1342,7 @@ class PipelineManager:
             >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
 
         """
-        run_func = self._get_run_func_for_job(name, reload)
+        run_func = self._get_run_func_for_job(name=name, reload=reload)
         run_in = (
             duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
         )  # convert to seconds
@@ -1482,7 +1476,7 @@ class PipelineManager:
             ... )
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func_for_job(name, reload)
+        run_func = self._get_run_func_for_job(name.name, reload=reload)
         interval = (
             duration_parser.parse(interval) if isinstance(interval, str) else interval
         )
