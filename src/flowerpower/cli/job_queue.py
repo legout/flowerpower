@@ -1,6 +1,6 @@
 import typer
 from .. import settings
-from ..job_queue import JobQueue  # Adjust import as needed
+from ..job_queue import JobQueueManager  # Adjust import as needed
 from .utils import  parse_dict_or_list_param 
 from ..utils.logging import setup_logging
 from loguru import logger
@@ -55,7 +55,7 @@ def start_worker(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if num_workers:
@@ -111,7 +111,7 @@ def start_scheduler(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if worker.cfg.backend.type != "rq":
@@ -145,7 +145,7 @@ def start_scheduler(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         if worker.cfg.backend.type != "rq":
@@ -176,7 +176,7 @@ def start_scheduler(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         worker.cancel_all_schedules()
@@ -224,7 +224,7 @@ def cancel_job(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if worker.cfg.backend.type != "rq":
@@ -263,7 +263,7 @@ def cancel_schedule(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if all:
@@ -293,7 +293,7 @@ def cancel_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         worker.delete_all_jobs(queue_name=queue_name if worker.cfg.backend.type == "rq" else None)
@@ -317,7 +317,7 @@ def cancel_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         worker.delete_all_schedules()
@@ -348,7 +348,7 @@ def delete_job(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if all:
@@ -381,7 +381,7 @@ def delete_schedule(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if all:
@@ -410,7 +410,7 @@ def delete_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         # show_jobs should display the job info
@@ -439,7 +439,7 @@ def delete_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         # worker's get_job_result method will handle the result display
@@ -466,7 +466,7 @@ def delete_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         worker.show_jobs()
@@ -492,7 +492,7 @@ def delete_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         # show_schedule should display the schedule info
@@ -517,7 +517,7 @@ def delete_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         worker.show_schedules()
@@ -558,7 +558,7 @@ def show_job_ids(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         # worker's job_ids property will print the IDs
@@ -608,7 +608,7 @@ def show_schedule_ids(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         # worker's schedule_ids property will print the IDs
@@ -642,7 +642,7 @@ def show_schedule_ids(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         if worker.cfg.backend.type != "apscheduler":
@@ -688,7 +688,7 @@ def pause_schedule(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if worker.cfg.backend.type != "apscheduler":
@@ -726,7 +726,7 @@ def pause_schedule(
 #     """
 #     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-#     with JobQueue(
+#     with JobQueueManager(
 #         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
 #     ) as worker:
 #         if worker.cfg.backend.type != "apscheduler":
@@ -775,7 +775,7 @@ def resume_schedule(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         if worker.cfg.backend.type != "apscheduler":
@@ -831,7 +831,7 @@ def show_jobs(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         worker.show_jobs(queue_name=queue_name, format=format)
@@ -871,7 +871,7 @@ def show_schedules(
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
-    with JobQueue(
+    with JobQueueManager(
         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
     ) as worker:
         worker.show_schedules(format=format)

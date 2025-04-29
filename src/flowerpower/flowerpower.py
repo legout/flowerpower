@@ -4,16 +4,15 @@ import posixpath
 from pathlib import Path
 
 import rich
-from fsspec.spec import AbstractFileSystem
+from .fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 
 from .cfg import ProjectConfig
-from .fs import get_filesystem
 from . import settings
 
 def init(
     name: str | None = None,
     base_dir: str | None = None,
-    storage_options: dict = {},
+    storage_options: dict | BaseStorageOptions | None = {},
     fs: AbstractFileSystem | None = None,
     job_queue_type: str = settings.DEFAULT_JOB_QUEUE,
     cfg_dir: str = settings.CONFIG_DIR,
@@ -27,20 +26,22 @@ def init(
     if base_dir is None:
         base_dir = str(Path.cwd())
 
-    fs = get_filesystem(posixpath.join(base_dir, name), **storage_options)
+    if fs is None:
+        fs = get_filesystem(posixpath.join(base_dir, name), cached=True, dirfs=True, storage_options=storage_options)
+    
 
     fs.makedirs(f"{cfg_dir}/pipelines", exist_ok=True)
     fs.makedirs(pipelines_dir, exist_ok=True)
     fs.makedirs(hooks_dir, exist_ok=True)
 
-    cfg = ProjectConfig.load(base_dir=posixpath.join(base_dir, name), name=name, job_queue_type=job_queue_type)
+    cfg = ProjectConfig.load(name=name, job_queue_type=job_queue_type, fs=fs)
 
-    with open(posixpath.join(base_dir, name, "README.md"), "w") as f:
+    with fs.open("README.md", "w") as f:
         f.write(
             f"# {name.replace('_', ' ').upper()}\n\n"
             f"**created with FlowerPower**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
         )
-    cfg.save()
+    cfg.save(fs=fs)
     os.chdir(posixpath.join(base_dir, name))
 
     rich.print(

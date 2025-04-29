@@ -10,7 +10,7 @@ from ..cfg.project import ProjectConfig
 setup_logging()
 
 
-class JobQueue:
+class JobQueueManager:
     """A factory class for creating job queue instances for job scheduling and execution.
 
     This class provides a unified interface for creating different types of job queue instances
@@ -26,7 +26,7 @@ class JobQueue:
     Example:
         ```python
         # Create an RQ job queue
-        rq_worker = JobQueue(
+        rq_worker = JobQueueManager(
             type="rq",
             name="my_worker",
             log_level="DEBUG"
@@ -38,7 +38,7 @@ class JobQueue:
             data_store={"type": "postgresql", "uri": "postgresql+asyncpg://user:pass@localhost/db"},
             event_broker={"type": "redis", "uri": "redis://localhost:6379/0"}
         )
-        aps_worker = JobQueue(
+        aps_worker = JobQueueManager(
             type="apscheduler",
             name="scheduler",
             backend=backend_config
@@ -93,10 +93,10 @@ class JobQueue:
         Example:
             ```python
             # Basic RQ job queue
-            worker = JobQueue(type="rq", name="basic_worker")
+            worker = JobQueueManager(type="rq", name="basic_worker")
 
             # APScheduler with custom logging and storage
-            worker = JobQueue(
+            worker = JobQueueManager(
                 type="apscheduler",
                 name="scheduler",
                 base_dir="/app/data",
@@ -242,7 +242,7 @@ class Backend:
 
 
 __all__ = [
-    "JobQueue",
+    "JobQueueManager",
     "RQManager",
     "APSManager",
     #"HueyWorker",

@@ -14,7 +14,7 @@ from rich import print as rprint
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
-from ..job_queue import JobQueue
+from ..job_queue import JobQueueManager
 from .registry import PipelineRegistry
 from .. import settings
 
@@ -63,7 +63,7 @@ class PipelineJobQueue:
             f"Instantiating worker of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
         )
         # Pass the necessary parts of project_cfg to the Job queue
-        return JobQueue(
+        return JobQueueManager(
             type=self._job_queue_type,
             fs=self._fs,
         )

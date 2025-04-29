@@ -3,7 +3,7 @@ from pathlib import Path
 import msgspec
 from munch import Munch
 
-from ..fs import AbstractFileSystem, get_filesystem
+from ..fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
@@ -51,7 +51,7 @@ class Config(BaseConfig):
         pipeline_name: str | None = None,
         job_queue_type: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Load both project and pipeline configurations.
 
@@ -77,7 +77,7 @@ class Config(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
         project = ProjectConfig.load(
             base_dir=base_dir,
             name=name,
@@ -105,7 +105,7 @@ class Config(BaseConfig):
         project: bool = False,
         pipeline: bool = True,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Save project and/or pipeline configurations.
 
@@ -144,7 +144,7 @@ def load(
     base_dir: str,
     name: str | None = None,
     pipeline_name: str | None = None,
-    storage_options: dict | Munch = Munch(),
+    storage_options: dict | BaseStorageOptions | None = {},
     fs: AbstractFileSystem | None = None,
 ):
     """Helper function to load configuration.
@@ -180,7 +180,7 @@ def save(
     project: bool = False,
     pipeline: bool = True,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | Munch = Munch(),
+    storage_options: dict | BaseStorageOptions | None = {},
 ):
     """Helper function to save configuration.
 
@@ -210,7 +210,7 @@ def init_config(
     pipeline_name: str | None = None,
     job_queue_type: str | None = None,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | Munch = Munch(),
+    storage_options: dict | BaseStorageOptions | None = {},
 ):
     """Initialize a new configuration with both project and pipeline settings.
 
