@@ -3,6 +3,17 @@
 ## [0.10.1] - 2025-04-29
 
 ### Changes
+- Update version to 0.10.0, add retry configuration, and enhance job queue handling
+- Update README.md
+- fixing imports
+- fixing imports
+- Refactor job queue imports and conditionally import backends based on availability
+
+
+
+## [0.10.1] - 2025-04-29
+
+### Changes
 - Bump version to 0.10.1, clean up code formatting, and remove unnecessary whitespace
 
 
