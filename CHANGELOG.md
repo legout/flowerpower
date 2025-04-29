@@ -1,5 +1,65 @@
 # Changelog
 
+## [1.0.0b2] - 2025-04-29
+
+### Changes
+- Bump version to v1.0.0b2
+- Bump version to v1.0.0b1
+- Added new README.md
+- Refactor code structure for improved readability and maintainability - added a new `plugin` folder - mqtt is not a plugin (moved  `mqtt` into  `plugin`) - Added pipeline retry functionality
+- feat: Add 'repomix-output.md' to .gitignore to exclude generated output files
+- fix: Correct parameter name from 'worker_type' to 'job_queue_type' in PipelineRegistry
+- feat: Update YAML configurations and improve CLI help documentation
+- Refactor code structure and remove redundant code blocks for improved readability and maintainability
+- feat: Enhance worker and scheduler cli with additional functionality and improved documentation
+- feat: Enhance configuration management and CLI for FlowerPower
+- updated deps
+- Refactor code for improved readability and consistency
+- Refactor code structure for improved readability and maintainability
+- Enhance storage options management with detailed documentation and new features
+- Refactor code structure for improved readability and maintainability
+- feat: Add GeventWorker and ThreadWorker for concurrent job processing
+- Add cron-descriptor and croniter packages; update dependencies
+- Refactor PipelineManager and related components for improved logging and configuration handling
+- Refactor PipelineScheduler and PipelineVisualizer for improved configuration handling
+- Enhance PipelineRunner with context management and logging improvements
+- refactor: Update worker configuration to use ProjectConfig and enhance logging setup
+- Refactor logging setup and configuration
+- refactor: Enhance pipeline and configuration structure, add new executor and adapter functionalities
+- Refactor code structure for improved readability and maintainability
+- refactor: Update project configuration to use PostgreSQL and enhance worker settings
+- Refactor pipeline configuration and worker classes
+- refactor: Enable port exposure for various services in docker-compose.yml
+- Refactored docker-compose.yml and added a python-dev-worker container
+- refactor: Correct JupyterCode references in nginx configuration and enhance docker-compose documentation
+- refactor: Update configuration files and backend setup for improved clarity and consistency
+- refactor: Simplify PipelineManager and PipelineRegistry methods for improved clarity and organization
+- Refactor pipeline configuration and I/O management
+- refactor: Clean up imports and update type hints across pipeline modules
+- Refactor code for improved readability and consistency
+- fix: Update storage_options type hint to support None in PipelineManager methods
+- refactor: Update import paths for Pipeline and SchedulerManager to improve module organization
+- feat: Add PipelineRunner, Scheduler, and Visualizer for enhanced pipeline management
+- Refactor RQBackend job result methods
+- feat: Add parameter resolution method and lazy worker instantiation in PipelineManager
+- Implement code changes to enhance functionality and improve performance
+- Refactor code structure for improved readability and maintainability
+- feat: Remove unused example pipeline and script files; refactor worker configuration handling
+- feat: Introduce APScheduler backend configuration and refactor worker classes
+- Refactor: Remove TUI implementation and update worker backend type handling
+- feat: Add worker example scripts and enhance backend configuration options
+- feat: Refactor and optimize worker and backend code for clarity, robustness, and security
+- feat: Implement Huey backend with trigger classes and worker integration
+- Refactor worker and backend classes for improved structure and functionality
+- feat: Enhance worker management with start/stop pool methods and refactor client usage
+- chore: Update .gitignore to exclude all database files
+- Implement RQ backend for FlowerPower scheduler
+- feat: Implement base scheduler interface and RQ backend for FlowerPower
+- Refactor APScheduler setup: move datastore and event broker implementations to separate modules
+- Refactor configuration management and remove unused modules
+
+
+
 ## [0.9.13.1] - 2025-04-28
 
 ### Changes
