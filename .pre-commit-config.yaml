@@ -17,6 +17,6 @@ repos:
         entry: .github/hooks/version-hook.sh
         language: script
         pass_filenames: false
-        stages: [push]  # Run on push, not commit
+        stages: [pre-push]  # Run on push, not commit
         always_run: true
         verbose: true
