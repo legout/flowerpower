@@ -6,7 +6,7 @@ warnings.warn(
     stacklevel=2,
 )
 
-from flowerpower.plugins.mqtt import (MqttConfig, MqttManager,  # noqa: E402
-                                      MQTTManager)
+from flowerpower.plugins.mqtt import MqttManager  # noqa: E402
+from flowerpower.plugins.mqtt import MqttConfig, MQTTManager
 
 __all__ = ["MqttConfig", "MqttManager", "MQTTManager"]
