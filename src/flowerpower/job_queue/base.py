@@ -12,13 +12,13 @@ import urllib.parse
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Empty
+from typing import Any, TypeVar
 import importlib
 if importlib.util.find_spec("sqlalchemy"):
     from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 else:
     create_async_engine = None
-    AsyncEngine = Empty
+    AsyncEngine = TypeVar("AsyncEngine")
 
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
