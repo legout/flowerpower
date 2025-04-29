@@ -4,10 +4,11 @@ import posixpath
 from pathlib import Path
 
 import rich
+
+from . import settings
+from .cfg import ProjectConfig
 from .fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 
-from .cfg import ProjectConfig
-from . import settings
 
 def init(
     name: str | None = None,
@@ -27,8 +28,12 @@ def init(
         base_dir = str(Path.cwd())
 
     if fs is None:
-        fs = get_filesystem(posixpath.join(base_dir, name), cached=True, dirfs=True, storage_options=storage_options)
-    
+        fs = get_filesystem(
+            posixpath.join(base_dir, name),
+            cached=True,
+            dirfs=True,
+            storage_options=storage_options,
+        )
 
     fs.makedirs(f"{cfg_dir}/pipelines", exist_ok=True)
     fs.makedirs(pipelines_dir, exist_ok=True)

@@ -1,6 +1,6 @@
 import msgspec
 
-from ...fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
+from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .job_queue import JobQueueConfig
@@ -71,7 +71,9 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=False, dirfs=True, storage_options=storage_options)
+            fs = get_filesystem(
+                base_dir, cached=False, dirfs=True, storage_options=storage_options
+            )
         if fs.exists("conf/project.yml"):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
@@ -101,7 +103,9 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
+            fs = get_filesystem(
+                base_dir, cached=True, dirfs=True, storage_options=storage_options
+            )
 
         fs.makedirs("conf", exist_ok=True)
         self.to_yaml(path="conf/project.yml", fs=fs)

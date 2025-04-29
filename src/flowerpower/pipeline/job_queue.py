@@ -10,13 +10,13 @@ from uuid import UUID
 from loguru import logger
 from rich import print as rprint
 
+from .. import settings
 # Import necessary config types
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
-from ..utils.logging import setup_logging
 from ..job_queue import JobQueueManager
+from ..utils.logging import setup_logging
 from .registry import PipelineRegistry
-from .. import settings
 
 setup_logging()
 
@@ -116,7 +116,6 @@ class PipelineJobQueue:
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
 
-       
         pipeline_run_args = {
             # 'name' is not passed to run_func, it's part of the context already in PipelineRunner
             "inputs": inputs,
@@ -332,7 +331,7 @@ class PipelineJobQueue:
 
         # --- Resolve Parameters using pipeline_cfg for defaults ---
         schedule_cfg = pipeline_cfg.schedule
-        #run_cfg = pipeline_cfg.run
+        # run_cfg = pipeline_cfg.run
 
         pipeline_run_args = {
             "inputs": inputs,

@@ -5,6 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
 from uuid import UUID
+
 import duration_parser
 from loguru import logger
 from munch import Munch
@@ -22,9 +23,9 @@ from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
-from .registry import PipelineRegistry, HookType
-from .runner import PipelineRunner, run_pipeline
 from .job_queue import PipelineJobQueue
+from .registry import HookType, PipelineRegistry
+from .runner import PipelineRunner, run_pipeline
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -416,7 +417,6 @@ class PipelineManager:
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
-
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -495,7 +495,7 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            #reload=reload,  # Runner handles module reload if needed
+            # reload=reload,  # Runner handles module reload if needed
             log_level=log_level,
             max_retries=max_retries,
             retry_delay=retry_delay,
@@ -649,7 +649,7 @@ class PipelineManager:
             >>>
             >>> manager = PipelineManager()
             >>> manager.show_pipelines()
-           
+
         """
         self.registry.show_pipelines()
 
@@ -706,21 +706,25 @@ class PipelineManager:
             ml_pipeline: streaming
         """
         return self.registry.summary
-    
+
     def add_hook(
-            self, name:str, type:HookType, to:str|None, function_name:str|None,
-    )->None:
+        self,
+        name: str,
+        type: HookType,
+        to: str | None,
+        function_name: str | None,
+    ) -> None:
         """Add a hook to the pipeline module.
-        
+
         Args:
             name (str): The name of the pipeline
             type (HookType): The type of the hook.
             to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
             function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
-            
+
         Returns:
             None
-        
+
         Raises:
             ValueError: If the hook type is not valid
 
@@ -734,7 +738,7 @@ class PipelineManager:
             ...     to="pre_execute_hook",
             ...     function_name="my_pre_execute_function"
             ... )
-            """
+        """
         self.registry.add_hook(
             name=name,
             type=type,
@@ -1206,7 +1210,7 @@ class PipelineManager:
             retry_delay (float): Delay between retries in seconds.
             jitter_factor (float): Random jitter factor to add to retry delay
             retry_exceptions (tuple): Exceptions that trigger a retry.
-            
+
             **kwargs: JobQueue-specific arguments
                 For RQ:
                     - queue_name: Queue to use (str)
@@ -1252,7 +1256,7 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            #reload=reload,
+            # reload=reload,
             log_level=log_level,
             max_retries=max_retries,
             retry_delay=retry_delay,
@@ -1277,7 +1281,7 @@ class PipelineManager:
         log_level: str | None = None,
         result_ttl: int | dt.timedelta = 0,
         run_at: dt.datetime | str | None = None,
-        run_in: dt.datetime |  str | None = None,
+        run_in: dt.datetime | str | None = None,
         max_retries: int = 3,
         retry_delay: float = 1.0,
         jitter_factor: float = 0.1,
@@ -1345,9 +1349,12 @@ class PipelineManager:
 
         """
         run_func = self._get_run_func_for_job(name, reload)
-        run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in #convert to seconds
-        run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
-
+        run_in = (
+            duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
+        )  # convert to seconds
+        run_at = (
+            dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+        )
 
         return self.job_queue.add_job(
             run_func=run_func,
@@ -1362,7 +1369,7 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            #reload=reload,  # Note: reload already happened
+            # reload=reload,  # Note: reload already happened
             log_level=log_level,
             result_ttl=result_ttl,
             run_at=run_at,
@@ -1476,7 +1483,9 @@ class PipelineManager:
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         run_func = self._get_run_func_for_job(name, reload)
-        interval = duration_parser.parse(interval) if isinstance(interval, str) else interval
+        interval = (
+            duration_parser.parse(interval) if isinstance(interval, str) else interval
+        )
         date = dt.datetime.fromisoformat(date) if isinstance(date, str) else date
 
         return self.job_queue.schedule(
@@ -1583,4 +1592,3 @@ class PipelineManager:
         except Exception as e:
             logger.error(f"Failed to retrieve schedules: {e}")
             return []
-

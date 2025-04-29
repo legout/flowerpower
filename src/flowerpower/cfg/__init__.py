@@ -3,7 +3,7 @@ from pathlib import Path
 import msgspec
 from munch import Munch
 
-from ..fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
+from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
@@ -77,7 +77,9 @@ class Config(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
+            fs = get_filesystem(
+                base_dir, cached=True, dirfs=True, storage_options=storage_options
+            )
         project = ProjectConfig.load(
             base_dir=base_dir,
             name=name,

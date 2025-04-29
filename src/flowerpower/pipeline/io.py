@@ -275,7 +275,9 @@ class PipelineIOManager:
             raise ValueError(f"Pipeline {self.project_cfg.name}.{name} does not exist.")
 
         if dest_fs is None:
-            dest_fs = get_filesystem(dest_base_dir, storage_options=dest_storage_options)
+            dest_fs = get_filesystem(
+                dest_base_dir, storage_options=dest_storage_options
+            )
 
         # Define destination paths relative to base_dir
         dest_pipeline_file = posixpath.join(
