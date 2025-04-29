@@ -16,7 +16,7 @@ adapter:
     run_tags: {}
 params: {}
 run:
-  cache: {}
+  cache: false
   config: {}
   executor:
     max_workers: 40

@@ -11,6 +11,36 @@ from .schedule import ScheduleConfig
 
 
 class PipelineConfig(BaseConfig):
+    """Configuration class for managing pipeline settings in FlowerPower.
+
+    This class handles pipeline-specific configuration including run settings, scheduling,
+    parameters, and adapter settings. It supports Hamilton-style parameter configuration
+    and YAML serialization.
+
+    Attributes:
+        name (str | None): The name of the pipeline.
+        run (RunConfig): Configuration for pipeline execution.
+        schedule (ScheduleConfig): Configuration for pipeline scheduling.
+        params (dict): Pipeline parameters.
+        adapter (AdapterConfig): Configuration for the pipeline adapter.
+        h_params (dict): Hamilton-formatted parameters.
+
+    Example:
+        ```python
+        # Create a new pipeline config
+        pipeline = PipelineConfig(name="data-transform")
+
+        # Set parameters
+        pipeline.params = {
+            "input_path": "data/input",
+            "batch_size": 100
+        }
+
+        # Save configuration
+        pipeline.save(name="data-transform")
+        ```
+    """
+
     name: str | None = msgspec.field(default=None)
     run: RunConfig = msgspec.field(default_factory=RunConfig)
     schedule: ScheduleConfig = msgspec.field(default_factory=ScheduleConfig)
@@ -62,7 +92,26 @@ class PipelineConfig(BaseConfig):
 
     @staticmethod
     def to_h_params(d: dict) -> dict:
-        """Converts a dictionary of function arguments to Hamilton function parameters"""
+        """Convert a dictionary of parameters to Hamilton-compatible format.
+
+        This method transforms regular parameter dictionaries into Hamilton's function parameter
+        format, supporting nested parameters and source/value decorators.
+
+        Args:
+            d (dict): The input parameter dictionary.
+
+        Returns:
+            dict: Hamilton-formatted parameter dictionary.
+
+        Example:
+            ```python
+            params = {
+                "batch_size": 100,
+                "paths": {"input": "data/in", "output": "data/out"}
+            }
+            h_params = PipelineConfig.to_h_params(params)
+            ```
+        """
 
         def transform_recursive(val, original_dict, depth=1):
             if isinstance(val, dict):
@@ -97,8 +146,27 @@ class PipelineConfig(BaseConfig):
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
     ):
+        """Load pipeline configuration from a YAML file.
+
+        Args:
+            base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
+            name (str | None, optional): Pipeline name. Defaults to None.
+            fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
+            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+
+        Returns:
+            PipelineConfig: Loaded pipeline configuration.
+
+        Example:
+            ```python
+            pipeline = PipelineConfig.load(
+                base_dir="my_project",
+                name="data-pipeline"
+            )
+            ```
+        """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=False, dirfs=True, **storage_options)
         if fs.exists("conf/pipelines"):
             if name is not None:
                 pipeline = PipelineConfig.from_yaml(
@@ -120,6 +188,22 @@ class PipelineConfig(BaseConfig):
         fs: AbstractFileSystem | None = None,
         storage_options: dict | Munch = Munch(),
     ):
+        """Save pipeline configuration to a YAML file.
+
+        Args:
+            name (str | None, optional): Pipeline name. Defaults to None.
+            base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
+            fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
+            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+
+        Raises:
+            ValueError: If pipeline name is not set.
+
+        Example:
+            ```python
+            pipeline_config.save(name="data-pipeline", base_dir="my_project")
+            ```
+        """
         if fs is None:
             fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
 
@@ -134,3 +218,37 @@ class PipelineConfig(BaseConfig):
         self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
 
         setattr(self, "h_params", h_params)
+
+
+def init_pipeline_config(
+    base_dir: str = ".",
+    name: str | None = None,
+    fs: AbstractFileSystem | None = None,
+    storage_options: dict | Munch = Munch(),
+):
+    """Initialize a new pipeline configuration.
+
+    This function creates a new pipeline configuration and saves it to disk.
+
+    Args:
+        base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
+        name (str | None, optional): Pipeline name. Defaults to None.
+        fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
+        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+
+    Returns:
+        PipelineConfig: The initialized pipeline configuration.
+
+    Example:
+        ```python
+        pipeline = init_pipeline_config(
+            base_dir="my_project",
+            name="etl-pipeline"
+        )
+        ```
+    """
+    pipeline = PipelineConfig.load(
+        base_dir=base_dir, name=name, fs=fs, storage_options=storage_options
+    )
+    pipeline.save(name=name, base_dir=base_dir, fs=fs, storage_options=storage_options)
+    return pipeline

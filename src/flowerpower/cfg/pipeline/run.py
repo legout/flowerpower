@@ -1,5 +1,3 @@
-import os
-
 import msgspec
 from munch import munchify
 
@@ -27,10 +25,14 @@ class RunConfig(BaseConfig):
     inputs: dict | None = msgspec.field(default_factory=dict)
     final_vars: list[str] | None = msgspec.field(default_factory=list)
     config: dict | None = msgspec.field(default_factory=dict)
-    cache: dict | bool | None = msgspec.field(default_factory=dict)
+    cache: dict | bool | None = msgspec.field(default=False)
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     log_level: str | None = msgspec.field(default=None)
+    max_retries: int = msgspec.field(default=3)
+    retry_delay: int | float = msgspec.field(default=1)
+    jitter_factor: float | None = msgspec.field(default=0.1)
+    retry_exceptions: tuple[str] = msgspec.field(default_factory=lambda: ("Exception",))
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):

@@ -2,7 +2,7 @@ import datetime as dt
 import importlib
 import posixpath
 import uuid
-from typing import Generator, Any
+from typing import Any, Generator
 
 import orjson
 import pandas as pd
@@ -11,12 +11,8 @@ import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 
-from ..utils.misc import (
-    _dict_to_dataframe,
-    convert_large_types_to_standard,
-    run_parallel,
-    to_pyarrow_table,
-)
+from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
+                          run_parallel, to_pyarrow_table)
 from ..utils.polars import pl
 
 if importlib.util.find_spec("duckdb") is not None:
@@ -50,11 +46,11 @@ def path_to_glob(path: str, format: str | None = None) -> str:
         >>> # Basic directory
         >>> path_to_glob("data", "json")
         'data/**/*.json'
-        >>> 
+        >>>
         >>> # With wildcards
         >>> path_to_glob("data/**", "csv")
         'data/**/*.csv'
-        >>> 
+        >>>
         >>> # Format inference
         >>> path_to_glob("data/file.parquet")
         'data/file.parquet'
@@ -106,7 +102,7 @@ def _read_json_file(
         >>> data = _read_json_file("data.json", fs)
         >>> print(type(data))
         <class 'dict'>
-        >>> 
+        >>>
         >>> # JSON Lines with filepath
         >>> data = _read_json_file(
         ...     "data.jsonl",
@@ -131,7 +127,7 @@ def read_json_file(
     self: AbstractFileSystem,
     path: str,
     include_file_path: bool = False,
-    jsonlines: bool = False
+    jsonlines: bool = False,
 ) -> dict | list[dict]:
     """Read a single JSON file from any filesystem.
 
@@ -154,7 +150,7 @@ def read_json_file(
         >>> data = fs.read_json_file("config.json")
         >>> print(data["setting"])
         'value'
-        >>> 
+        >>>
         >>> # Read JSON Lines with filepath
         >>> data = fs.read_json_file(
         ...     "logs.jsonl",
@@ -294,7 +290,7 @@ def _read_json_batches(
         ...     verbose=True
         ... ):
         ...     print(f"Batch shape: {batch.shape}")
-        >>> 
+        >>>
         >>> # Parallel batch processing with filepath tracking
         >>> for batch in fs._read_json_batches(
         ...     ["logs1.jsonl", "logs2.jsonl"],
@@ -343,7 +339,9 @@ def _read_json_batches(
             else:
                 batch_dfs = [
                     [
-                        pl.DataFrame(_data[k]).with_columns(pl.lit(k).alias("file_path"))
+                        pl.DataFrame(_data[k]).with_columns(
+                            pl.lit(k).alias("file_path")
+                        )
                         for k in _data
                     ][0]
                     for _data in batch_data
@@ -416,7 +414,7 @@ def read_json(
         ... )
         >>> print(df.shape)
         (1000, 5)  # Combined data from all files
-        >>> 
+        >>>
         >>> # Batch process large dataset
         >>> for batch_df in fs.read_json(
         ...     "logs/*.jsonl",
@@ -425,7 +423,7 @@ def read_json(
         ...     include_file_path=True
         ... ):
         ...     print(f"Processing {len(batch_df)} records")
-        >>> 
+        >>>
         >>> # Parallel read with custom options
         >>> dfs = fs.read_json(
         ...     ["file1.json", "file2.json"],
@@ -462,10 +460,7 @@ def read_json(
 
 
 def _read_csv_file(
-    path: str,
-    self: AbstractFileSystem,
-    include_file_path: bool = False,
-    **kwargs: Any
+    path: str, self: AbstractFileSystem, include_file_path: bool = False, **kwargs: Any
 ) -> pl.DataFrame:
     """Read a single CSV file from any filesystem.
 
@@ -600,7 +595,7 @@ def _read_csv_batches(
         ...     verbose=True
         ... ):
         ...     print(f"Batch columns: {batch.columns}")
-        >>> 
+        >>>
         >>> # Parallel processing without concatenation
         >>> for batch in fs._read_csv_batches(
         ...     ["file1.csv", "file2.csv"],
@@ -639,10 +634,7 @@ def _read_csv_batches(
         else:
             batch_dfs = [
                 _read_csv_file(
-                    p,
-                    self=self,
-                    include_file_path=include_file_path,
-                    **kwargs
+                    p, self=self, include_file_path=include_file_path, **kwargs
                 )
                 for p in batch_paths
             ]
@@ -662,7 +654,11 @@ def read_csv(
     use_threads: bool = True,
     verbose: bool = False,
     **kwargs: Any,
-) -> pl.DataFrame | list[pl.DataFrame] | Generator[pl.DataFrame | list[pl.DataFrame], None, None]:
+) -> (
+    pl.DataFrame
+    | list[pl.DataFrame]
+    | Generator[pl.DataFrame | list[pl.DataFrame], None, None]
+):
     """Read CSV data from one or more files with powerful options.
 
     Provides a flexible interface for reading CSV files with support for:
@@ -698,7 +694,7 @@ def read_csv(
         ... )
         >>> print(df.columns)
         ['file_path', 'col1', 'col2', ...]
-        >>> 
+        >>>
         >>> # Batch process large dataset
         >>> for batch_df in fs.read_csv(
         ...     "logs/*.csv",
@@ -707,7 +703,7 @@ def read_csv(
         ...     verbose=True
         ... ):
         ...     print(f"Processing {len(batch_df)} rows")
-        >>> 
+        >>>
         >>> # Multiple files without concatenation
         >>> dfs = fs.read_csv(
         ...     ["file1.csv", "file2.csv"],
@@ -739,10 +735,7 @@ def read_csv(
 
 
 def _read_parquet_file(
-    path: str,
-    self: AbstractFileSystem,
-    include_file_path: bool = False,
-    **kwargs: Any
+    path: str, self: AbstractFileSystem, include_file_path: bool = False, **kwargs: Any
 ) -> pa.Table:
     """Read a single Parquet file from any filesystem.
 
@@ -889,7 +882,7 @@ def _read_parquet_batches(
         ...     "data/",  # Contains _metadata
         ...     batch_size=1000
         ... ))
-        >>> 
+        >>>
         >>> # Parallel batch processing
         >>> for batch in fs._read_parquet_batches(
         ...     fs,
@@ -914,10 +907,7 @@ def _read_parquet_batches(
 
     if not isinstance(path, list):
         yield _read_parquet_file(
-            path=path,
-            self=self,
-            include_file_path=include_file_path,
-            **kwargs
+            path=path, self=self, include_file_path=include_file_path, **kwargs
         )
         return
 
@@ -938,10 +928,7 @@ def _read_parquet_batches(
         else:
             batch_tables = [
                 _read_parquet_file(
-                    p,
-                    self=self,
-                    include_file_path=include_file_path,
-                    **kwargs
+                    p, self=self, include_file_path=include_file_path, **kwargs
                 )
                 for p in batch_paths
             ]
@@ -1004,7 +991,7 @@ def read_parquet(
         ... )
         >>> print(table.column_names)
         ['file_path', 'col1', 'col2', ...]
-        >>> 
+        >>>
         >>> # Batch process large dataset
         >>> for batch in fs.read_parquet(
         ...     "data/*.parquet",
@@ -1012,7 +999,7 @@ def read_parquet(
         ...     use_threads=True
         ... ):
         ...     print(f"Processing {batch.num_rows} rows")
-        >>> 
+        >>>
         >>> # Read from directory with metadata
         >>> table = fs.read_parquet(
         ...     "data/",  # Contains _metadata
@@ -1058,7 +1045,9 @@ def read_files(
     | pa.Table
     | list[pl.DataFrame]
     | list[pa.Table]
-    | Generator[pl.DataFrame | pa.Table | list[pl.DataFrame] | list[pa.Table], None, None]
+    | Generator[
+        pl.DataFrame | pa.Table | list[pl.DataFrame] | list[pa.Table], None, None
+    ]
 ):
     """Universal interface for reading data files of any supported format.
 
@@ -1102,7 +1091,7 @@ def read_files(
         ... )
         >>> print(type(df))
         <class 'polars.DataFrame'>
-        >>> 
+        >>>
         >>> # Batch process Parquet files
         >>> for batch in fs.read_files(
         ...     "data/*.parquet",
@@ -1111,7 +1100,7 @@ def read_files(
         ...     use_threads=True
         ... ):
         ...     print(f"Batch type: {type(batch)}")
-        >>> 
+        >>>
         >>> # Read JSON Lines
         >>> df = fs.read_files(
         ...     "logs/*.jsonl",
@@ -1226,7 +1215,7 @@ def pyarrow_dataset(
         >>> # Simple Parquet dataset
         >>> ds = fs.pyarrow_dataset("data/")
         >>> print(ds.schema)
-        >>> 
+        >>>
         >>> # Partitioned dataset
         >>> ds = fs.pyarrow_dataset(
         ...     "events/",
@@ -1236,7 +1225,7 @@ def pyarrow_dataset(
         >>> table = ds.to_table(
         ...     filter=(ds.field("year") == 2024)
         ... )
-        >>> 
+        >>>
         >>> # CSV with schema
         >>> ds = fs.pyarrow_dataset(
         ...     "logs/",
@@ -1292,7 +1281,7 @@ def pyarrow_parquet_dataset(
         >>> # Dataset with _metadata
         >>> ds = fs.pyarrow_parquet_dataset("data/_metadata")
         >>> print(ds.files)  # Shows all data files
-        >>> 
+        >>>
         >>> # Partitioned dataset directory
         >>> ds = fs.pyarrow_parquet_dataset(
         ...     "sales/",
@@ -1350,14 +1339,14 @@ def pydala_dataset(
         ...     "data/",
         ...     partitioning=["date"]
         ... )
-        >>> 
+        >>>
         >>> # Write with delta support
         >>> ds.write_to_dataset(
         ...     new_data,
         ...     mode="delta",
         ...     delta_subset=["id"]
         ... )
-        >>> 
+        >>>
         >>> # Read with metadata
         >>> df = ds.to_polars()
         >>> print(df.columns)
@@ -1381,7 +1370,7 @@ def write_parquet(
 
     Handles writing data from multiple input formats to Parquet with:
     - Automatic conversion to PyArrow
-    - Schema validation/coercion 
+    - Schema validation/coercion
     - Metadata collection
     - Compression and encoding options
 
@@ -1416,7 +1405,7 @@ def write_parquet(
         ...     compression_level=3
         ... )
         >>> print(f"Rows: {metadata.num_rows}")
-        >>> 
+        >>>
         >>> # Write with schema
         >>> schema = pa.schema([
         ...     ("id", pa.int64()),
@@ -1441,7 +1430,13 @@ def write_parquet(
 
 def write_json(
     self: AbstractFileSystem,
-    data: dict | pl.DataFrame | pl.LazyFrame | pa.Table | pd.DataFrame | dict | list[dict],
+    data: dict
+    | pl.DataFrame
+    | pl.LazyFrame
+    | pa.Table
+    | pd.DataFrame
+    | dict
+    | list[dict],
     path: str,
     append: bool = False,
 ) -> None:
@@ -1464,13 +1459,13 @@ def write_json(
         >>> # Write dictionary
         >>> data = {"name": "test", "values": [1, 2, 3]}
         >>> fs.write_json(data, "config.json")
-        >>> 
+        >>>
         >>> # Stream records
         >>> df1 = pl.DataFrame({"id": [1], "value": ["first"]})
         >>> df2 = pl.DataFrame({"id": [2], "value": ["second"]})
         >>> fs.write_json(df1, "stream.jsonl", append=False)
         >>> fs.write_json(df2, "stream.jsonl", append=True)
-        >>> 
+        >>>
         >>> # Convert PyArrow
         >>> table = pa.table({"a": [1, 2], "b": ["x", "y"]})
         >>> fs.write_json(table, "data.json")
@@ -1534,7 +1529,7 @@ def write_csv(
         ...     "name": ["item_" + str(i) for i in range(100)]
         ... })
         >>> fs.write_csv(df, "items.csv")
-        >>> 
+        >>>
         >>> # Append records
         >>> new_items = pl.DataFrame({
         ...     "id": range(100, 200),
@@ -1546,7 +1541,7 @@ def write_csv(
         ...     append=True,
         ...     header=False
         ... )
-        >>> 
+        >>>
         >>> # Custom formatting
         >>> data = pa.table({
         ...     "date": [datetime.now()],

@@ -1,9 +1,9 @@
 import datetime as dt
-from munch import munchify
+
 import msgspec
+from munch import munchify
 
 from ..base import BaseConfig
-
 
 # class ScheduleCronTriggerConfig(BaseConfig):
 #     year: str | int | None = None
@@ -50,7 +50,7 @@ from ..base import BaseConfig
 
 class ScheduleConfig(BaseConfig):
     cron: str | dict | None = msgspec.field(default=None)
-    interval: str | int | dict |None = msgspec.field(default=None)
+    interval: str | int | dict | None = msgspec.field(default=None)
     date: str | None = msgspec.field(default=None)
 
     def __post_init__(self):

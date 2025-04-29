@@ -20,7 +20,7 @@ params:
   spend_zero_mean:
     offset: 0
 run:
-  cache: {}
+  cache: false
   config: 
     range: 10_000
   executor:

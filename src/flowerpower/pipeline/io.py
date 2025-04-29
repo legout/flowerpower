@@ -10,7 +10,7 @@ import posixpath
 from rich.console import Console
 
 # Import necessary config types and utility functions
-from ..fs.base import BaseStorageOptions, get_filesystem, AbstractFileSystem
+from ..fs.base import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from .registry import PipelineRegistry
 
 console = Console()

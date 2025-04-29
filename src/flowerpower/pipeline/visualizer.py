@@ -6,9 +6,10 @@ from rich import print
 
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
+from ..fs import AbstractFileSystem
 from ..utils.misc import view_img
 from .base import load_module  # Import module loading utility
-from ..fs import AbstractFileSystem
+
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
@@ -19,7 +20,7 @@ class PipelineVisualizer:
 
         Args:
             project_cfg: The project configuration object.
-            fs: The filesystem instance.    
+            fs: The filesystem instance.
         """
         self.project_cfg = project_cfg
         self._fs = fs
@@ -27,11 +28,11 @@ class PipelineVisualizer:
 
     def _display_all_function(self, name: str, reload: bool = False):
         """Internal helper to load module/config and get the Hamilton DAG object.
-        
+
         Args:
             name (str): The name of the pipeline.
             reload (bool): Whether to reload the module.
-            
+
         Returns:
             Hamilton DAG object.
 
@@ -40,9 +41,7 @@ class PipelineVisualizer:
 
         """
         # Load pipeline-specific config
-        pipeline_cfg = PipelineConfig.load(
-            name=name, fs=self._fs
-        )
+        pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
 
         # Load the pipeline module
         # Ensure the pipelines directory is in sys.path (handled by PipelineManager usually)
@@ -133,7 +132,7 @@ class PipelineVisualizer:
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
-            >>> visualizer.show_dag(name="example_pipeline", format="png")  
+            >>> visualizer.show_dag(name="example_pipeline", format="png")
         """
         dag = self._display_all_function(name=name, reload=reload)
         if raw:
