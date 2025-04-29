@@ -1,32 +1,44 @@
 # -*- coding: utf-8 -*-
 """Pipeline Registry for discovery, listing, creation, and deletion."""
-
+import os
 import datetime as dt
-from loguru import logger
 import posixpath
 from typing import TYPE_CHECKING
 
 import rich
+from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
+from .. import settings
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
-
 from ..fs import AbstractFileSystem
-
 from ..utils.logging import setup_logging
-from .. import settings
-
 # Assuming view_img might be used indirectly or needed later
-from ..utils.templates import PIPELINE_PY_TEMPLATE
+from ..utils.templates import PIPELINE_PY_TEMPLATE, HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 if TYPE_CHECKING:
     # Keep this for type hinting if needed elsewhere, though Config is imported directly now
     pass
+
+from enum import Enum
+
+class HookType(str, Enum):
+    MQTT_BUILD_CONFIG = "mqtt-build-config"
+
+    def default_function_name(self) -> str:
+        match self.value:
+            case HookType.MQTT_BUILD_CONFIG:
+                return self.value.replace("-", "_")
+            case _:
+                return self.value
+
+    def __str__(self) -> str:
+        return self.value
 
 setup_logging(level=settings.LOG_LEVEL)
 
@@ -64,7 +76,7 @@ class PipelineRegistry:
         Args:
             name (str): The name of the pipeline.
             overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
-            worker_type (str | None): The type of worker to use. Defaults to None.
+            job_queue_type (str | None): The type of worker to use. Defaults to None.
 
         Raises:
             ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
@@ -431,9 +443,12 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append(
-                {"name": name, "path": path, "mod_time": mod_time, "size": size}
-            )
+            pipeline_info.append({
+                "name": name,
+                "path": path,
+                "mod_time": mod_time,
+                "size": size,
+            })
 
         if show:
             table = Table(title="Available Pipelines")
@@ -498,3 +513,48 @@ class PipelineRegistry:
             ```
         """
         return self._all_pipelines(show=False)
+
+    def add_hook(self, name: str, type: HookType, to: str | None = None, function_name: str|None = None):
+        """
+        Add a hook to the pipeline module.
+
+        Args:
+            name (str): The name of the pipeline
+            type (HookType): The type of the hook.
+            to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
+            function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
+
+        Returns:
+            None
+
+        Examples:
+            ```python
+            pm = PipelineManager()
+            pm.add_hook(HookType.PRE_EXECUTE)
+            ```
+        """
+
+        
+        if to is None:
+            to = f"hooks/{name}/hook.py"
+        else:
+            to = f"hooks/{name}/{to}"
+
+        match type:
+            case HookType.MQTT_BUILD_CONFIG:
+                template = HOOK_TEMPLATE__MQTT_BUILD_CONFIG
+
+        if function_name is None:
+            function_name = type.default_function_name()
+
+        if not self._fs.exists(to):
+            self._fs.makedirs(os.path.dirname(to), exist_ok=True)
+
+        with self._fs.open(to, "a") as f:
+            f.write(
+                template.format(
+                function_name=function_name
+                )
+            )
+
+        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")    

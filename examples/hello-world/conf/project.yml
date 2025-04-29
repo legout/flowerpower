@@ -33,7 +33,7 @@ worker:
     cleanup_interval: 300
     max_concurrent_jobs: 10
     default_job_executor: threadpool
-    num_workers: 10
+    num_workers: 100
 adapter:
   hamilton_tracker:
     username: null

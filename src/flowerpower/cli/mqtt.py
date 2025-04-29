@@ -1,6 +1,6 @@
 import typer
 import sys
-from ..mqtt import (
+from ..plugins.mqtt import (
     start_listener as start_listener_,
     run_pipeline_on_message as run_pipeline_on_message_,
 )
@@ -78,8 +78,15 @@ def run_pipeline_on_message(
     client_id: str | None = None,
     client_id_suffix: str | None = None,
     config_hook: str | None = None,
+    max_retries: int = typer.Option(3, help="Maximum number of retry attempts if pipeline execution fails"),
+    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
+    jitter_factor: float = typer.Option(0.1, help="Random factor (0-1) applied to delay for jitter"),
 ):
     """Run a pipeline on a message
+
+    This command sets up an MQTT listener that executes a pipeline whenever a message is 
+    received on the specified topic. The pipeline can be configured to retry on failure
+    using exponential backoff with jitter for better resilience.
 
     Args:
         name: Name of the pipeline
@@ -98,6 +105,27 @@ def run_pipeline_on_message(
         port: MQTT broker port
         username: MQTT broker username
         password: MQTT broker password
+        clean_session: Whether to start a clean session with the broker
+        qos: MQTT Quality of Service level (0, 1, or 2)
+        client_id: Custom MQTT client identifier
+        client_id_suffix: Optional suffix to append to client_id
+        config_hook: Function to process incoming messages into pipeline config
+        max_retries: Maximum number of retry attempts if pipeline execution fails
+        retry_delay: Base delay between retries in seconds
+        jitter_factor: Random factor (0-1) applied to delay for jitter
+
+    Examples:
+        # Basic usage with a specific topic
+        $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic sensors/data
+        
+        # Configure retries for resilience
+        $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic sensors/data --max-retries 5 --retry-delay 2.0
+        
+        # Run as a job with custom MQTT settings
+        $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic events/process --as-job --qos 2 --host mqtt.example.com
+        
+        # Use a config hook to process messages
+        $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic data/incoming --config-hook process_message
 
 
     """
@@ -134,4 +162,7 @@ def run_pipeline_on_message(
         client_id=client_id,
         client_id_suffix=client_id_suffix,
         config_hook=config_hook_function,
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        jitter_factor=jitter_factor,
     )

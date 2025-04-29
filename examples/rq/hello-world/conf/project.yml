@@ -1,5 +1,5 @@
-name: null
-worker:
+name: rq
+job_queue:
   type: rq
   backend:
     type: redis
@@ -19,7 +19,7 @@ worker:
     - high
     - low
     - scheduler
-    num_workers: 8
+    num_workers: 10
 adapter:
   hamilton_tracker:
     username: null
