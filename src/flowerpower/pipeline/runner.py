@@ -392,6 +392,14 @@ class PipelineRunner:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
+        max_retries: int | None= None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None= None,
+        retry_exceptions: tuple = (
+            Exception,
+            HTTPError,
+            UnauthorizedException,
+        ),
     ) -> dict[str, Any]:
         """
         Run the pipeline with the given parameters.
@@ -421,36 +429,79 @@ class PipelineRunner:
             setup_logging(level=log_level or self.pipeline_cfg.run.log_level)
 
         logger.info(f"Starting pipeline {self.project_cfg.name}.{self.name}")
-        # Load the module and get the driver
-        dr, shutdown = self._get_driver(
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=reload,
-        )
+
         final_vars = final_vars or self.pipeline_cfg.run.final_vars
         inputs = {
             **(self.pipeline_cfg.run.inputs or {}),
             **(inputs or {}),
         }  # <-- inputs override and/or extend config inputs
 
-        res = dr.execute(final_vars=final_vars, inputs=inputs)
-        self.end_time = dt.datetime.now()
-        self.execution_time = self.end_time - self.start_time
-        logger.success(
-            f"Finished: Pipeline {self.project_cfg.name}.{self.name} executed in {humanize.naturaldelta(self.execution_time)}"
-        )
+        max_retries = max_retries or self.pipeline_cfg.run.max_retries
+        retry_delay = retry_delay or self.pipeline_cfg.run.retry_delay
+        jitter_factor = jitter_factor or self.pipeline_cfg.run.jitter_factor
+        retry_exceptions = retry_exceptions or self.pipeline_cfg.run.retry_exceptions
 
-        if shutdown is not None:
-            logger.info("Shutting down executor...")
-            shutdown()
-            logger.info("Executor shut down.")
+        attempts = 1
+        last_exception = None
 
-        return res
+        while attempts <= max_retries:
+            logger.debug(f"Attempting to execute pipeline {attempts}/{max_retries}")
+            try:
+                dr, shutdown = self._get_driver(
+                    config=config,
+                    cache=cache,
+                    executor_cfg=executor_cfg,
+                    with_adapter_cfg=with_adapter_cfg,
+                    pipeline_adapter_cfg=pipeline_adapter_cfg,
+                    project_adapter_cfg=project_adapter_cfg,
+                    adapter=adapter,
+                    reload=reload,
+                )
+                
+
+                res = dr.execute(final_vars=final_vars, inputs=inputs)
+                self.end_time = dt.datetime.now()
+                self.execution_time = self.end_time - self.start_time
+                logger.success(
+                    f"Finished: Pipeline {self.project_cfg.name}.{self.name} executed in {humanize.naturaldelta(self.execution_time)}"
+                )
+
+                if shutdown is not None:
+                    logger.info("Shutting down executor...")
+                    shutdown()
+                    logger.info("Executor shut down.")
+
+                return res
+            except retry_exceptions as e:
+                if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException):
+                    if with_adapter_cfg["hamilton_tracker"]:
+                        logger.info("Hamilton Tracker is enabled. Disabling tracker for this run.")
+                        with_adapter_cfg["hamilton_tracker"] = False
+
+                attempts += 1
+                last_exception = e
+
+                if attempts <= max_retries:
+                    logger.warning(
+                        f"Pipeline execution failed (attempt {attempts}/{max_retries}): {e}"
+                    )
+
+                    # Calculate base delay with exponential backoff
+                    base_delay = retry_delay * (2 ** (attempts - 1))
+
+                    # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
+                    jitter = base_delay * jitter_factor * (2 * random.random() - 1)
+                    actual_delay = max(0, base_delay + jitter)  # Ensure non-negative delay
+
+                    logger.debug(
+                        f"Retrying in {actual_delay:.2f} seconds (base: {base_delay:.2f}s, jitter: {jitter:.2f}s)"
+                    )
+                    time.sleep(actual_delay)
+                else:
+                    # Last attempt failed
+                    logger.error(f"Pipeline execution failed after {max_retries} attempts")
+                    raise last_exception
+
 
 
 def run_pipeline(
@@ -509,51 +560,22 @@ def run_pipeline(
     Raises:
         Exception: If the pipeline execution fails after the maximum number of retries.
     """
-    attempts = 0
-    last_exception = None
-
-    while attempts <= max_retries:
-        try:
-            with PipelineRunner(project_cfg, pipeline_cfg) as runner:
-                return runner.run(
-                    inputs=inputs,
-                    final_vars=final_vars,
-                    config=config,
-                    cache=cache,
-                    executor_cfg=executor_cfg,
-                    with_adapter_cfg=with_adapter_cfg,
-                    pipeline_adapter_cfg=pipeline_adapter_cfg,
-                    project_adapter_cfg=project_adapter_cfg,
-                    adapter=adapter,
-                    reload=reload,
-                    log_level=log_level,
-                )
-        except retry_exceptions as e:
-            if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException):
-                if with_adapter_cfg["tracker"]:
-                    logger.info("Tracker is enabled. Disabling tracker for this run.")
-                    with_adapter_cfg["tracker"] = False
-
-            attempts += 1
-            last_exception = e
-
-            if attempts <= max_retries:
-                logger.warning(
-                    f"Pipeline execution failed (attempt {attempts}/{max_retries}): {e}"
-                )
-
-                # Calculate base delay with exponential backoff
-                base_delay = retry_delay * (2 ** (attempts - 1))
-
-                # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
-                jitter = base_delay * jitter_factor * (2 * random.random() - 1)
-                actual_delay = max(0, base_delay + jitter)  # Ensure non-negative delay
-
-                logger.debug(
-                    f"Retrying in {actual_delay:.2f} seconds (base: {base_delay:.2f}s, jitter: {jitter:.2f}s)"
-                )
-                time.sleep(actual_delay)
-            else:
-                # Last attempt failed
-                logger.error(f"Pipeline execution failed after {max_retries} attempts")
-                raise last_exception
+    
+    with PipelineRunner(project_cfg, pipeline_cfg) as runner:
+        return runner.run(
+            inputs=inputs,
+            final_vars=final_vars,
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+            reload=reload,
+            log_level=log_level,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
+        )
