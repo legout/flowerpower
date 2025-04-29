@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0b3] - 2025-04-29
+
+### Changes
+- Add project configuration and update job queue management
+
+
+
 ## [1.0.0b2] - 2025-04-29
 
 ### Changes
