@@ -456,7 +456,7 @@ class MqttManager:
 
                 if any([k in config_ for k in config.keys()]):
                     logger.warning("Config from hook overwrites config from pipeline")
-                    
+
                 config.update(config_)
                 logger.debug(f"Config after update: {config}")
 
