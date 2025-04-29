@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.2] - 2025-04-29
+
+### Changes
+- Bump to version v0.10.2
+- Refactor: Update pre-commit hook stages and clean up mqtt import statements
+- refactor
+- Refactor: Remove unnecessary blank lines and add deprecation warning for mqtt module
+- Update version to 0.10.0, add retry configuration, and enhance job queue handling
+- Update README.md
+- fixing imports
+- fixing imports
+- Refactor job queue imports and conditionally import backends based on availability
+
+
+
 ## [0.10.1] - 2025-04-29
 
 ### Changes
