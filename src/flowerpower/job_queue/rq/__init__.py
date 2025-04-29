@@ -1,6 +1,6 @@
+from .manager import RQManager
 from .setup import RQBackend
 from .utils import show_jobs, show_schedules
-from .manager import RQManager
 
 __all__ = [
     "RQManager",

@@ -8,6 +8,7 @@ import datetime as dt
 import importlib.util
 from typing import Any, Callable
 from uuid import UUID
+
 import duration_parser
 from fsspec.spec import AbstractFileSystem
 from loguru import logger
@@ -181,11 +182,13 @@ class APSManager(BaseJobQueueManager):
                     sqla_engine=data_store.sqla_engine
                 )
             else:
-                event_broker = APSEventBroker(**{
-                    k: v
-                    for k, v in self.cfg.backend.event_broker.to_dict().items()
-                    if k != "from_ds_sqla"
-                })
+                event_broker = APSEventBroker(
+                    **{
+                        k: v
+                        for k, v in self.cfg.backend.event_broker.to_dict().items()
+                        if k != "from_ds_sqla"
+                    }
+                )
             self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
 
         logger.info(
@@ -375,7 +378,9 @@ class APSManager(BaseJobQueueManager):
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
 
-        run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+        run_at = (
+            dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+        )
         run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
 
         if run_in:

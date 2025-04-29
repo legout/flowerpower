@@ -11,6 +11,7 @@ import sys
 import time
 import uuid
 from typing import Any, Callable
+
 import duration_parser
 from cron_descriptor import get_description
 from humanize import precisedelta
@@ -658,7 +659,9 @@ class RQManager(BaseJobQueueManager):
         queue = self._queues[queue_name]
         if run_at:
             # Schedule the job to run at a specific time
-            run_at = dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+            run_at = (
+                dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
+            )
             job = queue.enqueue_at(
                 run_at,
                 func,
@@ -677,8 +680,14 @@ class RQManager(BaseJobQueueManager):
             )
         elif run_in:
             # Schedule the job to run after a delay
-            run_in = duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
-            run_in = dt.timedelta(seconds=run_in) if isinstance(run_in, (int, float)) else run_in
+            run_in = (
+                duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
+            )
+            run_in = (
+                dt.timedelta(seconds=run_in)
+                if isinstance(run_in, (int, float))
+                else run_in
+            )
             job = queue.enqueue_in(
                 run_in,
                 func,

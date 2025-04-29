@@ -3,8 +3,7 @@ from typing import Any
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from deltalake.table import (ColumnProperties, CommitProperties,
-                             PostCommitHookProperties)
+from deltalake.table import ColumnProperties, CommitProperties, PostCommitHookProperties
 from deltalake.writer import WriterProperties, write_deltalake
 from redis import Redis, StrictRedis
 from sherlock import RedisLock

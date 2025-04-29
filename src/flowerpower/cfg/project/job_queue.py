@@ -6,7 +6,6 @@ from ... import settings
 from ..base import BaseConfig
 
 
-
 class JobQueueBackendConfig(BaseConfig):
     """
     Job Queue backend configuration for FlowerPower.
@@ -30,39 +29,27 @@ class JobQueueBackendConfig(BaseConfig):
 class APSDataStoreConfig(JobQueueBackendConfig):
     type: str = msgspec.field(default=settings.APS_BACKEND_DS)
     host: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
-            "default_host"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS]["default_host"]
     )
     port: int = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
-            "default_port"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS]["default_port"]
     )
     schema: str | None = msgspec.field(default=settings.APS_SCHEMA_DS)
     username: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS][
-            "default_username"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_DS]["default_username"]
     )
 
 
 class APSEventBrokerConfig(JobQueueBackendConfig):
     type: str = msgspec.field(default=settings.APS_BACKEND_EB)
     host: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
-            "default_host"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB]["default_host"]
     )
     port: int = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
-            "default_port"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB]["default_port"]
     )
     username: str = msgspec.field(
-        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB][
-            "default_username"
-        ]
+        default=settings.BACKEND_PROPERTIES[settings.APS_BACKEND_EB]["default_username"]
     )
     from_ds_sqla: bool = msgspec.field(
         default_factory=lambda: settings.APS_BACKEND_EB == "postgresql"
@@ -78,9 +65,7 @@ class APSBackendConfig(BaseConfig):
     cleanup_interval: int | float | dt.timedelta = msgspec.field(
         default=settings.APS_CLEANUP_INTERVAL
     )  # int in secods
-    max_concurrent_jobs: int = msgspec.field(
-        default=settings.APS_MAX_CONCURRENT_JOBS
-    )
+    max_concurrent_jobs: int = msgspec.field(default=settings.APS_MAX_CONCURRENT_JOBS)
     default_job_executor: str | None = msgspec.field(default=settings.EXECUTOR)
     num_workers: int | None = msgspec.field(default=settings.APS_NUM_WORKERS)
 
@@ -96,12 +81,8 @@ class RQBackendConfig(JobQueueBackendConfig):
     database: int = msgspec.field(
         default=settings.BACKEND_PROPERTIES["redis"]["default_database"]
     )
-    queues: str | list[str] = msgspec.field(
-        default_factory=lambda: settings.RQ_QUEUES
-    )
-    num_workers: int = msgspec.field(
-        default=settings.RQ_NUM_WORKERS
-    )  # int in secods
+    queues: str | list[str] = msgspec.field(default_factory=lambda: settings.RQ_QUEUES)
+    num_workers: int = msgspec.field(default=settings.RQ_NUM_WORKERS)  # int in secods
 
 
 class HueyBackendConfig(JobQueueBackendConfig):
@@ -129,7 +110,7 @@ class JobQueueConfig(BaseConfig):
                         )
             elif self.type == "apscheduler":
                 if self.backend is None:
-                    self.backend = APSBackendConfig( )
+                    self.backend = APSBackendConfig()
                 else:
                     if isinstance(self.backend, dict):
                         self.backend = APSBackendConfig.from_dict(self.backend)

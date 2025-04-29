@@ -4,20 +4,20 @@ import socket
 import time
 from pathlib import Path
 from types import TracebackType
-from typing import Callable, Any
+from typing import Any, Callable
 
 import mmh3
 from loguru import logger
 from munch import Munch
 from paho.mqtt.client import CallbackAPIVersion, Client
 
-from .cfg import MqttConfig
 from ...cfg import ProjectConfig
 from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ...cfg.project.adapter import AdapterConfig
+from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
-from ...fs import get_filesystem, AbstractFileSystem, BaseStorageOptions
+from .cfg import MqttConfig
 
 setup_logging()
 
@@ -89,28 +89,37 @@ class MqttManager:
         else:
             event_broker_cfg = jq_backend.event_broker
             return cls(
-               **event_broker_cfg.dict(),
+                **event_broker_cfg.dict(),
             )
 
     @classmethod
-    def from_config(cls, cfg: MqttConfig | None=None, path: str | None = None, fs: AbstractFileSystem | None = None, storage_options: dict | BaseStorageOptions = {}):
+    def from_config(
+        cls,
+        cfg: MqttConfig | None = None,
+        path: str | None = None,
+        fs: AbstractFileSystem | None = None,
+        storage_options: dict | BaseStorageOptions = {},
+    ):
         if cfg is None:
             if path is None:
                 raise ValueError(
                     "No configuration provided. Please provide `config` or `path` to the configuration file."
                 )
-            
+
         if cfg is None:
             import os
+
             if fs is None:
-                fs = get_filesystem(path=os.path.dirname(path), storage_options=storage_options)
+                fs = get_filesystem(
+                    path=os.path.dirname(path), storage_options=storage_options
+                )
 
             cfg = MqttConfig.from_yaml(path=os.path.basename(path), fs=fs)
 
         return cls(
             **cfg.dict(),
         )
-    
+
     @classmethod
     def from_dict(cls, cfg: dict):
         return cls(
@@ -344,8 +353,6 @@ class MqttManager:
         self._client.loop_stop()
         logger.info("Client stopped.")
 
-    
-
     def run_pipeline_on_message(
         self,
         name: str,
@@ -447,12 +454,9 @@ class MqttManager:
                 config_ = config_hook(inputs["payload"], inputs["topic"])
                 logger.debug(f"Config from hook: {config_}")
                 if any([k in config_ for k in config.keys()]):
-                    logger.warning(
-                        "Config from hook overwrites config from pipeline"
-                    )
+                    logger.warning("Config from hook overwrites config from pipeline")
                 config.update(config_)
                 logger.debug(f"Config after update: {config}")
-                
 
             with PipelineManager(
                 storage_options=storage_options, fs=fs, base_dir=base_dir
@@ -478,7 +482,7 @@ class MqttManager:
                             retry_delay=retry_delay,
                             jitter_factor=jitter_factor,
                             retry_exceptions=retry_exceptions,
-                            **kwargs,  
+                            **kwargs,
                         )
                     else:
                         pipeline.run(
@@ -564,7 +568,7 @@ def start_listener(
     Raises:
         ValueError: If the config_hook is not callable
         ValueError: If no client configuration is found
-    
+
     Example:
         ```python
         from flowerpower.plugins.mqtt import start_listener
@@ -596,7 +600,6 @@ def start_listener(
                 client_id_suffix=client_id_suffix,
                 config_hook=config_hook,
                 **kwargs,
-                
             )
         else:
             raise ValueError(
@@ -605,7 +608,9 @@ def start_listener(
                 "configured in the `config/project.yml` file."
             )
 
-    client.start_listener(on_message=on_message, topic=topic, background=background, qos=qos)
+    client.start_listener(
+        on_message=on_message, topic=topic, background=background, qos=qos
+    )
 
 
 def run_pipeline_on_message(
@@ -688,7 +693,7 @@ def run_pipeline_on_message(
 
     Returns:
         None
-    
+
     Raises:
         ValueError: If the config_hook is not callable
         ValueError: If no client configuration is found
@@ -723,9 +728,8 @@ def run_pipeline_on_message(
                 clean_session=clean_session,
                 client_id=client_id,
                 client_id_suffix=client_id_suffix,
-                config_hook=config_hook,                
+                config_hook=config_hook,
                 **kwargs,
-                
             )
         else:
             raise ValueError(
@@ -785,5 +789,3 @@ def run_pipeline_on_message(
         config_hook=config_hook,
         **kwargs,
     )
-
-

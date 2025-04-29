@@ -2,10 +2,11 @@
 """Pipeline Runner."""
 
 from __future__ import annotations
-import time
-import random
+
 import datetime as dt
 import importlib.util
+import random
+import time
 from typing import Any, Callable
 
 import humanize
@@ -14,11 +15,9 @@ from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 from hamilton_sdk.api.clients import UnauthorizedException
-
 from requests.exceptions import HTTPError
 
 from .. import settings
-
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
