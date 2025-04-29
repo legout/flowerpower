@@ -1,11 +1,11 @@
 from typing import Any, Optional
 
+from ..cfg.project import ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
 from .apscheduler import APSBackend, APSManager
 from .base import BaseBackend, BaseJobQueueManager
 from .rq import RQBackend, RQManager
-from ..cfg.project import ProjectConfig
 
 setup_logging()
 
@@ -49,7 +49,7 @@ class JobQueueManager:
 
     def __new__(
         cls,
-        type: str |None = None,
+        type: str | None = None,
         name: str | None = None,
         base_dir: str | None = ".",
         backend: BaseBackend | None = None,
@@ -108,8 +108,12 @@ class JobQueueManager:
         """
         if type is None:
             type = ProjectConfig.load(
-                base_dir=base_dir, name=name, fs=fs, storage_options=storage_options or {}).job_queue.type
-            
+                base_dir=base_dir,
+                name=name,
+                fs=fs,
+                storage_options=storage_options or {},
+            ).job_queue.type
+
         if type == "rq":
             return RQManager(
                 name=name,
@@ -130,7 +134,7 @@ class JobQueueManager:
                 log_level=log_level,
                 **kwargs,
             )
-        
+
         else:
             raise ValueError(
                 f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
@@ -245,7 +249,7 @@ __all__ = [
     "JobQueueManager",
     "RQManager",
     "APSManager",
-    #"HueyWorker",
+    # "HueyWorker",
     "Backend",
     "RQBackend",
     "APSBackend",

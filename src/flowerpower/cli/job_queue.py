@@ -1,31 +1,49 @@
 import typer
+from loguru import logger
+
 from .. import settings
 from ..job_queue import JobQueueManager  # Adjust import as needed
-from .utils import  parse_dict_or_list_param 
 from ..utils.logging import setup_logging
-from loguru import logger
+from .utils import parse_dict_or_list_param
 
 # Create a Typer app for job queue management commands
 app = typer.Typer(help="Job queue management commands")
 
-setup_logging(
-    level=settings.LOG_LEVEL)
+setup_logging(level=settings.LOG_LEVEL)
+
 
 @app.command()
 def start_worker(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    background: bool = typer.Option(False, "--background", "-b", help="Run the worker in the background"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
-    num_workers: int | None = typer.Option(None, "--num-workers", "-n", help="Number of worker processes to start (pool mode)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the worker in the background"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
+    num_workers: int | None = typer.Option(
+        None,
+        "--num-workers",
+        "-n",
+        help="Number of worker processes to start (pool mode)",
+    ),
 ):
     """
     Start a worker or worker pool to process jobs.
 
     This command starts a worker process (or a pool of worker processes) that will
-    execute jobs from the queue. The worker will continue running until stopped 
+    execute jobs from the queue. The worker will continue running until stopped
     or can be run in the background.
 
     Args:
@@ -56,35 +74,50 @@ def start_worker(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if num_workers:
             num_workers = worker.cfg.backend.num_workers
 
         if num_workers and num_workers > 1:
-            worker.start_worker_pool(
-                num_workers=num_workers, background=background
-            )
+            worker.start_worker_pool(num_workers=num_workers, background=background)
         else:
-            worker.start_worker(
-                background=background
-            )
+            worker.start_worker(background=background)
+
 
 @app.command()
 def start_scheduler(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    background: bool = typer.Option(False, "--background", "-b", help="Run the scheduler in the background"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
-    interval: int = typer.Option(60, "--interval", "-i", help="Interval for checking jobs in seconds (RQ only)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the scheduler in the background"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
+    interval: int = typer.Option(
+        60, "--interval", "-i", help="Interval for checking jobs in seconds (RQ only)"
+    ),
 ):
     """
     Start the scheduler process for queued jobs.
-    
+
     This command starts a scheduler that manages queued jobs and scheduled tasks.
-    Note that this is only needed for RQ workers, as APScheduler workers have 
+    Note that this is only needed for RQ workers, as APScheduler workers have
     their own built-in scheduler.
 
     Args:
@@ -112,12 +145,18 @@ def start_scheduler(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if worker.cfg.backend.type != "rq":
-            logger.info(f"No scheduler needed for {worker.cfg.backend.type} workers. Skipping.")
+            logger.info(
+                f"No scheduler needed for {worker.cfg.backend.type} workers. Skipping."
+            )
             return
-        
+
         worker.start_scheduler(background=background, interval=interval)
 
 
@@ -151,7 +190,7 @@ def start_scheduler(
 #         if worker.cfg.backend.type != "rq":
 #             logger.info(f"Job cancellation is not supported for {worker.cfg.backend.type} workers. Skipping.")
 #             return
-        
+
 #         worker.cancel_all_jobs(queue_name=queue_name)
 
 # @app.command()
@@ -181,22 +220,38 @@ def start_scheduler(
 #     ) as worker:
 #         worker.cancel_all_schedules()
 
+
 @app.command()
 def cancel_job(
     job_id: str = typer.Argument(..., help="ID of the job to cancel"),
-    all: bool = typer.Option(False, "--all", "-a", help="Cancel all jobs instead of a specific one"),
-    queue_name: str | None = typer.Option(None, help="Name of the queue (RQ only). If provided with --all, cancels all jobs in the queue"),
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    all: bool = typer.Option(
+        False, "--all", "-a", help="Cancel all jobs instead of a specific one"
+    ),
+    queue_name: str | None = typer.Option(
+        None,
+        help="Name of the queue (RQ only). If provided with --all, cancels all jobs in the queue",
+    ),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Cancel a job or multiple jobs in the queue.
 
     This command stops a job from executing (if it hasn't started yet) or signals
-    it to stop (if already running). Canceling is different from deleting as it 
+    it to stop (if already running). Canceling is different from deleting as it
     maintains the job history but prevents execution.
 
     Args:
@@ -215,27 +270,39 @@ def cancel_job(
 
         # Cancel all jobs in the default queue
         $ flowerpower job-queue cancel-job --all dummy-id
-        
+
         # Cancel all jobs in a specific queue (RQ only)
         $ flowerpower job-queue cancel-job --all dummy-id --queue-name high-priority
-        
+
         # Specify the backend type explicitly
         $ flowerpower job-queue cancel-job job-123456 --type rq
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if worker.cfg.backend.type != "rq":
-            logger.info(f"Job cancellation is not supported for {worker.cfg.backend.type} workers. Skipping.")
+            logger.info(
+                f"Job cancellation is not supported for {worker.cfg.backend.type} workers. Skipping."
+            )
             return
         if all:
-            count = worker.cancel_all_jobs(queue_name=queue_name if worker.cfg.backend.type == "rq" else None)
-            logger.info(f"Cancelled {count} jobs" + (f" in queue '{queue_name}'" if queue_name else ""))
+            count = worker.cancel_all_jobs(
+                queue_name=queue_name if worker.cfg.backend.type == "rq" else None
+            )
+            logger.info(
+                f"Cancelled {count} jobs"
+                + (f" in queue '{queue_name}'" if queue_name else "")
+            )
         else:
             worker.cancel_job(job_id)
             logger.info(f"Job {job_id} cancelled")
+
 
 @app.command()
 def cancel_schedule(
@@ -264,12 +331,17 @@ def cancel_schedule(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if all:
             worker.cancel_all_schedules()
         else:
             worker.cancel_schedule(schedule_id)
+
 
 # @app.command()
 # def delete_all_jobs(
@@ -322,6 +394,7 @@ def cancel_schedule(
 #     ) as worker:
 #         worker.delete_all_schedules()
 
+
 @app.command()
 def delete_job(
     job_id: str,
@@ -349,13 +422,19 @@ def delete_job(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if all:
-            worker.delete_all_jobs(queue_name=queue_name if worker.cfg.backend.type == "rq" else None)
+            worker.delete_all_jobs(
+                queue_name=queue_name if worker.cfg.backend.type == "rq" else None
+            )
         else:
             worker.delete_job(job_id)
-        
+
 
 @app.command()
 def delete_schedule(
@@ -382,12 +461,17 @@ def delete_schedule(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if all:
             worker.delete_all_schedules()
         else:
             worker.delete_schedule(schedule_id)
+
 
 # @app.command()
 # def get_job(
@@ -522,13 +606,24 @@ def delete_schedule(
 #     ) as worker:
 #         worker.show_schedules()
 
+
 @app.command()
 def show_job_ids(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Show all job IDs in the job queue.
@@ -559,7 +654,11 @@ def show_job_ids(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         # worker's job_ids property will print the IDs
         ids = worker.job_ids
@@ -574,16 +673,26 @@ def show_job_ids(
 
 @app.command()
 def show_schedule_ids(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Show all schedule IDs in the job queue.
 
-    This command displays all schedule IDs currently in the system, helping you 
+    This command displays all schedule IDs currently in the system, helping you
     identify schedules for other operations like pausing, resuming, or deleting schedules.
 
     Args:
@@ -609,7 +718,11 @@ def show_schedule_ids(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         # worker's schedule_ids property will print the IDs
         ids = worker.schedule_ids
@@ -620,6 +733,7 @@ def show_schedule_ids(
         elif not isinstance(ids, type(None)):  # Check if None was returned
             for schedule_id in ids:
                 print(f"- {schedule_id}")
+
 
 # @app.command()
 # def pause_all_schedules(
@@ -650,21 +764,34 @@ def show_schedule_ids(
 #             return
 #         worker.pause_all_schedules()
 
+
 @app.command()
 def pause_schedule(
     schedule_id: str = typer.Argument(..., help="ID of the schedule to pause"),
-    all: bool = typer.Option(False, "--all", "-a", help="Pause all schedules instead of a specific one"),
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    all: bool = typer.Option(
+        False, "--all", "-a", help="Pause all schedules instead of a specific one"
+    ),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Pause a schedule or multiple schedules.
 
     This command temporarily stops a scheduled job from running while maintaining its
-    configuration. Paused schedules can be resumed later. Note that this functionality 
+    configuration. Paused schedules can be resumed later. Note that this functionality
     is only available for APScheduler workers.
 
     Args:
@@ -682,17 +809,23 @@ def pause_schedule(
 
         # Pause all schedules
         $ flowerpower job-queue pause-schedule --all dummy-id
-        
+
         # Specify the backend type explicitly
         $ flowerpower job-queue pause-schedule schedule-123456 --type apscheduler
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if worker.cfg.backend.type != "apscheduler":
-            logger.info(f"Schedule pausing is not supported for {worker.cfg.backend.type} workers.")
+            logger.info(
+                f"Schedule pausing is not supported for {worker.cfg.backend.type} workers."
+            )
             return
         if all:
             count = worker.pause_all_schedules()
@@ -734,21 +867,34 @@ def pause_schedule(
 #             return
 #         worker.resume_all_schedules()
 
+
 @app.command()
 def resume_schedule(
     schedule_id: str = typer.Argument(..., help="ID of the schedule to resume"),
-    all: bool = typer.Option(False, "--all", "-a", help="Resume all schedules instead of a specific one"),
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    all: bool = typer.Option(
+        False, "--all", "-a", help="Resume all schedules instead of a specific one"
+    ),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Resume a paused schedule or multiple schedules.
 
     This command restarts previously paused schedules, allowing them to run again according
-    to their original configuration. Note that this functionality is only available for 
+    to their original configuration. Note that this functionality is only available for
     APScheduler workers.
 
     Args:
@@ -766,20 +912,26 @@ def resume_schedule(
 
         # Resume all schedules
         $ flowerpower job-queue resume-schedule --all dummy-id
-        
+
         # Specify the backend type explicitly
         $ flowerpower job-queue resume-schedule schedule-123456 --type apscheduler
-        
+
         # Set a specific logging level
         $ flowerpower job-queue resume-schedule schedule-123456 --log-level debug
     """
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         if worker.cfg.backend.type != "apscheduler":
-            logger.info(f"Schedule resuming is not supported for {worker.cfg.backend.type} workers.")
+            logger.info(
+                f"Schedule resuming is not supported for {worker.cfg.backend.type} workers."
+            )
             return
         if all:
             count = worker.resume_all_schedules()
@@ -791,14 +943,27 @@ def resume_schedule(
             else:
                 logger.error(f"Failed to resume schedule {schedule_id}")
 
+
 @app.command()
 def show_jobs(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    queue_name: str | None = typer.Option(None, help="Name of the queue to show jobs from (RQ only)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    queue_name: str | None = typer.Option(
+        None, help="Name of the queue to show jobs from (RQ only)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
     format: str = typer.Option("table", help="Output format (table, json, yaml)"),
 ):
     """
@@ -832,17 +997,32 @@ def show_jobs(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         worker.show_jobs(queue_name=queue_name, format=format)
 
+
 @app.command()
 def show_schedules(
-    type: str | None = typer.Option(None, help="Type of job queue backend (rq, apscheduler)"),
-    name: str | None = typer.Option(None, help="Name of the scheduler configuration to use"),
-    base_dir: str | None = typer.Option(None, help="Base directory for the scheduler configuration"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON or key=value pairs"),
-    log_level: str = typer.Option("info", help="Logging level (debug, info, warning, error, critical)"),
+    type: str | None = typer.Option(
+        None, help="Type of job queue backend (rq, apscheduler)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
     format: str = typer.Option("table", help="Output format (table, json, yaml)"),
 ):
     """
@@ -872,7 +1052,10 @@ def show_schedules(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
 
     with JobQueueManager(
-        type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
     ) as worker:
         worker.show_schedules(format=format)
-

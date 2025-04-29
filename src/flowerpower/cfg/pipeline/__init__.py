@@ -3,7 +3,7 @@ import yaml
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
-from ...fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
+from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .run import RunConfig
@@ -166,7 +166,9 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=False, dirfs=True, storage_options=storage_options)
+            fs = get_filesystem(
+                base_dir, cached=False, dirfs=True, storage_options=storage_options
+            )
         if fs.exists("conf/pipelines"):
             if name is not None:
                 pipeline = PipelineConfig.from_yaml(
@@ -205,7 +207,9 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
+            fs = get_filesystem(
+                base_dir, cached=True, dirfs=True, storage_options=storage_options
+            )
 
         fs.makedirs("conf/pipelines", exist_ok=True)
         if name is not None:
