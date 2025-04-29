@@ -3,7 +3,7 @@ import yaml
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
-from ...fs import AbstractFileSystem, get_filesystem
+from ...fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .run import RunConfig
@@ -144,7 +144,7 @@ class PipelineConfig(BaseConfig):
         base_dir: str = ".",
         name: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Load pipeline configuration from a YAML file.
 
@@ -166,7 +166,7 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=False, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=False, dirfs=True, storage_options=storage_options)
         if fs.exists("conf/pipelines"):
             if name is not None:
                 pipeline = PipelineConfig.from_yaml(
@@ -186,7 +186,7 @@ class PipelineConfig(BaseConfig):
         name: str | None = None,
         base_dir: str = ".",
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Save pipeline configuration to a YAML file.
 
@@ -205,7 +205,7 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
 
         fs.makedirs("conf/pipelines", exist_ok=True)
         if name is not None:
@@ -224,7 +224,7 @@ def init_pipeline_config(
     base_dir: str = ".",
     name: str | None = None,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | Munch = Munch(),
+    storage_options: dict | BaseStorageOptions | None = {},
 ):
     """Initialize a new pipeline configuration.
 

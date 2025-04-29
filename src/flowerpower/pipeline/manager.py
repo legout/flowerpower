@@ -748,7 +748,7 @@ class PipelineManager:
         name: str,
         base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: BaseStorageOptions | None = None,
+        storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Import a pipeline from another FlowerPower project.
@@ -807,7 +807,7 @@ class PipelineManager:
         pipelines: dict[str, str] | list[str],
         base_dir: str,  # Base dir for source if pipelines is a list
         src_fs: AbstractFileSystem | None = None,
-        src_storage_options: BaseStorageOptions | None = None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Import multiple pipelines from another project or location.
@@ -867,7 +867,7 @@ class PipelineManager:
         self,
         base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        src_storage_options: BaseStorageOptions | None = None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Import all pipelines from another FlowerPower project.
@@ -911,7 +911,7 @@ class PipelineManager:
         name: str,
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Export a pipeline to another location or project.
@@ -970,7 +970,7 @@ class PipelineManager:
         pipelines: list[str],
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Export multiple pipelines to another location.
@@ -1024,7 +1024,7 @@ class PipelineManager:
         self,
         base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Export all pipelines to another location.

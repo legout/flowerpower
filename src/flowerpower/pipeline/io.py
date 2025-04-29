@@ -40,7 +40,7 @@ class PipelineIOManager:
         name: str,
         src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        src_storage_options: BaseStorageOptions | None = None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """
@@ -66,7 +66,7 @@ class PipelineIOManager:
             ```
         """
         if src_fs is None:
-            src_fs = get_filesystem(src_base_dir, **(src_storage_options or {}))
+            src_fs = get_filesystem(src_base_dir, storage_options=src_storage_options)
 
         # Use project_cfg attributes for destination paths and filesystem
         dest_pipeline_file = posixpath.join(
@@ -124,7 +124,7 @@ class PipelineIOManager:
         pipelines: dict[str, str] | list[str],
         src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        src_storage_options: BaseStorageOptions | None = None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """
@@ -173,7 +173,7 @@ class PipelineIOManager:
         self,
         src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        src_storage_options: BaseStorageOptions | None = None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """Import all pipelines from a given path.
@@ -199,7 +199,7 @@ class PipelineIOManager:
             ```
         """
         if not src_fs:
-            src_fs = get_filesystem(src_base_dir, **(src_storage_options or {}))
+            src_fs = get_filesystem(src_base_dir, storage_options=src_storage_options)
 
         console.print(f"🔍 Search pipelines in [green]{src_base_dir}[/green]...")
 
@@ -241,7 +241,7 @@ class PipelineIOManager:
         name: str,
         dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        des_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """
@@ -275,7 +275,7 @@ class PipelineIOManager:
             raise ValueError(f"Pipeline {self.project_cfg.name}.{name} does not exist.")
 
         if dest_fs is None:
-            dest_fs = get_filesystem(dest_base_dir, **(des_storage_options or {}))
+            dest_fs = get_filesystem(dest_base_dir, storage_options=dest_storage_options)
 
         # Define destination paths relative to base_dir
         dest_pipeline_file = posixpath.join(
@@ -318,7 +318,7 @@ class PipelineIOManager:
         pipelines: list[str],
         dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """
@@ -361,7 +361,7 @@ class PipelineIOManager:
         self,
         dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: BaseStorageOptions | None = None,
+        dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ):
         """Export all pipelines to a given path.

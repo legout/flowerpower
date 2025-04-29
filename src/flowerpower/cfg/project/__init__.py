@@ -1,7 +1,6 @@
 import msgspec
-from munch import Munch
 
-from ...fs import AbstractFileSystem, get_filesystem
+from ...fs import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .job_queue import JobQueueConfig
@@ -48,7 +47,7 @@ class ProjectConfig(BaseConfig):
         name: str | None = None,
         job_queue_type: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Load project configuration from a YAML file.
 
@@ -72,7 +71,7 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=False, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=False, dirfs=True, storage_options=storage_options)
         if fs.exists("conf/project.yml"):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
@@ -87,7 +86,7 @@ class ProjectConfig(BaseConfig):
         self,
         base_dir: str = ".",
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | Munch = Munch(),
+        storage_options: dict | BaseStorageOptions | None = {},
     ):
         """Save project configuration to a YAML file.
 
@@ -102,7 +101,7 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(base_dir, cached=True, dirfs=True, **storage_options)
+            fs = get_filesystem(base_dir, cached=True, dirfs=True, storage_options=storage_options)
 
         fs.makedirs("conf", exist_ok=True)
         self.to_yaml(path="conf/project.yml", fs=fs)
@@ -113,7 +112,7 @@ def init_project_config(
     name: str | None = None,
     job_queue_type: str | None = None,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | Munch = Munch(),
+    storage_options: dict | BaseStorageOptions | None = {},
 ):
     """Initialize a new project configuration.
 
