@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0b4] - 2025-04-29
+
+### Changes
+- Bump version to v1.0.0b4
+- Refactor imports and formatting across multiple modules
+- Refactor imports and improve code formatting across multiple modules
+
+
+
 ## [1.0.0b3] - 2025-04-29
 
 ### Changes
