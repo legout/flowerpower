@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1] - 2025-04-29
+
+### Changes
+- Bump version to 0.10.1, clean up code formatting, and remove unnecessary whitespace
+
+
+
 ## [0.10.0] - 2025-04-29
 
 ### Changes
