@@ -1,11 +1,20 @@
 from typing import Any, Optional
-
+import importlib
 from ..cfg.project import ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
-from .apscheduler import APSBackend, APSManager
+if importlib.util.find_spec("apscheduler"):
+    from .apscheduler import APSBackend, APSManager
+else:
+    APSBackend = None
+    APSManager = None
+if importlib.util.find_spec("rq"):
+    from .rq import RQBackend, RQManager
+else:
+    RQBackend = None
+    RQManager = None
 from .base import BaseBackend, BaseJobQueueManager
-from .rq import RQBackend, RQManager
+
 
 setup_logging()
 
@@ -114,7 +123,7 @@ class JobQueueManager:
                 storage_options=storage_options or {},
             ).job_queue.type
 
-        if type == "rq":
+        if type == "rq" and RQManager is not None:
             return RQManager(
                 name=name,
                 base_dir=base_dir,
@@ -124,7 +133,7 @@ class JobQueueManager:
                 log_level=log_level,
                 **kwargs,
             )
-        elif type == "apscheduler":
+        elif type == "apscheduler" and APSManager is not None:
             return APSManager(
                 name=name,
                 base_dir=base_dir,
@@ -235,9 +244,9 @@ class Backend:
             )
             ```
         """
-        if job_queue_type == "rq":
+        if job_queue_type == "rq" and RQBackend is not None:
             return RQBackend(**kwargs)
-        elif job_queue_type == "apscheduler":
+        elif job_queue_type == "apscheduler" and APSBackend is not None:
             return APSBackend(**kwargs)
         else:
             raise ValueError(
