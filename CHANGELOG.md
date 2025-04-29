@@ -3,6 +3,13 @@
 ## [1.0.0b3] - 2025-04-29
 
 ### Changes
+- Refactor imports and improve code formatting across multiple modules
+
+
+
+## [1.0.0b3] - 2025-04-29
+
+### Changes
 - Add project configuration and update job queue management
 
 
