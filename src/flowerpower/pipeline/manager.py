@@ -230,12 +230,17 @@ class PipelineManager:
             >>> run_func = manager._get_run_func_for_job("data_pipeline")
             >>> result = run_func(inputs={"date": "2025-04-28"})
         """
-        if name == self._current_pipeline_name and not reload and hasattr(self, "_runner"):
+        if (
+            name == self._current_pipeline_name
+            and not reload
+            and hasattr(self, "_runner")
+        ):
             return self._runner.run
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        self._runner = PipelineRunner(project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
+        self._runner = PipelineRunner(
+            project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
+        )
         return self._runner.run
-        
 
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path.
@@ -484,7 +489,7 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        #pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        # pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
         run_func = self._get_run_func_for_job(name=name, reload=reload)
         res = run_func(
             inputs=inputs,
@@ -1150,7 +1155,6 @@ class PipelineManager:
             name=name, format=format, reload=reload, raw=raw
         )
 
-
     def run_job(
         self,
         name: str,
@@ -1238,7 +1242,7 @@ class PipelineManager:
         """
         run_func = self._get_run_func_for_job(name=name, reload=reload)
         return self.job_queue.run_job(
-            #run_func=run_func,
+            # run_func=run_func,
             run_func=run_func,
             name=name,
             inputs=inputs,

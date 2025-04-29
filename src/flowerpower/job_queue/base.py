@@ -6,6 +6,7 @@ that can be implemented by different backend providers (APScheduler, RQ, etc.).
 """
 
 import abc
+import importlib
 import posixpath
 import sys
 import urllib.parse
@@ -13,9 +14,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, TypeVar
-import importlib
+
 if importlib.util.find_spec("sqlalchemy"):
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+    from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 else:
     create_async_engine = None
     AsyncEngine = TypeVar("AsyncEngine")

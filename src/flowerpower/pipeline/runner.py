@@ -392,9 +392,9 @@ class PipelineRunner:
         adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
-        max_retries: int | None= None,
+        max_retries: int | None = None,
         retry_delay: float | None = None,
-        jitter_factor: float | None= None,
+        jitter_factor: float | None = None,
         retry_exceptions: tuple = (
             Exception,
             HTTPError,
@@ -457,7 +457,6 @@ class PipelineRunner:
                     adapter=adapter,
                     reload=reload,
                 )
-                
 
                 res = dr.execute(final_vars=final_vars, inputs=inputs)
                 self.end_time = dt.datetime.now()
@@ -475,7 +474,9 @@ class PipelineRunner:
             except retry_exceptions as e:
                 if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException):
                     if with_adapter_cfg["hamilton_tracker"]:
-                        logger.info("Hamilton Tracker is enabled. Disabling tracker for this run.")
+                        logger.info(
+                            "Hamilton Tracker is enabled. Disabling tracker for this run."
+                        )
                         with_adapter_cfg["hamilton_tracker"] = False
 
                 attempts += 1
@@ -491,7 +492,9 @@ class PipelineRunner:
 
                     # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
                     jitter = base_delay * jitter_factor * (2 * random.random() - 1)
-                    actual_delay = max(0, base_delay + jitter)  # Ensure non-negative delay
+                    actual_delay = max(
+                        0, base_delay + jitter
+                    )  # Ensure non-negative delay
 
                     logger.debug(
                         f"Retrying in {actual_delay:.2f} seconds (base: {base_delay:.2f}s, jitter: {jitter:.2f}s)"
@@ -499,9 +502,10 @@ class PipelineRunner:
                     time.sleep(actual_delay)
                 else:
                     # Last attempt failed
-                    logger.error(f"Pipeline execution failed after {max_retries} attempts")
+                    logger.error(
+                        f"Pipeline execution failed after {max_retries} attempts"
+                    )
                     raise last_exception
-
 
 
 def run_pipeline(
@@ -560,7 +564,7 @@ def run_pipeline(
     Raises:
         Exception: If the pipeline execution fails after the maximum number of retries.
     """
-    
+
     with PipelineRunner(project_cfg, pipeline_cfg) as runner:
         return runner.run(
             inputs=inputs,
