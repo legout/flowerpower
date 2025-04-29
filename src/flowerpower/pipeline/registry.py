@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Pipeline Registry for discovery, listing, creation, and deletion."""
-import os
+
 import datetime as dt
+import os
 import posixpath
 from typing import TYPE_CHECKING
 
@@ -14,18 +15,21 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .. import settings
+
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
+
 # Assuming view_img might be used indirectly or needed later
-from ..utils.templates import PIPELINE_PY_TEMPLATE, HOOK_TEMPLATE__MQTT_BUILD_CONFIG
+from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
 
 if TYPE_CHECKING:
     # Keep this for type hinting if needed elsewhere, though Config is imported directly now
     pass
 
 from enum import Enum
+
 
 class HookType(str, Enum):
     MQTT_BUILD_CONFIG = "mqtt-build-config"
@@ -39,6 +43,7 @@ class HookType(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
 
 setup_logging(level=settings.LOG_LEVEL)
 
@@ -443,12 +448,14 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append({
-                "name": name,
-                "path": path,
-                "mod_time": mod_time,
-                "size": size,
-            })
+            pipeline_info.append(
+                {
+                    "name": name,
+                    "path": path,
+                    "mod_time": mod_time,
+                    "size": size,
+                }
+            )
 
         if show:
             table = Table(title="Available Pipelines")
@@ -514,7 +521,13 @@ class PipelineRegistry:
         """
         return self._all_pipelines(show=False)
 
-    def add_hook(self, name: str, type: HookType, to: str | None = None, function_name: str|None = None):
+    def add_hook(
+        self,
+        name: str,
+        type: HookType,
+        to: str | None = None,
+        function_name: str | None = None,
+    ):
         """
         Add a hook to the pipeline module.
 
@@ -534,7 +547,6 @@ class PipelineRegistry:
             ```
         """
 
-        
         if to is None:
             to = f"hooks/{name}/hook.py"
         else:
@@ -551,10 +563,8 @@ class PipelineRegistry:
             self._fs.makedirs(os.path.dirname(to), exist_ok=True)
 
         with self._fs.open(to, "a") as f:
-            f.write(
-                template.format(
-                function_name=function_name
-                )
-            )
+            f.write(template.format(function_name=function_name))
 
-        rich.print(f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")    
+        rich.print(
+            f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}"
+        )

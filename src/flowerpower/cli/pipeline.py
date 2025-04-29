@@ -1,12 +1,14 @@
 # Import necessary libraries
+import datetime as dt
+
+import duration_parser
 import typer
 from loguru import logger
 from typing_extensions import Annotated
-import datetime as dt
-import duration_parser
+
 from ..pipeline.manager import HookType, PipelineManager
 from ..utils.logging import setup_logging
-from .utils import parse_dict_or_list_param#, parse_param_dict
+from .utils import parse_dict_or_list_param  # , parse_param_dict
 
 setup_logging()
 
@@ -16,18 +18,38 @@ app = typer.Typer(help="Pipeline management commands")
 @app.command()
 def run(
     name: str = typer.Argument(..., help="Name of the pipeline to run"),
-    executor: str | None = typer.Option(None, help="Executor to use for running the pipeline"),
+    executor: str | None = typer.Option(
+        None, help="Executor to use for running the pipeline"
+    ),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
-    inputs: str | None = typer.Option(None, help="Input parameters as JSON, dict string, or key=value pairs"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
     final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
-    config: str | None = typer.Option(None, help="Config for the hamilton pipeline executor"),
-    cache: str | None = typer.Option(None, help="Cache configuration as JSON or dict string"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
-    max_retries: int = typer.Option(0, help="Maximum number of retry attempts on failure"),
-    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
-    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
+    config: str | None = typer.Option(
+        None, help="Config for the hamilton pipeline executor"
+    ),
+    cache: str | None = typer.Option(
+        None, help="Cache configuration as JSON or dict string"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    with_adapter: str | None = typer.Option(
+        None, help="Adapter configuration as JSON or dict string"
+    ),
+    max_retries: int = typer.Option(
+        0, help="Maximum number of retry attempts on failure"
+    ),
+    retry_delay: float = typer.Option(
+        1.0, help="Base delay between retries in seconds"
+    ),
+    jitter_factor: float = typer.Option(
+        0.1, help="Random factor applied to delay for jitter (0-1)"
+    ),
 ):
     """
     Run a pipeline immediately.
@@ -68,10 +90,10 @@ def run(
 
         # Enable adapters for monitoring/tracking
         $ pipeline run my_pipeline --with-adapter '{"tracker": true, "opentelemetry": true}'
-        
+
         # Set a specific logging level
         $ pipeline run my_pipeline --log-level debug
-        
+
         # Configure automatic retries on failure
         $ pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
     """
@@ -82,18 +104,18 @@ def run(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
     parsed_with_adapter = parse_dict_or_list_param(with_adapter, "dict")
 
-    with PipelineManager( 
+    with PipelineManager(
         base_dir=base_dir,
-        storage_options=parsed_storage_options or {}, 
+        storage_options=parsed_storage_options or {},
         log_level=log_level,
     ) as manager:
-        _ = manager.run( 
+        _ = manager.run(
             name=name,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
             config=parsed_config,
             cache=parsed_cache,
-            executor_cfg=executor, 
+            executor_cfg=executor,
             with_adapter_cfg=parsed_with_adapter,
             max_retries=max_retries,
             retry_delay=retry_delay,
@@ -105,23 +127,43 @@ def run(
 @app.command()
 def run_job(
     name: str = typer.Argument(..., help="Name or ID of the pipeline job to run"),
-    executor: str | None = typer.Option(None, help="Executor to use for running the job"),
+    executor: str | None = typer.Option(
+        None, help="Executor to use for running the job"
+    ),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
-    inputs: str | None = typer.Option(None, help="Input parameters as JSON, dict string, or key=value pairs"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
     final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
-    config: str | None = typer.Option(None, help="Config for the hamilton pipeline executor"),
-    cache: str | None = typer.Option(None, help="Cache configuration as JSON or dict string"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
-    max_retries: int = typer.Option(0, help="Maximum number of retry attempts on failure"),
-    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
-    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
+    config: str | None = typer.Option(
+        None, help="Config for the hamilton pipeline executor"
+    ),
+    cache: str | None = typer.Option(
+        None, help="Cache configuration as JSON or dict string"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    with_adapter: str | None = typer.Option(
+        None, help="Adapter configuration as JSON or dict string"
+    ),
+    max_retries: int = typer.Option(
+        0, help="Maximum number of retry attempts on failure"
+    ),
+    retry_delay: float = typer.Option(
+        1.0, help="Base delay between retries in seconds"
+    ),
+    jitter_factor: float = typer.Option(
+        0.1, help="Random factor applied to delay for jitter (0-1)"
+    ),
 ):
     """
     Run a specific pipeline job.
 
-    This command runs an existing job by its ID. The job should have been previously 
+    This command runs an existing job by its ID. The job should have been previously
     added to the system via the add-job command or through scheduling.
 
     Args:
@@ -154,7 +196,7 @@ def run_job(
 
         # Configure adapters for monitoring
         $ pipeline run-job job-123456 --with-adapter '{"tracker": true, "opentelemetry": false}'
-        
+
         # Set up automatic retries for resilience
         $ pipeline run-job job-123456 --max-retries 3 --retry-delay 2.0
     """
@@ -167,7 +209,7 @@ def run_job(
 
     with PipelineManager(
         base_dir=base_dir,
-        storage_options=parsed_storage_options or {}, 
+        storage_options=parsed_storage_options or {},
         log_level=log_level,
     ) as manager:
         _ = manager.run_job(
@@ -188,25 +230,47 @@ def run_job(
 @app.command()
 def add_job(
     name: str = typer.Argument(..., help="Name of the pipeline to add as a job"),
-    executor: str | None = typer.Option(None, help="Executor to use for running the job"),
+    executor: str | None = typer.Option(
+        None, help="Executor to use for running the job"
+    ),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
-    inputs: str | None = typer.Option(None, help="Input parameters as JSON, dict string, or key=value pairs"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
     final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
-    config: str | None = typer.Option(None, help="Config for the hamilton pipeline executor"),
-    cache: str | None = typer.Option(None, help="Cache configuration as JSON or dict string"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
+    config: str | None = typer.Option(
+        None, help="Config for the hamilton pipeline executor"
+    ),
+    cache: str | None = typer.Option(
+        None, help="Cache configuration as JSON or dict string"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    with_adapter: str | None = typer.Option(
+        None, help="Adapter configuration as JSON or dict string"
+    ),
     run_at: str | None = typer.Option(None, help="Run at a specific time (ISO format)"),
-    run_in: str | None = typer.Option(None, help="Run in a specific interval (e.g., '5m', '1h', '12m34s')"),
-    max_retries: int = typer.Option(3, help="Maximum number of retry attempts on failure"),
-    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
-    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
+    run_in: str | None = typer.Option(
+        None, help="Run in a specific interval (e.g., '5m', '1h', '12m34s')"
+    ),
+    max_retries: int = typer.Option(
+        3, help="Maximum number of retry attempts on failure"
+    ),
+    retry_delay: float = typer.Option(
+        1.0, help="Base delay between retries in seconds"
+    ),
+    jitter_factor: float = typer.Option(
+        0.1, help="Random factor applied to delay for jitter (0-1)"
+    ),
 ):
     """
     Add a pipeline job to the queue.
 
-    This command adds a job to the queue for later execution. The job is based on 
+    This command adds a job to the queue for later execution. The job is based on
     an existing pipeline with customized inputs and configuration.
 
     Args:
@@ -241,7 +305,7 @@ def add_job(
 
         # Use a specific log level
         $ pipeline add-job my_pipeline --log-level debug
-        
+
         # Configure automatic retries for resilience
         $ pipeline add-job my_pipeline --max-retries 5 --retry-delay 2.0 --jitter-factor 0.2
     """
@@ -279,23 +343,51 @@ def add_job(
 @app.command()
 def schedule(
     name: str = typer.Argument(..., help="Name of the pipeline to schedule"),
-    executor: str | None = typer.Option(None, help="Executor to use for running the job"),
+    executor: str | None = typer.Option(
+        None, help="Executor to use for running the job"
+    ),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
-    inputs: str | None = typer.Option(None, help="Input parameters as JSON, dict string, or key=value pairs"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
     final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
-    config: str | None = typer.Option(None, help="Config for the hamilton pipeline executor"),
-    cache: str | None = typer.Option(None, help="Cache configuration as JSON or dict string"),
+    config: str | None = typer.Option(
+        None, help="Config for the hamilton pipeline executor"
+    ),
+    cache: str | None = typer.Option(
+        None, help="Cache configuration as JSON or dict string"
+    ),
     cron: str | None = typer.Option(None, help="Cron expression for scheduling"),
-    interval: str | None = typer.Option(None, help="Interval for scheduling (e.g., '5m', '1h')"),
-    date: str | None = typer.Option(None, help="Specific date and time for scheduling (ISO format)"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    with_adapter: str | None = typer.Option(None, help="Adapter configuration as JSON or dict string"),
-    overwrite: bool = typer.Option(False, help="Overwrite existing schedule if it exists"),
-    schedule_id: str | None = typer.Option(None, help="Custom ID for the schedule (autogenerated if not provided)"),
-    max_retries: int = typer.Option(3, help="Maximum number of retry attempts on failure"),
-    retry_delay: float = typer.Option(1.0, help="Base delay between retries in seconds"),
-    jitter_factor: float = typer.Option(0.1, help="Random factor applied to delay for jitter (0-1)"),
+    interval: str | None = typer.Option(
+        None, help="Interval for scheduling (e.g., '5m', '1h')"
+    ),
+    date: str | None = typer.Option(
+        None, help="Specific date and time for scheduling (ISO format)"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    with_adapter: str | None = typer.Option(
+        None, help="Adapter configuration as JSON or dict string"
+    ),
+    overwrite: bool = typer.Option(
+        False, help="Overwrite existing schedule if it exists"
+    ),
+    schedule_id: str | None = typer.Option(
+        None, help="Custom ID for the schedule (autogenerated if not provided)"
+    ),
+    max_retries: int = typer.Option(
+        3, help="Maximum number of retry attempts on failure"
+    ),
+    retry_delay: float = typer.Option(
+        1.0, help="Base delay between retries in seconds"
+    ),
+    jitter_factor: float = typer.Option(
+        0.1, help="Random factor applied to delay for jitter (0-1)"
+    ),
 ):
     """
     Schedule a pipeline to run at specified times.
@@ -341,7 +433,7 @@ def schedule(
 
         # Set a custom schedule ID
         $ pipeline schedule my_pipeline --crontab "0 12 * * *" --schedule_id "daily-noon-run"
-        
+
         # Configure automatic retries for resilience
         $ pipeline schedule my_pipeline --max-retries 5 --retry-delay 2.0 --jitter-factor 0.2
     """
@@ -353,7 +445,7 @@ def schedule(
     parsed_with_adapter = parse_dict_or_list_param(with_adapter, "dict")
     interval = duration_parser.parse(interval) if interval else None
     cron = cron if cron else None
-    date = dt.datetime.fromisoformat(date) if date else None 
+    date = dt.datetime.fromisoformat(date) if date else None
 
     with PipelineManager(
         base_dir=base_dir,
@@ -361,7 +453,7 @@ def schedule(
         log_level=log_level,
     ) as manager:
         # Combine common schedule kwargs
-        
+
         id_ = manager.schedule(
             name=name,
             inputs=parsed_inputs,
@@ -385,11 +477,21 @@ def schedule(
 
 @app.command()
 def schedule_all(
-    executor: str | None = typer.Option(None, help="Override executor specified in pipeline configs"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing pipelines and configurations"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    overwrite: bool = typer.Option(False, help="Overwrite existing schedules if they exist"),
+    executor: str | None = typer.Option(
+        None, help="Override executor specified in pipeline configs"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing pipelines and configurations"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    overwrite: bool = typer.Option(
+        False, help="Overwrite existing schedules if they exist"
+    ),
 ):
     """
     Schedule all pipelines based on their individual configurations.
@@ -425,10 +527,7 @@ def schedule_all(
         storage_options=parsed_storage_options or {},
         log_level=log_level,
     ) as manager:
-        manager.schedule_all(
-            overwrite=overwrite,
-            executor_cfg=executor
-        )
+        manager.schedule_all(overwrite=overwrite, executor_cfg=executor)
     logger.info("Scheduled all pipelines based on their configurations.")
 
 
@@ -436,14 +535,20 @@ def schedule_all(
 def new(
     name: str = typer.Argument(..., help="Name of the pipeline to create"),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    overwrite: bool = typer.Option(False, help="Overwrite existing pipeline if it exists"),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    overwrite: bool = typer.Option(
+        False, help="Overwrite existing pipeline if it exists"
+    ),
 ):
     """
     Create a new pipeline structure.
 
-    This command creates a new pipeline with the necessary directory structure, 
+    This command creates a new pipeline with the necessary directory structure,
     configuration file, and skeleton module file. It prepares all the required
     components for you to start implementing your pipeline logic.
 
@@ -477,11 +582,21 @@ def new(
 @app.command()
 def delete(
     name: str = typer.Argument(..., help="Name of the pipeline to delete"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing the pipeline"),
-    cfg: bool = typer.Option(False, "--cfg", "-c", help="Delete only the configuration file"),
-    module: bool = typer.Option(False, "--module", "-m", help="Delete only the pipeline module"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing the pipeline"
+    ),
+    cfg: bool = typer.Option(
+        False, "--cfg", "-c", help="Delete only the configuration file"
+    ),
+    module: bool = typer.Option(
+        False, "--module", "-m", help="Delete only the pipeline module"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Delete a pipeline's configuration and/or module files.
@@ -525,16 +640,28 @@ def delete(
         deleted_parts.append("config")
     if delete_module:
         deleted_parts.append("module")
-    logger.info(f"Pipeline '{name}' deleted ({', '.join(deleted_parts)})." if deleted_parts else f"Pipeline '{name}' - nothing specified to delete.")
+    logger.info(
+        f"Pipeline '{name}' deleted ({', '.join(deleted_parts)})."
+        if deleted_parts
+        else f"Pipeline '{name}' - nothing specified to delete."
+    )
 
 
 @app.command()
 def show_dag(
     name: str = typer.Argument(..., help="Name of the pipeline to visualize"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing the pipeline"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
-    format: str = typer.Option("png", help="Output format (e.g., png, svg, pdf). If 'raw', returns object."),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    format: str = typer.Option(
+        "png", help="Output format (e.g., png, svg, pdf). If 'raw', returns object."
+    ),
 ):
     """
     Show the DAG (Directed Acyclic Graph) of a pipeline.
@@ -569,14 +696,20 @@ def show_dag(
     ) as manager:
         # Manager's show_dag likely handles rendering or returning raw object
         try:
-            graph_or_none = manager.show_dag(name=name, format=format if not is_raw else "png", raw=is_raw)
+            graph_or_none = manager.show_dag(
+                name=name, format=format if not is_raw else "png", raw=is_raw
+            )
             if is_raw and graph_or_none:
                 print("Graphviz object returned (not rendered):")
                 # print(graph_or_none) # Or handle as needed
             elif not is_raw:
-                 logger.info(f"DAG for pipeline '{name}' displayed/saved (format: {format}).")
+                logger.info(
+                    f"DAG for pipeline '{name}' displayed/saved (format: {format})."
+                )
         except ImportError:
-             logger.error("Graphviz is not installed. Cannot show/save DAG. Install with: pip install graphviz")
+            logger.error(
+                "Graphviz is not installed. Cannot show/save DAG. Install with: pip install graphviz"
+            )
         except Exception as e:
             logger.error(f"Failed to generate DAG for pipeline '{name}': {e}")
 
@@ -584,11 +717,19 @@ def show_dag(
 @app.command()
 def save_dag(
     name: str = typer.Argument(..., help="Name of the pipeline to visualize"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing the pipeline"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
     format: str = typer.Option("png", help="Output format (e.g., png, svg, pdf)"),
-    output_path: str | None = typer.Option(None, help="Custom path to save the file (default: <name>.<format>)"),
+    output_path: str | None = typer.Option(
+        None, help="Custom path to save the file (default: <name>.<format>)"
+    ),
 ):
     """
     Save the DAG (Directed Acyclic Graph) of a pipeline to a file.
@@ -621,19 +762,29 @@ def save_dag(
         log_level=log_level,
     ) as manager:
         try:
-            file_path = manager.save_dag(name=name, format=format, output_path=output_path)
+            file_path = manager.save_dag(
+                name=name, format=format, output_path=output_path
+            )
             logger.info(f"DAG for pipeline '{name}' saved to {file_path}.")
         except ImportError:
-             logger.error("Graphviz is not installed. Cannot save DAG. Install with: pip install graphviz")
+            logger.error(
+                "Graphviz is not installed. Cannot save DAG. Install with: pip install graphviz"
+            )
         except Exception as e:
             logger.error(f"Failed to save DAG for pipeline '{name}': {e}")
 
 
 @app.command()
 def show_pipelines(
-    base_dir: str | None = typer.Option(None, help="Base directory containing pipelines"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing pipelines"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
     format: str = typer.Option("table", help="Output format (table, json, yaml)"),
 ):
     """
@@ -654,7 +805,7 @@ def show_pipelines(
 
         # Output in JSON format
         $ pipeline show-pipelines --format json
-        
+
         # List pipelines from a specific directory
         $ pipeline show-pipelines --base-dir /path/to/project
     """
@@ -669,16 +820,26 @@ def show_pipelines(
 
 @app.command()
 def show_summary(
-    name: str | None = typer.Option(None, help="Name of specific pipeline to show (all pipelines if not specified)"),
+    name: str | None = typer.Option(
+        None, help="Name of specific pipeline to show (all pipelines if not specified)"
+    ),
     cfg: bool = typer.Option(True, help="Include configuration details"),
     code: bool = typer.Option(True, help="Include code/module details"),
     project: bool = typer.Option(True, help="Include project context"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing pipelines"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing pipelines"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
     to_html: bool = typer.Option(False, help="Output summary as HTML"),
     to_svg: bool = typer.Option(False, help="Output summary as SVG (if applicable)"),
-    output_file: str | None = typer.Option(None, help="Save output to specified file instead of printing"),
+    output_file: str | None = typer.Option(
+        None, help="Save output to specified file instead of printing"
+    ),
 ):
     """
     Show summary information for one or all pipelines.
@@ -708,7 +869,7 @@ def show_summary(
 
         # Show only configuration information
         $ pipeline show-summary --name my_pipeline --cfg --no-code --no-project
-        
+
         # Generate HTML report
         $ pipeline show-summary --to-html --output-file pipeline_report.html
     """
@@ -727,10 +888,10 @@ def show_summary(
             to_html=to_html,
             to_svg=to_svg,
         )
-        
+
         if summary_output:
             if output_file:
-                with open(output_file, 'w') as f:
+                with open(output_file, "w") as f:
                     f.write(summary_output)
                 logger.info(f"Summary saved to {output_file}")
             else:
@@ -741,12 +902,27 @@ def show_summary(
 @app.command()
 def add_hook(
     name: str = typer.Argument(..., help="Name of the pipeline to add the hook to"),
-    function_name: str = typer.Option(..., "--function", "-f", help="Name of the hook function defined in the pipeline module"),
-    type: Annotated[HookType, typer.Option(help="Type of hook to add")] = HookType.MQTT_BUILD_CONFIG,
-    to: str | None = typer.Option(None, help="Target node name or tag (required for node hooks)"),
-    base_dir: str | None = typer.Option(None, help="Base directory containing the pipeline"),
-    storage_options: str | None = typer.Option(None, help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, help="Logging level (debug, info, warning, error, critical)"),
+    function_name: str = typer.Option(
+        ...,
+        "--function",
+        "-f",
+        help="Name of the hook function defined in the pipeline module",
+    ),
+    type: Annotated[
+        HookType, typer.Option(help="Type of hook to add")
+    ] = HookType.MQTT_BUILD_CONFIG,
+    to: str | None = typer.Option(
+        None, help="Target node name or tag (required for node hooks)"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory containing the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
 ):
     """
     Add a hook to a pipeline configuration.
@@ -781,7 +957,9 @@ def add_hook(
 
     # Validate 'to' argument for node hooks
     if type in (HookType.NODE_PRE_EXECUTE, HookType.NODE_POST_EXECUTE) and not to:
-        raise typer.BadParameter("The '--to' option (target node/tag) is required for node hooks.")
+        raise typer.BadParameter(
+            "The '--to' option (target node/tag) is required for node hooks."
+        )
 
     with PipelineManager(
         base_dir=base_dir,
@@ -795,6 +973,8 @@ def add_hook(
                 to=to,
                 function_name=function_name,
             )
-            logger.info(f"Hook '{function_name}' added to pipeline '{name}' (type: {type.value}).")
+            logger.info(
+                f"Hook '{function_name}' added to pipeline '{name}' (type: {type.value})."
+            )
         except Exception as e:
             logger.error(f"Failed to add hook to pipeline '{name}': {e}")

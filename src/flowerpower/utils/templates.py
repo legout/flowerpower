@@ -1,6 +1,3 @@
-
-
-
 PIPELINE_PY_TEMPLATE = """# FlowerPower pipeline {name}.py
 # Created on {date}
 
