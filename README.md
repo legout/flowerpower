@@ -27,13 +27,21 @@ A powerful and flexible data pipeline framework that simplifies data processing 
 ### Installation
 
 ```bash
-# Using pip
-pip install flowerpower
+# Change into the folder, where you want to initialize a new flowerpower project
+cd project/root/folder
 
-# For development installation
-git clone https://github.com/yourusername/flowerpower.git
-cd flowerpower
-pip install -e ".[dev]"
+# Creaet a new flowerpower project using the current github main branch
+uvx --prerelease allow git+https://github.com/legout/flowerpower init --name hello-world-project
+
+# Change into the flowerpower project folder
+cd hello-world-project
+
+# init uv and add the latest flowerpower version from github
+uv init --base --no-readme
+uv add git+https://github.com/legout/flowerpower --prerelease allow
+
+uv run flowerpower pipeline new hello-world
+
 ```
 
 ### Create Your First Pipeline
