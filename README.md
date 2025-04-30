@@ -1,3 +1,10 @@
+<div align="center">
+  <h1>FlowerPower 🌸 - Build & Orchestrate Data Pipelines</h1>
+  <h3>Simple Workflow Framework - Hamilton + APScheduler or RQ = FlowerPower</h3>
+  <img src="./image.png" alt="FlowerPower Logo" width="400" height="300">
+</div>
+
+
 # FlowerPower 🌸 - Build & Orchestrate Data Pipelines
 
 [![PyPI version](https://img.shields.io/pypi/v/flowerpower.svg?style=flat-square)](https://pypi.org/project/flowerpower/) <!-- Placeholder -->
