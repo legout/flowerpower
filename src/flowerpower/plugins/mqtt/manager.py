@@ -283,6 +283,8 @@ class MqttManager:
 
         Returns:
             None
+
+            
         """
         if self._client is None or not self._client.is_connected():
             self.connect()
