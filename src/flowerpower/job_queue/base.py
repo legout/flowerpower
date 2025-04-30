@@ -181,7 +181,8 @@ class BackendType(str, Enum):
                         f"tlsCertificateKeyFile={urllib.parse.quote(cert_file)}"
                     )
             elif self.is_redis_type:
-                query_params.append("ssl=true")
+                if not verify_ssl:
+                    query_params.append("ssl_cert_reqs=none")
                 if ca_file:
                     query_params.append(f"ssl_ca_certs={urllib.parse.quote(ca_file)}")
                 if cert_file:
