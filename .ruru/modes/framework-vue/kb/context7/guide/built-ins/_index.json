@@ -1,0 +1,71 @@
+[
+  {
+    "fileName": "teleport.md",
+    "pageTitle": "Vue.js Teleport Component Documentation",
+    "snippetTitles": [
+      "MyModal Component (Composition API)",
+      "Teleporting the Modal",
+      "Multiple Teleports on the Same Target",
+      "Deferred Teleport Usage",
+      "Disabling Teleport Conditionally"
+    ]
+  },
+  {
+    "fileName": "keep-alive.md",
+    "pageTitle": "Vue.js KeepAlive Component Documentation",
+    "snippetTitles": [
+      "KeepAlive Basic Usage",
+      "Dynamic Component Usage",
+      "KeepAlive Include String",
+      "activated / deactivated (Options API)",
+      "onActivated / onDeactivated (Composition API)",
+      "KeepAlive Max Instances",
+      "KeepAlive Include Regex",
+      "KeepAlive Include Array"
+    ]
+  },
+  {
+    "fileName": "transition.md",
+    "pageTitle": "Vue.js Transition Component",
+    "snippetTitles": [
+      "Creating a Reusable Transition Component in Vue",
+      "Transition Hooks in Composition API JavaScript",
+      "Transition with Key Attribute - Options API - Vue",
+      "Basic Transition Example Vue HTML",
+      "Transition with Key Attribute - Composition API - Vue",
+      "Transition Between Elements in Vue HTML",
+      "Advanced Transition Vue HTML",
+      "Vue Transition for Nested Elements in HTML",
+      "Vue Transition with Custom CSS Classes in HTML",
+      "Dynamic Transition Name - Vue HTML",
+      "Transition Modes in Vue HTML",
+      "Applying Transition on Appear in Vue HTML",
+      "Basic Transition CSS",
+      "Vue Transition Component with CSS Animations in HTML",
+      "Transition Between Dynamic Components - Vue HTML",
+      "CSS Animation Definitions"
+    ]
+  },
+  {
+    "fileName": "suspense.md",
+    "pageTitle": "Vue.js Suspense Component",
+    "snippetTitles": [
+      "Async setup() with <script setup>",
+      "Combining Suspense with Transition, KeepAlive and RouterView",
+      "Async setup() Hook",
+      "Nested Suspense Component Usage",
+      "Nested Suspense with suspensible prop",
+      "Suspense Component Usage"
+    ]
+  },
+  {
+    "fileName": "transition-group.md",
+    "pageTitle": "Vue.js TransitionGroup Component",
+    "snippetTitles": [
+      "JavaScript Hooks for Staggered Transitions with GSAP",
+      "Basic TransitionGroup Usage in Vue.js",
+      "Staggering List Transitions with Data Attributes",
+      "CSS Transitions for Move Animations in Lists"
+    ]
+  }
+]

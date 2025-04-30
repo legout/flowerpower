@@ -1,0 +1,69 @@
+# TOML definition for synthesis tasks for database systems.
+
+# Required: Identifies the type this task set applies to.
+library_type = "database"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+
+[[tasks]]
+  task_id = "overview_data_model"
+  description = "Generate an overview of the database type, its core data model, key features, and typical use cases."
+  input_categories = ["guide", "concepts", "about", "start", "misc"]
+  output_filename = "database-overview-summary.md"
+  prompt_focus = "Identify the database type (e.g., Relational, Document, Key-Value, Graph), describe its fundamental data model (e.g., tables/rows, documents/collections), list its most prominent features, and summarize its primary use cases based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "setup_connection"
+  description = "Summarize the steps for installing or provisioning the database and establishing connections from applications."
+  input_categories = ["guide", "start", "installation", "config", "api", "reference"]
+  output_filename = "setup-connection-summary.md"
+  prompt_focus = "Detail the installation/provisioning process and common methods for connecting to the database, including connection string formats, client library initialization, and authentication methods mentioned in the provided input files."
+
+[[tasks]]
+  task_id = "data_definition_schema"
+  description = "Explain how data structures (like tables, collections, schemas) and indexes are defined and managed."
+  input_categories = ["guide", "concepts", "schema", "sql", "reference", "data-modeling"]
+  output_filename = "data-definition-schema-summary.md"
+  prompt_focus = "Describe the syntax or methods used to define data structures (e.g., tables, collections, schemas), specify data types, and create/manage indexes based *only* on the provided input files. Include examples like `CREATE TABLE` if relevant."
+
+[[tasks]]
+  task_id = "basic_crud"
+  description = "Summarize the fundamental operations for Creating, Reading, Updating, and Deleting data."
+  input_categories = ["guide", "api", "reference", "sql", "queries", "examples", "tutorial"]
+  output_filename = "basic-crud-summary.md"
+  prompt_focus = "Identify and explain the core commands or client library methods for basic data manipulation (Create, Read, Update, Delete). Provide syntax examples (like SQL `INSERT`, `SELECT`, `UPDATE`, `DELETE` or equivalent client methods) found in the provided input files."
+
+[[tasks]]
+  task_id = "querying_data"
+  description = "Explain common query patterns beyond basic reads, such as filtering, sorting, aggregation, and joins."
+  input_categories = ["guide", "api", "reference", "sql", "queries", "examples", "tutorial", "concepts"]
+  output_filename = "querying-data-summary.md"
+  prompt_focus = "Describe methods for querying data beyond simple retrieval. Focus on filtering (e.g., `WHERE` clauses), sorting (`ORDER BY`), projections (selecting specific fields), aggregations (e.g., `GROUP BY`, `SUM`, `COUNT`), and joining related data (if applicable), based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "indexing_performance"
+  description = "Explain the purpose of indexes and how they are created or managed for performance optimization."
+  input_categories = ["guide", "concepts", "reference", "performance", "sql", "schema"]
+  output_filename = "indexing-summary.md"
+  prompt_focus = "Summarize the importance of database indexes for query performance. Describe how indexes are typically created (e.g., `CREATE INDEX` syntax) and any types of indexes mentioned (e.g., B-tree, Hash, GIN, GiST) based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "transactions_atomicity"
+  description = "Summarize how atomic operations involving multiple data changes are handled."
+  input_categories = ["guide", "concepts", "reference", "sql", "api"]
+  output_filename = "transactions-summary.md"
+  prompt_focus = "Explain the database's mechanism for handling transactions, ensuring atomicity for multiple operations. Mention relevant commands (like `BEGIN`, `COMMIT`, `ROLLBACK` in SQL) or concepts like sessions if discussed in the provided input files."
+
+[[tasks]]
+  task_id = "security_access_control"
+  description = "Provide an overview of security features like user roles, permissions, Row-Level Security (RLS), and network rules."
+  input_categories = ["guide", "concepts", "security", "reference", "sql", "config"]
+  output_filename = "security-access-control-summary.md"
+  prompt_focus = "Describe the security mechanisms available, such as user authentication, roles, permissions/privileges, Row-Level Security (RLS), network access controls, or encryption, as mentioned *only* in the provided input files."
+
+[[tasks]]
+  task_id = "backup_recovery"
+  description = "Summarize mentioned procedures for backing up and restoring database data."
+  input_categories = ["guide", "reference", "admin", "config", "start"]
+  output_filename = "backup-recovery-summary.md"
+  prompt_focus = "Outline any built-in features or recommended methods for data backup and recovery (e.g., point-in-time recovery, logical/physical dumps) based *only* on the information in the provided input files."

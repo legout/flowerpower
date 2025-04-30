@@ -1,0 +1,373 @@
+[
+  {
+    "fileName": "composition-api-dependency-injection.md",
+    "pageTitle": "Vue.js Composition API: Dependency Injection",
+    "snippetTitles": [
+      "Provide value with provide() in Vue.js",
+      "Inject values with inject() in Vue.js",
+      "Type signature for provide() in TypeScript"
+    ]
+  },
+  {
+    "fileName": "sfc-script-setup.md",
+    "pageTitle": "Vue.js SFC Script Setup Documentation",
+    "snippetTitles": [
+      "Define Props and Emits Vue",
+      "Defining a Two-Way Binding Prop with defineModel in Vue",
+      "Type-Only Props/Emit Declarations TypeScript",
+      "Exposing Properties in Script Setup with defineExpose in Vue",
+      "Using Typescript with defineModel in Vue",
+      "Using Imported Helpers Vue",
+      "Default Values for Type-Based Props TypeScript",
+      "Reactivity with Refs Vue",
+      "Defining Default Props with Typescript in Vue",
+      "Namespaced Components Vue",
+      "Importing Custom Directives Vue",
+      "Exposing Top-Level Bindings Vue",
+      "Dynamic Components Vue",
+      "Reactive Props Destructure TypeScript",
+      "Top-level Await in Vue Script Setup",
+      "Accessing v-model Modifiers with defineModel in Vue",
+      "Providing Type Hints for Slots with defineSlots in Vue",
+      "Using InstanceType with Generics",
+      "De-synchronization Issue with Default defineModel Prop Value - HTML",
+      "Using useSlots and useAttrs in Vue Script Setup",
+      "Passing Explicit Types with @vue-generic Directive",
+      "Basic Script Setup Syntax Vue",
+      "Usage of normal <script> alongside <script setup> in Vue",
+      "Import Statements in Vue Script Setup",
+      "Compiled Reactive Props Destructure JavaScript",
+      "Declaring Component Options with defineOptions in Vue"
+    ]
+  },
+  {
+    "fileName": "reactivity-core.md",
+    "pageTitle": "Vue.js Reactivity API: Core",
+    "snippetTitles": [
+      "Creating a Reactive Object with reactive() in Vue.js",
+      "Watch with Side Effect Cleanup (Vue 3.5+) - JavaScript",
+      "Creating a Watcher with watchEffect() in Vue.js",
+      "Creating a Writable Computed Ref in Vue.js",
+      "Watch Ref Example - JavaScript",
+      "Creating a Read-Only Computed Ref in Vue.js",
+      "Creating a Reactive Ref with ref() in Vue.js",
+      "Watch Getter Example - JavaScript",
+      "Watch Reactive Object with Deep Option - JavaScript",
+      "Ref Unwrapping with reactive() in Vue.js",
+      "Watch with Flush and Debug Options - JavaScript",
+      "Watch with Side Effect Cleanup - JavaScript",
+      "Debugging Computed Properties in Vue.js",
+      "Side Effect Cleanup in Watchers in Vue.js",
+      "Watch Reactive Object Directly - JavaScript",
+      "Side Effect Cleanup (Vue 3.5+) in Watchers",
+      "onWatcherCleanup Example - TypeScript",
+      "Ref Unwrapping in Arrays and Collections with reactive() in Vue.js",
+      "Assigning Refs to Reactive Properties in Vue.js",
+      "Stopping a Watcher in Vue.js",
+      "Pausing and Resuming a Watcher - JavaScript"
+    ]
+  },
+  {
+    "fileName": "sfc-spec.md",
+    "pageTitle": "Vue SFC Syntax Specification",
+    "snippetTitles": [
+      "Vue SFC Example",
+      "TypeScript in Vue SFC",
+      "Importing External Files in Vue SFC",
+      "Importing NPM Dependencies in Vue SFC"
+    ]
+  },
+  {
+    "fileName": "built-in-special-attributes.md",
+    "pageTitle": "Vue.js Built-in Special Attributes Documentation",
+    "snippetTitles": [
+      "Template Ref in Options API in Vue",
+      "List Rendering with Key Attribute in Vue",
+      "Using `is` attribute for dynamic components in Vue",
+      "Template Ref in Composition API in Vue",
+      "Function Ref in Vue"
+    ]
+  },
+  {
+    "fileName": "general.md",
+    "pageTitle": "Vue.js Global API: General",
+    "snippetTitles": [
+      "Defining a Component with Composition API and render function",
+      "Using nextTick with Composition API in Vue",
+      "Using webpack Treeshaking with defineComponent",
+      "Using nextTick with Options API in Vue",
+      "Defining a Component with TSX and Generics",
+      "Accessing Vue Version in JavaScript"
+    ]
+  },
+  {
+    "fileName": "options-state.md",
+    "pageTitle": "Vue.js Component Options: State, Props, Computed, and Methods",
+    "snippetTitles": [
+      "Initializing Component Data with Data Function in Vue.js",
+      "Defining Props with Validation and Options in Vue.js",
+      "Watch Option Usage Example JavaScript",
+      "Defining Simple Props in Vue.js",
+      "Defining Methods in Vue.js",
+      "Expose Option Usage Example JavaScript",
+      "Emits Option Object Syntax Example JavaScript",
+      "Accessing Component Instance in Data Function with Arrow Function",
+      "Defining Readonly Computed Property in Vue.js",
+      "Watch Option Interface Definition TypeScript",
+      "Emits Option Array Syntax Example JavaScript"
+    ]
+  },
+  {
+    "fileName": "options-misc.md",
+    "pageTitle": "Vue.js Component Options: Misc",
+    "snippetTitles": [
+      "Disable attribute inheritance (Composition API)",
+      "Registering a Custom Directive",
+      "Using a Custom Directive in Template",
+      "Components Option Type Definition",
+      "Registering Components"
+    ]
+  },
+  {
+    "fileName": "composition-api-lifecycle.md",
+    "pageTitle": "Vue.js Composition API Lifecycle Hooks",
+    "snippetTitles": [
+      "Using onUnmounted to clear interval",
+      "Using onUpdated to access updated DOM",
+      "Using onMounted to access template ref",
+      "Vue onServerPrefetch() Example"
+    ]
+  },
+  {
+    "fileName": "built-in-directives.md",
+    "pageTitle": "Vue.js Built-in Directives",
+    "snippetTitles": [
+      "v-slot Usage Examples in Vue.js",
+      "Using v-on Directive for Event Handling in Vue.js",
+      "v-bind Attribute Binding in Vue.js",
+      "v-cloak Directive Usage in Vue.js",
+      "Using v-else-if Directive with v-if in Vue.js",
+      "Using v-for Directive for List Rendering in Vue.js",
+      "v-once Directive in Vue.js",
+      "v-memo Directive in Vue.js",
+      "Using v-text Directive in Vue.js",
+      "Using v-else Directive with v-if in Vue.js",
+      "v-pre Directive in Vue.js"
+    ]
+  },
+  {
+    "fileName": "reactivity-utilities.md",
+    "pageTitle": "Vue.js Reactivity API Utilities Documentation",
+    "snippetTitles": [
+      "Converting Reactive Object to Refs in Vue.js (toRefs)",
+      "Creating a Ref from Value/Getter/Reactive Prop in Vue.js (toRef)",
+      "Unwrapping a Ref Value in Vue.js (unref)",
+      "Normalizing to Values from Refs/Getters in Vue.js (toValue)",
+      "Checking if Object is Readonly in Vue.js (isReadonly)",
+      "Checking if Object is Reactive in Vue.js (isReactive)"
+    ]
+  },
+  {
+    "fileName": "options-lifecycle.md",
+    "pageTitle": "Vue.js Component Lifecycle Options",
+    "snippetTitles": [
+      "Initializing created Lifecycle Hook in Vue.js",
+      "ServerPrefetch Example - JavaScript",
+      "Initializing beforeUpdate Lifecycle Hook in Vue.js",
+      "Initializing updated Lifecycle Hook in Vue.js",
+      "Initializing beforeUnmount Lifecycle Hook in Vue.js",
+      "Initializing mounted Lifecycle Hook in Vue.js",
+      "Initializing unmounted Lifecycle Hook in Vue.js",
+      "Initializing renderTracked Lifecycle Hook in Vue.js"
+    ]
+  },
+  {
+    "fileName": "sfc-css-features.md",
+    "pageTitle": "Vue.js SFC CSS Features",
+    "snippetTitles": [
+      "CSS Modules with Composition API - JavaScript",
+      "Scoped CSS Example - Vue",
+      "v-bind() in CSS with Script Setup - Vue",
+      "v-bind() in CSS - Vue",
+      "CSS Modules Example - Vue",
+      "Mixing Local and Global Styles - Vue",
+      "Deep Selectors Compiled - CSS",
+      "Global Selectors in Scoped CSS - Vue",
+      "Scoped CSS Compiled - Vue"
+    ]
+  },
+  {
+    "fileName": "built-in-components.md",
+    "pageTitle": "Vue.js Built-in Components API",
+    "snippetTitles": [
+      "KeepAlive Basic Usage - Vue HTML",
+      "KeepAlive with v-if / v-else - Vue HTML",
+      "KeepAlive with Include / Exclude - Vue HTML",
+      "KeepAlive with Max - Vue HTML",
+      "Dynamic Component Transition - Vue HTML",
+      "Transition with Event Listener - Vue HTML",
+      "Import Transition Component in Render Function - JavaScript",
+      "KeepAlive with Transition - Vue HTML",
+      "Teleport with Target Selector - Vue HTML"
+    ]
+  },
+  {
+    "fileName": "composition-api-helpers.md",
+    "pageTitle": "Vue Composition API Helpers Documentation",
+    "snippetTitles": [
+      "useModel() Usage Example - JavaScript",
+      "useId() Usage Example - Vue",
+      "useTemplateRef() Usage Example - Vue",
+      "useModel() Type Definition - TypeScript",
+      "useId() Type Definition - TypeScript"
+    ]
+  },
+  {
+    "fileName": "options-composition.md",
+    "pageTitle": "Vue.js Component Options: Composition",
+    "snippetTitles": [
+      "Mixins Option: Basic Usage (Vue.js)",
+      "Inject Option: Renaming Injection (Vue.js)",
+      "Inject Option: Data Entry (Vue.js)",
+      "Extends Option: Composition API Usage (Vue.js)",
+      "Provide Option: Basic Usage (Vue.js)",
+      "Inject Option: Optional Injection (Vue.js)",
+      "Inject Option: Factory Function for Defaults (Vue.js)"
+    ]
+  },
+  {
+    "fileName": "application.md",
+    "pageTitle": "Vue.js Application API Reference",
+    "snippetTitles": [
+      "Mounting Vue Application",
+      "Providing a Value for Injection (App-Level)",
+      "Registering Global Component",
+      "Injecting Provided Value (Composition API)",
+      "Registering Global Properties in Vue.js",
+      "Configuring ID Prefix for useId() in Vue.js",
+      "Mounting Vue Application to DOM Element",
+      "Injecting Provided Value (Options API)",
+      "Using a Plugin",
+      "Setting Global Error Handler",
+      "Registering Custom Directive (Function Shorthand)",
+      "Defining Custom Option Merge Strategies in Vue.js",
+      "Running Callback with Application Context",
+      "Registering Custom Directive (Object Directive)",
+      "Setting isCustomElement Compiler Option in Vue.js",
+      "Retrieving Registered Component",
+      "Initializing Vue Application (Imported Component)",
+      "Initializing Custom Warning Handler in Vue.js",
+      "Preserving HTML Comments in Vue.js Templates",
+      "Initializing Vue Application (Inline Component)",
+      "Configuring Whitespace Handling in Vue.js Templates",
+      "Retrieving Registered Directive"
+    ]
+  },
+  {
+    "fileName": "utility-types.md",
+    "pageTitle": "Vue.js Utility Types Documentation",
+    "snippetTitles": [
+      "Augmenting Component Options in Vue.js",
+      "Extracting Public Prop Types in Vue.js",
+      "Extracting Internal Prop Types in Vue.js",
+      "Augmenting TSX Props in Vue.js",
+      "Augmenting CSS Properties in Vue.js"
+    ]
+  },
+  {
+    "fileName": "reactivity-advanced.md",
+    "pageTitle": "Vue.js Reactivity API: Advanced",
+    "snippetTitles": [
+      "markRaw() Usage in Vue.js",
+      "Identity Hazard Example with markRaw()",
+      "effectScope() Example in Vue.js",
+      "Type Definition of getCurrentScope() in TypeScript",
+      "Shallow Readonly Usage",
+      "Custom Ref Implementation"
+    ]
+  },
+  {
+    "fileName": "composition-api-setup.md",
+    "pageTitle": "Vue.js Composition API setup() Hook",
+    "snippetTitles": [
+      "Basic setup() Usage in Vue.js",
+      "setup() with Render Functions",
+      "Accessing Props in setup()",
+      "Destructuring Props with toRefs()"
+    ]
+  },
+  {
+    "fileName": "custom-elements.md",
+    "pageTitle": "Vue.js Custom Elements API Documentation",
+    "snippetTitles": [
+      "Type Definition for defineCustomElement",
+      "Registering a Custom Element",
+      "Custom Element Configuration Example"
+    ]
+  },
+  {
+    "fileName": "render-function.md",
+    "pageTitle": "Vue.js Render Function APIs Documentation",
+    "snippetTitles": [
+      "Creating Components with h() in Vue.js",
+      "Merging Props with mergeProps() in Vue.js",
+      "Resolving Component with resolveComponent() in Vue.js Options API",
+      "Adding Directives with withDirectives() in Vue.js"
+    ]
+  },
+  {
+    "fileName": "component-instance.md",
+    "pageTitle": "Vue.js Component Instance Properties and Methods",
+    "snippetTitles": [
+      "Component Refs Type Definition (TypeScript)",
+      "Component Force Update Type Definition (TypeScript)",
+      "Component Watch Examples (JavaScript)",
+      "Component Options Type Definition (TypeScript)",
+      "Component Emit Type Definition (TypeScript)",
+      "Component Props Type Definition (TypeScript)"
+    ]
+  },
+  {
+    "fileName": "custom-renderer.md",
+    "pageTitle": "Custom Renderer API in Vue.js",
+    "snippetTitles": [
+      "createRenderer Function and RendererOptions Interface in TypeScript"
+    ]
+  },
+  {
+    "fileName": "built-in-special-elements.md",
+    "pageTitle": "Vue.js Built-in Special Elements Documentation",
+    "snippetTitles": [
+      "Rendering Built-in Components by Name in Vue",
+      "Defining Slot Props Interface in TypeScript",
+      "Rendering Component by Registered Name in Vue (Options API)",
+      "Rendering HTML Elements Dynamically in Vue"
+    ]
+  },
+  {
+    "fileName": "ssr.md",
+    "pageTitle": "Vue.js Server-Side Rendering API",
+    "snippetTitles": [
+      "Accessing SSR Context in Vue Component",
+      "Piping Vue App to Node.js Writable"
+    ]
+  },
+  {
+    "fileName": "compile-time-flags.md",
+    "pageTitle": "Vue.js Compile-Time Flags Configuration",
+    "snippetTitles": [
+      "Configuring Compile-Time Flags in Vite",
+      "Configuring Compile-Time Flags in Webpack",
+      "Configuring Compile-Time Flags in Vue CLI"
+    ]
+  },
+  {
+    "fileName": "options-rendering.md",
+    "pageTitle": "Vue.js Component Options: Rendering",
+    "snippetTitles": [
+      "Component Slots Type Definition - Vue.js",
+      "Component Compiler Options Definition - Vue.js",
+      "Component Template String Definition - Vue.js"
+    ]
+  }
+]

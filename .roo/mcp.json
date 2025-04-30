@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "vertex-ai-mcp-server": {
+      "command": "node",
+      "args": [
+        "/home/jez/vscode/roo-commander/mcp-servers/vertex-ai/build/index.js"
+      ],
+      "env": {
+        "GOOGLE_CLOUD_PROJECT": "jeremy-roocode-04",
+        "GOOGLE_CLOUD_LOCATION": "us-central1",
+        "VERTEX_AI_MODEL_ID": "gemini-2.5-pro-exp-03-25",
+        "VERTEX_AI_TEMPERATURE": "0.0",
+        "VERTEX_AI_USE_STREAMING": "true",
+        "VERTEX_AI_MAX_OUTPUT_TOKENS": "65535",
+        "VERTEX_AI_MAX_RETRIES": "3",
+        "VERTEX_AI_RETRY_DELAY_MS": "1000",
+        "GOOGLE_APPLICATION_CREDENTIALS": "/home/jez/vscode/vertexai-keys/jeremy-roocode-04-vertexai.json"
+      },
+      "disabled": true,
+      "alwaysAllow": [
+        "answer_query_websearch",
+        "answer_query_direct",
+        "explain_topic_with_docs",
+        "get_doc_snippets",
+        "generate_project_guidelines",
+        "read_file_content",
+        "read_multiple_files_content",
+        "write_file_content",
+        "edit_file_content",
+        "create_directory",
+        "list_directory_contents",
+        "get_directory_tree",
+        "move_file_or_directory",
+        "search_filesystem",
+        "get_filesystem_info",
+        "save_generate_project_guidelines",
+        "save_doc_snippet",
+        "save_topic_explanation",
+        "save_answer_query_direct",
+        "save_answer_query_websearch"
+      ],
+      "timeout": 3600
+    },
+    "upsplash-mcp-server": {
+      "description": "Provides access to Unsplash images.",
+      "command": "bun",
+      "args": [
+        ".ruru/mcp-servers/upsplash-mcp-server/build/index.js"
+      ],
+      "env": {
+        "UNSPLASH_ACCESS_KEY": "XPFQELdkM0AlaXLKUtXfV53264qJzFBptdDy7b4t-KY"
+      },
+      "alwaysAllow": [
+        "search_photos",
+        "download_photo"
+      ],
+      "disabled": false,
+      "timeout": 3600
+    }
+  }
+}

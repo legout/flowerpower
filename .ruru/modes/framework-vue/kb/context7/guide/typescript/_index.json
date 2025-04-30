@@ -1,0 +1,60 @@
+[
+  {
+    "fileName": "composition-api.md",
+    "pageTitle": "TypeScript with Composition API in Vue.js",
+    "snippetTitles": [
+      "Typing Provide/Inject with InjectionKey in Vue.js",
+      "Props Definition Using an Interface in Vue",
+      "Concise Typing for Component Emits in Vue 3.3+",
+      "Typing Component Props with defineProps in Vue",
+      "Overriding Type Inference with ref() in Vue",
+      "Type Inference with ref() in Vue",
+      "Typing Emits with defineComponent in Vue",
+      "Typing Template Refs with useTemplateRef in Vue.js",
+      "Explicitly Typing Reactive Properties in Vue",
+      "Typing Component Emits with Options-Based Declaration in Vue",
+      "Typing Component Template Refs with InstanceType in Vue.js",
+      "Type-Based Props Declaration with defineProps in Vue",
+      "Props Default Values with withDefaults in Vue",
+      "Generic Component Definition",
+      "Props Default Values with Reactive Props Destructure in Vue",
+      "Typing Event Handlers with Type Assertion in Vue",
+      "Specifying Explicit Type with computed() in Vue",
+      "Typing Component Emits with Runtime Declaration in Vue",
+      "Type Inference with defineComponent for Props in Vue",
+      "ref() with Generic Type and no Initial Value in Vue",
+      "Complex Prop Types with Options API in Vue",
+      "Typing Provide/Inject with String Keys in Vue.js",
+      "Force Casting Injected Values in Vue.js",
+      "Typing Component Emits with Type-Based Declaration in Vue",
+      "Typing Generic Component Template Refs with ComponentExposed in Vue.js",
+      "Typing Event Handlers in Vue",
+      "Type Inference with reactive() in Vue"
+    ]
+  },
+  {
+    "fileName": "options-api.md",
+    "pageTitle": "TypeScript with Options API in Vue.js",
+    "snippetTitles": [
+      "Augmenting Global Properties in Vue.js with TypeScript",
+      "Typing Component Props with defineComponent in Vue.js",
+      "Typing Computed Properties in Vue.js",
+      "Typing Event Handlers in Vue.js",
+      "Annotating Complex Prop Types in Vue.js",
+      "Validator and Default Prop Options Caveats in Vue.js",
+      "Typing Component Emits in Vue.js",
+      "Type Augmentation Placement in Vue.js",
+      "Augmenting Custom Options in Vue.js with TypeScript"
+    ]
+  },
+  {
+    "fileName": "overview.md",
+    "pageTitle": "Using Vue with TypeScript",
+    "snippetTitles": [
+      "Using TypeScript in Single-File Components",
+      "Define Component with TypeScript",
+      "TypeScript Casting in Templates",
+      "Define Component with Props and Setup"
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+# TOML definition for synthesis tasks for build tools, bundlers, and task runners.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "build-tool"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview_philosophy"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate a summary of the tool's primary purpose, core problems it solves, and its underlying design philosophy or architectural goals."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["guide", "concepts", "about", "start"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "overview-and-philosophy.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Based *only* on the provided input files, identify the main problem the tool addresses (e.g., bundling, dev speed, build orchestration). Explain its core design principles, architectural ideas (e.g., native speed, plugins, zero-config), and primary goals."
+
+[[tasks]]
+  task_id = "install_basic_usage"
+  description = "Summarize the steps for installing the tool and the basic commands for running development and build processes."
+  input_categories = ["guide", "start", "installation", "cli", "tutorial"]
+  output_filename = "installation-and-basic-usage.md"
+  prompt_focus = "Extract information *only* from the provided files on how to install the tool (e.g., npm, yarn commands) and the minimal CLI commands required to start a development server and create a production build (e.g., `dev`, `build` scripts)."
+
+[[tasks]]
+  task_id = "config_files"
+  description = "Describe the main configuration file(s), their structure, and common options like entry/output points, modes, and base paths."
+  input_categories = ["guide", "config", "reference", "api"]
+  output_filename = "configuration-files-summary.md"
+  prompt_focus = "Using *only* the provided input documents, describe the primary configuration file(s) (name, format like JS/JSON). Explain the structure and purpose of key configuration sections and common options such as defining entry points, output directories, development/production modes, and base URL/public path settings."
+
+[[tasks]]
+  task_id = "dev_server"
+  description = "Explain the features and configuration of the development server, including HMR, proxying, and HTTPS."
+  input_categories = ["guide", "dev-server", "config", "features", "cli"]
+  output_filename = "development-server-summary.md"
+  prompt_focus = "Focus *only* on the provided texts to explain how to start and configure the development server. Summarize its key features like Hot Module Replacement (HMR), proxying API requests, HTTPS setup, port configuration, and other relevant server options."
+
+[[tasks]]
+  task_id = "production_builds"
+  description = "Describe the process and configuration for creating optimized production builds."
+  input_categories = ["guide", "build", "config", "cli", "optimization", "deployment"]
+  output_filename = "production-builds-summary.md"
+  prompt_focus = "Based *only* on the provided input files, describe the command used to create production builds. Explain the typical characteristics of the output (e.g., minification, chunking, hashing) and highlight configuration options that specifically influence the production build process and optimization."
+
+[[tasks]]
+  task_id = "plugin_system"
+  description = "Explain the tool's plugin system, how to use plugins, and common plugin categories."
+  input_categories = ["guide", "plugins", "api", "config", "ecosystem", "extending"]
+  output_filename = "plugin-system-summary.md"
+  prompt_focus = "Using *only* the provided documents, explain how the tool's functionality can be extended via plugins. Describe how to find, install, and configure plugins within the tool's configuration. Summarize common categories or examples of plugins available (e.g., framework integration, CSS processing, asset optimization)."
+
+[[tasks]]
+  task_id = "asset_handling"
+  description = "Summarize how the tool processes different types of assets (CSS, images, fonts, WASM, etc.) beyond JavaScript."
+  input_categories = ["guide", "features", "assets", "config", "loaders", "transforms", "css"]
+  output_filename = "asset-handling-summary.md"
+  prompt_focus = "Extract information *only* from the provided files about how the tool handles non-JavaScript assets like CSS, preprocessors (Sass/Less), images, fonts, JSON, WebAssembly, etc. Explain the mechanisms involved (e.g., built-in handling, loaders, transforms, plugins) and any relevant configuration."
+
+[[tasks]]
+  task_id = "optimization_techniques"
+  description = "Summarize the tool's features for code splitting, tree shaking, minification, and other performance optimizations."
+  input_categories = ["guide", "optimization", "performance", "features", "build", "config", "concepts"]
+  output_filename = "optimization-techniques-summary.md"
+  prompt_focus = "Based *only* on the provided input files, summarize the techniques the tool employs to optimize application performance. Focus on features like automatic or manual code splitting, tree shaking (dead code elimination), minification (JS/CSS), and any other relevant build optimizations mentioned."
+
+[[tasks]]
+  task_id = "monorepo_features"
+  description = "Summarize specific features for managing monorepos, such as task pipelines, caching, and workspace commands."
+  input_categories = ["guide", "monorepo", "features", "cli", "config", "concepts", "caching"]
+  output_filename = "monorepo-features-summary.md"
+  prompt_focus = "Using *only* the provided documents, identify and summarize features specifically designed for monorepo development (if any). Explain concepts like task dependency pipelines, remote/local caching, workspace-aware commands, filtering, and managing dependencies within the monorepo context."

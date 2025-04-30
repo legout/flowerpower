@@ -1,0 +1,9 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Watchers: Reactively Performing Side Effects",
+    "snippetTitles": [
+      "Watching a Ref with Composition API in Vue.js"
+    ]
+  }
+]

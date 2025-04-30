@@ -1,0 +1,76 @@
+[
+  {
+    "fileName": "testing.md",
+    "pageTitle": "Vue.js Testing Guide",
+    "snippetTitles": [
+      "Unit Test for Vue Composable (useCounter)",
+      "Example Vue Composable (useCounter)",
+      "Configure Vitest in Vite Configuration",
+      "Add Vitest Globals to TypeScript Configuration",
+      "Unit Testing Increment Function with Vitest",
+      "Testing Stepper Component with Vue Test Utils",
+      "Testing Vue Composables with Lifecycle Hooks and Provide/Inject",
+      "Example Vue Component Test with Vitest",
+      "Testing Stepper Component with Testing Library",
+      "Add Test Script to Package.json"
+    ]
+  },
+  {
+    "fileName": "state-management.md",
+    "pageTitle": "Vue.js State Management",
+    "snippetTitles": [
+      "Component A - Composition API - Vue",
+      "Creating a Reactive Store - JavaScript",
+      "Counter Component - Options API - Vue",
+      "Centralizing Mutations with Methods - JavaScript",
+      "Component A - Options API - Vue",
+      "Counter Component - Composition API - Vue",
+      "Component B - Composition API - Vue",
+      "Composable with Global and Local State - JavaScript",
+      "Calling Store Method from Template - Vue"
+    ]
+  },
+  {
+    "fileName": "ssr.md",
+    "pageTitle": "Vue.js Server-Side Rendering (SSR) Documentation",
+    "snippetTitles": [
+      "Custom Directive SSR Implementation JavaScript",
+      "Running Node.js script",
+      "Express Server with Vue SSR",
+      "Creating SSR App with Request-Specific Store Instance - Vue.js",
+      "Creating Universal App",
+      "Client Entry Point",
+      "Server-Side Rendering with Shared App",
+      "SSR App Rendering (Node.js)",
+      "Teleports SSR Context Example JavaScript",
+      "Client-Side Hydration (Browser)"
+    ]
+  },
+  {
+    "fileName": "routing.md",
+    "pageTitle": "Vue.js Routing Guide",
+    "snippetTitles": [
+      "Simple Routing with Options API in Vue.js",
+      "Simple Routing with Composition API in Vue.js"
+    ]
+  },
+  {
+    "fileName": "sfc.md",
+    "pageTitle": "Vue Single-File Components (SFC)",
+    "snippetTitles": [
+      "Vue SFC Example (Options API)",
+      "Vue SFC Example (Composition API)",
+      "Importing Vue SFC"
+    ]
+  },
+  {
+    "fileName": "tooling.md",
+    "pageTitle": "Vue Tooling Guide",
+    "snippetTitles": [
+      "Scaffold Vue Project with npm",
+      "Scaffold Vue Project with Yarn Legacy",
+      "Scaffold Vue Project with bun",
+      "Scaffold Vue Project with Yarn Modern"
+    ]
+  }
+]

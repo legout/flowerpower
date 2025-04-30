@@ -1,0 +1,2 @@
+# Error Handling
+*   **Error Handling Note:** If the user cancels repair for a sensitive path (Step 2), report cancellation. If `read_file` or `write_to_file` fail, log the issue to the task log (`.ruru/tasks/[TaskID].md`) using `insert_content` if possible and report the failure clearly via `attempt_completion` back to the caller.

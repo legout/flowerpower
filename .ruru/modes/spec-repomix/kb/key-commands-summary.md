@@ -1,0 +1,1 @@
+The main command is `repomix [path]`, which initiates the process of packing the specified repository path. The command `repomix --init` is used to create a `repomix.config.json` configuration file. The research explicitly noted that `mix` and `ls` are *not* standard `repomix` commands. Other specific subcommands were not detailed in the provided summary.

@@ -1,0 +1,1 @@
+`repomix` is a command-line tool designed to package the contents of a code repository (local or remote GitHub repos) into a single file. Its primary purpose is to create context files optimized for Large Language Models (LLMs), addressing the need to provide comprehensive codebase information to AI models in a condensed and structured format.

@@ -1,0 +1,70 @@
+# TOML definition for synthesis tasks for developer services, APIs, and SDKs.
+
+# Required: Identifies the type this task set applies to.
+library_type = "dev-service-sdk"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview_purpose"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate a high-level overview of the service/API/SDK, its purpose, main capabilities, and intended use cases."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["about", "guide", "concepts", "start"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "service-overview.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Identify the core problem the service/API/SDK addresses, its primary functions, and typical scenarios where it would be used. Focus on the 'what' and 'why' based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "auth_methods"
+  description = "Summarize the different methods available for authenticating requests to the service/API."
+  input_categories = ["authentication", "guide", "start", "api", "reference", "sdks"]
+  output_filename = "authentication-summary.md"
+  prompt_focus = "Extract and list all described authentication mechanisms (like API keys, OAuth, JWT, Service Accounts). Briefly explain how each method works according to the provided texts. Focus *only* on authentication details found in the input files."
+
+[[tasks]]
+  task_id = "sdk_installation_setup"
+  description = "Detail the steps for installing the official SDK(s) and initializing a basic client instance."
+  input_categories = ["sdks", "start", "guide", "installation", "examples"]
+  output_filename = "sdk-installation-setup.md"
+  prompt_focus = "Extract package installation commands (e.g., pip, npm, go get) for the official SDKs mentioned. Summarize the essential code steps shown for importing and initializing the client object, including any required configuration like API keys, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "core_api_concepts_endpoints"
+  description = "Summarize the main functional areas, resource types, or key endpoints/functions of the API/SDK."
+  input_categories = ["api", "reference", "guide", "concepts", "sdks", "endpoints"]
+  output_filename = "core-api-concepts-endpoints.md"
+  prompt_focus = "Identify the major components or resource types the API manages (e.g., 'Chat', 'Embeddings', 'Crawls', 'Payments'). List the key API endpoints or SDK functions/classes associated with these components, providing a brief description of their purpose based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "request_response_structure"
+  description = "Summarize the typical structure and key fields for API requests and responses."
+  input_categories = ["api", "reference", "examples", "sdks", "guide", "endpoints"]
+  output_filename = "request-response-structure.md"
+  prompt_focus = "Describe the common format of request payloads and response objects for primary API operations. Highlight frequently mentioned required parameters, optional parameters, and important fields in the response data, based *only* on the provided input files. Do not invent fields not mentioned."
+
+[[tasks]]
+  task_id = "rate_limits_pricing"
+  description = "Provide a brief overview of mentioned rate limits, usage quotas, or pricing models."
+  input_categories = ["guide", "api", "reference", "about", "concepts", "pricing"]
+  output_filename = "rate-limits-pricing-overview.md"
+  prompt_focus = "Extract any information explicitly discussing rate limits, request quotas, tiers, or pricing structures (e.g., per-request, subscription). Summarize these details concisely based *only* on the provided input files. If no information is found, state that."
+
+[[tasks]]
+  task_id = "error_handling"
+  description = "Describe common error handling strategies, typical error codes, or exceptions."
+  input_categories = ["api", "reference", "guide", "sdks", "examples", "errors"]
+  output_filename = "error-handling-patterns.md"
+  prompt_focus = "Identify common HTTP status codes, error codes, or SDK exception types mentioned in the documentation. Summarize the recommended ways to check for and handle these errors in application code, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "key_usage_examples"
+  description = "Summarize 1-2 fundamental usage examples or common workflows shown in the documentation."
+  input_categories = ["examples", "guide", "tutorial", "cookbook", "start", "sdks"]
+  output_filename = "key-usage-examples.md"
+  prompt_focus = "Extract and summarize the core steps of one or two basic, complete examples demonstrated in the documentation (e.g., making a simple API call and processing the response). Focus on illustrating a common end-to-end workflow based *only* on the provided input files."

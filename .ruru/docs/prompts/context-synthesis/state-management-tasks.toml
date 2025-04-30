@@ -1,0 +1,56 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `state-management-tasks.toml`. This file defines specific AI synthesis tasks tailored for state management libraries/frameworks like Redux, Zustand, Pinia, XState, Jotai, Recoil, etc. These tools focus on managing application state, often in the context of UI frameworks.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "core", "store", "actions", "reducers", "getters", "selectors", "middleware", "plugins", "integrations" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `state-management-tasks.toml`. Ensure you set `library_type = "state-management"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for state management libraries:
+
+1.  **Core Philosophy & Problem Solved:** Explain the library's main purpose (e.g., predictable state, managing complexity, finite state machines), its core principles (e.g., single source of truth, immutability, events/actions), and the problems it aims to address.
+2.  **Installation & Basic Setup:** How to install the library and perform the initial setup, including creating the main store or machine definition.
+3.  **Defining State & Stores/Machines:** How the core state structure is defined (e.g., initial state object, slices, modules, machine states/context).
+4.  **Reading State / Selectors / Getters:** Explain the primary ways components or other parts of the application access or subscribe to state values (e.g., `useSelector`, `useStore` hooks, `mapState`, getters, computed properties derived from state, selectors).
+5.  **Updating State / Actions / Mutations / Events:** Describe the mechanism for triggering state changes (e.g., dispatching actions, calling mutations, sending events, direct updates via proxies). Explain the role of reducers, mutations, or transition functions in ensuring predictable updates.
+6.  **Defining Actions / Mutations / Events:** How the operations that *can* modify state are defined (e.g., action creators, mutation functions, event types).
+7.  **Handling Asynchronous Operations:** Summarize common patterns for managing async tasks like API calls within the library's flow (e.g., thunks, sagas, async actions/mutations, invoking services in FSMs).
+8.  **Middleware / Plugins / Enhancers / Actors:** Describe the extension points for adding cross-cutting logic like logging, persistence, routing integration, or spawning/invoking other logic (actors in XState).
+9.  **Integration with UI Frameworks:** Explain how the library typically integrates with popular UI frameworks (React, Vue, Svelte, Angular), mentioning provider components, specific hooks, or plugins.
+10. **Developer Tools Integration:** Summarize the capabilities and usage of any associated browser developer tools for inspecting state, time-travel debugging, etc.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "concepts", "guide", "api", "reference", "middleware", "plugins", "integrations", "devtools", "recipes", "examples"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `state-management-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

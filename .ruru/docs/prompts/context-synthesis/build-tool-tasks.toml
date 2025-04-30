@@ -1,0 +1,55 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `build-tool-tasks.toml`. This file defines specific AI synthesis tasks tailored for build tools, bundlers, and task runners like Vite, Webpack, esbuild, Turborepo, Parcel, Rollup, etc. These tools focus on processing source code, managing dependencies, optimizing assets, and producing builds for development and production.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "plugins", "build", "dev-server", "optimization", "monorepo" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `build-tool-tasks.toml`. Ensure you set `library_type = "build-tool"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for build tools/bundlers:
+
+1.  **Tool Overview & Core Philosophy:** What problem does the tool primarily solve (e.g., bundling modules, fast dev server, build orchestration, optimization)? What are its core architectural ideas or design goals (e.g., speed via native code, config-driven, plugin architecture, zero-config)?
+2.  **Installation & Basic Usage:** How to install the tool and integrate it into a typical project. The minimal configuration and basic CLI commands needed to run it (`dev`, `build`).
+3.  **Configuration File(s):** Describe the structure and key sections of the main configuration file(s) (e.g., `vite.config.js`, `webpack.config.js`, `turbo.json`). Explain common options like entry points, output paths, mode settings (development/production), and defining base URLs or public paths.
+4.  **Development Server:** Explain how to start and configure the development server. Summarize key features like Hot Module Replacement (HMR), proxying API requests, HTTPS setup, and server options.
+5.  **Production Builds:** Describe the command and process for creating optimized production builds. Explain common output characteristics (e.g., minified files, chunked assets) and relevant configuration options affecting the build.
+6.  **Plugin System & Ecosystem:** Explain how the tool's functionality can be extended using plugins. Describe how to find, install, and configure plugins. Summarize categories of common plugins (e.g., framework support, CSS handling, image optimization, environment variables).
+7.  **Asset Handling & Loaders/Transforms:** How the tool processes various file types beyond JavaScript (e.g., CSS, Sass, Images, Fonts, JSON, WebAssembly). Mention concepts like loaders (Webpack) or built-in transforms/handling mechanisms.
+8.  **Code Splitting & Optimization Techniques:** Summarize the tool's capabilities for optimizing application performance, such as automatic/manual code splitting, tree shaking (dead code elimination), minification, and other build optimizations.
+9.  **Monorepo Features (if applicable):** If the tool has specific monorepo support (like Turborepo), summarize features like task pipelines, remote caching, dependency management within the workspace, and filtering commands.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "guide", "config", "api", "reference", "plugins", "concepts", "optimization", "dev-server", "build", "monorepo", "examples"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `build-tool-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

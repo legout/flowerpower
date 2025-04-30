@@ -1,0 +1,248 @@
+[
+  {
+    "fileName": "forms.md",
+    "pageTitle": "Vue.js Form Input Bindings",
+    "snippetTitles": [
+      "Select Multiple Values with v-model in Vue",
+      "Checkbox Value Bindings in Vue",
+      "Text Input Binding with v-model (Vue HTML)",
+      "Multiple Checkboxes with v-model (Vue HTML)",
+      "Dynamically Render Select Options in Vue",
+      "Multiline Text Input - Correct v-model Binding (Vue HTML)",
+      "Radio Buttons with v-model (Vue HTML)",
+      "Text Input Binding with v-model (Simplified) (Vue HTML)",
+      "Text Input with v-model (Vue HTML)",
+      "Multiline Text Input with v-model (Vue HTML)",
+      "Single Checkbox with v-model (Vue HTML)",
+      "Checkbox Dynamic Value Bindings in Vue",
+      "Number Modifier for v-model in Vue",
+      "Lazy Modifier for v-model in Vue",
+      "Trim Modifier for v-model in Vue",
+      "Select Single Value with v-model in Vue",
+      "Radio Value Bindings in Vue",
+      "Checkbox Value Assignment"
+    ]
+  },
+  {
+    "fileName": "reactivity-fundamentals.md",
+    "pageTitle": "Vue.js Reactivity Fundamentals",
+    "snippetTitles": [
+      "Exposing ref to Template - Composition API - JavaScript",
+      "Declaring Reactive State with ref() - Composition API - JavaScript",
+      "Deep Reactivity with Composition API in Vue",
+      "Using reactive state in Vue templates",
+      "Using Exposed Method as Event Handler - Composition API - HTML",
+      "Declaring Reactive State with reactive() in Vue",
+      "Declaring Reactive State - Options API - JavaScript",
+      "Accessing ref Value - Composition API - JavaScript",
+      "Declaring Methods - Options API - JavaScript",
+      "Deep Reactivity with Options API in Vue",
+      "Ref Unwrapping After Destructuring in Template",
+      "Creating Instance-Specific Debounced Method in Vue",
+      "Reactive Proxy vs. Original Object",
+      "script setup Example - Composition API - Vue",
+      "Nested Reactive Objects",
+      "Ref Unwrapping in Templates (Not Top-Level Property)",
+      "Declaring Methods to Mutate ref - Composition API - JavaScript",
+      "Mutating ref in Event Handlers - Composition API - HTML"
+    ]
+  },
+  {
+    "fileName": "list.md",
+    "pageTitle": "Vue.js List Rendering with v-for",
+    "snippetTitles": [
+      "v-for on Component",
+      "Initializing Array with Composition API in Vue",
+      "v-for with Props",
+      "Rendering List with Index and Parent Message in Vue",
+      "Method for Filtering (Composition API)",
+      "Replacing Array (Composition API)",
+      "Initializing Object with Options API in Vue",
+      "Rendering List with v-for in Vue Template",
+      "Maintaining State with Key Attribute in v-for",
+      "Replacing Array (Options API)",
+      "Computed Property for Filtering (Options API)",
+      "Initializing Object with Composition API in Vue",
+      "JavaScript Equivalent of v-for Scoping",
+      "v-if and v-for with <template> (Correct)",
+      "Method for Filtering (Options API)",
+      "Iterating Through Object with Key and Value in Vue",
+      "Accessing Parent Scope and Index in v-for (Options API)",
+      "Rendering a Range with v-for in Vue",
+      "v-for with 'of' Delimiter in Vue Template",
+      "v-if and v-for on the Same Element (Incorrect)",
+      "Iterating Through Object Properties with v-for in Vue",
+      "Accessing Parent Scope and Index in v-for (Composition API)"
+    ]
+  },
+  {
+    "fileName": "computed.md",
+    "pageTitle": "Vue.js Computed Properties",
+    "snippetTitles": [
+      "Computed Property Definition (Options API)",
+      "Initializing Author Data (Composition API)",
+      "Writable Computed Property (Composition API)",
+      "Template with Computed Property",
+      "Computed Property Definition (Composition API)",
+      "Writable Computed Property (Options API)",
+      "Writable Computed Property with Previous Value (Composition API)",
+      "Initializing Author Data (Options API)",
+      "Writable Computed Property with Previous Value (Options API)",
+      "Accessing Previous Value in Computed Property (Composition API)",
+      "Accessing Previous Value in Computed Property (Options API)",
+      "Method Invocation in Template"
+    ]
+  },
+  {
+    "fileName": "watchers.md",
+    "pageTitle": "Vue.js Watchers Documentation",
+    "snippetTitles": [
+      "Sync Watcher (Options API) - JavaScript",
+      "Watching Reactive Object Property (Vue.js)",
+      "Post-Flush Watcher (Options API) - JavaScript",
+      "Basic Watcher in Composition API (Vue.js)",
+      "Stopping a Watcher with $watch (Options API)",
+      "Watching a Ref with watch() - JavaScript",
+      "Sync Watcher (Composition API) - JavaScript",
+      "watch() with Side Effect Cleanup (Composition API) - JavaScript",
+      "Deep Watcher in Composition API (Vue.js)",
+      "Imperative Watcher with $watch() - JavaScript",
+      "Using watchEffect() - JavaScript",
+      "Eager Watcher in Composition API (Vue.js)",
+      "Side Effect Cleanup with Callback Argument (Composition API) - JavaScript",
+      "Eager Watcher in Options API (Vue.js)",
+      "Once Watcher in Composition API (Vue.js)"
+    ]
+  },
+  {
+    "fileName": "template-syntax.md",
+    "pageTitle": "Vue.js Template Syntax Documentation",
+    "snippetTitles": [
+      "Text Interpolation in Vue Template",
+      "JavaScript Object for Dynamic Attribute Binding (Options API)",
+      "Same-name Shorthand for v-bind in Vue 3.4+",
+      "Attribute Binding using v-bind Directive in Vue",
+      "Vue.js Dynamic v-bind Argument",
+      "Vue.js v-on Modifier Example",
+      "JavaScript Expressions in Vue Templates",
+      "Boolean Attribute Binding with v-bind in Vue",
+      "Directive Usage with v-if in Vue",
+      "JavaScript Object for Dynamic Attribute Binding (Composition API)",
+      "Vue.js Dynamic v-on Event Handler"
+    ]
+  },
+  {
+    "fileName": "event-handling.md",
+    "pageTitle": "Vue.js Event Handling",
+    "snippetTitles": [
+      "Reactive Count Initialization (Options API)",
+      "Method Handler Definition (Options API)",
+      "Event Handler Definition (Options API)",
+      "Vue.js Key Modifiers Example",
+      "Bind Click Event to Method Handler",
+      "Binding Alt + Enter Key Combination in Vue.js",
+      "Method Definition with Argument (Options API)",
+      "Method Handler Definition (Composition API)",
+      "Calling Method with Argument in Inline Handler",
+      "Accessing Event Argument in Inline Handlers",
+      "Vue.js Event Modifiers Example",
+      "Reactive Count Initialization (Composition API)",
+      "Event Handler Definition (Composition API)",
+      "Binding Click Event with Ctrl Modifier in Vue.js",
+      "Increment Count with Inline Handler"
+    ]
+  },
+  {
+    "fileName": "component-basics.md",
+    "pageTitle": "Vue.js Component Basics",
+    "snippetTitles": [
+      "Using a Component (Options API) Vue",
+      "Defining a Component (Options API) JavaScript",
+      "Defining a Component (Composition API) Vue",
+      "Accessing Props in Options API setup function",
+      "Defining a Component (Options API) Vue",
+      "Defining a Component (Composition API) JavaScript",
+      "Declaring Props in Composition API Vue Component",
+      "AlertBox Component with Slot in Vue",
+      "Passing Props via HTML Attributes",
+      "Using a Component (Composition API) Vue",
+      "Reusing Components Vue-HTML",
+      "Defining Posts Array in Composition API",
+      "Incorrect Self-Closing Tag Example in Vue (In-DOM)",
+      "Defining Posts Array in Options API",
+      "Emitting Events in Options API setup function"
+    ]
+  },
+  {
+    "fileName": "class-and-style.md",
+    "pageTitle": "Vue.js Class and Style Bindings Documentation",
+    "snippetTitles": [
+      "Computed classObject (Options API)",
+      "Style Properties data properties (Options API)",
+      "Computed classObject (Composition API)",
+      "Reactive classObject (Composition API)",
+      "Binding to Reactive Style Object (Vue)",
+      "Binding HTML Class with static class (Vue)",
+      "Multiple Style Values (Vue)",
+      "Component Usage with Class Binding (Vue)",
+      "Binding Style to Array (Vue)",
+      "Component Template using $attrs (Vue)",
+      "Binding HTML Class to Computed Object (Vue)",
+      "Component Usage with Class and $attrs (Vue)",
+      "Conditional Class in Array (Vue)",
+      "isActive and hasError data properties (Options API)",
+      "Binding to Reactive classObject (Vue)",
+      "Object Syntax in Array Binding (Vue)",
+      "Reactive isActive and hasError (Composition API)",
+      "Reactive Class Names (Composition API)",
+      "Reactive Style Properties (Composition API)",
+      "Style Object data property (Options API)"
+    ]
+  },
+  {
+    "fileName": "template-refs.md",
+    "pageTitle": "Vue.js Template Refs",
+    "snippetTitles": [
+      "Template Ref Attribute Vue HTML",
+      "Ref on Component (Composition API before 3.5)",
+      "Exposing Public Interface (Composition API)",
+      "Accessing Refs with Composition API (useTemplateRef)",
+      "Limiting Instance Access (Options API)",
+      "Refs Inside v-for (Options API)",
+      "Accessing Refs with Options API",
+      "Function Refs",
+      "Ref on Component (Options API)",
+      "Returning Ref from Setup Function"
+    ]
+  },
+  {
+    "fileName": "application.md",
+    "pageTitle": "Creating Vue Applications",
+    "snippetTitles": [
+      "Mounting a Vue App in JavaScript",
+      "Configuring Error Handler in JavaScript",
+      "Vue App with In-DOM Template in JavaScript",
+      "Initializing a Vue Application Instance in JavaScript",
+      "In-DOM Template for Vue Component (HTML)",
+      "Creating Multiple Application Instances in JavaScript",
+      "HTML Container for Vue Application"
+    ]
+  },
+  {
+    "fileName": "conditional.md",
+    "pageTitle": "Vue.js Conditional Rendering",
+    "snippetTitles": [
+      "Initializing reactive data with ref",
+      "Conditional rendering with v-if on template",
+      "Rendering content with v-if and v-else",
+      "Showing content with v-show"
+    ]
+  },
+  {
+    "fileName": "lifecycle.md",
+    "pageTitle": "Vue Component Lifecycle Hooks",
+    "snippetTitles": [
+      "Incorrect onMounted Usage (Composition API, JavaScript)"
+    ]
+  }
+]

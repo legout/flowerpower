@@ -1,0 +1,54 @@
+[
+  {
+    "fileName": "security.md",
+    "pageTitle": "Vue.js Security Guide",
+    "snippetTitles": [
+      "Preventing Style Tag Rendering in Vue.js Templates",
+      "Attribute Binding Escaping in Vue.js - Example String",
+      "Attribute Binding Escaping in Vue.js",
+      "Object Syntax for Style Binding in Vue.js",
+      "Rendering User-Provided HTML with innerHTML in Render Function",
+      "Style Binding in Vue.js Templates",
+      "Rendering User-Provided HTML with innerHTML in Render Function (JSX)",
+      "HTML Content Escaping in Vue.js Templates"
+    ]
+  },
+  {
+    "fileName": "accessibility.md",
+    "pageTitle": "Vue.js Accessibility Guide",
+    "snippetTitles": [
+      "Vue.js Form with aria-labelledby",
+      "Using `aria-describedby` for Input Description",
+      "Semantic HTML Form Example",
+      "Setting Focus After Route Change (Composition API)",
+      "Adding a Skip Link in Vue",
+      "Vue.js Form with Accessible Placeholders",
+      "Setting Focus After Route Change (Options API)",
+      "Semantic HTML Structure with Headings",
+      "Vue.js Form with aria-describedby",
+      "Vue.js Form with Visually Hidden Label",
+      "CSS for Visually Hiding Elements",
+      "Vue.js ARIA Hidden Example"
+    ]
+  },
+  {
+    "fileName": "production-deployment.md",
+    "pageTitle": "Vue.js Production Deployment Guide",
+    "snippetTitles": [
+      "Tracking Runtime Errors with App-Level Error Handler in Vue.js"
+    ]
+  },
+  {
+    "fileName": "performance.md",
+    "pageTitle": "Vue.js Performance Optimization Guide",
+    "snippetTitles": [
+      "Optimized Computed Property with Manual Comparison",
+      "Async Component Definition in Vue.js",
+      "Efficient List Rendering in Vue.js (Props Stability)",
+      "Reducing Reactivity Overhead with shallowRef",
+      "Inefficient Computed Property with New Object Creation",
+      "Computed Property Stability Example in Vue.js",
+      "Inefficient List Rendering in Vue.js (Props Stability)"
+    ]
+  }
+]

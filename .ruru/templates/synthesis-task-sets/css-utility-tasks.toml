@@ -1,0 +1,84 @@
+# TOML definition for synthesis tasks for CSS Utility Frameworks.
+
+# Required: Identifies the type this task set applies to.
+library_type = "css-utility"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "core_philosophy"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Explain the utility-first concept, its benefits, and comparison to other CSS approaches."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["concepts", "guide", "about", "start"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "core-philosophy.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Synthesize an explanation of the utility-first philosophy, its advantages (like maintainability, performance, developer experience), and how it contrasts with traditional CSS or component libraries, based *only* on the provided input files. Mention the core idea of building designs directly in the markup."
+
+[[tasks]]
+  task_id = "installation_setup"
+  description = "Summarize the installation process and essential setup steps for a CSS utility framework."
+  input_categories = ["installation", "guide", "start", "config"]
+  output_filename = "installation-setup-guide.md"
+  prompt_focus = "Generate a concise guide on installing the framework (e.g., using npm, yarn, or CLI) and the necessary initial setup steps. Include integrating with build tools (like PostCSS, Vite), creating the configuration file, and importing the framework's base, components, and utilities layers into the main CSS file, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "configuration_overview"
+  description = "Provide an overview of the main configuration file structure and key options."
+  input_categories = ["config", "guide", "customization", "reference", "optimizing"]
+  output_filename = "configuration-overview.md"
+  prompt_focus = "Explain the structure and purpose of the primary configuration file (e.g., `tailwind.config.js` or CSS `@theme`). Focus on the key sections like `content` (for class detection/purging), `theme` (for defining design tokens like colors, spacing, fonts, breakpoints), and `plugins` (for extending functionality), based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "applying_utilities"
+  description = "Explain the fundamental concept of applying utility classes in markup."
+  input_categories = ["guide", "concepts", "utilities", "examples", "start"]
+  output_filename = "applying-utilities.md"
+  prompt_focus = "Describe the core principle of applying utility classes directly in HTML/JSX elements to style them. Provide brief examples of common utility types (e.g., padding `p-4`, margin `m-2`, text color `text-blue-500`, background color `bg-red-100`, flexbox `flex items-center`) based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "responsive_design"
+  description = "Explain how to implement responsive design using breakpoint modifiers."
+  input_categories = ["guide", "concepts", "utilities", "responsive", "examples", "reference", "config"]
+  output_filename = "responsive-design.md"
+  prompt_focus = "Detail the mobile-first approach to responsive design using breakpoint prefixes (e.g., `sm:`, `md:`, `lg:`, `xl:`) to apply utilities conditionally at different screen sizes. Explain how breakpoints are defined in the theme configuration, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "state_variants"
+  description = "Explain how to style elements based on interactive states and other conditions."
+  input_categories = ["guide", "concepts", "utilities", "examples", "reference"]
+  output_filename = "state-variants.md"
+  prompt_focus = "Describe how to use state variants (modifiers) like `hover:`, `focus:`, `active:`, `visited:`, `disabled:`, `dark:`, `group-hover:`, `peer-checked:`, `aria-*`, `data-*` etc., to apply conditional styles based on user interaction, element state, or environment conditions, based *only* on the provided input files. Explain how these variants are typically chained before the utility class."
+
+[[tasks]]
+  task_id = "theme_customization"
+  description = "Explain how to customize or extend the default theme (colors, spacing, fonts, etc.)."
+  input_categories = ["customization", "config", "guide", "reference", "theme"]
+  output_filename = "theme-customization.md"
+  prompt_focus = "Detail the methods for customizing the framework's theme within the configuration file (e.g., `theme` or `theme.extend` keys in JS config, or `@theme` block in CSS config). Explain how to add, override, or remove design tokens like colors, spacing units, font families, and breakpoints, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "directives_usage"
+  description = "Explain the purpose and usage of key framework directives like @tailwind, @layer, and @apply."
+  input_categories = ["guide", "customization", "reference", "concepts", "functions-and-directives"]
+  output_filename = "directives-usage.md"
+  prompt_focus = "Explain the function and common use cases for key CSS directives provided by the framework. Focus on `@tailwind` (or `@import`) for including base, components, and utilities styles; `@layer` for organizing custom CSS within framework layers; and `@apply` for composing reusable CSS classes from existing utilities, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "plugin_system"
+  description = "Describe the plugin system for extending framework functionality."
+  input_categories = ["plugins", "guide", "customization", "config", "reference", "ecosystem"]
+  output_filename = "plugin-system.md"
+  prompt_focus = "Explain how to add and configure official or third-party plugins (e.g., typography, forms, aspect-ratio, container-queries) via the configuration file to extend the framework's features and add new utilities or components, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "production_optimization"
+  description = "Explain the process and importance of optimizing CSS for production builds."
+  input_categories = ["optimizing", "guide", "config", "concepts", "installation", "performance"]
+  output_filename = "production-optimization.md"
+  prompt_focus = "Describe the production optimization process. Focus on how the framework removes unused styles (purging/tree-shaking) based on the `content` paths defined in the configuration file and the importance of this step for reducing final CSS bundle size. Mention minification as part of the typical build process, based *only* on the provided input files."

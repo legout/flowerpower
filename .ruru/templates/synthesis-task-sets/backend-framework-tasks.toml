@@ -1,0 +1,86 @@
+# TOML definition for synthesis tasks for backend frameworks.
+
+# Required: Identifies the type this task set applies to.
+library_type = "backend-framework"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+
+[[tasks]]
+  # Task 1: Framework Overview & Architecture
+  task_id = "framework_overview"
+  description = "Generate a high-level overview of the framework's philosophy, architecture, and primary use cases."
+  input_categories = ["guide", "concepts", "about", "start", "misc"]
+  output_filename = "framework-overview.md"
+  prompt_focus = "Summarize the framework's core design philosophy, intended use cases (e.g., API development, full-stack web applications), and its main architectural pattern (e.g., MVC, Request-Response cycle) based *only* on the provided input files. Focus on the 'what' and 'why' of the framework."
+
+[[tasks]]
+  # Task 2: Setup & Installation
+  task_id = "setup_installation"
+  description = "Summarize the steps for project initialization, basic configuration, and the typical directory structure."
+  input_categories = ["start", "installation", "guide", "config"]
+  output_filename = "setup-installation-summary.md"
+  prompt_focus = "Extract and describe the common commands or procedures for creating a new project, essential initial configuration steps (like environment variables), and provide an overview of the standard project directory layout, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 3: Routing
+  task_id = "routing_summary"
+  description = "Explain how the framework maps incoming HTTP requests to application code."
+  input_categories = ["guide", "concepts", "routing", "controllers", "api", "reference"]
+  output_filename = "routing-summary.md"
+  prompt_focus = "Describe the mechanisms used for defining routes (e.g., dedicated files, decorators, controller methods), how route parameters (required and optional) are handled, the concept of route grouping, and how middleware is typically associated with routes, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 4: Request Handling/Controllers/Views
+  task_id = "request_handling"
+  description = "Describe the core components responsible for handling requests and generating responses."
+  input_categories = ["guide", "concepts", "controllers", "views", "requests", "responses", "api", "reference"]
+  output_filename = "request-handling-summary.md"
+  prompt_focus = "Explain the role of controllers, views, or equivalent handlers in processing incoming requests. Detail how request data (input, headers, parameters) is accessed and how responses (HTML, JSON, redirects) are generated and returned, based *only* on the provided input files. Mention the request/response object lifecycle if described."
+
+[[tasks]]
+  # Task 5: Database Interaction / ORM
+  task_id = "database_orm"
+  description = "Summarize the framework's approach to database interaction, including ORM features if applicable."
+  input_categories = ["guide", "concepts", "database", "orm", "eloquent", "models", "queries", "migrations", "seeding", "api", "reference"]
+  output_filename = "database-orm-summary.md"
+  prompt_focus = "Describe how the framework connects to and interacts with databases. If an ORM is used, explain its core concepts like Models, defining relationships, querying data (basic CRUD, relationship queries), and managing database schema changes (migrations). If no ORM is standard, describe common database client usage, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 6: Middleware / Request Lifecycle
+  task_id = "middleware_lifecycle"
+  description = "Explain the concept of middleware and how it fits into the request processing lifecycle."
+  input_categories = ["guide", "concepts", "middleware", "requests", "routing", "api", "reference"]
+  output_filename = "middleware-lifecycle-summary.md"
+  prompt_focus = "Describe what middleware is in the context of this framework, its purpose (e.g., authentication, logging, CORS), how middleware is defined, registered (globally, per-route, groups), and executed within the request lifecycle, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 7: Authentication & Authorization
+  task_id = "auth_summary"
+  description = "Summarize the framework's built-in or common patterns for handling user authentication and authorization."
+  input_categories = ["guide", "concepts", "security", "authentication", "authorization", "api", "reference", "start"]
+  output_filename = "authentication-authorization-summary.md"
+  prompt_focus = "Explain the mechanisms provided by the framework for authenticating users (e.g., session-based, token-based) and authorizing actions (e.g., gates, policies, roles/permissions). Describe how to protect routes or resources, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 8: Templating
+  task_id = "templating_summary"
+  description = "Describe the server-side templating engine used (if any) and how views are rendered."
+  input_categories = ["guide", "concepts", "views", "blade", "templating", "frontend", "api", "reference"]
+  output_filename = "templating-summary.md"
+  prompt_focus = "If the framework features a server-side templating system (like Blade, Jinja2, Thymeleaf), explain its basic syntax, how data is passed from controllers/handlers to views, and common directives for control structures, layouts, and including subviews, based *only* on the provided input files. If primarily API-focused, state that."
+
+[[tasks]]
+  # Task 9: Testing
+  task_id = "testing_summary"
+  description = "Summarize the framework's approach to testing application code."
+  input_categories = ["guide", "concepts", "testing", "api", "reference", "start"]
+  output_filename = "testing-summary.md"
+  prompt_focus = "Describe the testing tools and methodologies commonly used or provided by the framework. Cover types of tests (unit, integration, feature/functional), how to set up tests, common assertions, mocking/faking dependencies (like databases or HTTP requests), and running tests, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 10: Dependency Injection / Service Container
+  task_id = "di_container"
+  description = "Explain how the framework manages dependencies using a service container or dependency injection."
+  input_categories = ["guide", "concepts", "container", "providers", "dependency-injection", "architecture", "api", "reference"]
+  output_filename = "dependency-injection-summary.md"
+  prompt_focus = "Describe the framework's service container or dependency injection mechanism, if present. Explain how dependencies are registered (bindings, singletons) and resolved (automatic injection in controllers/classes, manual resolution), based *only* on the provided input files. Mention service providers if they are a core concept."

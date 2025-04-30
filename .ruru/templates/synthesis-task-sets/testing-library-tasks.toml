@@ -1,0 +1,77 @@
+# TOML definition for synthesis tasks for testing libraries and frameworks.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "testing-library"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Summarize the library's primary testing focus (Unit, E2E, Component, etc.), core goals, and design philosophy."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["guide", "concepts", "about", "start", "misc"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "library-overview.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Based *only* on the provided texts, identify the main type of testing the library is designed for (e.g., Unit, Integration, E2E, Component). Explain its core purpose, stated goals, and underlying philosophy or principles. Avoid specific code examples unless they illustrate a core concept."
+
+[[tasks]]
+  task_id = "installation_setup"
+  description = "Describe the typical installation process and essential initial configuration steps."
+  input_categories = ["guide", "start", "installation", "config", "examples"]
+  output_filename = "installation-setup.md"
+  prompt_focus = "Extract and explain the standard installation commands (like npm, pip, yarn) and the minimum configuration required to get started. Mention common configuration files (e.g., jest.config.js, playwright.config.ts) and basic project structure if discussed in the sources. Focus on the initial setup process based *only* on the provided texts."
+
+[[tasks]]
+  task_id = "basic_tests"
+  description = "Explain the fundamental structure of test suites and individual test cases."
+  input_categories = ["guide", "start", "tutorial", "examples", "concepts"]
+  output_filename = "writing-basic-tests.md"
+  prompt_focus = "Describe how tests are typically organized (suites, groups) and how individual test cases are defined (e.g., using `describe`/`it`, `test` functions/decorators, classes). Summarize the basic syntax and essential imports or setup needed for a minimal test, based *only* on the provided sources."
+
+[[tasks]]
+  task_id = "assertions_matchers"
+  description = "Summarize how assertions are made and the common types of matchers available."
+  input_categories = ["guide", "api", "matchers", "assertions", "examples", "reference"]
+  output_filename = "assertions-matchers.md"
+  prompt_focus = "Explain the core mechanism for making assertions (e.g., `expect()`, `assert.*`). Summarize the main categories of matchers provided (e.g., equality, truthiness, exceptions, types, object properties, DOM attributes/state if applicable). Focus on the *purpose* of different matcher types, referencing key functions/methods *only* as found in the source texts."
+
+[[tasks]]
+  task_id = "mocking_spying_stubbing"
+  description = "Explain the library's features for mocking, spying, and stubbing dependencies."
+  input_categories = ["guide", "api", "mocking", "concepts", "examples", "reference"]
+  output_filename = "mocking-spying-stubbing.md"
+  prompt_focus = "Describe the techniques provided by the library to isolate code under test by replacing dependencies. Explain the concepts of mocking, spying, and stubbing *as presented in the source texts*. Summarize the key functions, APIs, or utilities used for creating mocks/spies/stubs for modules, functions, timers, network requests, etc., based *only* on the provided information."
+
+[[tasks]]
+  task_id = "running_tests"
+  description = "Describe how to execute tests using the test runner and common CLI options."
+  input_categories = ["guide", "cli", "commands", "config", "start", "examples"]
+  output_filename = "running-tests.md"
+  prompt_focus = "Explain how to invoke the test runner, typically via the command line. Summarize common CLI options mentioned in the sources for filtering tests (by name, file, tag), running in watch mode, enabling parallel execution, specifying reporters, and generating results/coverage reports. Base the summary *only* on the provided texts."
+
+[[tasks]]
+  task_id = "setup_teardown_fixtures"
+  description = "Describe mechanisms for setting up and tearing down test environments or state."
+  input_categories = ["guide", "api", "concepts", "fixtures", "examples", "reference"]
+  output_filename = "setup-teardown-fixtures.md"
+  prompt_focus = "Explain the methods provided for executing code before/after test suites or individual tests (e.g., `beforeEach`, `afterAll`, setup/teardown functions). If the library uses a fixture system, describe its purpose and basic usage *as explained in the provided texts*. Focus on managing test context and state based *only* on the source material."
+
+[[tasks]]
+  task_id = "domain_specific_patterns"
+  description = "Summarize key testing patterns specific to the library's domain (e.g., DOM querying, browser interaction, async testing)."
+  input_categories = ["guide", "concepts", "examples", "cookbook", "testing-patterns", "api"]
+  output_filename = "domain-specific-patterns.md"
+  prompt_focus = "Identify and summarize testing patterns or techniques emphasized by the library for its specific area (e.g., querying elements by role/text for UI testing libraries, page object model or browser interaction commands for E2E tools, handling asynchronous operations, component testing strategies). Focus on the *recommended approaches* described *only* in the provided sources."
+
+[[tasks]]
+  task_id = "configuration_options"
+  description = "Provide an overview of important configuration options beyond the basics."
+  input_categories = ["guide", "config", "reference", "api", "examples"]
+  output_filename = "configuration-options.md"
+  prompt_focus = "Summarize significant configuration options available beyond the initial setup. Focus on settings mentioned *only* in the provided sources related to test environment (e.g., jsdom, node), reporters, code coverage, global setup/teardown scripts, browser contexts, timeouts, or other advanced customization options."

@@ -1,0 +1,64 @@
+# TOML definition for synthesis tasks for CLI tools.
+
+# Required: Identifies the type this task set applies to.
+library_type = "cli-tool"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview_purpose"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate a high-level overview of the CLI tool's purpose and the problem it solves."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["about", "guide", "start", "misc", "readme"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "overview-purpose.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Identify and summarize the primary function of the CLI tool, the main problem it addresses, and its core value proposition, based *only* on the provided input files. Focus on the 'what' and 'why'. Avoid specific command details here."
+
+[[tasks]]
+  task_id = "installation_methods"
+  description = "Summarize the different ways to install the CLI tool."
+  input_categories = ["installation", "start", "guide", "readme"]
+  output_filename = "installation-methods.md"
+  prompt_focus = "Extract and list all documented methods for installing the CLI tool (e.g., package managers like npm, pip, brew, apt; direct download; Docker; build from source). Include the specific commands if provided. Base the summary *only* on the input files."
+
+[[tasks]]
+  task_id = "basic_usage_global_options"
+  description = "Explain the basic command structure and common global options/flags."
+  input_categories = ["guide", "start", "reference", "commands", "examples", "usage"]
+  output_filename = "basic-usage-global-options.md"
+  prompt_focus = "Describe the typical command-line syntax pattern (e.g., `tool [command] [options] [arguments]`). Identify and explain frequently mentioned global flags or options (like `--help`, `--version`, `--verbose`, `-v`, `--config`, `--quiet`) that apply across multiple commands. Use *only* the provided input files."
+
+[[tasks]]
+  task_id = "key_commands_summary"
+  description = "Provide a summary of the main commands or subcommands offered by the tool."
+  input_categories = ["commands", "reference", "guide", "examples", "start", "usage"]
+  output_filename = "key-commands-summary.md"
+  prompt_focus = "Identify the primary commands or subcommands of the CLI tool. For each key command, provide a brief (one-sentence) description of its function based *only* on the input files. Focus on the most common or essential commands mentioned. Do not list every single option for each command; aim for a high-level functional overview."
+
+[[tasks]]
+  task_id = "configuration_methods"
+  description = "Summarize how the CLI tool can be configured."
+  input_categories = ["config", "guide", "reference", "commands", "usage"]
+  output_filename = "configuration-methods.md"
+  prompt_focus = "Extract and describe the different methods used to configure the CLI tool, such as configuration files (mentioning typical names/locations like `.toolrc`, `config.json`, `~/.config/tool/` if specified), environment variables, and command-line flags that override settings. Detail the precedence if mentioned. Base the summary *only* on the input files."
+
+[[tasks]]
+  task_id = "common_use_cases_examples"
+  description = "Summarize common workflows and provide examples of typical usage."
+  input_categories = ["examples", "guide", "tutorial", "cookbook", "commands", "usage", "start"]
+  output_filename = "common-use-cases-examples.md"
+  prompt_focus = "Identify and describe 3-5 common tasks or workflows accomplished using the CLI tool, based *only* on the examples and guides provided in the input files. If possible, include short command sequences illustrating these use cases. Focus on practical application scenarios mentioned in the source material."
+
+[[tasks]]
+  task_id = "core_concepts"
+  description = "Summarize fundamental concepts or architectural ideas behind the tool (if applicable)."
+  input_categories = ["concepts", "guide", "about", "reference", "architecture"]
+  output_filename = "core-concepts.md"
+  prompt_focus = "Identify and explain any core concepts, terminology, or architectural principles that are central to understanding how the CLI tool works (e.g., state management, plugins, contexts, workspaces, idempotency). Explain why these concepts are important for users, based *only* on the provided input files. If no distinct core concepts are explicitly discussed in the inputs, state that the tool primarily relies on its command structure."

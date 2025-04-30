@@ -1,0 +1,91 @@
+# TOML definition for synthesis tasks for frontend JavaScript frameworks.
+
+# Required: Identifies the type this task set applies to.
+library_type = "frontend-framework"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "core_concepts"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of the framework's core concepts, architecture, and design philosophy."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["guide", "concepts", "about", "start", "reference"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "core-concepts-philosophy.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, reactivity model (e.g., Virtual DOM, signals, fine-grained), component architecture, and main features based *only* on the provided input files. Aim for a high-level conceptual overview suitable for someone new to the framework."
+
+[[tasks]]
+  task_id = "setup_installation"
+  description = "Summarize the common methods for setting up a new project and basic configuration."
+  input_categories = ["start", "installation", "guide", "config"]
+  output_filename = "setup-installation.md"
+  prompt_focus = "Extract and summarize the primary ways to initialize a new project using this framework, including common CLI commands, prerequisites, and essential initial configuration steps mentioned in the provided texts. Focus on getting started quickly."
+
+[[tasks]]
+  task_id = "component_model"
+  description = "Describe how components are defined, including props, state, event handling, and composition (slots/children)."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples"]
+  output_filename = "component-model.md"
+  prompt_focus = "Explain the framework's component model based *only* on the provided input files. Focus on how components are defined (e.g., functions, classes), how they receive data (props/inputs), manage internal data (state/reactive variables), handle user interactions or emit events/outputs, and how they compose with child content (slots/children/transclusion)."
+
+[[tasks]]
+  task_id = "templating_rendering"
+  description = "Outline the templating syntax, directives, conditional rendering, and list rendering techniques."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples"]
+  output_filename = "templating-rendering.md"
+  prompt_focus = "Describe the syntax used within component templates (e.g., JSX, specific template syntax, directives). Explain common control flow structures like conditional rendering (if/else logic) and list rendering (loops/iteration), based *only* on the provided input files. Include examples of data binding."
+
+[[tasks]]
+  task_id = "routing"
+  description = "Summarize the framework's approach to client-side or server-side routing."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples"]
+  output_filename = "routing.md"
+  prompt_focus = "Explain how routing (client-side and/or server-side, including file-based routing if applicable) is typically handled within this framework or its ecosystem, based *only* on the provided input files. Mention any built-in routers or commonly recommended external libraries if discussed. Cover basic route definition and navigation."
+
+[[tasks]]
+  task_id = "state_management"
+  description = "Describe common patterns and solutions for managing application state."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples", "cookbook"]
+  output_filename = "state-management.md"
+  prompt_focus = "Summarize the built-in mechanisms and/or commonly recommended patterns/libraries for managing state (both local component state and shared application state) within this framework, based *only* on the provided input files. Discuss concepts like stores, contexts, reducers, services, or signals if mentioned."
+
+[[tasks]]
+  task_id = "lifecycle_hooks"
+  description = "Identify and explain key component lifecycle hooks or functions."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial"]
+  output_filename = "lifecycle-hooks.md"
+  prompt_focus = "Identify and describe the key functions or hooks related to a component's lifecycle (e.g., creation/mounting, updates, destruction/unmounting) based *only* on the provided input files. Explain when they run and their common use cases, such as side effects or cleanup."
+
+[[tasks]]
+  task_id = "api_interaction"
+  description = "Outline common patterns for fetching data or interacting with backend APIs."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples", "cookbook"]
+  output_filename = "api-interaction.md"
+  prompt_focus = "Describe the common methods and patterns used within this framework for interacting with external APIs (e.g., fetching data, submitting forms). Mention built-in fetch capabilities or common practices involving lifecycle hooks (`useEffect`), `fetch`, dedicated data fetching hooks/libraries, or server-side data loading if discussed in the provided texts."
+
+[[tasks]]
+  task_id = "styling"
+  description = "Summarize the typical approaches to styling components within the framework."
+  input_categories = ["guide", "concepts", "reference", "tutorial", "examples"]
+  output_filename = "styling.md"
+  prompt_focus = "Explain the common ways components are styled in this framework, based *only* on the provided input files. Mention concepts like global CSS, CSS Modules, CSS-in-JS, scoped styles, utility classes, or specific conventions if discussed."
+
+[[tasks]]
+  task_id = "forms_handling"
+  description = "Describe how forms and user input are typically handled."
+  input_categories = ["guide", "concepts", "api", "reference", "tutorial", "examples", "cookbook"]
+  output_filename = "forms-handling.md"
+  prompt_focus = "Explain the common patterns for handling form submissions and user input within this framework, based *only* on the provided input files. Cover controlled vs. uncontrolled components, data binding for form elements, validation strategies, and form submission logic if discussed."
+
+[[tasks]]
+  task_id = "build_deployment"
+  description = "Summarize information related to building the application for production and deployment strategies."
+  input_categories = ["guide", "start", "config", "reference"]
+  output_filename = "build-deployment.md"
+  prompt_focus = "Extract and summarize information regarding the build process for production environments and common deployment strategies or considerations mentioned for applications built with this framework, based *only* on the provided input files."

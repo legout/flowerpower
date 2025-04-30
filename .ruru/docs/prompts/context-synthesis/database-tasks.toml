@@ -1,0 +1,55 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `database-tasks.toml`. This file defines specific AI synthesis tasks tailored for database systems like PostgreSQL, MySQL, MongoDB, Firestore, Supabase DB, Neon DB, etc. These systems focus on data storage, retrieval, and management.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "sql", "queries", "schema", "data-modeling" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `database-tasks.toml`. Ensure you set `library_type = "database"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in database documentation:
+
+1.  **Database Overview & Data Model:** What type of database is it (Relational, Document, Key-Value, Graph)? What is its core data model (Tables/Rows, Documents/Collections, Nodes/Edges)? Key features and use cases.
+2.  **Setup & Connection:** How to install/provision the database and establish a connection from common application environments or clients (connection strings, client libraries, authentication methods).
+3.  **Data Definition (Schema):** How data structures are defined (e.g., `CREATE TABLE` in SQL, schema definition in NoSQL, collection creation, defining indexes).
+4.  **Basic CRUD Operations:** Summarize the fundamental operations for Creating, Reading, Updating, and Deleting data (e.g., `INSERT`, `SELECT`, `UPDATE`, `DELETE` in SQL; `insertOne`, `find`, `updateOne`, `deleteOne` in MongoDB). Focus on the common syntax or client library methods.
+5.  **Querying Data:** Explain common query patterns beyond basic reads (e.g., filtering with `WHERE` clauses, projections, sorting, aggregation pipelines, joins (for SQL), specific query methods).
+6.  **Indexing:** Explain the importance of indexes and how they are typically created or managed for performance.
+7.  **Transactions (if applicable):** Summarize how atomic operations involving multiple data changes are handled (e.g., `BEGIN`, `COMMIT`, `ROLLBACK` in SQL, session-based transactions).
+8.  **Security & Access Control:** Overview of common security features (e.g., user roles, permissions, Row-Level Security (RLS), network rules).
+9.  **Backup & Recovery (if applicable):** Summarize any mentioned built-in or recommended procedures for backing up and restoring data.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories`, choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `database-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

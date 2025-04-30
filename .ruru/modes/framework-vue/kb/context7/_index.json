@@ -1,0 +1,299 @@
+[
+  {
+    "indexPath": "_index.json",
+    "directoryPath": ".",
+    "containedPageTitles": [
+      "Vue.js Documentation Home Page"
+    ]
+  },
+  {
+    "indexPath": "about/_index.json",
+    "directoryPath": "about",
+    "containedPageTitles": [
+      "Vue Releases and Versioning",
+      "Vue.js Meet the Team Page"
+    ]
+  },
+  {
+    "indexPath": "api/_index.json",
+    "directoryPath": "api",
+    "containedPageTitles": [
+      "Vue.js Composition API: Dependency Injection",
+      "Vue.js SFC Script Setup Documentation",
+      "Vue.js Reactivity API: Core",
+      "Vue SFC Syntax Specification",
+      "Vue.js Built-in Special Attributes Documentation",
+      "Vue.js Global API: General",
+      "Vue.js Component Options: State, Props, Computed, and Methods",
+      "Vue.js Component Options: Misc",
+      "Vue.js Composition API Lifecycle Hooks",
+      "Vue.js Built-in Directives",
+      "Vue.js Reactivity API Utilities Documentation",
+      "Vue.js Component Lifecycle Options",
+      "Vue.js SFC CSS Features",
+      "Vue.js Built-in Components API",
+      "Vue Composition API Helpers Documentation",
+      "Vue.js Component Options: Composition",
+      "Vue.js Application API Reference",
+      "Vue.js Utility Types Documentation",
+      "Vue.js Reactivity API: Advanced",
+      "Vue.js Composition API setup() Hook",
+      "Vue.js Custom Elements API Documentation",
+      "Vue.js Render Function APIs Documentation",
+      "Vue.js Component Instance Properties and Methods",
+      "Custom Renderer API in Vue.js",
+      "Vue.js Built-in Special Elements Documentation",
+      "Vue.js Server-Side Rendering API",
+      "Vue.js Compile-Time Flags Configuration",
+      "Vue.js Component Options: Rendering"
+    ]
+  },
+  {
+    "indexPath": "developers/_index.json",
+    "directoryPath": "developers",
+    "containedPageTitles": [
+      "Vue Developers Documentation"
+    ]
+  },
+  {
+    "indexPath": "ecosystem/_index.json",
+    "directoryPath": "ecosystem",
+    "containedPageTitles": [
+      "Vue.js Component Import and Rendering"
+    ]
+  },
+  {
+    "indexPath": "error-reference/_index.json",
+    "directoryPath": "error-reference",
+    "containedPageTitles": [
+      "Vue.js Production Error Code Reference"
+    ]
+  },
+  {
+    "indexPath": "glossary/_index.json",
+    "directoryPath": "glossary",
+    "containedPageTitles": [
+      "Vue.js Glossary"
+    ]
+  },
+  {
+    "indexPath": "guide/_index.json",
+    "directoryPath": "guide",
+    "containedPageTitles": [
+      "Vue.js Introduction",
+      "Vue.js Quick Start Guide"
+    ]
+  },
+  {
+    "indexPath": "guide/best-practices/_index.json",
+    "directoryPath": "guide/best-practices",
+    "containedPageTitles": [
+      "Vue.js Security Guide",
+      "Vue.js Accessibility Guide",
+      "Vue.js Production Deployment Guide",
+      "Vue.js Performance Optimization Guide"
+    ]
+  },
+  {
+    "indexPath": "guide/built-ins/_index.json",
+    "directoryPath": "guide/built-ins",
+    "containedPageTitles": [
+      "Vue.js Teleport Component Documentation",
+      "Vue.js KeepAlive Component Documentation",
+      "Vue.js Transition Component",
+      "Vue.js Suspense Component",
+      "Vue.js TransitionGroup Component"
+    ]
+  },
+  {
+    "indexPath": "guide/components/_index.json",
+    "directoryPath": "guide/components",
+    "containedPageTitles": [
+      "Component v-model in Vue.js",
+      "Vue.js Component Props Declaration and Usage",
+      "Vue.js Component Slots",
+      "Vue.js Component Events",
+      "Vue.js Provide / Inject",
+      "Async Components in Vue.js",
+      "Component Registration in Vue.js",
+      "Vue.js Fallthrough Attributes Documentation"
+    ]
+  },
+  {
+    "indexPath": "guide/essentials/_index.json",
+    "directoryPath": "guide/essentials",
+    "containedPageTitles": [
+      "Vue.js Form Input Bindings",
+      "Vue.js Reactivity Fundamentals",
+      "Vue.js List Rendering with v-for",
+      "Vue.js Computed Properties",
+      "Vue.js Watchers Documentation",
+      "Vue.js Template Syntax Documentation",
+      "Vue.js Event Handling",
+      "Vue.js Component Basics",
+      "Vue.js Class and Style Bindings Documentation",
+      "Vue.js Template Refs",
+      "Creating Vue Applications",
+      "Vue.js Conditional Rendering",
+      "Vue Component Lifecycle Hooks"
+    ]
+  },
+  {
+    "indexPath": "guide/extras/_index.json",
+    "directoryPath": "guide/extras",
+    "containedPageTitles": [
+      "Vue Reactivity in Depth",
+      "Vue Rendering Mechanism Documentation",
+      "Vue and Web Components Integration",
+      "Vue.js Render Functions and JSX",
+      "Vue Composition API FAQ",
+      "Vue Reactivity Transform",
+      "Vue.js Animation Techniques"
+    ]
+  },
+  {
+    "indexPath": "guide/reusability/_index.json",
+    "directoryPath": "guide/reusability",
+    "containedPageTitles": [
+      "Vue Composables: Reusing Stateful Logic",
+      "Vue.js Plugins Documentation",
+      "Vue.js Custom Directives Documentation"
+    ]
+  },
+  {
+    "indexPath": "guide/scaling-up/_index.json",
+    "directoryPath": "guide/scaling-up",
+    "containedPageTitles": [
+      "Vue.js Testing Guide",
+      "Vue.js State Management",
+      "Vue.js Server-Side Rendering (SSR) Documentation",
+      "Vue.js Routing Guide",
+      "Vue Single-File Components (SFC)",
+      "Vue Tooling Guide"
+    ]
+  },
+  {
+    "indexPath": "guide/typescript/_index.json",
+    "directoryPath": "guide/typescript",
+    "containedPageTitles": [
+      "TypeScript with Composition API in Vue.js",
+      "TypeScript with Options API in Vue.js",
+      "Using Vue with TypeScript"
+    ]
+  },
+  {
+    "indexPath": "partners/_index.json",
+    "directoryPath": "partners",
+    "containedPageTitles": [
+      "Vue.js Component Integration"
+    ]
+  },
+  {
+    "indexPath": "sponsor/_index.json",
+    "directoryPath": "sponsor",
+    "containedPageTitles": [
+      "Vue.js Sponsor Information"
+    ]
+  },
+  {
+    "indexPath": "style-guide/_index.json",
+    "directoryPath": "style-guide",
+    "containedPageTitles": [
+      "Vue.js Style Guide - Priority B Rules",
+      "Vue.js Style Guide - Priority A Rules",
+      "Vue.js Priority D Rules: Use with Caution",
+      "Vue.js Style Guide - Priority C Rules: Recommended"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-1/_index.json",
+    "directoryPath": "tutorial/src/step-1",
+    "containedPageTitles": [
+      "Vue.js Getting Started Tutorial"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-10/_index.json",
+    "directoryPath": "tutorial/src/step-10",
+    "containedPageTitles": [
+      "Vue.js Watchers: Reactively Performing Side Effects"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-11/_index.json",
+    "directoryPath": "tutorial/src/step-11",
+    "containedPageTitles": [
+      "Vue.js Component Usage and Registration"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-12/_index.json",
+    "directoryPath": "tutorial/src/step-12",
+    "containedPageTitles": [
+      "Vue.js Props: Passing Data from Parent to Child Components"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-13/_index.json",
+    "directoryPath": "tutorial/src/step-13",
+    "containedPageTitles": [
+      "Vue.js Component Event Emission"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-14/_index.json",
+    "directoryPath": "tutorial/src/step-14",
+    "containedPageTitles": [
+      "Vue.js Slots Documentation"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-2/_index.json",
+    "directoryPath": "tutorial/src/step-2",
+    "containedPageTitles": [
+      "Vue.js Declarative Rendering"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-3/_index.json",
+    "directoryPath": "tutorial/src/step-3",
+    "containedPageTitles": [
+      "Vue.js Attribute Bindings"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-4/_index.json",
+    "directoryPath": "tutorial/src/step-4",
+    "containedPageTitles": [
+      "Vue.js Event Listener Documentation"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-5/_index.json",
+    "directoryPath": "tutorial/src/step-5",
+    "containedPageTitles": [
+      "Vue.js Form Bindings"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-7/_index.json",
+    "directoryPath": "tutorial/src/step-7",
+    "containedPageTitles": [
+      "Vue.js List Rendering with v-for"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-8/_index.json",
+    "directoryPath": "tutorial/src/step-8",
+    "containedPageTitles": [
+      "Vue.js Computed Properties in Todo List"
+    ]
+  },
+  {
+    "indexPath": "tutorial/src/step-9/_index.json",
+    "directoryPath": "tutorial/src/step-9",
+    "containedPageTitles": [
+      "Vue.js Lifecycle and Template Refs"
+    ]
+  }
+]

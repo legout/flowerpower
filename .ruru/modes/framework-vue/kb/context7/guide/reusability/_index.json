@@ -1,0 +1,54 @@
+[
+  {
+    "fileName": "composables.md",
+    "pageTitle": "Vue Composables: Reusing Stateful Logic",
+    "snippetTitles": [
+      "Simplified Mouse Tracking Composable JavaScript",
+      "Event Listener Composable JavaScript",
+      "Async Data Fetching Component Vue",
+      "Reactive Data Fetching with useFetch Composable in Vue.js",
+      "Destructuring Refs from Composables in Vue.js",
+      "Using Data Fetching Composable Vue",
+      "Using Reactive Wrapper for Composables in Vue.js",
+      "Mouse Tracking Component (Direct Implementation) Vue",
+      "Mouse Tracking Composable JavaScript",
+      "Using Mouse Tracking Composable Vue",
+      "Using Composables with Options API in Vue.js",
+      "Data Fetching Composable JavaScript",
+      "Fetching Data with Reactive URL (Ref) in Vue.js",
+      "Organizing Component Logic with Composables in Vue.js",
+      "Fetching Data with Reactive URL (Getter) in Vue.js",
+      "Normalizing Values with toValue in Vue.js Composables"
+    ]
+  },
+  {
+    "fileName": "plugins.md",
+    "pageTitle": "Vue.js Plugins Documentation",
+    "snippetTitles": [
+      "Defining a Plugin - Vue.js",
+      "Installing i18n Plugin with Translations - Vue.js",
+      "Adding a Global Translation Method - Vue.js",
+      "Installing a Plugin - Vue.js",
+      "Injecting Plugin Options (Composition API) - Vue.js",
+      "Using the Translation Method in a Template - Vue.js",
+      "Injecting Plugin Options (Options API) - Vue.js"
+    ]
+  },
+  {
+    "fileName": "custom-directives.md",
+    "pageTitle": "Vue.js Custom Directives Documentation",
+    "snippetTitles": [
+      "Registering Custom Directive (Options API) JavaScript",
+      "Using Custom Directive in Template (Options API) HTML",
+      "Using Custom Directive in Template (Composition API) Vue",
+      "Registering Custom Directive vFocus (Options API) JavaScript",
+      "Custom Directive on Component Usage HTML",
+      "Initializing Custom Directive vFocus (Composition API) Vue",
+      "Initializing Custom Directive with Script Setup (Composition API) Vue",
+      "Dynamic Directive Argument HTML",
+      "Function Shorthand Directive Definition JavaScript",
+      "Object Literals Directive Usage HTML",
+      "Using Custom Directive vFocus in Template (Options API) HTML"
+    ]
+  }
+]

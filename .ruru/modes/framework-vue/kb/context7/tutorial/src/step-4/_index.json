@@ -1,0 +1,11 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Event Listener Documentation",
+    "snippetTitles": [
+      "Increment Function in Vue Composition API (SFC)",
+      "Binding Event Listener with v-on Directive in Vue",
+      "Shorthand Syntax for v-on Directive in Vue"
+    ]
+  }
+]

@@ -1,0 +1,59 @@
+[[documents]]
+title = "Advanced Debugging: Concurrency Debugging"
+summary = "Addresses challenges and techniques for debugging issues in multi-threaded or concurrent programs, such as race conditions and deadlocks."
+tags = ["debugging", "advanced", "concurrency", "multithreading", "race-condition", "deadlock", "thread-sanitizer"]
+file = "synthesized/advanced/concurrency_debugging.md"
+
+[[documents]]
+title = "Advanced Debugging: Distributed Systems Debugging"
+summary = "Covers the complexities and strategies for debugging applications composed of multiple interacting services across a network."
+tags = ["debugging", "advanced", "distributed-systems", "microservices", "tracing", "logging", "monitoring", "observability"]
+file = "synthesized/advanced/distributed_systems_debugging.md"
+
+[[documents]]
+title = "Advanced Debugging: Dynamic Analysis"
+summary = "Explanation of dynamic analysis techniques used for debugging software during runtime execution."
+tags = ["debugging", "advanced", "dynamic-analysis", "runtime", "instrumentation", "tracing"]
+file = "synthesized/advanced/dynamic_analysis.md"
+
+[[documents]]
+title = "Advanced Debugging: Memory Debugging"
+summary = "Focuses on techniques and tools for finding memory-related bugs like leaks, buffer overflows, and use-after-free errors."
+tags = ["debugging", "advanced", "memory-debugging", "memory-leak", "buffer-overflow", "use-after-free", "valgrind", "asan"]
+file = "synthesized/advanced/memory_debugging.md"
+
+[[documents]]
+title = "Advanced Debugging: Performance Profiling"
+summary = "Using profiling tools to analyze application performance, identify bottlenecks, and optimize resource usage (CPU, memory, I/O)."
+tags = ["debugging", "advanced", "performance", "profiling", "bottleneck", "optimization", "cpu-profiling", "memory-profiling"]
+file = "synthesized/advanced/performance_profiling.md"
+
+[[documents]]
+title = "Advanced Debugging: Post-Mortem Debugging"
+summary = "Debugging using information collected after a program has crashed or terminated abnormally, typically via core dumps or crash logs."
+tags = ["debugging", "advanced", "post-mortem", "crash-dump", "core-dump", "memory-analysis"]
+file = "synthesized/advanced/post_mortem.md"
+
+[[documents]]
+title = "Advanced Debugging: Reverse Debugging"
+summary = "Explanation of reverse debugging, allowing developers to step backward in execution time to find the origin of bugs."
+tags = ["debugging", "advanced", "reverse-debugging", "time-travel-debugging", "record-replay"]
+file = "synthesized/advanced/reverse_debugging.md"
+
+[[documents]]
+title = "Core Debugging Techniques"
+summary = "Summary of foundational debugging techniques including debuggers, print/logging, rubber ducking, bug reproduction, VCS analysis, static analysis, and testing."
+tags = ["debugging", "foundations", "techniques", "debugger", "logging", "testing", "static-analysis", "vcs"]
+file = "synthesized/foundations/core_techniques.md"
+
+[[documents]]
+title = "Debugging Setup Summary"
+summary = "Brief overview of setting up debugging tools, emphasizing IDE integration and language-specific requirements."
+tags = ["debugging", "setup", "configuration", "ide", "tools"]
+file = "synthesized/foundations/setup-summary.md"
+
+[[documents]]
+title = "Debugging Techniques: General Summary"
+summary = "High-level overview of debugging, covering its purpose and the spectrum of techniques from foundational to advanced."
+tags = ["debugging", "summary", "overview", "foundations", "advanced"]
+file = "synthesized/foundations/general-summary.md"

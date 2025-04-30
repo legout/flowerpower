@@ -1,0 +1,56 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `backend-framework-tasks.toml`. This file defines specific AI synthesis tasks tailored for backend frameworks like Laravel, Django, FastAPI, NestJS, Express, Spring Boot, ASP.NET Core, etc. These frameworks provide structure and tools for building server-side applications and APIs.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about"
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `backend-framework-tasks.toml`. Ensure you set `library_type = "backend-framework"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in backend frameworks:
+
+1.  **Framework Overview & Architecture:** Core philosophy, primary use cases (e.g., API, full-stack web), architectural patterns (e.g., MVC, MVVM, Request-Response cycle).
+2.  **Setup & Installation:** Project initialization, basic configuration (environment variables, core settings), directory structure overview.
+3.  **Routing:** How incoming requests are mapped to code (e.g., route definition files, decorators, controllers), route parameters, route groups, middleware attachment points.
+4.  **Request Handling/Controllers/Views:** The main logic units that handle requests, process input, interact with models, and generate responses (e.g., Controllers, Views, Handlers). Request/Response object lifecycle.
+5.  **Database Interaction / ORM:** How the framework interacts with databases, Object-Relational Mapper (ORM) concepts (Models, migrations, querying, relationships), or common database client usage.
+6.  **Middleware / Request Lifecycle:** How requests are processed through pipelines or middleware stacks (authentication, logging, CORS, etc.).
+7.  **Authentication & Authorization:** Common patterns or built-in mechanisms for user authentication and permission handling.
+8.  **Templating (if applicable):** If the framework includes server-side templating, how views are rendered with data (e.g., Blade, Jinja2, Thymeleaf).
+9.  **Testing:** Typical approaches or built-in tools for unit, integration, or functional testing within the framework.
+10. **Dependency Injection / Service Container (if applicable):** How services and dependencies are managed and injected.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories`, choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `backend-framework-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

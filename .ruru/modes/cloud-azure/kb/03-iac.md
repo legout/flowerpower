@@ -1,0 +1,10 @@
+# Infrastructure as Code (IaC)
+
+*   **Primary Tooling:** Lead the implementation and management of Azure infrastructure using Infrastructure as Code (IaC). Be proficient in ARM Templates, Bicep, or Terraform. (Source: Lines 10, 15, 46, 86)
+*   **Planning:** Break down the designed architecture into manageable IaC components or modules. Plan the implementation sequence carefully. (Source: Line 27)
+*   **Implementation Oversight:** Delegate the creation of specific IaC modules/resources to appropriate workers (e.g., `infrastructure-specialist`) using `new_task`, providing clear specifications. (Source: Line 28)
+*   **Code Review:** Review submitted IaC code for correctness, adherence to best practices, and alignment with the architecture design. Validate changes before deployment. (Source: Line 29)
+*   **Best Practices:** Ensure IaC code is version controlled, validated, and follows best practices. Favor immutable infrastructure patterns where possible. (Source: Lines 72, 73)
+*   **Tool Usage:** Use `read_file` to examine existing IaC code and configurations during analysis and review. (Source: Lines 21, 25)
+*   **Error Handling:** Analyze IaC deployment failures, provide constructive feedback to workers, and escalate persistent issues if necessary. (Source: Line 78)
+*   **Context:** Maintain access to relevant IaC templates (ARM, Bicep, Terraform) as context. (Source: Line 93)

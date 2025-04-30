@@ -1,0 +1,70 @@
+# TOML definition for synthesis tasks for DevOps tools.
+
+# Required: Identifies the type this task set applies to.
+library_type = "devops-tool"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview_concepts"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of the tool's purpose, the problems it solves, and its core concepts or principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["concepts", "guide", "about", "start", "misc", "introduction"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "tool-overview-and-concepts.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Identify the primary problem the tool addresses and explain its fundamental concepts, design philosophy, and key terminology based *only* on the provided input files. Focus on the 'what' and 'why' of the tool, including its main goals and benefits."
+
+[[tasks]]
+  task_id = "installation_setup"
+  description = "Summarize common installation methods and the essential initial configuration steps."
+  input_categories = ["installation", "start", "guide", "config", "setup"]
+  output_filename = "installation-and-setup.md"
+  prompt_focus = "Extract and summarize the typical procedures for installing the tool (e.g., package managers, binaries, Docker images, Helm charts) and the minimal configuration required to get it running, based *only* on the provided input files. Mention prerequisites and basic verification steps if specified."
+
+[[tasks]]
+  task_id = "cli_api_usage"
+  description = "Summarize the most important CLI commands or core API interactions and their purpose."
+  input_categories = ["cli", "api", "reference", "guide", "examples", "commands", "http_api"]
+  output_filename = "cli-api-essentials.md"
+  prompt_focus = "Identify the most crucial command-line interface (CLI) commands or primary API endpoints/calls. For each, briefly explain its purpose and common usage patterns (e.g., `docker run`, `kubectl apply`, `terraform plan`, `ansible-playbook`, Grafana HTTP API for dashboards) based *only* on the provided input files. Focus on core operations like create, read, update, delete, run, apply, get, describe."
+
+[[tasks]]
+  task_id = "config_formats_structure"
+  description = "Describe the primary configuration file formats (e.g., YAML, HCL, Dockerfile, TOML, INI, JSON) and their basic structure."
+  input_categories = ["config", "reference", "guide", "yaml", "hcl", "dockerfile", "json", "ini", "toml", "examples", "provisioning"]
+  output_filename = "configuration-files.md"
+  prompt_focus = "Explain the syntax and common structural elements of the tool's main configuration files (e.g., `prometheus.yml`, Dockerfile, Kubernetes manifests, Terraform `.tf` files, Ansible playbooks, `grafana.ini`) based *only* on the provided input files. Highlight key sections, directives, common parameters, and syntax conventions (like indentation in YAML or blocks in HCL)."
+
+[[tasks]]
+  task_id = "key_resources_objects"
+  description = "Identify and explain the main resource types or objects managed or defined by the tool."
+  input_categories = ["concepts", "reference", "guide", "api", "resources", "architecture"]
+  output_filename = "key-resources-and-objects.md"
+  prompt_focus = "List and describe the primary resource types or objects the tool works with (e.g., Docker Images/Containers/Volumes; K8s Pods/Deployments/Services/ConfigMaps; Terraform Providers/Resources/Modules; Ansible Plays/Tasks/Roles; Grafana Dashboards/Datasources/Alerts; Prometheus Targets/Rules) based *only* on the provided input files. Explain the role and significance of each key resource within the tool's context."
+
+[[tasks]]
+  task_id = "common_workflows_use_cases"
+  description = "Summarize typical operational workflows or common use cases for the tool."
+  input_categories = ["guide", "tutorial", "examples", "start", "cookbook", "use-cases"]
+  output_filename = "common-workflows-and-use-cases.md"
+  prompt_focus = "Describe common sequences of actions or typical scenarios where the tool is applied (e.g., containerizing an application and pushing to registry, deploying a microservice to Kubernetes, provisioning cloud infrastructure with IaC, configuring a server fleet with Ansible, setting up a monitoring dashboard and alerts) based *only* on the provided input files. Outline the key steps involved in these workflows."
+
+[[tasks]]
+  task_id = "architecture_components"
+  description = "Briefly describe the high-level architecture or key components of the tool, if applicable."
+  input_categories = ["architecture", "concepts", "guide", "about", "internals"]
+  output_filename = "architecture-and-components.md"
+  prompt_focus = "Explain the high-level architecture, main components, and how they interact (e.g., client-server, agent-based, controllers, data plane vs control plane, plugin system) based *only* on the provided input files. Focus on the structural organization of the tool and the function of its major parts. Only include if significant architectural details are present in the source."
+
+[[tasks]]
+  task_id = "integration_ecosystem"
+  description = "Describe how the tool typically integrates with other tools in the DevOps ecosystem."
+  input_categories = ["guide", "concepts", "examples", "misc", "reference", "integrations", "plugins"]
+  output_filename = "integration-and-ecosystem.md"
+  prompt_focus = "Identify how this tool commonly interacts with other DevOps tools or platforms (e.g., CI/CD systems like Jenkins/GitLab CI, cloud providers like AWS/Azure/GCP, version control like Git, monitoring tools like Prometheus/Datadog, configuration management like Ansible/Chef, container registries) based *only* on the provided input files. Mention APIs, plugins, webhooks, standard protocols (like OpenMetrics, OpenTelemetry), or file formats used for integration."

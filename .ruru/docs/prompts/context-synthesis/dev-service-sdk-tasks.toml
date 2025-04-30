@@ -1,0 +1,54 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `dev-service-sdk-tasks.toml`. This file defines specific AI synthesis tasks tailored for developer services, APIs, and their corresponding SDKs (Software Development Kits) like OpenAI API/SDK, Google Vertex AI SDK, Hugging Face libraries (Transformers, Diffusers), Firecrawl API/SDK, Stripe API/SDK, etc. These typically involve programmatic interaction via client libraries or direct HTTP requests.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "authentication", "sdks", "endpoints" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `dev-service-sdk-tasks.toml`. Ensure you set `library_type = "dev-service-sdk"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for developer services, APIs, and SDKs:
+
+1.  **Service Overview & Purpose:** What problem does the service/API/library solve? What are its primary capabilities and intended use cases?
+2.  **Authentication Methods:** How do applications authenticate to use the service/API (e.g., API Keys, OAuth, Service Accounts, JWT)? Summarize the main methods mentioned.
+3.  **SDK Installation & Setup (if applicable):** How to install the official client library/SDK (e.g., `pip install`, `npm install`, `go get`), and the basic steps to initialize and configure the client object in code.
+4.  **Core API Concepts / Key Endpoints Summary:** Describe the main functional areas or resource types exposed by the API (e.g., "Chat Completions", "Embeddings", "Image Generation", "Crawls", "Models", "Pipelines"). Provide a high-level overview of the most important endpoints or SDK functions/classes associated with these areas.
+5.  **Request/Response Structure:** Summarize the common structure or key fields typically found in request payloads and response objects for the main API calls/functions. Highlight important parameters or return values.
+6.  **Rate Limits & Pricing Overview (if mentioned):** Briefly summarize information regarding usage limits, quotas, or pricing models if discussed in the documentation.
+7.  **Error Handling Patterns:** Describe common error codes or exception types returned by the API/SDK and suggest typical ways to handle them based on the documentation.
+8.  **Key Usage Examples / Common Workflows:** Summarize one or two fundamental usage examples or common workflows demonstrated in the documentation (e.g., basic chat completion flow, simple web crawl request, generating an embedding).
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "api", "reference", "guide", "authentication", "sdks", "examples", "concepts", "start"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `dev-service-sdk-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

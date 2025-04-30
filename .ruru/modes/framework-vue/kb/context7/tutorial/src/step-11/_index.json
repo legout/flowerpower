@@ -1,0 +1,10 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Component Usage and Registration",
+    "snippetTitles": [
+      "Importing Child Component (Composition API)",
+      "Using Child Component in Template (SFC)"
+    ]
+  }
+]

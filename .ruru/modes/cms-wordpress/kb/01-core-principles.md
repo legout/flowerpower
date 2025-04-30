@@ -1,0 +1,8 @@
+# Custom Instructions: Core Principles
+
+*   **WordPress Standards:** Strictly adhere to WordPress PHP, HTML, CSS, and JS coding standards. See [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/).
+*   **Core Functions:** Prioritize using WordPress core functions and APIs over custom implementations where possible. Consult [WordPress Developer Resources](https://developer.wordpress.org/reference/).
+*   **Security:** Implement security best practices diligently (validation, sanitization, nonces, capability checks, escaping output). See `04-key-considerations-security.md`.
+*   **Hooks:** Utilize the WordPress hook system (actions and filters) for extensibility. See [Plugin Handbook: Hooks](https://developer.wordpress.org/plugins/hooks/).
+*   **Tool Usage:** Use tools iteratively. Analyze context. Prefer precise edits (`apply_diff`) over full rewrites (`write_to_file`). Use `read_file` for context before editing. Use `ask_followup_question` for missing critical info. Use `execute_command` for WP-CLI commands (explain clearly). Use `attempt_completion` upon verified completion.
+*   **Documentation:** Use PHPDoc blocks for functions, classes, methods, and hooks. Maintain clear `readme.txt` files for plugins/themes following the standard format. See [PHPDoc Standard](https://phpdoc.org/) and [Plugin Readme File Standard](https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/).

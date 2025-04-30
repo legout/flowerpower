@@ -1,0 +1,123 @@
+[
+  {
+    "fileName": "reactivity-in-depth.md",
+    "pageTitle": "Vue Reactivity in Depth",
+    "snippetTitles": [
+      "Pseudo-code for Vue Reactivity with Proxy and Getter/Setter",
+      "Component Debugging Hooks (Options API)",
+      "Integrating XState with Vue (JavaScript)",
+      "Vue Reactivity with ref and computed",
+      "Computed Property Debugging (JavaScript)",
+      "Vue Reactivity with ref and watchEffect",
+      "JavaScript whenDepsChange Function for Reactive Effect",
+      "Integrating Immer with Vue (JavaScript)",
+      "Creating Angular-style Signals in Vue",
+      "Creating Solid-style Signals in Vue",
+      "Debugger Event Type (TypeScript)"
+    ]
+  },
+  {
+    "fileName": "rendering-mechanism.md",
+    "pageTitle": "Vue Rendering Mechanism Documentation",
+    "snippetTitles": [
+      "Template with v-if Directive - HTML",
+      "Vue HTML Template Example with Static Caching",
+      "Render Function with createElementBlock - JavaScript",
+      "Template with Tracked and Untracked Elements - HTML",
+      "createElementVNode Usage in JavaScript"
+    ]
+  },
+  {
+    "fileName": "web-components.md",
+    "pageTitle": "Vue and Web Components Integration",
+    "snippetTitles": [
+      "Use Custom Element in Vue SFC without Type Definitions",
+      "In-Browser Config for Custom Elements in Vue",
+      "Defining a Custom Element with Vue",
+      "Defining Custom Element Types in TypeScript",
+      "Passing DOM Properties to Custom Elements",
+      "Use Custom Element in Vue SFC with TypeScript",
+      "Using Custom Elements in JSX",
+      "Using Custom Elements in Vue",
+      "Vite Config for Custom Elements in Vue",
+      "Named Slots in Custom Element",
+      "Configure App Instance of Custom Element",
+      "Custom Element Usage in HTML",
+      "Create Custom Element Type Helper in TypeScript",
+      "Exporting Vue Custom Elements",
+      "Boolean and Number Props Casting Example",
+      "Importing SFC in Custom Element Mode"
+    ]
+  },
+  {
+    "fileName": "render-function.md",
+    "pageTitle": "Vue.js Render Functions and JSX",
+    "snippetTitles": [
+      "Dynamic Component Rendering - JavaScript",
+      "v-if Equivalent Render Function - JavaScript (Composition API)",
+      "Rendering Slots in Composition API - JSX",
+      "Declaring Render Functions in Options API - JavaScript",
+      "v-for Equivalent Render Function - JavaScript (Options API)",
+      "Creating Vnodes with h() - JavaScript",
+      "Rendering Scoped Slots - Child Component - JavaScript",
+      "Using v-model - Composition API - JavaScript",
+      "Creating Template Refs - Composition API (3.5+) - JavaScript",
+      "v-for Equivalent Render Function - JavaScript (Composition API)",
+      "v-on Equivalent JSX - JSX",
+      "Using v-model - Options API - JavaScript",
+      "Dynamic Component Rendering - JSX",
+      "Passing Slots to Components - JavaScript",
+      "v-on Equivalent Render Function - JavaScript",
+      "Typing Anonymous Functional Component Vue.js TypeScript",
+      "Rendering Built-in Components - Options API - JavaScript",
+      "Rendering Components with JSX",
+      "Functional Component Render Function - JavaScript",
+      "Passing Slots to Components - JSX",
+      "Event Modifiers - Render Function - JavaScript",
+      "Rendering Scoped Slots - Parent Component - JavaScript",
+      "Rendering Built-in Components - Composition API - JavaScript",
+      "Applying Custom Directives - JavaScript",
+      "Functional Component Definition - Options API - JavaScript",
+      "v-if Equivalent Render Function - JavaScript (Options API)",
+      "Creating Template Refs - Composition API (pre 3.5) - JavaScript",
+      "Typing Named Functional Component Vue.js TypeScript",
+      "Functional Component Props and Emits - JavaScript",
+      "Declaring Render Functions in Composition API - JavaScript",
+      "withModifiers Helper - Render Function - JavaScript"
+    ]
+  },
+  {
+    "fileName": "composition-api-faq.md",
+    "pageTitle": "Vue Composition API FAQ",
+    "snippetTitles": [
+      "Vue Composition API Example"
+    ]
+  },
+  {
+    "fileName": "reactivity-transform.md",
+    "pageTitle": "Vue Reactivity Transform",
+    "snippetTitles": [
+      "Using $ref macro in Vue component",
+      "Compiled output of $ref usage",
+      "Compiled props declaration in Vue",
+      "Destructuring refs with $() macro",
+      "Converting existing refs with $() macro",
+      "Importing $ref macro from vue/macros",
+      "Compiled output of $() destructuring",
+      "Configuring webpack with vue-loader in JavaScript",
+      "Vite configuration for Reactivity Transform"
+    ]
+  },
+  {
+    "fileName": "animation.md",
+    "pageTitle": "Vue.js Animation Techniques",
+    "snippetTitles": [
+      "Animate Number with Watcher (Composition API)",
+      "Toggle CSS Class for Animation (Options API)",
+      "Input Binding for Number Animation (Vue)",
+      "Dynamic Style Binding (Vue)",
+      "Apply CSS Class based on Data Binding (Vue)",
+      "Input Binding for Number Animation (Vue, Options API)"
+    ]
+  }
+]

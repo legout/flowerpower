@@ -1,0 +1,12 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Computed Properties in Todo List",
+    "snippetTitles": [
+      "Computed property (Options API, SFC)",
+      "Binding checkbox with v-model in Vue.js",
+      "Use the filteredTodos in v-for",
+      "Computed property (Composition API, SFC)"
+    ]
+  }
+]

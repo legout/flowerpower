@@ -1,0 +1,84 @@
+# TOML definition for synthesis tasks for state management libraries.
+
+# Required: Identifies the type this task set applies to.
+library_type = "state-management"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "core_philosophy"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Explain the library's core philosophy, design principles, and the problems it aims to solve."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["concepts", "guide", "about", "introduction", "core", "principles"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "core-philosophy.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Based *only* on the provided texts, identify and summarize the library's main purpose, core design principles (like immutability, single source of truth, events, state machines, etc.), and the specific state management challenges it addresses."
+
+[[tasks]]
+  task_id = "installation_setup"
+  description = "Detail the installation process and the basic steps to set up the library in a project, including store/machine creation."
+  input_categories = ["installation", "start", "guide", "setup", "examples", "quick-start"]
+  output_filename = "installation-and-setup.md"
+  prompt_focus = "Extract and synthesize the steps required to install the library (using package managers like npm/yarn) and perform the initial configuration, including creating the main store instance or defining the initial machine, based *only* on the provided documentation snippets."
+
+[[tasks]]
+  task_id = "defining_state"
+  description = "Explain how application state is defined and structured within the library (e.g., initial state, slices, modules, machine context)."
+  input_categories = ["concepts", "guide", "api", "store", "state", "reducers", "context", "examples"]
+  output_filename = "defining-state.md"
+  prompt_focus = "Describe the methods and patterns used to define the structure and initial values of the application state according to this library, referencing concepts like slices, modules, initial state objects, or machine context/schema, based *only* on the provided source materials."
+
+[[tasks]]
+  task_id = "reading_state"
+  description = "Explain how components or other parts of the application read or subscribe to state values, including the use of selectors or getters."
+  input_categories = ["concepts", "guide", "api", "selectors", "getters", "store", "state", "hooks", "integrations", "examples", "react", "vue"]
+  output_filename = "reading-state-selectors-getters.md"
+  prompt_focus = "Synthesize the primary mechanisms provided by the library for accessing state values from the store or machine. Focus on hooks (like useSelector, useStore), mapping functions (like mapState), getters, computed properties, or selectors, using *only* the information in the provided texts."
+
+[[tasks]]
+  task_id = "updating_state"
+  description = "Describe the process for triggering state changes and how the library ensures predictable updates (e.g., dispatching actions, mutations, events, reducers)."
+  input_categories = ["concepts", "guide", "api", "actions", "mutations", "events", "reducers", "store", "dispatch", "transitions", "examples"]
+  output_filename = "updating-state-actions-mutations.md"
+  prompt_focus = "Explain the flow of updating state within the library. Detail how changes are initiated (e.g., dispatching actions, committing mutations, sending events, direct updates via proxies) and how the state transitions are handled predictably (e.g., via reducers, mutation functions, transition logic), based *only* on the provided documentation."
+
+[[tasks]]
+  task_id = "defining_operations"
+  description = "Explain how the operations that trigger state changes (actions, mutations, events) are defined."
+  input_categories = ["concepts", "guide", "api", "actions", "mutations", "events", "reducers", "store", "examples"]
+  output_filename = "defining-actions-mutations-events.md"
+  prompt_focus = "Describe how actions, mutations, or events are defined within the library's structure. Focus on action creators, action types, mutation handlers, or event type definitions, using *only* the information present in the provided source texts."
+
+[[tasks]]
+  task_id = "async_operations"
+  description = "Summarize common patterns for handling asynchronous operations like API calls within the library's ecosystem."
+  input_categories = ["concepts", "guide", "api", "middleware", "plugins", "actions", "thunks", "sagas", "effects", "async", "recipes", "examples", "side-effects"]
+  output_filename = "async-operations.md"
+  prompt_focus = "Identify and explain the recommended patterns and tools (like thunks, sagas, async actions/mutations, services, effects) used within this library to manage asynchronous operations such as fetching data from APIs, based *only* on the provided documentation snippets."
+
+[[tasks]]
+  task_id = "extensibility"
+  description = "Describe the library's extension points like middleware, plugins, enhancers, or actors for adding custom logic."
+  input_categories = ["concepts", "guide", "api", "middleware", "plugins", "enhancers", "actors", "advanced", "recipes", "examples", "customization"]
+  output_filename = "extensibility-middleware-plugins.md"
+  prompt_focus = "Explain the mechanisms provided by the library for extending its core functionality. Focus on concepts like middleware, plugins, enhancers, or actors (for FSMs) and their typical use cases (logging, persistence, routing integration, etc.), based *only* on the provided source material."
+
+[[tasks]]
+  task_id = "ui_integration"
+  description = "Explain how the library integrates with common UI frameworks (React, Vue, etc.), mentioning specific hooks, providers, or plugins."
+  input_categories = ["guide", "integrations", "react", "vue", "svelte", "angular", "hooks", "plugins", "setup", "examples", "provider", "connect"]
+  output_filename = "ui-framework-integration.md"
+  prompt_focus = "Describe how this state management library is typically connected to and used within UI components (React, Vue, Svelte, Angular, etc.). Focus on Provider components, framework-specific hooks (like useStore, useSelector, useDispatch), mapping functions, or official integration packages/plugins, based *only* on the provided texts."
+
+[[tasks]]
+  task_id = "devtools"
+  description = "Summarize the features and usage of any associated browser developer tools for debugging and state inspection."
+  input_categories = ["devtools", "guide", "debugging", "tools", "setup", "examples", "usage", "reference"]
+  output_filename = "developer-tools.md"
+  prompt_focus = "Explain the capabilities of the developer tools associated with this library, such as state inspection, action logging, and time-travel debugging, and how to set them up or use them, based *only* on the information in the provided documentation snippets."

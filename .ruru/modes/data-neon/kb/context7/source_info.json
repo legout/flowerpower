@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://context7.com/neondatabase/neon",
+  "llmsJsonUrl": "https://context7.com/neondatabase/neon/llms.json",
+  "originalSourceUrl": "https://neon.tech/docs",
+  "metadata": {
+    "tokens": 5800,
+    "snippets": 35,
+    "lastUpdated": null
+  }
+}

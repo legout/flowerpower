@@ -1,0 +1,56 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `css-utility-tasks.toml`. This file defines specific AI synthesis tasks tailored for CSS utility-first frameworks like Tailwind CSS. These tools focus on providing low-level utility classes to build designs directly in the markup.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "utilities", "customization", "plugins", "optimizing" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `css-utility-tasks.toml`. Ensure you set `library_type = "css-utility"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for CSS utility frameworks like Tailwind CSS:
+
+1.  **Core Philosophy & Approach:** Explain the utility-first concept, its benefits (maintainability, performance), and how it differs from traditional CSS or component libraries.
+2.  **Installation & Setup:** Describe the typical installation process (e.g., `npm install`, `npx tailwindcss init`) and the essential setup steps, including integrating with build tools (like Vite, PostCSS) and including base styles.
+3.  **Configuration File (`tailwind.config.js`):** Summarize the structure and purpose of the main configuration file, focusing on key sections like `content` (for purging), `theme` (extending/customizing colors, spacing, fonts, breakpoints), and `plugins`.
+4.  **Applying Utilities:** Explain the basic principle of applying utility classes directly to HTML/JSX elements. Provide examples of common utility categories.
+5.  **Responsive Design:** Describe how to apply utilities conditionally at different screen sizes using responsive modifiers (e.g., `sm:`, `md:`, `lg:`).
+6.  **State Variants:** Explain how to style elements based on interactive states (e.g., `hover:`, `focus:`, `active:`, `disabled:`) or other conditions like dark mode (`dark:`).
+7.  **Customizing the Theme:** Detail how to extend or override the default theme settings (colors, spacing, fonts, etc.) within the configuration file.
+8.  **Using Directives (`@tailwind`, `@layer`, `@apply`):** Explain the purpose and usage of key directives, especially `@apply` for creating reusable component classes from utilities within CSS files.
+9.  **Plugin System:** Describe how to add official or third-party plugins to extend the framework's capabilities (e.g., typography, forms, aspect-ratio).
+10. **Optimizing for Production:** Explain the importance of purging unused styles based on the `content` configuration and how the production build process works.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "guide", "concepts", "config", "installation", "customization", "utilities", "plugins", "optimizing", "reference", "examples"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `css-utility-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

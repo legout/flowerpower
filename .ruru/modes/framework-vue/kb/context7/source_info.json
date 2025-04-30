@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://context7.com/vuejs/docs",
+  "llmsJsonUrl": "https://context7.com/vuejs/docs/llms.json",
+  "originalSourceUrl": "https://github.com/vuejs/docs",
+  "metadata": {
+    "tokens": 138755,
+    "snippets": 1288,
+    "lastUpdated": "2025-04-26"
+  }
+}

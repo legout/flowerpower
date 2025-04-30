@@ -1,0 +1,11 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Props: Passing Data from Parent to Child Components",
+    "snippetTitles": [
+      "Passing Props to Child Component in HTML Template in Vue.js",
+      "Declaring Props in Options API in Vue.js",
+      "Declaring Props in SFC using Composition API in Vue.js"
+    ]
+  }
+]

@@ -1,0 +1,53 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `cli-tool-tasks.toml`. This file defines specific AI synthesis tasks tailored for command-line interface (CLI) tools like `repomix`, `git`, `npm`, `docker`, `kubectl`, `terraform`, etc. These tools are primarily interacted with via terminal commands.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "commands" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `cli-tool-tasks.toml`. Ensure you set `library_type = "cli-tool"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in CLI tool documentation:
+
+1.  **Tool Overview & Purpose:** What problem does the tool solve? What is its primary function?
+2.  **Installation Methods:** How do users typically install the tool (e.g., `npm install -g`, `pip install`, download binary, package manager like `brew` or `apt`)?
+3.  **Basic Usage & Global Options:** Explain the fundamental command structure (e.g., `tool [command] [options] [arguments]`) and highlight common global flags like `--help`, `--version`, `--verbose`, `-v`.
+4.  **Key Commands Summary:** Identify and briefly describe the main commands or subcommands offered by the tool (e.g., `init`, `add`, `run`, `list`, `build`, `deploy`, `config get/set`). This should be a high-level overview, not a detailed reference for every command.
+5.  **Configuration Methods:** Explain how the tool is typically configured (e.g., configuration files like `.toolrc` or `config.yaml`, environment variables, command-line flags overriding configs).
+6.  **Common Use Cases / Examples:** Provide a summary of typical workflows or common tasks achieved using the tool, potentially highlighting a few key command sequences.
+7.  **Core Concepts (If Applicable):** Summarize any fundamental concepts or architectural ideas behind the tool that are necessary for effective use (e.g., workspaces, contexts, plugins, state management).
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "commands", "reference", "guide", "examples"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `cli-tool-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

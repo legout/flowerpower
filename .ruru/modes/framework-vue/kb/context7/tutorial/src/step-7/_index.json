@@ -1,0 +1,13 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js List Rendering with v-for",
+    "snippetTitles": [
+      "List Rendering with v-for in Vue",
+      "Updating List using filter() - Composition API",
+      "Updating List using push() - Composition API",
+      "Updating List using filter() - Options API",
+      "Updating List using push() - Options API"
+    ]
+  }
+]

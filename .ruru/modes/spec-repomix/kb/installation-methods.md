@@ -1,0 +1,1 @@
+The provided research summary does not contain specific details on how to install `repomix` (e.g., via package managers like npm, pip, brew, or direct download). Further information is required to document installation methods.

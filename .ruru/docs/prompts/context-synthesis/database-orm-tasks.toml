@@ -1,0 +1,55 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `database-orm-tasks.toml`. This file defines specific AI synthesis tasks tailored for Object-Relational Mappers (ORMs) or Object-Document Mappers (ODMs) like Prisma, TypeORM, SQLAlchemy, Mongoose, Motor, etc. These libraries provide an abstraction layer over databases for defining models and interacting with data using object-oriented paradigms.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "models", "schema", "migrations", "querying", "relationships", "transactions" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `database-orm-tasks.toml`. Ensure you set `library_type = "database-orm"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for ORMs/ODMs:
+
+1.  **ORM/ODM Overview & Core Concepts:** Explain the purpose of the library (mapping objects to database structures), its mapping strategy (e.g., Active Record, Data Mapper), and core concepts (e.g., Models/Entities, Sessions/Connections/Clients, Repositories).
+2.  **Installation & Setup:** How to install the library and configure the database connection within a typical application context.
+3.  **Model/Schema Definition:** Describe how developers define data models or schemas using the library's features (e.g., classes with decorators, dedicated schema definition language like Prisma SDL, Python classes inheriting from a base). Cover defining fields, data types, keys, and basic constraints.
+4.  **Migrations & Schema Synchronization:** Explain the process for managing database schema changes based on model definitions (e.g., generating migration files, running migration commands, automatic schema synchronization options and their caveats).
+5.  **Basic CRUD Operations (ORM/ODM Style):** Summarize how to perform Create, Read (single & multiple records), Update, and Delete operations using the ORM/ODM's object-oriented API (e.g., `user.save()`, `entityManager.persist(user)`, `Model.create()`, `repository.find()`, `user.delete()`, `session.delete(user)`).
+6.  **Querying & Filtering:** Describe how to build queries to retrieve specific data sets, including filtering (WHERE clauses), sorting (`ORDER BY`), pagination (limit/offset), and selecting specific fields using the library's query builder, methods, or language.
+7.  **Relationship Mapping & Querying:** Explain how relationships between models (one-to-one, one-to-many, many-to-many) are defined and how related data is loaded (e.g., lazy loading, eager loading via joins or separate queries, specifying includes/relations in queries).
+8.  **Transaction Management:** Describe the library's specific API or patterns for executing multiple database operations within a single atomic transaction (e.g., transaction decorators, session management, explicit `beginTransaction`/`commit`/`rollback` methods).
+9.  **Integration & Usage Patterns:** Summarize how the ORM/ODM is typically integrated and used within common application frameworks (e.g., getting a session/client instance, repository pattern).
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "guide", "concepts", "api", "reference", "models", "migrations", "querying", "relationships", "transactions", "examples", "tutorial"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `database-orm-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

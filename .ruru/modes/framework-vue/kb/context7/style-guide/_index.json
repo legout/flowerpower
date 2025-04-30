@@ -1,0 +1,59 @@
+[
+  {
+    "fileName": "rules-strongly-recommended.md",
+    "pageTitle": "Vue.js Style Guide - Priority B Rules",
+    "snippetTitles": [
+      "Good Prop Use in SFC (kebab-case or camelCase)",
+      "Good Component Name (PascalCase)",
+      "Good Computed Property (options API)",
+      "Good Component Tag Everywhere",
+      "Bad Component Name (camelCase)",
+      "Good Simple Computed Properties (composition API)",
+      "Self-closing Vue Components in SFC and JSX",
+      "Bad Prop Use in in-DOM Template (camelCase)",
+      "Bad Complex Computed Property (composition API)",
+      "Self-closing Vue Components in in-DOM templates",
+      "Good Prop Declaration (camelCase Composition API)",
+      "Vue v-on Directive: Longhand (Preferred)",
+      "Vue v-slot Directive: Mixed Shorthand (Discouraged)",
+      "HTML Attribute Value: No Quotes (Discouraged)",
+      "Bad Complex Expression in Template",
+      "Good Component Registration (PascalCase)",
+      "Bad Multi-Attribute Component (single line)",
+      "Good Simple Computed Properties (options API)"
+    ]
+  },
+  {
+    "fileName": "rules-essential.md",
+    "pageTitle": "Vue.js Style Guide - Priority A Rules",
+    "snippetTitles": [
+      "Use component-scoped styling - Good Example 1 - HTML/CSS (Scoped Attribute)",
+      "Use component-scoped styling - Good Example 3 - HTML/CSS (BEM)",
+      "Use keyed v-for - Good Example - HTML",
+      "Computed Property Example - Options API - Javascript",
+      "Computed Property Example - Composition API - Javascript",
+      "Use component-scoped styling - Good Example 2 - HTML/CSS (CSS Modules)",
+      "Data Example - Composition API - Javascript",
+      "Use detailed prop definitions - Good Example - Javascript - Composition API",
+      "Avoid v-if with v-for - Good Example 2 - HTML",
+      "Use detailed prop definitions - Good Example - Javascript - Options API"
+    ]
+  },
+  {
+    "fileName": "rules-use-with-caution.md",
+    "pageTitle": "Vue.js Priority D Rules: Use with Caution",
+    "snippetTitles": [
+      "Parent-Child Communication with Events (Composition API) - Good",
+      "Styling Vue Components with Scoped CSS - Good Example"
+    ]
+  },
+  {
+    "fileName": "rules-recommended.md",
+    "pageTitle": "Vue.js Style Guide - Priority C Rules: Recommended",
+    "snippetTitles": [
+      "Good Single-File Component Structure - Vue HTML",
+      "Component Props Definition without Empty Lines - Composition API - JavaScript",
+      "Bad Single-File Component Structure - Vue HTML"
+    ]
+  }
+]

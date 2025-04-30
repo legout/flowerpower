@@ -1,0 +1,26 @@
+[
+  {
+    "fileName": "introduction.md",
+    "pageTitle": "Vue.js Introduction",
+    "snippetTitles": [
+      "Vue Single-File Component (Composition API)",
+      "Vue Component (Options API)",
+      "Initializing Vue App (Options API)",
+      "Vue Template for Counter"
+    ]
+  },
+  {
+    "fileName": "quick-start.md",
+    "pageTitle": "Vue.js Quick Start Guide",
+    "snippetTitles": [
+      "Enabling Import Maps for Vue (Options API)",
+      "Enabling Import Maps for Vue (Composition API)",
+      "Building a Vue Project with Yarn",
+      "Splitting Modules - Component Definition (Composition API)",
+      "Initializing Vue with ES Module CDN (Composition API)",
+      "Initializing Vue with ES Module CDN (Options API)",
+      "Running a Vue Project with pnpm",
+      "Splitting Modules - Component Definition (Options API)"
+    ]
+  }
+]

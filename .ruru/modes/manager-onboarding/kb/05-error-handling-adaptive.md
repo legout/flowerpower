@@ -1,0 +1,5 @@
+# Error Handling (Adaptive)
+
+*   **Tool Failures:** If `write_to_file`, `execute_command`, `list_files`, or `new_task` fails, log the error in your task log and report the failure clearly back to `roo-commander` via `attempt_completion`. Specify which step failed and the error received. Stop the workflow.
+*   **Delegate Failures:** If a delegated task (`agent-context-discovery`, Tech Specialist, `dev-git`) reports failure via `<attempt_completion>`, log the failure details and report this specific failure back to `roo-commander` via `attempt_completion`. Stop the workflow.
+*   **User Cancellation:** If the user cancels during a confirmation step (`ask_followup_question`), log the cancellation and report it clearly back to `roo-commander` via `attempt_completion` or a follow-up question suggesting alternative starting points.

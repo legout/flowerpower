@@ -1,0 +1,54 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `ui-library-tasks.toml`. This file defines specific AI synthesis tasks tailored for UI component libraries like Material UI (MUI), Ant Design, Bootstrap, Shadcn UI, Headless UI, Chakra UI, etc. These libraries primarily provide pre-built UI components for use in web applications.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "components" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `ui-library-tasks.toml`. Ensure you set `library_type = "ui-library"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in UI component libraries:
+
+1.  **Library Overview & Philosophy:** Core ideas, design system (e.g., Material Design, custom), installation.
+2.  **Component Usage Overview:** Summarize the main categories of components provided (e.g., Layout, Forms, Navigation, Data Display, Feedback) and how to generally import/use them.
+3.  **Key Component API Patterns:** Identify and summarize common ways components are configured (e.g., props, slots, composition, specific configuration objects/functions). Focus on the *patterns*, not every prop for every component.
+4.  **Styling & Customization:** Explain the primary methods for styling components (e.g., utility classes, CSS-in-JS (`sx` prop), styled components, CSS variables, theming system).
+5.  **Theming System (if applicable):** Describe how to customize the overall look and feel (colors, typography, spacing, breakpoints) using the library's theming capabilities.
+6.  **Layout System:** Explain how layout is handled (e.g., grid components, stack components, responsive helpers).
+7.  **Accessibility (A11y) Features:** Summarize the library's approach to accessibility and any specific accessibility-focused components or props.
+8.  **Form Component Integration:** Describe how form components work, including input types, validation integration patterns, and data handling.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider adding "components" if that's a likely category name in the source KB), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `ui-library-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

@@ -1,0 +1,18 @@
+# Knowledge Base: design-mui (Material UI Specialist)
+
+This knowledge base contains specific instructions, guidelines, and best practices for the `design-mui` (Material UI Specialist) mode, covering the MUI ecosystem (Core, Joy, Base).
+
+## Knowledge Base Files
+
+- **`01-core-workflow.md`** (Lines: 131): Introduces MUI Core (v5+), covering installation, basic usage, key features, operational principles, and a detailed workflow for implementing UI tasks. It also summarizes key concepts like the different MUI ecosystems, styling methods, theming, and Next.js integration.
+- **`02-setup-theming.md`** (Lines: 235): Explains how to customize MUI Core and Joy UI using theming, covering `createTheme`/`ThemeProvider` for Core and `extendTheme`/`CssVarsProvider` for Joy UI. Details the structure of theme objects (palette, typography, components) and how to apply them globally.
+- **`03-styling-sx-styled.md`** (Lines: 169): Covers applying custom styles using the `sx` prop for one-off adjustments and the `styled()` API for creating reusable styled components, comparing their use cases and syntax with examples.
+- **`04-core-layout.md`** (Lines: 158): Details MUI's layout components (`Box`, `Container`, `Grid`, `Stack`), explaining their purpose and usage with examples for structuring page content and achieving responsive designs.
+- **`05-core-inputs.md`** (Lines: 200): Describes common MUI Core input components like Buttons, TextFields, Selection Controls (Checkbox, Radio, Switch), Select dropdowns, Sliders, and Autocomplete, showing basic usage and key props.
+- **`06-core-navigation.md`** (Lines: 229): Details MUI Core components for navigation patterns like AppBars, Drawers, Menus, Tabs, and Breadcrumbs, showing basic implementation and state management concepts.
+- **`07-core-data-display.md`** (Lines: 151): Covers MUI Core components for displaying data, including Typography, Lists, Tables, Cards, Avatars, Badges, Chips, and Tooltips, with usage examples.
+- **`08-core-feedback.md`** (Lines: 183): Describes MUI Core components for user feedback, such as Alert, Dialog, Snackbar, Progress indicators, and Skeleton placeholders, with examples.
+- **`09-joy-ui-intro.md`** (Lines: 202): Introduces Joy UI as an alternative design system within MUI, covering its setup (`CssVarsProvider`), key differences from MUI Core (CSS variables, different aesthetic), and examples of common Joy UI components like Button, Input, Card, and Typography.
+- **`10-base-ui-intro.md`** (Lines: 180): Introduces MUI Base, which provides unstyled ("headless") components and hooks for building custom design systems, focusing on accessibility and functionality without imposing specific styles. It covers installation, usage of unstyled components with custom styling, and leveraging functionality hooks like `useSwitch`.
+- **`11-accessibility.md`** (Lines: 46): Outlines key accessibility principles (semantic HTML, keyboard navigation, focus management, labels, contrast, ARIA) for MUI components and provides specific considerations for common components like Buttons, TextFields, Modals, and Tables, emphasizing the importance of testing.
+- **`12-react-nextjs-integration.md`** (Lines: 307): Explains common React patterns (controlled components, state management for open/close) for integrating MUI components and details the setup required for using MUI with Next.js (both App Router and Pages Router) to ensure SSR compatibility.

@@ -1,0 +1,77 @@
+# TOML definition for synthesis tasks for authentication providers.
+
+# Required: Identifies the type this task set applies to.
+library_type = "authentication-provider"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Task 1: Overview & Purpose
+  task_id = "overview_purpose"
+  description = "Generate an overview of the authentication provider's purpose, core features, benefits, and typical authentication flow."
+  input_categories = ["guide", "concepts", "about", "start", "overview", "introduction"]
+  output_filename = "overview-purpose.md"
+  prompt_focus = "Synthesize a high-level overview explaining what the library/service does (authentication, session management, user management, authorization), its main advantages (e.g., security, developer experience, specific features), and the basic steps involved in authenticating a user, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 2: Installation & Core Setup
+  task_id = "installation_setup"
+  description = "Summarize the installation process and essential initial configuration steps."
+  input_categories = ["guide", "start", "installation", "configuration", "quickstarts", "setup", "getting-started"]
+  output_filename = "installation-setup.md"
+  prompt_focus = "Detail the steps required to install the library/SDK (package managers, scripts) and perform the minimum essential configuration to initialize it within a project. Include setting up required environment variables (API keys, secrets), core configuration objects/files, and necessary framework integration wrappers (like Providers), based *only* on the provided input files."
+
+[[tasks]]
+  # Task 3: Provider Configuration
+  task_id = "provider_config"
+  description = "Explain how to configure various authentication providers (OAuth, Credentials, Magic Links, SMS, etc.)."
+  input_categories = ["guide", "providers", "api", "reference", "configuration", "examples", "authentication", "social-connections", "strategies"]
+  output_filename = "provider-configuration.md"
+  prompt_focus = "Describe the configuration process for different types of authentication strategies/providers supported (e.g., Google, GitHub, Facebook, Twitter/X, Email/Password, Magic Link, SMS OTP, Passkeys, SAML, custom OAuth). Focus on the required parameters (client IDs, secrets, scopes, callback URLs) and setup steps for each type mentioned in the input files."
+
+[[tasks]]
+  # Task 4: Session Management
+  task_id = "session_management"
+  description = "Explain session management strategies, accessing session data, and configuration options."
+  input_categories = ["guide", "sessions", "concepts", "api", "reference", "configuration", "security", "tokens", "cookies", "jwt"]
+  output_filename = "session-management.md"
+  prompt_focus = "Summarize how user sessions are handled (e.g., JWT vs. database sessions, cookie usage). Explain how to access session data (user ID, user object, custom claims, roles/permissions) on both the client-side (hooks, components) and server-side (helpers, middleware context). Detail relevant configuration options like session duration, cookie security settings (HttpOnly, SameSite, Secure), and token verification methods, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 5: Callback Functions / Lifecycle / Webhooks
+  task_id = "callbacks_lifecycle"
+  description = "Describe key callback functions, lifecycle hooks, or webhook events and their usage."
+  input_categories = ["guide", "callbacks", "api", "reference", "concepts", "events", "webhooks", "lifecycle"]
+  output_filename = "callbacks-lifecycle.md"
+  prompt_focus = "Identify and explain the purpose and common use cases of important callback functions, lifecycle events, or webhook events (e.g., signIn, signOut, jwt, session, redirect, user.created, user.updated, session.created). Describe what data they receive and what actions can be performed within them, based *only* on the provided input files."
+
+[[tasks]]
+  # Task 6: Protecting UI Routes / Pages
+  task_id = "protecting_ui_routes"
+  description = "Explain methods for protecting frontend routes/pages based on authentication status."
+  input_categories = ["guide", "authentication", "security", "components", "hooks", "reference", "examples", "middleware", "routing", "authorization", "control"]
+  output_filename = "protecting-ui-routes.md"
+  prompt_focus = "Describe the patterns, components (e.g., Higher-Order Components, wrapper components like <SignedIn>/<Protect>), or hooks (e.g., useAuth, useUser) used to restrict access to frontend UI routes or specific UI elements. Explain how to handle unauthenticated users (e.g., redirection, showing fallback content), based *only* on the provided input files."
+
+[[tasks]]
+  # Task 7: Protecting API Routes / Backend Endpoints
+  task_id = "protecting_api_routes"
+  description = "Describe methods for securing backend API routes or server endpoints."
+  input_categories = ["guide", "authentication", "security", "api", "reference", "examples", "middleware", "api-routes", "server", "backend", "authorization", "route-handlers"]
+  output_filename = "protecting-api-routes.md"
+  prompt_focus = "Explain how to secure backend API endpoints, serverless functions, or server routes. Detail methods for verifying session tokens (like JWTs), accessing authentication context (user ID, session claims, organization info) in API handlers or server-side middleware, and checking authorization (roles/permissions), based *only* on the provided input files."
+
+[[tasks]]
+  # Task 8: Database Adapters
+  task_id = "database_adapters"
+  description = "Explain the role and configuration of database adapters (if applicable, e.g., for NextAuth.js)."
+  input_categories = ["guide", "adapters", "database", "configuration", "reference", "concepts", "integrations"]
+  output_filename = "database-adapters.md"
+  prompt_focus = "Describe the purpose of database adapters for persisting user, session, account, and verification token data, particularly if the library relies on them (like NextAuth.js). List supported databases and ORMs if mentioned, and explain the basic configuration steps (connection strings, schema setup), based *only* on the provided input files. If adapters are not a core concept or are optional, state that."
+
+[[tasks]]
+  # Task 9: User Management Features
+  task_id = "user_management"
+  description = "Summarize built-in features for user sign-up, profile management, and account linking."
+  input_categories = ["guide", "components", "api", "reference", "users", "accounts", "profile", "management", "custom-flows", "organizations"]
+  output_filename = "user-management.md"
+  prompt_focus = "Summarize features related to user self-management and administrative management. Include sign-up flows, updating user profiles (email, password, metadata, profile image), linking/unlinking external accounts (OAuth), multi-factor authentication (MFA/2FA) setup, organization management (creation, invitations, roles), and password reset flows, based *only* on the provided input files. Focus on what the library provides out-of-the-box via components or APIs."

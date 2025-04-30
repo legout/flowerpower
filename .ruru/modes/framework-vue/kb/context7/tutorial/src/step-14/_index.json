@@ -1,0 +1,12 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Slots Documentation",
+    "snippetTitles": [
+      "Rendering Slot Content in Child Component (HTML)",
+      "Defining Slot Content in Parent Component (HTML)",
+      "Defining Fallback Content for a Slot",
+      "Defining Slot Content in Parent Component (SFC)"
+    ]
+  }
+]

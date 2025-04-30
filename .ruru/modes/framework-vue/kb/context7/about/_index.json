@@ -1,0 +1,16 @@
+[
+  {
+    "fileName": "releases.md",
+    "pageTitle": "Vue Releases and Versioning",
+    "snippetTitles": [
+      "Fetching Latest Vue Version with Vue and JavaScript"
+    ]
+  },
+  {
+    "fileName": "team.md",
+    "pageTitle": "Vue.js Meet the Team Page",
+    "snippetTitles": [
+      "Import and Render Vue Component"
+    ]
+  }
+]

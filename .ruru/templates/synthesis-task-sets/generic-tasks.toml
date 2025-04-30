@@ -1,0 +1,20 @@
+# Generic fallback synthesis tasks for libraries where a specific type is not defined.
+
+library_type = "generic" # Identifies this as the generic fallback
+
+[[tasks]]
+  task_id = "general_summary"
+  description = "Generate a general high-level summary of the library's purpose and key features."
+  # Use broad categories as input for a generic summary
+  input_categories = ["guide", "concepts", "about", "start", "installation", "config", "misc", "api", "reference"]
+  output_filename = "general-summary.md"
+  prompt_focus = "Read the provided input files. Generate a concise (3-5 sentence) overview of what this library/framework is for, its main purpose, and potentially its primary target audience or use case, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "basic_setup"
+  description = "Summarize the basic installation and setup steps if available."
+  input_categories = ["guide", "config", "start", "installation", "setup", "tutorial"]
+  output_filename = "setup-summary.md"
+  prompt_focus = "Identify and extract the essential steps for basic installation and initial configuration as described in the input files. Focus on the simplest common setup path."
+
+# Add other potential generic tasks here if desired, but keep it minimal as a fallback.

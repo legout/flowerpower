@@ -1,0 +1,77 @@
+# TOML definition for synthesis tasks for database ORM/ODM libraries.
+
+# Required: Identifies the type this task set applies to.
+library_type = "database-orm"
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set.
+  task_id = "overview"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of the ORM/ODM's purpose, core concepts, and mapping strategy."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  input_categories = ["concepts", "guide", "about", "introduction", "start", "overview"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  output_filename = "orm-overview.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  prompt_focus = "Explain the fundamental purpose of this library (mapping objects to database structures), its core architectural pattern (e.g., Active Record, Data Mapper), and define key concepts like Models/Entities, Sessions/Connections/Clients, and Repositories/Managers, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "installation_setup"
+  description = "Summarize the installation process and database connection setup."
+  input_categories = ["installation", "start", "guide", "config", "setup", "getting-started"]
+  output_filename = "installation-setup.md"
+  prompt_focus = "Describe the steps to install the library (e.g., using npm, pip) and configure the database connection (e.g., connection strings, environment variables, configuration files) within a typical application setup, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "model_definition"
+  description = "Explain how data models or schemas are defined."
+  input_categories = ["models", "schema", "guide", "concepts", "reference", "api", "data-modeling"]
+  output_filename = "model-definition.md"
+  prompt_focus = "Detail the syntax and features used to define data models/schemas (e.g., classes, decorators, SDL). Cover defining fields, specifying data types (including mapping to database types), defining primary/foreign keys, unique constraints, indexes, and default values, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "migrations_sync"
+  description = "Describe the process for managing database schema changes."
+  input_categories = ["migrations", "schema", "guide", "reference", "cli", "database", "workflow"]
+  output_filename = "migrations-schema-sync.md"
+  prompt_focus = "Explain how database schema changes are managed in relation to model definitions. Cover generating migration files, applying migrations (e.g., using CLI commands), handling migration history, and any options for automatic schema synchronization, including potential risks or limitations, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "crud_operations"
+  description = "Summarize how to perform basic Create, Read, Update, Delete operations using the ORM/ODM API."
+  input_categories = ["querying", "crud", "guide", "api", "reference", "examples", "tutorial", "operations"]
+  output_filename = "crud-operations.md"
+  prompt_focus = "Illustrate how to perform standard CRUD operations (Create, Read single/multiple, Update, Delete) using the library's object-oriented or model-centric API (e.g., `model.save()`, `repository.find()`, `client.user.create()`, `session.delete()`). Focus on the primary methods provided by the ORM/ODM layer, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "querying_filtering"
+  description = "Describe advanced querying features like filtering, sorting, pagination, and field selection."
+  input_categories = ["querying", "guide", "api", "reference", "examples", "filtering", "sorting", "pagination", "queries"]
+  output_filename = "querying-filtering.md"
+  prompt_focus = "Explain how to construct queries to retrieve specific data sets. Cover filtering using various operators (e.g., equals, greater than, contains, IN), sorting results (`ORDER BY`), implementing pagination (limit/offset or cursor-based), and selecting specific fields/columns to retrieve, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "relationships"
+  description = "Explain how relationships (1-1, 1-n, m-n) are defined and how related data is queried/loaded."
+  input_categories = ["relationships", "relations", "models", "schema", "querying", "guide", "reference", "api", "examples"]
+  output_filename = "relationships.md"
+  prompt_focus = "Detail how one-to-one, one-to-many, and many-to-many relationships are defined between models/entities. Explain how related data is accessed or loaded, including concepts like lazy loading, eager loading (e.g., using joins, includes, select_related), and how to specify which related data to fetch in queries, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "transactions"
+  description = "Describe how to manage atomic database transactions."
+  input_categories = ["transactions", "guide", "api", "reference", "concepts", "examples", "database"]
+  output_filename = "transaction-management.md"
+  prompt_focus = "Explain the library's specific API or patterns for executing multiple database operations within a single atomic transaction. Cover concepts like starting a transaction, committing changes, rolling back on error, and any relevant session/connection management or decorators involved, based *only* on the provided input files."
+
+[[tasks]]
+  task_id = "integration_usage"
+  description = "Summarize common integration patterns within application frameworks."
+  input_categories = ["guide", "start", "examples", "tutorial", "integration", "usage", "frameworks", "patterns"]
+  output_filename = "integration-usage-patterns.md"
+  prompt_focus = "Describe how the ORM/ODM is typically integrated into common web frameworks or application structures. Focus on patterns for obtaining a database session/client/connection instance, using repositories or managers, and structuring data access logic within request handlers or service layers, based *only* on the provided input files."

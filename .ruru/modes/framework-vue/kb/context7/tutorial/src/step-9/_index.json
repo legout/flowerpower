@@ -1,0 +1,15 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Lifecycle and Template Refs",
+    "snippetTitles": [
+      "Creating a Template Ref in Vue",
+      "Using onMounted Hook (Composition API)",
+      "Accessing Template Ref in setup() (Composition API)",
+      "Accessing Template Ref (Composition API)",
+      "Using mounted Hook (Options API)",
+      "Using mounted in createApp (Options API)",
+      "Using onMounted in createApp (Composition API)"
+    ]
+  }
+]

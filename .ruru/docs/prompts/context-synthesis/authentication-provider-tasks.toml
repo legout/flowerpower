@@ -1,0 +1,55 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `authentication-provider-tasks.toml`. This file defines specific AI synthesis tasks tailored for authentication libraries and services like NextAuth.js, Clerk, Supabase Auth, Firebase Authentication, etc. These tools specialize in handling user login, session management, and access control.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "authentication", "providers", "sessions", "callbacks", "adapters", "security", "routes", "api-routes" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `authentication-provider-tasks.toml`. Ensure you set `library_type = "authentication-provider"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for authentication providers:
+
+1.  **Overview & Purpose:** Explain what the library/service provides (authentication, session management, user management), its main benefits, and core flow.
+2.  **Installation & Core Setup:** Describe the installation process and the essential configuration required to initialize the provider within a project (e.g., setting up environment variables, core configuration object/file, framework integration).
+3.  **Provider Configuration:** Summarize how to configure different authentication methods (e.g., OAuth providers like Google/GitHub, Email/Password (Credentials), Magic Links, SMS).
+4.  **Session Management:** Explain how user sessions are managed (e.g., JWT vs. Database sessions), how to access session data on the client and server, and session duration/cookie configuration.
+5.  **Callback Functions:** Describe the purpose and usage of key callbacks or lifecycle functions provided by the library (e.g., `signIn`, `signOut`, `jwt`, `session`, `redirect`).
+6.  **Protecting UI Routes / Pages:** Explain the common patterns or components provided to restrict access to frontend routes based on authentication status (e.g., Higher-Order Components, hooks, middleware specific to UI frameworks).
+7.  **Protecting API Routes / Backend Endpoints:** Describe how to secure backend API endpoints, ensuring only authenticated (and potentially authorized) users can access them (e.g., checking session tokens, using helper functions in API handlers).
+8.  **Database Adapters (if applicable):** Explain the role of database adapters (primarily for NextAuth) for persisting user, session, and account data, and how to configure them.
+9.  **User Management Features (if applicable):** Summarize any built-in features related to user sign-up, profile updates, or account linking, if described in the documentation.
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "guide", "concepts", "api", "reference", "providers", "sessions", "callbacks", "adapters", "security", "configuration", "examples"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `authentication-provider-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

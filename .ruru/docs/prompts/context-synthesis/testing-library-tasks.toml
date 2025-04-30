@@ -1,0 +1,55 @@
+You are an expert technical writer and AI prompt engineer designing configuration for an automated knowledge base (KB) synthesis system.
+
+Your goal is to generate the content for a TOML file named `testing-library-tasks.toml`. This file defines specific AI synthesis tasks tailored for testing libraries and frameworks like Jest, Vitest, Pytest, Playwright, Cypress, React Testing Library, Svelte Testing Library, etc. These tools are used to verify the correctness and behavior of software.
+
+The output TOML **MUST** strictly adhere to the following structure, defined by the system's `README.md` for task set templates:
+
+--- START OF SCHEMA DEFINITION ---
+
+# TOML definition for synthesis tasks for a specific library type.
+
+# Required: Identifies the type this task set applies to. Matches the key used in library-types.json.
+library_type = "example-type" # Replace with the actual type
+
+# Required: An array of task tables. Each table defines one synthesis task.
+[[tasks]]
+  # Required: Unique identifier for this task within the set. (e.g., "core_concepts", "component_props_summary")
+  task_id = "task_identifier_1"
+
+  # Required: Human-readable description of the task's goal.
+  description = "Generate an overview of core concepts and principles."
+
+  # Required: List of source KB category directory names to use as input for this task.
+  # The synthesizer will read all .md files from these categories within the library's source KB.
+  # Common categories include: "guide", "api", "reference", "concepts", "tutorial", "cookbook", "examples", "config", "start", "installation", "misc", "about", "commands", "matchers", "assertions", "mocking", "testing-patterns" (if specific)
+  input_categories = ["guide", "concepts", "about"]
+
+  # Required: The base filename for the synthesized output markdown file.
+  # It will be saved in `.ruru/modes/{mode_slug}/kb/{library_name}/synthesized/`.
+  output_filename = "core-concepts-summary.md"
+
+  # Required: Specific instructions/prompt focus for the agent-context-synthesizer mode.
+  # This tells the AI *what* to focus on when reading the input files for this specific task.
+  prompt_focus = "Identify and explain the fundamental ideas, design philosophy, and main features based *only* on the provided input files. Aim for a conceptual overview."
+
+# Add more [[tasks]] tables as needed for this library type.
+
+--- END OF SCHEMA DEFINITION ---
+
+Now, generate the TOML content for `testing-library-tasks.toml`. Ensure you set `library_type = "testing-library"`.
+
+Include distinct `[[tasks]]` for the following key aspects commonly found in documentation for testing libraries/frameworks:
+
+1.  **Library Overview & Purpose:** What type of testing does it primarily support (Unit, Integration, E2E, Component, etc.)? What are its core goals and philosophy (e.g., speed, developer experience, realism)?
+2.  **Installation & Setup:** Typical installation process (`npm`, `pip`, etc.) and essential configuration steps (config files like `jest.config.js`, `pytest.ini`, `playwright.config.ts`, basic project structure).
+3.  **Writing Basic Tests:** Structure of a test suite and individual test case (`describe`/`it`, `test`, functions/classes), fundamental setup required.
+4.  **Assertions & Matchers:** How to make assertions about values or states. Summarize the core assertion functions (`expect`, `assert`) and common categories of matchers (equality, truthiness, exceptions, DOM attributes, etc.).
+5.  **Mocking, Spying & Stubbing:** Explain the mechanisms provided for isolating code under test by replacing dependencies (modules, functions, timers, network requests) with mocks, spies, or stubs. Summarize key functions/APIs used.
+6.  **Running Tests:** How to invoke the test runner (CLI commands), common options for filtering tests, running in watch mode, parallel execution, and generating reports.
+7.  **Setup & Teardown / Fixtures:** Describe mechanisms for running code before/after tests or suites (`beforeEach`/`afterEach`, `setup`/`teardown`, fixtures) to manage test environments and state.
+8.  **Testing Patterns (Domain-Specific):** Summarize key patterns emphasized by the library for its specific domain (e.g., querying DOM elements in Testing Library, interacting with browsers in Playwright/Cypress, testing async code, component testing patterns).
+9.  **Configuration Options:** Overview of important configuration options beyond basic setup (e.g., test environment, reporters, coverage settings, global setup, browser contexts).
+
+For each task, define a unique `task_id`, a clear `description`, suggest appropriate `input_categories` (consider "api", "guide", "config", "examples", "concepts", "matchers", "mocking"), choose a descriptive `output_filename` (ending in `.md`), and write a concise but specific `prompt_focus` instructing the synthesizer AI.
+
+Output **ONLY** the raw TOML content suitable for saving directly into the `testing-library-tasks.toml` file. Do not include any explanatory text before or after the TOML content itself.

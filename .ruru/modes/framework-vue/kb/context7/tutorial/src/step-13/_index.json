@@ -1,0 +1,11 @@
+[
+  {
+    "fileName": "description.md",
+    "pageTitle": "Vue.js Component Event Emission",
+    "snippetTitles": [
+      "Emitting Events with Composition API (JS) in Vue.js",
+      "Emitting Events with Composition API (Script Setup) in Vue.js",
+      "Listening for Emitted Events in Parent Component (HTML)"
+    ]
+  }
+]
