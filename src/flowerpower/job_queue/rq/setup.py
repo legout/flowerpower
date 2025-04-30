@@ -116,6 +116,10 @@ class RQBackend(BaseBackend):
                 db=db,
                 password=self.password,
                 ssl=self.ssl,
+                ssl_cert_reqs=None if not self.verify_ssl else "required",
+                ssl_ca_certs=self.ca_file,
+                ssl_certfile=self.cert_file,
+                ssl_keyfile=self.key_file,
             )
         elif self.type.is_memory_type:
             # Simple in-memory dict for testing

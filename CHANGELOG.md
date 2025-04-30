@@ -26,13 +26,6 @@
 
 
 
-## [0.10.1] - 2025-04-29
-
-### Changes
-- Bump version to 0.10.1, clean up code formatting, and remove unnecessary whitespace
-
-
-
 ## [0.10.0] - 2025-04-29
 
 ### Changes
@@ -57,12 +50,6 @@
 
 ### Changes
 - Refactor imports and improve code formatting across multiple modules
-
-
-
-## [1.0.0b3] - 2025-04-29
-
-### Changes
 - Add project configuration and update job queue management
 
 

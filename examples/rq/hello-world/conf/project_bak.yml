@@ -1,15 +1,15 @@
-name: test-project123
+name: ewnnesigateway_gdi
 job_queue:
   type: rq
   backend:
     type: redis
     uri: null
     username: null
-    password: null
-    host: localhost
+    password: ffGg6X0nUrux
+    host: lodl.nes.siemens.de
     port: 6379
     database: 0
-    ssl: false
+    ssl: true
     cert_file: null
     key_file: null
     ca_file: null

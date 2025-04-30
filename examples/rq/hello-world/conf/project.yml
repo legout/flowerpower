@@ -1,15 +1,15 @@
-name: rq
+name: ewnnesigateway_gdi
 job_queue:
   type: rq
   backend:
     type: redis
     uri: null
     username: null
-    password: null
-    host: localhost
+    password: ffGg6X0nUrux
+    host: lodl.nes.siemens.de
     port: 6379
     database: 0
-    ssl: false
+    ssl: true
     cert_file: null
     key_file: null
     ca_file: null
@@ -19,12 +19,12 @@ job_queue:
     - high
     - low
     - scheduler
-    num_workers: 10
+    num_workers: 4
 adapter:
   hamilton_tracker:
-    username: null
-    api_url: http://localhost:8241
-    ui_url: http://localhost:8242
+    username: Lewis
+    api_url: https://lodl.nes.siemens.de:8241
+    ui_url: https://lodl.nes.siemens.de:8242
     api_key: null
     verify: false
   mlflow:
