@@ -25,7 +25,7 @@ from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .job_queue import PipelineJobQueue
 from .registry import HookType, PipelineRegistry
-from .runner import PipelineRunner, run_pipeline
+from .runner import PipelineRunner
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -756,9 +756,9 @@ class PipelineManager:
     def import_pipeline(
         self,
         name: str,
-        base_dir: str,
+        src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Import a pipeline from another FlowerPower project.
@@ -767,16 +767,16 @@ class PipelineManager:
         to the current project.
 
         Args:
-            name: Name to give the imported pipeline
-            base_dir: Source FlowerPower project directory or URI
+            name (str): Name for the new pipeline in the current project
+            src_base_dir (str): Source FlowerPower project directory or URI
                 Examples:
                     - Local: "/path/to/other/project"
                     - S3: "s3://bucket/project"
                     - GitHub: "github://org/repo/project"
-            src_fs: Pre-configured filesystem for source location
-                Example: S3FileSystem(key='...', secret='...')
-            storage_options: Options for source filesystem access
-                Example: {"project": "my-gcp-project"}
+            src_fs (AbstractFileSystem | None): Pre-configured source filesystem
+                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
+            src_storage_options (dict | BaseStorageOptions | None): Options for source filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
             overwrite: Whether to replace existing pipeline if name exists
 
         Raises:
@@ -806,35 +806,36 @@ class PipelineManager:
         """
         return self.io.import_pipeline(
             name=name,
-            src_base_dir=base_dir,
+            src_base_dir=src_base_dir,
             src_fs=src_fs,
-            src_storage_options=storage_options,
+            src_storage_options=src_storage_options,
             overwrite=overwrite,
         )
 
     def import_many(
         self,
-        pipelines: dict[str, str] | list[str],
-        base_dir: str,  # Base dir for source if pipelines is a list
+        names: list[str],
+        src_base_dir: str,  # Base dir for source if pipelines is a list
         src_fs: AbstractFileSystem | None = None,
         src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
     ) -> None:
         """Import multiple pipelines from another project or location.
 
-        Supports two import modes:
-        1. Dictionary mode: Map source names to new names
-        2. List mode: Import keeping original names
 
         Args:
-            pipelines: Pipeline specifications, either:
-                - dict: Map of {new_name: source_name}
-                - list: List of pipeline names to import as-is
-            base_dir: Source FlowerPower project directory or URI
-            src_fs: Pre-configured filesystem for source location
-            src_storage_options: Options for source filesystem access
-            overwrite: Whether to replace existing pipelines
-
+            pipelines(list[str]): List of pipeline names to import
+            src_base_dir (str, optional): Source project directory or URI
+                Examples:
+                    - Local: "/path/to/other/project"
+                    - S3: "s3://bucket/project"
+                    - GitHub: "github://org/repo/project"
+            src_fs (AbstractFileSystem | None, optional): Pre-configured source filesystem
+                Example: S3FileSystem(key='ACCESS_KEY', secret="SECRET_KEY")
+            storage_options (dict | BaseStorageOptions | None, optional): Options for source filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
+            overwrite (bool, optional): Whether to replace existing pipelines
+            
         Raises:
             ValueError: If any pipeline exists and overwrite=False
             FileNotFoundError: If source pipelines not found
@@ -845,20 +846,10 @@ class PipelineManager:
             >>>
             >>> manager = PipelineManager()
             >>>
-            >>> # Import with name mapping
-            >>> manager.import_many(
-            ...     pipelines={
-            ...         "new_ingest": "data_ingest",
-            ...         "new_process": "data_process"
-            ...     },
-            ...     base_dir="/path/to/source",
-            ...     overwrite=True
-            ... )
-            >>>
             >>> # Import keeping original names
             >>> manager.import_many(
-            ...     pipelines=["pipeline1", "pipeline2"],
-            ...     base_dir="s3://bucket/source",
+            ...     names=["pipeline1", "pipeline2"],
+            ...     src_base_dir="s3://bucket/source",
             ...     src_storage_options={
             ...         "key": "ACCESS_KEY",
             ...         "secret": "SECRET_KEY"
@@ -866,8 +857,8 @@ class PipelineManager:
             ... )
         """
         return self.io.import_many(
-            pipelines=pipelines,
-            src_base_dir=base_dir,
+            names=names,
+            src_base_dir=src_base_dir,
             src_fs=src_fs,
             src_storage_options=src_storage_options,
             overwrite=overwrite,
@@ -875,7 +866,7 @@ class PipelineManager:
 
     def import_all(
         self,
-        base_dir: str,
+        src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
         src_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
@@ -883,10 +874,16 @@ class PipelineManager:
         """Import all pipelines from another FlowerPower project.
 
         Args:
-            base_dir: Source project directory or URI
-            src_fs: Pre-configured source filesystem
-            src_storage_options: Source filesystem options
-            overwrite: Whether to replace existing pipelines
+            src_base_dir (str): Source project directory or URI
+                Examples:
+                    - Local: "/path/to/other/project"
+                    - S3: "s3://bucket/project"
+                    - GitHub: "github://org/repo/project"
+            src_fs (AbstractFileSystem | None): Pre-configured source filesystem
+                Example: S3FileSystem(key='KEY',secret='SECRET')
+            src_storage_options (dict | BaseStorageOptions | None): Options for source filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
+            overwrite (bool): Whether to replace existing pipelines
 
         Raises:
             FileNotFoundError: If source location not found
@@ -910,7 +907,7 @@ class PipelineManager:
             ... )
         """
         return self.io.import_all(
-            src_base_dir=base_dir,
+            src_base_dir=src_base_dir,
             src_fs=src_fs,
             src_storage_options=src_storage_options,
             overwrite=overwrite,
@@ -919,7 +916,7 @@ class PipelineManager:
     def export_pipeline(
         self,
         name: str,
-        base_dir: str,
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
         dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
@@ -930,17 +927,17 @@ class PipelineManager:
         while preserving directory structure.
 
         Args:
-            name: Name of pipeline to export
-            base_dir: Destination directory or URI
+            name (str): Name of the pipeline to export
+            dest_base_dir (str): Destination directory or URI
                 Examples:
-                    - Local: "/path/to/backup"
-                    - S3: "s3://bucket/backups"
-                    - GCS: "gs://bucket/exports"
-            dest_fs: Pre-configured filesystem for destination
-                Example: GCSFileSystem(token='...')
-            dest_storage_options: Options for destination filesystem
-                Example: {"key": "...", "secret": "..."}
-            overwrite: Whether to replace existing files at destination
+                    - Local: "/path/to/exports"
+                    - S3: "s3://bucket/exports"
+                    - Azure: "abfs://container/exports"
+            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
+                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
+            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
+            overwrite (bool): Whether to replace existing files at destination
 
         Raises:
             ValueError: If pipeline doesn't exist
@@ -969,7 +966,7 @@ class PipelineManager:
         """
         return self.io.export_pipeline(
             name=name,
-            dest_base_dir=base_dir,
+            dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
             dest_storage_options=dest_storage_options,
             overwrite=overwrite,
@@ -977,8 +974,8 @@ class PipelineManager:
 
     def export_many(
         self,
-        pipelines: list[str],
-        base_dir: str,
+        names: list[str],
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
         dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
@@ -989,17 +986,17 @@ class PipelineManager:
         preserving directory structure and metadata.
 
         Args:
-            pipelines: List of pipeline names to export
-            base_dir: Destination directory or URI
+            names (list[str]): List of pipeline names to export
+            dest_base_dir (str): Destination directory or URI
                 Examples:
                     - Local: "/path/to/exports"
                     - S3: "s3://bucket/exports"
                     - Azure: "abfs://container/exports"
-            dest_fs: Pre-configured filesystem for destination
-                Example: S3FileSystem(anon=False, key='...', secret='...')
-            dest_storage_options: Options for destination filesystem access
-                Example: {"account_name": "storage", "sas_token": "..."}
-            overwrite: Whether to replace existing files at destination
+            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
+                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
+            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
+            overwrite (bool): Whether to replace existing files at destination
 
         Raises:
             ValueError: If any pipeline doesn't exist
@@ -1023,8 +1020,8 @@ class PipelineManager:
             ... )
         """
         return self.io.export_many(
-            pipelines=pipelines,
-            dest_base_dir=base_dir,
+            names=names,
+            dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
             dest_storage_options=dest_storage_options,
             overwrite=overwrite,
@@ -1032,7 +1029,7 @@ class PipelineManager:
 
     def export_all(
         self,
-        base_dir: str,
+        dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
         dest_storage_options: dict | BaseStorageOptions | None = {},
         overwrite: bool = False,
@@ -1040,14 +1037,16 @@ class PipelineManager:
         """Export all pipelines to another location.
 
         Args:
-            base_dir: Destination directory or URI
-            dest_fs: Pre-configured destination filesystem
-            dest_storage_options: Destination filesystem options
-            overwrite: Whether to replace existing files
-
-        Raises:
-            FileNotFoundError: If destination not accessible
-            RuntimeError: If export fails
+            dest_base_dir (str): Destination directory or URI
+                Examples:
+                    - Local: "/path/to/exports"
+                    - S3: "s3://bucket/exports"
+                    - Azure: "abfs://container/exports"
+            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
+                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
+            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
+                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
+            overwrite (bool): Whether to replace existing files at destination
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager
@@ -1067,7 +1066,7 @@ class PipelineManager:
             ... )
         """
         return self.io.export_all(
-            dest_base_dir=base_dir,
+            dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
             dest_storage_options=dest_storage_options,
             overwrite=overwrite,

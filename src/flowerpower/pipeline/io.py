@@ -10,10 +10,20 @@ import posixpath
 from rich.console import Console
 
 # Import necessary config types and utility functions
-from ..fs.base import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from ..fs.base import (
+    AbstractFileSystem,
+    BaseStorageOptions,
+    get_filesystem,
+    DirFileSystem,
+)
 from .registry import PipelineRegistry
+from loguru import logger
+from ..settings import LOG_LEVEL
+from ..utils.logging import setup_logging
 
 console = Console()
+
+setup_logging(level=LOG_LEVEL)
 
 
 class PipelineIOManager:
@@ -34,6 +44,90 @@ class PipelineIOManager:
         self._fs = registry._fs
         self._cfg_dir = registry._cfg_dir
         self._pipelines_dir = registry._pipelines_dir
+
+    def _sync_filesystem(
+        self,
+        src_base_dir: str,
+        dest_base_dir: str,
+        src_fs: AbstractFileSystem | None,
+        dest_fs: AbstractFileSystem | None,
+        src_storage_options: dict | BaseStorageOptions | None = {},
+        dest_storage_options: dict | BaseStorageOptions | None = {},
+        files: list[str] | None = None,
+        overwrite: bool = False,
+    ):
+        """
+        Synchronizes the source and destination filesystems.
+
+        Args:
+            src_base_dir (str): The source base directory.
+            dest_base_dir (str): The destination base directory.
+            src_fs (AbstractFileSystem | None, optional): The source filesystem. Defaults to None.
+            dest_fs (AbstractFileSystem | None, optional): The destination filesystem. Defaults to None.
+            src_storage_options (dict | BaseStorageOptions | None, optional): Storage options for the source filesystem. Defaults to None.
+            dest_storage_options (dict | BaseStorageOptions | None, optional): Storage options for the destination filesystem. Defaults to None.
+            overwrite (bool, optional): Whether to overwrite existing files. Defaults to False.
+        Returns:
+            tuple: A tuple containing the source and destination filesystems.
+        """
+
+        def _get_filesystem(base_dir, fs, storage_options):
+            if fs is None:
+                fs = get_filesystem(base_dir, storage_options=storage_options)
+            else:
+                if not isinstance(fs, AbstractFileSystem):
+                    raise ValueError(
+                        f"Invalid filesystem type: {type(fs)}. Expected AbstractFileSystem."
+                    )
+                if isinstance(fs, DirFileSystem):
+                    if not fs.path == base_dir:
+                        fs = DirFileSystem(base_dir, fs=fs)
+                else:
+                    fs = DirFileSystem(base_dir, fs=fs)
+            return fs
+
+        src_fs = _get_filesystem(src_base_dir, src_fs, src_storage_options)
+        logger.debug(f"Source filesystem: {src_fs}")
+        dest_fs = _get_filesystem(dest_base_dir, dest_fs, dest_storage_options)
+        logger.debug(f"Destination filesystem: {dest_fs}")
+        # try:
+        #     src_mapper = src_fs.get_mapper(check=True, create=True)
+        # except NotImplementedError:
+        # try:
+        #     src_mapper = src_fs.get_mapper(check=True, create=False)
+        # except NotImplementedError:
+        #     src_mapper = src_fs.get_mapper(check=False, create=False)
+        # try:
+        #     dest_mapper = dest_fs.get_mapper(check=True, create=False)
+        # except NotImplementedError:
+        #     raise NotImplementedError(
+        #         f"The destination filesystem {dest_fs }does not support get_mapper."
+        #     )
+       
+        if files is None:
+            files = src_fs.glob("**/*.py")
+            files.extend(src_fs.glob("**/*.yml"))
+
+        for file in files:
+            logger.debug(f"Copying {file} from {src_fs} to {dest_fs}")
+            if not dest_fs.exists(posixpath.dirname(file)):
+                logger.debug(
+                    f"Creating directory {posixpath.dirname(file)} in destination filesystem."
+                )
+                try:
+                    dest_fs.mkdir(posixpath.dirname(file), create_parents=True)
+                except PermissionError:
+                    dest_fs.touch(file, truncate=False)
+            else:
+                if not overwrite and dest_fs.exists(file):
+                    logger.warning(
+                        f"File {file} already exists in the destination. Skipping write. Use overwrite=True to overwrite."
+                    )
+                    continue            
+            
+            content = src_fs.read_bytes(file)
+            dest_fs.write_bytes(file, content)
+           
 
     def import_pipeline(
         self,
@@ -65,63 +159,31 @@ class PipelineIOManager:
             pm.import_pipeline("my_pipeline", "/path/to/pipeline")
             ```
         """
-        if src_fs is None:
-            src_fs = get_filesystem(src_base_dir, storage_options=src_storage_options)
+        files = [
+            "conf/project.yml",
+            f"conf/pipelines/{name}.yml",
+            f"pipelines/{name}.py",
+        ]
 
-        # Use project_cfg attributes for destination paths and filesystem
-        dest_pipeline_file = posixpath.join(
-            self._pipelines_dir, f"{name.replace('.', '/')}.py"
+        self._sync_filesystem(
+            src_base_dir=src_base_dir,
+            src_fs=src_fs,
+            src_storage_options=src_storage_options,
+            dest_base_dir=".",
+            dest_fs=self._fs,
+            dest_storage_options=None,
+            files=files,
+            overwrite=overwrite,
         )
-        dest_cfg_file = posixpath.join(
-            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
-        )
-        # Assume standard structure in source base_dir
-        src_pipeline_file = posixpath.join(
-            src_base_dir, "pipelines", f"{name.replace('.', '/')}.py"
-        )
-        src_cfg_file = posixpath.join(
-            src_base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
-        )
-
-        if not src_fs.exists(src_pipeline_file):
-            raise ValueError(
-                f"Source pipeline module file not found at: {src_pipeline_file}"
-            )
-        if not src_fs.exists(src_cfg_file):
-            raise ValueError(
-                f"Source pipeline config file not found at: {src_cfg_file}"
-            )
-
-        # Check existence in destination using _fs
-        if self._fs.exists(dest_pipeline_file) or self._fs.exists(dest_cfg_file):
-            if overwrite:
-                if self._fs.exists(dest_pipeline_file):
-                    self._fs.rm(dest_pipeline_file)
-                if self._fs.exists(dest_cfg_file):
-                    self._fs.rm(dest_cfg_file)
-            else:
-                # Use project_cfg.name directly
-                raise ValueError(
-                    f"Pipeline {self.project_cfg.name}.{name.replace('.', '/')} already exists in destination. "
-                    "Use `overwrite=True` to overwrite."
-                )
-
-        # Create directories in destination
-        self._fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
-        self._fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
-
-        # Copy files using correct filesystems
-        self._fs.write_bytes(dest_pipeline_file, src_fs.read_bytes(src_pipeline_file))
-        self._fs.write_bytes(dest_cfg_file, src_fs.read_bytes(src_cfg_file))
 
         # Use project_cfg.name directly
         console.print(
-            f"✅ Imported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] from [green]{src_base_dir}[/green]"
+            f"✅ Imported pipeline [bold blue]{name}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
         )
 
     def import_many(
         self,
-        pipelines: dict[str, str] | list[str],
+        names: list[str],
         src_base_dir: str,
         src_fs: AbstractFileSystem | None = None,
         src_storage_options: dict | BaseStorageOptions | None = {},
@@ -131,8 +193,7 @@ class PipelineIOManager:
         Import multiple pipelines from given paths.
 
         Args:
-            pipelines (dict[str, str] | list[str]): A dictionary where keys are pipeline names and values are paths or
-                a list of pipeline names to import.
+            names (list[str]): A list of pipeline names to import.
             src_base_dir (str): The base path of the flowerpower project directory.
             src_fs (AbstractFileSystem | None, optional): The source filesystem. Defaults to None.
             src_storage_options (BaseStorageOptions | None, optional): The storage options. Defaults to None.
@@ -144,30 +205,38 @@ class PipelineIOManager:
         Examples:
             ```python
             pm = PipelineManager()
-            pipelines_to_import = {
-                "pipeline1": "/path/to/pipeline1",
-                "pipeline2": "s3://bucket/pipeline2"
-            }
-            pm.import_many(pipelines_to_import, overwrite=True)
+
+
+            # Import multiple pipelines from a list
+            pipelines_to_import = ["pipeline1", "pipeline2"]
+            pm.import_many(pipelines_to_import, "/path/to/fp_project", overwrite=True)
             ```
         """
-        if isinstance(pipelines, list):
-            pipelines = {name: src_base_dir for name in pipelines}
 
-        for name, src_base_dir in pipelines.items():
-            try:
-                self.import_pipeline(
-                    name=name,
-                    src_base_dir=src_base_dir,
-                    src_fs=src_fs,
-                    src_storage_options=src_storage_options,
-                    overwrite=overwrite,
-                )
-            except Exception as e:
-                console.print(
-                    f"❌ Failed to import pipeline [bold blue]{name}[/bold blue] from [red]{src_base_dir}[/red]: {e}",
-                    style="red",
-                )
+        files = ["conf/project.yml"]
+
+        for name in names:
+            files.extend(
+                [
+                    f"conf/pipelines/{name}.yml",
+                    f"pipelines/{name}.py",
+                ]
+            )
+
+        # Sync the filesystem
+        self._sync_filesystem(
+            src_base_dir=src_base_dir,
+            src_fs=src_fs,
+            src_storage_options=src_storage_options,
+            dest_base_dir=".",
+            dest_fs=self._fs,
+            dest_storage_options=None,
+            files=files,
+            overwrite=overwrite,
+        )
+        console.print(
+            f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
+        )
 
     def import_all(
         self,
@@ -177,8 +246,6 @@ class PipelineIOManager:
         overwrite: bool = False,
     ):
         """Import all pipelines from a given path.
-
-        Assumes the source path has a structure similar to the target `pipelines_dir` and `cfg_dir`/pipelines.
 
         Args:
             src_base_dir (str): The base path containing pipeline modules and configurations.
@@ -198,42 +265,18 @@ class PipelineIOManager:
             # pm.import_all("s3://my-bucket/pipelines_backup", storage_options={"key": "...", "secret": "..."}, overwrite=False)
             ```
         """
-        if not src_fs:
-            src_fs = get_filesystem(src_base_dir, storage_options=src_storage_options)
-
-        console.print(f"🔍 Search pipelines in [green]{src_base_dir}[/green]...")
-
-        # Find all .py files in the source path (recursively)
-        try:
-            # Assuming pipelines are directly under the path, adjust if nested deeper e.g. path/pipelines/*.py
-            pipeline_files = src_fs.glob("**/*.py", recursive=True)
-        except NotImplementedError:
-            # Fallback for filesystems that don't support recursive glob
-            pipeline_files = src_fs.glob("*.py")  # Check top level
-            # Add logic here to check common subdirs like 'pipelines' if needed
-
-        names = [
-            f.replace(f"{src_base_dir}/", "").replace(".py", "").replace("/", ".")
-            for f in pipeline_files
-            if not f.endswith("__init__.py")  # Exclude __init__.py
-        ]
-
-        if not names:
-            console.print(
-                "🤷 No pipeline modules (.py files) found in the specified path.",
-                style="yellow",
-            )
-            return
-
-        console.print(f"Found {len(names)} potential pipeline modules. Importing...")
-
-        pipelines_to_import = {name: src_base_dir for name in names}
-        self.import_many(
-            pipelines=pipelines_to_import,
+        self._sync_filesystem(
             src_base_dir=src_base_dir,
             src_fs=src_fs,
             src_storage_options=src_storage_options,
+            dest_base_dir=".",
+            dest_fs=self._fs,
+            dest_storage_options=None,
+            files=None,
             overwrite=overwrite,
+        )
+        console.print(
+            f"✅ Imported all pipelines from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
         )
 
     def export_pipeline(
@@ -268,56 +311,31 @@ class PipelineIOManager:
             # pm.export("my_pipeline", "s3://my-bucket/exports", storage_options={"key": "...", "secret": "..."})
             ```
         """
-        # Use registry to check existence (accessing public property/method)
-        if (
-            name not in self.registry.list_pipelines()
-        ):  # Assuming list_pipelines is the public way
-            raise ValueError(f"Pipeline {self.project_cfg.name}.{name} does not exist.")
+        files = [
+            "conf/project.yml",
+            f"conf/pipelines/{name}.yml",
+            f"pipelines/{name}.py",
+        ]
 
-        if dest_fs is None:
-            dest_fs = get_filesystem(
-                dest_base_dir, storage_options=dest_storage_options
-            )
-
-        # Define destination paths relative to base_dir
-        dest_pipeline_file = posixpath.join(
-            dest_base_dir, "pipelines", f"{name.replace('.', '/')}.py"
-        )
-        dest_cfg_file = posixpath.join(
-            dest_base_dir, "conf", "pipelines", f"{name.replace('.', '/')}.yml"
-        )
-        # Define source paths using project_cfg attributes
-        src_pipeline_file = posixpath.join(
-            self._pipelines_dir, f"{name.replace('.', '/')}.py"
-        )
-        src_cfg_file = posixpath.join(
-            self._cfg_dir, "pipelines", f"{name.replace('.', '/')}.yml"
+        # Sync the filesystem
+        self._sync_filesystem(
+            src_base_dir=".",
+            src_fs=self._fs,
+            src_storage_options=None,
+            dest_base_dir=dest_base_dir,
+            dest_fs=dest_fs,
+            dest_storage_options=dest_storage_options,
+            files=files,
+            overwrite=overwrite,
         )
 
-        # Check overwrite condition for destination files using dest_fs
-        if not overwrite and (
-            dest_fs.exists(dest_pipeline_file) or dest_fs.exists(dest_cfg_file)
-        ):
-            raise ValueError(
-                f"Destination path {dest_base_dir} for pipeline {name.replace('.', '/')} already contains files. Use `overwrite=True` to overwrite."
-            )
-
-        # Create necessary subdirectories in the destination using dest_fs
-        dest_fs.makedirs(posixpath.dirname(dest_pipeline_file), exist_ok=True)
-        dest_fs.makedirs(posixpath.dirname(dest_cfg_file), exist_ok=True)
-
-        # Copy pipeline module and config using correct filesystems
-        dest_fs.write_bytes(dest_pipeline_file, self._fs.read_bytes(src_pipeline_file))
-        dest_fs.write_bytes(dest_cfg_file, self._fs.read_bytes(src_cfg_file))
-
-        # Use project_cfg.name directly
         console.print(
             f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{dest_base_dir}[/green]"
         )
 
     def export_many(
         self,
-        pipelines: list[str],
+        names: list[str],
         dest_base_dir: str,
         dest_fs: AbstractFileSystem | None = None,
         dest_storage_options: dict | BaseStorageOptions | None = {},
@@ -343,21 +361,36 @@ class PipelineIOManager:
             pm.export_many(pipelines_to_export, "/path/to/export_dir", overwrite=True)
             ```
         """
-        for name in pipelines:
-            try:
-                self.export_pipeline(
-                    name=name,
-                    dest_base_dir=dest_base_dir,
-                    dest_fs=dest_fs,
-                    des_storage_options=dest_storage_options,
-                    overwrite=overwrite,
+        files = [
+            "conf/project.yml",
+        ]
+        for name in names:
+            # Check if the pipeline exists in the registry
+            if not self.registry.has_pipeline(name):
+                raise ValueError(
+                    f"Pipeline {name} does not exist in the registry. Please check the name."
                 )
-            except Exception as e:
-                # Use project_cfg.name directly
-                console.print(
-                    f"❌ Failed to export pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [red]{dest_base_dir}[/red]: {e}",
-                    style="red",
-                )
+            # Add pipeline files to the list
+            files.extend(
+                [
+                    f"conf/pipelines/{name}.yml",
+                    f"pipelines/{name}.py",
+                ]
+            )
+        # Sync the filesystem
+        self._sync_filesystem(
+            src_base_dir=".",
+            src_fs=self._fs,
+            src_storage_options=None,
+            dest_base_dir=dest_base_dir,
+            dest_fs=dest_fs,
+            dest_storage_options=dest_storage_options,
+            files=files,
+            overwrite=overwrite,
+        )
+        console.print(
+            f"✅ Exported pipelines [bold blue]{', '.join([self.project_cfg.name + '.' + name for name in names])}[/bold blue] to [green]{dest_base_dir}[/green]"
+        )
 
     def export_all(
         self,
@@ -386,24 +419,17 @@ class PipelineIOManager:
             # pm.export_all("s3://my-bucket/pipelines_backup", storage_options={"key": "...", "secret": "..."}, overwrite=False)
             ```
         """
-
-        # Use registry to get all pipeline names
-        # Use registry's public method/property
-        pipelines = self.registry.list_pipelines()  # Assuming list_pipelines is public
-        if not pipelines:
-            console.print(
-                "🤷 No pipelines found in the registry to export.", style="yellow"
-            )
-            return
-
-        console.print(
-            f"Found {len(pipelines)} pipelines in the registry. Exporting all to [green]{dest_base_dir}[/green]..."
-        )
-
-        self.export_many(
-            pipelines=pipelines,
+        #sync the filesystem
+        self._sync_filesystem(
+            src_base_dir=".",
+            src_fs=self._fs,
+            src_storage_options=None,
             dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
             dest_storage_options=dest_storage_options,
+            files=None,
             overwrite=overwrite,
+        )
+        console.print(
+            f"✅ Exported all pipelines from [bold blue]{self.project_cfg.name}[/bold blue] to [green]{dest_base_dir}[/green]"
         )
