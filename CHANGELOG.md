@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.3] - 2025-05-02
+
+### Changes
+- chore: update version to 0.10.3
+- fix: clean up whitespace and improve code formatting across multiple files
+- bugfixes: io methods to import and export pipelines fixed.
+- Update README to include a subtitle and enhance visual presentation
+- Refactor code structure for improved readability and maintainability; removed redundant code blocks and optimized function implementations.
+- Add database and file writers/readers for various formats
+- push test
+- Refactor configuration and update Redis job queue settings
+
+
+
 ## [0.10.2] - 2025-04-29
 
 ### Changes
