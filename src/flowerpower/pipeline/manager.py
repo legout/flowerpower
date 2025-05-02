@@ -835,7 +835,7 @@ class PipelineManager:
             storage_options (dict | BaseStorageOptions | None, optional): Options for source filesystem access
                 Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
             overwrite (bool, optional): Whether to replace existing pipelines
-            
+
         Raises:
             ValueError: If any pipeline exists and overwrite=False
             FileNotFoundError: If source pipelines not found

@@ -7,19 +7,19 @@ Manages the import and export of pipelines.
 
 import posixpath
 
+from loguru import logger
 from rich.console import Console
 
 # Import necessary config types and utility functions
 from ..fs.base import (
     AbstractFileSystem,
     BaseStorageOptions,
-    get_filesystem,
     DirFileSystem,
+    get_filesystem,
 )
-from .registry import PipelineRegistry
-from loguru import logger
 from ..settings import LOG_LEVEL
 from ..utils.logging import setup_logging
+from .registry import PipelineRegistry
 
 console = Console()
 
@@ -103,7 +103,7 @@ class PipelineIOManager:
         #     raise NotImplementedError(
         #         f"The destination filesystem {dest_fs }does not support get_mapper."
         #     )
-       
+
         if files is None:
             files = src_fs.glob("**/*.py")
             files.extend(src_fs.glob("**/*.yml"))
@@ -123,11 +123,10 @@ class PipelineIOManager:
                     logger.warning(
                         f"File {file} already exists in the destination. Skipping write. Use overwrite=True to overwrite."
                     )
-                    continue            
-            
+                    continue
+
             content = src_fs.read_bytes(file)
             dest_fs.write_bytes(file, content)
-           
 
     def import_pipeline(
         self,
@@ -419,7 +418,7 @@ class PipelineIOManager:
             # pm.export_all("s3://my-bucket/pipelines_backup", storage_options={"key": "...", "secret": "..."}, overwrite=False)
             ```
         """
-        #sync the filesystem
+        # sync the filesystem
         self._sync_filesystem(
             src_base_dir=".",
             src_fs=self._fs,
