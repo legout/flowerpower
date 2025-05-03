@@ -23,7 +23,6 @@ else:
 
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
-
 # from ..utils.misc import update_config_from_dict
 from ..settings import BACKEND_PROPERTIES
 

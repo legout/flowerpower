@@ -45,6 +45,7 @@ uv pip install flowerpower
 # Optional: Install additional dependencies for specific features
 uv pip install flowerpower[apscheduler,rq] # Example for APScheduler and RQ
 uv pip install flowerpower[io] # Example for I/O plugins (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite)
+uv pip install flowerpower[ui] # Example for Hamilton UI
 uv pip install flowerpower[all] # Install all optional dependencies
 ```
 
@@ -64,7 +65,7 @@ Navigate to your desired parent directory and run:
 ```bash
 flowerpower init --name hello-flowerpower-project
 ```
-This will create a `hello-flowerpower-project` directory with the necessary `conf/` and `pipelines/` subdirectories and default configuration files.
+
 
 **Using Python:**
 
@@ -76,7 +77,8 @@ from flowerpower import init_project
 init_project(name='hello-flowerpower-project', job_queue_type='rq') # Or 'apscheduler'
 ```
 
-This sets up the basic layout:
+This will create a `hello-flowerpower-project` directory with the necessary `conf/` and `pipelines/` subdirectories and default configuration files.
+
 ```
 hello-flowerpower-project/
 ├── conf/
@@ -86,116 +88,93 @@ hello-flowerpower-project/
 ```
 
 Now, navigate into your new project directory:
+
 ```bash
 cd hello-flowerpower-project
 ```
 
-**2. Configure Project (`conf/project.yml`):**
+**Configure Project (`conf/project.yml`):**
 
-Open 
-Define your project name and choose your job queue backend. Here's an example using RQ:
+Open `conf/project.yml` and define your project name and choose your job queue backend. Here's an example using RQ:
 
 ```yaml
-name: my_awesome_project
+name: hello-flowerpower
 job_queue:
   type: rq
   backend:
     type: redis
-    # host: localhost # Default or specify connection details
-    # port: 6379
+    host: localhost
+    port: 6379
     # ... other redis options
     queues:
       - default
       - high
       - low
-# adapter: ... # Optional adapter configurations (e.g., Hamilton Tracker, MLflow)
+# adapter: ... # Optional adapter configurations (e.g., Hamilton Tracker, MLflow), see `conf/project.yml` for details
 ```
 
-Now, navigate into your new project directory:
-```bash
-cd hello-flowerpower-project
-```
-**2. Create Your Pipeline:**
+### 2. Create Your Pipeline
+
+You can create a new pipeline using the CLI or programmatically.
 
 **Using the CLI:**
-Create a new pipeline:
+
 ```bash
 flowerpower pipeline new hello_world
 ```
-This will create a new file `hello_world.py` in the `pipelines/` directory and a corresponding configuration file `hello_world.yml` in `conf/pipelines/`.
 
 **Using Python:**
+
 There is a `PipelineManager` class to manage pipelines programmatically:
+
 ```python
 from flowerpower.pipeline import PipelineManager
 pm = PipelineManager(base_dir='.')
 pm.new(name='hello_world') # Creates a new pipeline
 ```
 
-**2. Configure Project (`conf/project.yml`):**
+This will create a new file `hello_world.py` in the `pipelines/` directory and a corresponding configuration file `hello_world.yml` in `conf/pipelines/`.
 
-Define your project name and choose your job queue backend. Here's an example using RQ:
+**Implement Pipeline (`pipelines/hello_world.py`):**
 
-```yaml
-name: my_awesome_project
-job_queue:
-  type: rq
-  backend:
-    type: redis
-    # host: localhost # Default or specify connection details
-    # port: 6379
-    # ... other redis options
-    queues:
-      - default
-      - high
-      - low
-# adapter: ... # Optional adapter configurations (e.g., Hamilton Tracker, MLflow)
-```
-
-**3. Define Pipeline (`conf/pipelines/hello_world.yml`):**
-
-Specify parameters, run configurations, and scheduling for your pipeline.
-
-```yaml
-# adapter: ... # Pipeline-specific adapter overrides
-
-params: # Parameters accessible in your Python code
-  greeting:
-    message: "Hello"
-  target:
-    name: "World"
-
-run: # How to execute the pipeline
-  final_vars: # Specify the desired output(s) from your Hamilton DAG
-    - full_greeting
-  # config: ... # Runtime configuration overrides for Hamilton
-  # executor: ... # Execution backend (e.g., threadpool, multiprocessing)
-
-schedule: # Optional: How often to run the pipeline
-  cron: "0 * * * *" # Run hourly
-  # interval: # e.g., { "minutes": 15 }
-  # date: # e.g., "2025-12-31 23:59:59"
-```
-
-**4. Implement Pipeline (`pipelines/hello_world.py`):**
-
-Write your pipeline logic using Python and Hamilton. FlowerPower makes configuration easily accessible.
+Open `pipelines/hello_world.py` and write your pipeline logic using Python and Hamilton. FlowerPower makes configuration easily accessible.
 
 ```python
-import pandas as pd
-from pathlib import Path
+# FlowerPower pipeline hello_world.py
+# Created on 2025-05-03 22:34:09
+
+####################################################################################################
+# Import necessary libraries
+# NOTE: Remove or comment out imports that are not used in the pipeline
+
 from hamilton.function_modifiers import parameterize
+
+from pathlib import Path
+
 from flowerpower.cfg import Config
 
-# Load configuration specific to this pipeline
-# Assumes this file is in pipelines/hello_world.py relative to conf/
-PARAMS = Config.load(Path(__file__).parents[1], pipeline_name="hello_world").pipeline.h_params
-@parameterize(**PARAMS.greeting) # Inject 'message' from params
+####################################################################################################
+# Load pipeline parameters. Do not modify this section.
+
+PARAMS = Config.load(
+    Path(__file__).parents[1], pipeline_name="hello_world"
+).pipeline.h_params
+
+
+####################################################################################################
+# Helper functions.
+# This functions have to start with an underscore (_).
+
+
+####################################################################################################
+# Pipeline functions
+
+@parameterize(**PARAMS.greeting_message) # Inject 'message' from params
 def greeting_message(message: str) -> str:
   """Provides the greeting part."""
   return f"{message},"
 
-@parameterize(**PARAMS.target) # Inject 'name' from params
+@parameterize(**PARAMS.target_name) # Inject 'name' from params
 def target_name(name: str) -> str:
   """Provides the target name."""
   return f"{name}!"
@@ -208,47 +187,117 @@ def full_greeting(greeting_message: str, target_name: str) -> str:
 # You can add more complex Hamilton functions here...
 ```
 
+**Configure Pipeline (`conf/pipelines/hello_world.yml`):**
 
-## 🏃‍♀️ Running Pipelines: Sync vs. Async
+Open `conf/pipelines/hello_world.yml` and specify parameters, run configurations, and scheduling for your pipeline.
+
+```yaml
+# adapter: ... # Pipeline-specific adapter overrides
+
+params: # Parameters accessible in your Python code
+  greeting_message:
+    message: "Hello"
+  target:
+    name: "World"
+
+run: # How to execute the pipeline
+  final_vars: # Specify the desired output(s) from your Hamilton DAG
+    - full_greeting
+  # inputs: # Optional: Specify input variables to the pipeline
+    # message: "Hello"
+  # config: ... # Runtime configuration overrides for Hamilton
+  # executor: ... # Execution backend (e.g., threadpool, multiprocessing)
+
+schedule: # Optional: How often to run the pipeline
+  cron: "0 * * * *" # Run hourly
+  # interval: # e.g., { "minutes": 15 }
+  # date: # e.g., "2025-12-31 23:59:59"
+```
+### 3. Run Your Pipeline 🏃‍♀️
 
 FlowerPower offers flexibility in how you execute your pipelines:
 
 **1. Synchronous Execution:**
 
-For simple pipelines or testing, you can run them directly in the current session without involving a job queue.
+For quick testing or local runs, you can execute your pipeline synchronously. This is useful for debugging or running pipelines in a local environment.
 
 *   **Via CLI:**
     ```bash
-    # Assumes your project structure is standard and you are in the project root
+    # Run the pipeline synchronously
     flowerpower pipeline run hello_world --base_dir .
     ```
 *   **Via Python:**
     ```python
     from flowerpower.pipeline import PipelineManager
-
-    # Specify the base directory containing your 'conf/' folder
     pm = PipelineManager(base_dir='.')
-    results = pm.run('hello_world') # Execute the pipeline named 'hello_world'
-    print(results)
-    ```
+    pm.run('hello_world') # Execute the pipeline named 'hello_world'  
 
 **2. Asynchronous Execution (Job Queues):**
 
-For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. This is configured in your `conf/project.yml`.
+For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. This is configured in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
 
 *   **RQ (Redis Queue):**
     *   **Requires:** Access to a running Redis server.
-    *   Ideal for distributed task queues where workers can pick up jobs.
-    *   Configure in `project.yml`: `job_queue: { type: rq, backend: { type: redis, ... } }`
+    *   Configure in `conf/project.yml`: 
+          ```yaml
+          job_queue:
+            type: rq
+            backend:
+              type: redis
+              host: localhost
+              port: 6379
+              ... # other redis options
+          ```
     *   **Learn More:** [RQ Documentation](https://python-rq.org/)
 
 *   **APScheduler:**
     *   **Requires:**
         *   A **Data Store:** To persist job information (Options: PostgreSQL, MySQL, SQLite, MongoDB).
         *   An **Event Broker:** To notify workers of scheduled jobs (Options: Redis, MQTT, PostgreSQL).
-    *   Ideal for time-based scheduling (cron, intervals, specific dates).
-    *   Configure in `project.yml`: `job_queue: { type: apscheduler, datastore: { ... }, eventbroker: { ... } }`
+    *   Configure in `cong/project.yml`:
+          ```yaml
+          job_queue:
+            type: apscheduler
+            backend:
+              type: postgresql # or mysql, sqlite, mongodb
+              host: localhost
+              port: 5432
+              user: your_user
+              password: your_password
+              database: your_database
+              ... # other database options
+            event_broker:
+              type: redis # or mqtt, postgresql
+              host: localhost
+              port: 6379
+              ... # other redis options
+          ```
     *   **Learn More:** [APScheduler Documentation](https://apscheduler.readthedocs.io/)
+
+
+Run your pipeline using the job queue system. This allows you to schedule jobs, run them in the background, or distribute them across multiple workers.
+
+*   **Via CLI:**
+    ```bash
+    # This will run the pipeline immediately and return the job result (blocking, until the job is done)
+    flowerpower pipeline run-job hello_world --base_dir . 
+
+    # Submit the pipeline to the job queue and return the job ID (non-blocking)
+    flowerpower pipeline add-job hello_world --base_dir . 
+    ```
+*   **Via Python:**
+    
+    ```python
+    from flowerpower.pipeline import PipelineManager
+    pm = PipelineManager(base_dir='.')
+
+    # submit the pipeline to the job queue and return the job ID (non-blocking)
+    job_id = pm.add_job('hello_world') 
+
+    # submit the pipeline to the job queue, runs it immediately and returns the job ID (non-blocking)
+    result = pm.run_job('hello_world')
+    ```
+
 
 **Local Development Setup (Docker):**
 
@@ -280,27 +329,38 @@ The primary way to interact with pipelines is often through the CLI:
 
 ```bash
 # Run a pipeline manually
-flowerpower run <pipeline_name>
+flowerpower pipeline run hello_world --base_dir .
 
-# List available pipelines (example command)
-# flowerpower list pipelines
+# Add a job to the queue
+flowerpower pipeline add-job hello_world --base_dir .
 
-# Check job status (example command)
-# flowerpower status
+# Schedule a pipeline
+flowerpower pipeline schedule hello_world --base_dir . # Schedules like cron, interval, or date are configured in the pipeline config
+
+# And many more commands...
+flowerpower --help # List all available commands
+
 ```
 
-*(Note: Replace placeholder commands with actual CLI commands once known)*
+## 🖥️ UI
 
-## 🖥️ Interfaces
+The FlowerPower web UI (Hamilton UI) provides a graphical interface for monitoring and managing your pipelines. It allows you to visualize pipeline runs, schedules, and potentially manage configurations.
 
-FlowerPower provides two main ways to interact:
+```bash
+# Start the web UI
+flowerpower ui
+```
 
-*   **CLI:** A command-line interface for developers and automation.
-*   **Web UI:** A browser-based interface for monitoring pipeline runs, schedules, and potentially managing configurations.
+## 📖 Documentation
 
-## 🤝 Contributing
+There is not much documentation yet, but you can find some examples in the `examples/` directory. The examples cover various use cases, including:
+*   Basic pipeline creation and execution.
+*   Using different job queue backends (RQ and APScheduler).
+*   Configuring and scheduling pipelines.
 
-Contributions are welcome! Please refer to the `CONTRIBUTING.md` file (placeholder) for guidelines.
+
+There is a first version of documentation in `docs/`. This documentation is generated using [Pocket Flow Tutorial Project](https://github.com/The-Pocket/PocketFlow-Tutorial-Codebase-Knowledge). Although it is not complete and might be wrong in some parts, it can be a good starting point for understanding how to use FlowerPower.
+
 
 ## 📜 License
 
