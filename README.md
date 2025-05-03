@@ -12,21 +12,25 @@
 
 **FlowerPower** is a Python framework designed for building, configuring, scheduling, and executing data processing pipelines with ease and flexibility. It promotes a modular, configuration-driven approach, allowing you to focus on your pipeline logic while FlowerPower handles the orchestration.
 
+It is leveraging the [Hamilton](https://github.com/DAGWorks-Inc/hamilton) library for defining dataflows in a clean, functional way within your Python pipeline scripts. Pipelines are defined in Python modules and configured using YAML files, making it easy to manage and understand your data workflows.
+FlowerPower integrates with job queue systems like [APScheduler](https://github.com/scheduler/apscheduler) and [RQ](https://github.com/rq/rq), enabling you to schedule and manage your pipeline runs efficiently. It also provides a web UI (Hamilton UI) for monitoring and managing your pipelines.
+FlowerPower is designed to be extensible, allowing you to easily swap components like job queue backends or add custom I/O plugins. This flexibility makes it suitable for a wide range of data processing tasks, from simple ETL jobs to complex data workflows.
+
+
 ## ✨ Key Features
 
-*   **Modular Design:** Easily swap components like job queue backends (APScheduler, RQ) or add custom I/O plugins.
+*   **Modular Pipeline Design:** Thanks to [Hamilton](https://github.com/DAGWorks-Inc/hamilton), you can define your data processing logic in Python modules, using functions as nodes in a directed acyclic graph (DAG).
 *   **Configuration-Driven:** Define pipeline parameters, execution logic, and scheduling declaratively using simple YAML files.
 *   **Job Queue Integration:** Built-in support for different asynchronous execution models:
     *   **APScheduler:** For time-based scheduling (cron, interval, date).
     *   **RQ (Redis Queue):** For distributed task queues.
 *   **Extensible I/O Plugins:** Connect to various data sources and destinations (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, MQTT, SQLite, and more).
-*   **Hamilton Integration:** Leverages the [Hamilton](https://github.com/DAGWorks-Inc/hamilton) library for defining dataflows in a clean, functional way within your Python pipeline scripts.
 *   **Multiple Interfaces:** Interact with your pipelines via:
     *   **Command Line Interface (CLI):** For running, managing, and inspecting pipelines.
-    *   **Web UI:** A graphical interface for monitoring and managing pipelines and schedules.
-*   **Filesystem Abstraction:** Simplifies interactions with different storage backends.
+    *   **Web UI:** A graphical interface for monitoring and managing pipelines and schedules. ([Hamilton UI](https://hamilton.dagworks.io/en/latest/hamilton-ui/ui/))
+*   **Filesystem Abstraction:** Simplified file handling with support for local and remote filesystems (e.g., S3, GCS).
 
-## 🚀 Installation
+## 📦 Installation
 
 We recommend using [uv](https://github.com/astral-sh/uv) for installing FlowerPower and managing your project environments. `uv` is an extremely fast Python package installer and resolver.
 
@@ -37,15 +41,20 @@ source .venv/bin/activate # Or .\.venv\Scripts\activate on Windows
 
 # Install FlowerPower
 uv pip install flowerpower
+
+# Optional: Install additional dependencies for specific features
+uv pip install flowerpower[apscheduler,rq] # Example for APScheduler and RQ
+uv pip install flowerpower[io] # Example for I/O plugins (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite)
+uv pip install flowerpower[all] # Install all optional dependencies
 ```
 
 *(Note: Specify required Python versions if known, e.g., Python 3.8+)*
 
-## 🌱 Getting Started
+## 🚀 Getting Started
 
 Let's build a simple "Hello World" pipeline.
 
-**1. Initialize Your Project:**
+### 1. Initialize Your Project:
 
 You can quickly set up the standard FlowerPower project structure using the CLI or Python.
 
@@ -79,6 +88,48 @@ hello-flowerpower-project/
 Now, navigate into your new project directory:
 ```bash
 cd hello-flowerpower-project
+```
+
+**2. Configure Project (`conf/project.yml`):**
+
+Open 
+Define your project name and choose your job queue backend. Here's an example using RQ:
+
+```yaml
+name: my_awesome_project
+job_queue:
+  type: rq
+  backend:
+    type: redis
+    # host: localhost # Default or specify connection details
+    # port: 6379
+    # ... other redis options
+    queues:
+      - default
+      - high
+      - low
+# adapter: ... # Optional adapter configurations (e.g., Hamilton Tracker, MLflow)
+```
+
+Now, navigate into your new project directory:
+```bash
+cd hello-flowerpower-project
+```
+**2. Create Your Pipeline:**
+
+**Using the CLI:**
+Create a new pipeline:
+```bash
+flowerpower pipeline new hello_world
+```
+This will create a new file `hello_world.py` in the `pipelines/` directory and a corresponding configuration file `hello_world.yml` in `conf/pipelines/`.
+
+**Using Python:**
+There is a `PipelineManager` class to manage pipelines programmatically:
+```python
+from flowerpower.pipeline import PipelineManager
+pm = PipelineManager(base_dir='.')
+pm.new(name='hello_world') # Creates a new pipeline
 ```
 
 **2. Configure Project (`conf/project.yml`):**
