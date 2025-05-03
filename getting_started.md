@@ -49,6 +49,6 @@ print(result)
 
 ## Next Steps
 
-- Explore the [API Documentation]()
+- Explore the [API Documentation](https://flowerpower.example.com/api-docs)
 - Learn about [Advanced Configuration]()
 - Check out [Example Pipelines]()
