@@ -5,11 +5,9 @@
 </div>
 
 
-# FlowerPower 🌸 - Build & Orchestrate Data Pipelines
 
 [![PyPI version](https://img.shields.io/pypi/v/flowerpower.svg?style=flat-square)](https://pypi.org/project/flowerpower/) <!-- Placeholder -->
 [![License](https://img.shields.io/pypi/l/flowerpower.svg?style=flat-square)](https://github.com/your-org/flowerpower/blob/main/LICENSE) <!-- Placeholder -->
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/flowerpower/ci.yml?branch=main&style=flat-square)](https://github.com/your-org/flowerpower/actions) <!-- Placeholder -->
 [![Python Version](https://img.shields.io/pypi/pyversions/flowerpower.svg?style=flat-square)](https://pypi.org/project/flowerpower/) <!-- Placeholder -->
 
 **FlowerPower** is a Python framework designed for building, configuring, scheduling, and executing data processing pipelines with ease and flexibility. It promotes a modular, configuration-driven approach, allowing you to focus on your pipeline logic while FlowerPower handles the orchestration.
