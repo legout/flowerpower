@@ -503,12 +503,12 @@ class MqttManager:
                             reload=reload,
                             log_level=log_level,
                             #result_ttl=result_ttl, !TODO: is this needed here or error, forward fails on PipelineManager
-                            run_in=run_in,
+                            #run_in=run_in, same as above
                             max_retries=max_retries,
                             retry_delay=retry_delay,
                             jitter_factor=jitter_factor,
                             retry_exceptions=retry_exceptions,
-                            **kwargs,
+                            #**kwargs, same as above
                         )
                     logger.success("Message processed successfully")
                     return
