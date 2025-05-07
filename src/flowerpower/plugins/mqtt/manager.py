@@ -453,7 +453,13 @@ class MqttManager:
             inputs["topic"] = msg.topic
 
             if config_hook is not None:
-                config_ = config_hook(inputs["payload"], inputs["topic"])
+                try:
+                    config_ = config_hook(inputs["payload"], inputs["topic"])
+                except Exception as e:
+                    _ = e
+                    logger.exception(e)
+                    logger.warning("Config hook failed. Aborting Message processing")
+                    return
                 logger.debug(f"Config from hook: {config_}")
 
                 if any([k in config_ for k in config.keys()]):
