@@ -447,7 +447,7 @@ class MqttManager:
             raise ValueError("config_hook must be a callable function")
 
         def on_message(client, userdata, msg):
-            logger.info(f"Received message on topic {topic}")
+            logger.info(f"Received message on subscribed topic {topic} (exact topic {msg.topic})")
 
             inputs["payload"] = msg.payload
             inputs["topic"] = msg.topic
