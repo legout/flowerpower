@@ -7,8 +7,9 @@
 
 
 [![PyPI version](https://img.shields.io/pypi/v/flowerpower.svg?style=flat-square)](https://pypi.org/project/flowerpower/) <!-- Placeholder -->
-[![License](https://img.shields.io/pypi/l/flowerpower.svg?style=flat-square)](https://github.com/your-org/flowerpower/blob/main/LICENSE) <!-- Placeholder -->
-[![Python Version](https://img.shields.io/pypi/pyversions/flowerpower.svg?style=flat-square)](https://pypi.org/project/flowerpower/) <!-- Placeholder -->
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/legout/flowerpower/blob/main/LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/legout/flowerpower)
+
 
 **FlowerPower** is a Python framework designed for building, configuring, scheduling, and executing data processing pipelines with ease and flexibility. It promotes a modular, configuration-driven approach, allowing you to focus on your pipeline logic while FlowerPower handles the orchestration.
 
