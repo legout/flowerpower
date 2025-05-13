@@ -217,8 +217,10 @@ schedule: # Optional: How often to run the pipeline
 ### 3. Run Your Pipeline 🏃‍♀️
 
 FlowerPower offers flexibility in how you execute your pipelines:
+ - **Synchronous Execution:** Run the pipeline directly.
+ - **Asynchronous Execution:** Use job queues for scheduling, background execution, or distributed processing.
 
-**1. Synchronous Execution:**
+#### 1. Synchronous Execution:
 
 For quick testing or local runs, you can execute your pipeline synchronously. This is useful for debugging or running pipelines in a local environment.
 
@@ -233,9 +235,12 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
     pm = PipelineManager(base_dir='.')
     pm.run('hello_world') # Execute the pipeline named 'hello_world'  
 
-**2. Asynchronous Execution (Job Queues):**
+#### 2. Asynchronous Execution (Job Queues):
 
-For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. This is configured in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
+For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. 
+
+**a) Configuring Job Queue Backends:** 
+Configuration of the job queue backend is done in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
 
 *   **RQ (Redis Queue):**
     *   **Requires:** Access to a running Redis server.
@@ -276,6 +281,7 @@ For scheduling, background execution, or distributed processing, leverage Flower
     *   **Learn More:** [APScheduler Documentation](https://apscheduler.readthedocs.io/)
 
 
+**b) Add Job to Queue:** 
 Run your pipeline using the job queue system. This allows you to schedule jobs, run them in the background, or distribute them across multiple workers.
 
 *   **Via CLI:**
@@ -299,8 +305,27 @@ Run your pipeline using the job queue system. This allows you to schedule jobs, 
     result = pm.run_job('hello_world')
     ```
 
+These commands will add the pipeline to the job queue, allowing it to be executed in the background or at scheduled intervals. The jobs will be processed by one or more workers, depending on your job queue configuration. You have to start the job queue workers separately.
 
-**Local Development Setup (Docker):**
+
+**c) Start Job Queue Workers:** 
+To process jobs in the queue, you need to start one or more workers.
+
+*  **Via CLI:**
+    ```bash
+    flowerpower job-queue start-worker --base_dir . # Start the job queue worker
+    ```
+
+*   **Via Python:**
+    ```python
+    from flowerpower.job_queue import JobQueueManager
+    with JobQueueManager(base_dir='.'):
+        # Start the job queue worker
+        jqm.start_worker()
+    ```
+
+
+## Local Development Setup (Docker):
 
 To easily set up required services like Redis, PostgreSQL, or MQTT locally for testing job queues, a basic `docker-compose.yml` file is provided in the `docker/` directory. This file includes configurations for various services useful during development.
 
