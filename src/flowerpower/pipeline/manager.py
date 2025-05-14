@@ -1479,7 +1479,7 @@ class PipelineManager:
             ... )
         """
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func_for_job(name.name, reload=reload)
+        run_func = self._get_run_func_for_job(name=name, reload=reload)
         interval = (
             duration_parser.parse(interval) if isinstance(interval, str) else interval
         )
