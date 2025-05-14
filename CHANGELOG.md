@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.4.1] - 2025-05-14
+
+### Changes
+- fix: update version to 0.10.4.1 and correct argument name in pipeline manager
+- fix: reorder import statements for consistency and clarity
+
+
+
 ## [0.10.4] - 2025-05-14
 
 ### Changes
