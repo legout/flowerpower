@@ -15,7 +15,7 @@ from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 from hamilton_sdk.api.clients import UnauthorizedException
-from requests.exceptions import HTTPError,ConnectionError
+from requests.exceptions import ConnectionError, HTTPError
 
 from .. import settings
 
@@ -444,9 +444,8 @@ class PipelineRunner:
         if not isinstance(retry_exceptions, (tuple, list)):
             retry_exceptions = [retry_exceptions]
         retry_exceptions = [
-            eval(exc) if isinstance(exc, str) else exc
-            for exc in retry_exceptions]
-
+            eval(exc) if isinstance(exc, str) else exc for exc in retry_exceptions
+        ]
 
         attempts = 1
         last_exception = None
@@ -479,7 +478,11 @@ class PipelineRunner:
 
                 return res
             except tuple(retry_exceptions) as e:
-                if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException) or isinstance(e, ConnectionError):
+                if (
+                    isinstance(e, HTTPError)
+                    or isinstance(e, UnauthorizedException)
+                    or isinstance(e, ConnectionError)
+                ):
                     if with_adapter_cfg["hamilton_tracker"]:
                         logger.info(
                             "Hamilton Tracker is enabled. Disabling tracker for the next run."
