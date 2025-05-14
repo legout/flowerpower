@@ -15,7 +15,7 @@ from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 from hamilton_sdk.api.clients import UnauthorizedException
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError,ConnectionError
 
 from .. import settings
 
@@ -231,9 +231,9 @@ class PipelineRunner:
             project_adapter_cfg = self.project_cfg.adapter
 
         adapters = []
-        if with_adapter_cfg.tracker:
-            tracker_kwargs = project_adapter_cfg.tracker.to_dict()
-            tracker_kwargs.update(pipeline_adapter_cfg.tracker.to_dict())
+        if with_adapter_cfg.hamilton_tracker:
+            tracker_kwargs = project_adapter_cfg.hamilton_tracker.to_dict()
+            tracker_kwargs.update(pipeline_adapter_cfg.hamilton_tracker.to_dict())
             tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
             tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
 
@@ -441,6 +441,13 @@ class PipelineRunner:
         jitter_factor = jitter_factor or self.pipeline_cfg.run.jitter_factor
         retry_exceptions = retry_exceptions or self.pipeline_cfg.run.retry_exceptions
 
+        if not isinstance(retry_exceptions, (tuple, list)):
+            retry_exceptions = [retry_exceptions]
+        retry_exceptions = [
+            eval(exc) if isinstance(exc, str) else exc
+            for exc in retry_exceptions]
+
+
         attempts = 1
         last_exception = None
 
@@ -471,11 +478,11 @@ class PipelineRunner:
                     logger.info("Executor shut down.")
 
                 return res
-            except retry_exceptions as e:
-                if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException):
+            except tuple(retry_exceptions) as e:
+                if isinstance(e, HTTPError) or isinstance(e, UnauthorizedException) or isinstance(e, ConnectionError):
                     if with_adapter_cfg["hamilton_tracker"]:
                         logger.info(
-                            "Hamilton Tracker is enabled. Disabling tracker for this run."
+                            "Hamilton Tracker is enabled. Disabling tracker for the next run."
                         )
                         with_adapter_cfg["hamilton_tracker"] = False
 

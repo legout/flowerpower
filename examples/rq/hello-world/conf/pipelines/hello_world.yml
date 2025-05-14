@@ -24,25 +24,24 @@ run:
   config: 
     range: 10_000
   executor:
-    max_workers: 40
-    num_cpus: 8
+    max_workers: 50
+    num_cpus: 10
     type: threadpool
-  final_vars:
-    - spend
-    - signups
-    - avg_x_wk_spend
-    - spend_per_signup
-    - spend_zero_mean_unit_variance
+  final_vars: [spend, signups, avg_x_wk_spend, spend_per_signup, spend_zero_mean_unit_variance]
   inputs: {}
-  log_level: null
+  jitter_factor: 0.1
+  log_level: INFO
+  max_retries: 3
+  retry_delay: 1
+  retry_exceptions: [Exception]
   with_adapter:
     future: false
+    hamilton_tracker: false
     mlflow: false
     opentelemetry: false
     progressbar: false
     ray: false
-    tracker: false
 schedule:
-  cron: "* * * * *"
-  interval: null
+  cron: null
   date: null
+  interval: null

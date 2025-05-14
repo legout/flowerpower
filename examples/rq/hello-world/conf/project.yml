@@ -5,11 +5,11 @@ job_queue:
     type: redis
     uri: null
     username: null
-    password: 
+    password: null
     host: localhost
     port: 6379
     database: 0
-    ssl: true
+    ssl: false
     cert_file: null
     key_file: null
     ca_file: null

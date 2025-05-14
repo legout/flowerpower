@@ -7,7 +7,6 @@ from typing import Any
 
 import msgspec
 
-# import tqdm
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa
