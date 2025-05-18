@@ -586,14 +586,22 @@ class MqttManager:
             raise ValueError("config_hook must be a callable function")
 
         def on_message(client, userdata, msg):
-            logger.info(f"Received message on topic {topic}")
+            #logger.info(f"Received message on topic {topic}")
+            logger.info(f"Received message on subscribed topic {topic} (exact topic {msg.topic})")
 
             inputs["payload"] = msg.payload
             inputs["topic"] = msg.topic
 
             if config_hook is not None:
-                config_ = config_hook(inputs["payload"], inputs["topic"])
-                logger.debug(f"Config from hook: {config_}")
+                #config_ = config_hook(inputs["payload"], inputs["topic"])
+                try:
+                    config_ = config_hook(inputs["payload"], inputs["topic"])
+                    logger.debug(f"Config from hook: {config_}")
+                except Exception as e:
+                    #_ = e
+                    logger.warning("Config hook failed. Aborting Message processing")
+                    logger.exception(e)
+                    return
 
                 if any([k in config_ for k in config.keys()]):
                     logger.warning("Config from hook overwrites config from pipeline")
@@ -641,13 +649,10 @@ class MqttManager:
                             adapter=adapter,
                             reload=reload,
                             log_level=log_level,
-                            result_ttl=result_ttl,
-                            run_in=run_in,
                             max_retries=max_retries,
                             retry_delay=retry_delay,
                             jitter_factor=jitter_factor,
                             retry_exceptions=retry_exceptions,
-                            **kwargs,
                         )
                     logger.success("Message processed successfully")
                     return
