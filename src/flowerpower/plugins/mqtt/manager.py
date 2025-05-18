@@ -586,19 +586,21 @@ class MqttManager:
             raise ValueError("config_hook must be a callable function")
 
         def on_message(client, userdata, msg):
-            #logger.info(f"Received message on topic {topic}")
-            logger.info(f"Received message on subscribed topic {topic} (exact topic {msg.topic})")
+            # logger.info(f"Received message on topic {topic}")
+            logger.info(
+                f"Received message on subscribed topic {topic} (exact topic {msg.topic})"
+            )
 
             inputs["payload"] = msg.payload
             inputs["topic"] = msg.topic
 
             if config_hook is not None:
-                #config_ = config_hook(inputs["payload"], inputs["topic"])
+                # config_ = config_hook(inputs["payload"], inputs["topic"])
                 try:
                     config_ = config_hook(inputs["payload"], inputs["topic"])
                     logger.debug(f"Config from hook: {config_}")
                 except Exception as e:
-                    #_ = e
+                    # _ = e
                     logger.warning("Config hook failed. Aborting Message processing")
                     logger.exception(e)
                     return
