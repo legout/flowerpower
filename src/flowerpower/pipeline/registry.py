@@ -447,12 +447,14 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append({
-                "name": name,
-                "path": path,
-                "mod_time": mod_time,
-                "size": size,
-            })
+            pipeline_info.append(
+                {
+                    "name": name,
+                    "path": path,
+                    "mod_time": mod_time,
+                    "size": size,
+                }
+            )
 
         if show:
             table = Table(title="Available Pipelines")

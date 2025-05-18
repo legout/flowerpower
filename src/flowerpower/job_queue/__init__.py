@@ -123,7 +123,6 @@ class JobQueueManager:
                 fs=fs,
                 storage_options=storage_options or {},
             ).job_queue.type
-            
 
         if type == "rq" and RQManager is not None:
             return RQManager(
@@ -159,7 +158,6 @@ class JobQueueManager:
                 raise ImportError(
                     f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
                 )
-
 
 
 class Backend:

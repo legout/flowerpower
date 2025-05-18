@@ -9,7 +9,8 @@ from typing import Any, Callable
 import mmh3
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import CallbackAPIVersion, Client, MQTTMessageInfo, MQTT_ERR_SUCCESS
+from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
+                              MQTTMessageInfo)
 from paho.mqtt.reasoncodes import ReasonCode
 
 from ...cfg import ProjectConfig
@@ -67,7 +68,7 @@ class MqttManager:
     @classmethod
     def from_event_broker(cls, base_dir: str | None = None):
         """Create a MqttManager instance from the event broker configuration.
-        
+
         Args:
             base_dir (str | None): Base directory for the project. If None, uses the current working directory.
 
@@ -116,7 +117,7 @@ class MqttManager:
             path (str | None): Path to the configuration file. If None, uses the default configuration.
             fs (AbstractFileSystem | None): File system to use for loading the configuration.
             storage_options (dict | BaseStorageOptions): Storage options for the file system.
-        
+
         Returns:
             MqttManager: An instance of MqttManager configured with the provided settings.
         """
@@ -214,19 +215,31 @@ class MqttManager:
         """Callback function for when a message is published."""
         if isinstance(reason_code_obj, ReasonCode):
             if not reason_code_obj.is_failure:
-                logger.info(f"Broker acknowledged message_id: {mid} (ReasonCode: {reason_code_obj})")
+                logger.info(
+                    f"Broker acknowledged message_id: {mid} (ReasonCode: {reason_code_obj})"
+                )
             else:
-                if reason_code_obj.value == 16: # MQTTReasonCode.NoMatchingSubscribers
-                    logger.warning(f"Message_id: {mid} published, but broker reported no matching subscribers (ReasonCode: {reason_code_obj}).")
+                if reason_code_obj.value == 16:  # MQTTReasonCode.NoMatchingSubscribers
+                    logger.warning(
+                        f"Message_id: {mid} published, but broker reported no matching subscribers (ReasonCode: {reason_code_obj})."
+                    )
                 else:
-                    logger.error(f"Broker acknowledgment error for message_id: {mid}. ReasonCode: {reason_code_obj}")
-        elif isinstance(reason_code_obj, int): # Fallback for simpler acks (legacy RCs)
-            if reason_code_obj == 0: # MQTT_ERR_SUCCESS
-                logger.info(f"Broker acknowledged message_id: {mid} (Legacy RC: {reason_code_obj})")
+                    logger.error(
+                        f"Broker acknowledgment error for message_id: {mid}. ReasonCode: {reason_code_obj}"
+                    )
+        elif isinstance(reason_code_obj, int):  # Fallback for simpler acks (legacy RCs)
+            if reason_code_obj == 0:  # MQTT_ERR_SUCCESS
+                logger.info(
+                    f"Broker acknowledged message_id: {mid} (Legacy RC: {reason_code_obj})"
+                )
             else:
-                logger.error(f"Broker acknowledgment error for message_id: {mid}. Legacy RC: {reason_code_obj} ({client.error_string(reason_code_obj)})")
+                logger.error(
+                    f"Broker acknowledgment error for message_id: {mid}. Legacy RC: {reason_code_obj} ({client.error_string(reason_code_obj)})"
+                )
         else:
-            logger.warning(f"Message_id: {mid} published. Received unusual RC type in on_publish: {reason_code_obj} (Type: {type(reason_code_obj)})")
+            logger.warning(
+                f"Message_id: {mid} published. Received unusual RC type in on_publish: {reason_code_obj} (Type: {type(reason_code_obj)})"
+            )
 
     @staticmethod
     def _on_subscribe(client, userdata, mid, qos, properties):
@@ -312,7 +325,9 @@ class MqttManager:
         else:
             self._client.reconnect()
 
-    def publish(self, topic: str, payload: Any, qos: int = 0, retain: bool = False) -> 'MQTTMessageInfo | None':
+    def publish(
+        self, topic: str, payload: Any, qos: int = 0, retain: bool = False
+    ) -> "MQTTMessageInfo | None":
         """
         Publish a message to the MQTT broker.
 
@@ -326,7 +341,9 @@ class MqttManager:
             MQTTMessageInfo | None: Information about the published message, or None if an error occurred.
         """
         if self._client is None or not self._client.is_connected():
-            logger.warning("Client is not connected. Attempting to connect before publishing.")
+            logger.warning(
+                "Client is not connected. Attempting to connect before publishing."
+            )
             try:
                 self.connect()
             except Exception as e:
@@ -334,14 +351,22 @@ class MqttManager:
                 return None
 
         try:
-            msg_info = self._client.publish(topic=topic, payload=payload, qos=qos, retain=retain)
-            if msg_info.rc == MQTT_ERR_SUCCESS: # 0:
-                logger.debug(f"Message published successfully. MID: {msg_info.mid}, Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}")
+            msg_info = self._client.publish(
+                topic=topic, payload=payload, qos=qos, retain=retain
+            )
+            if msg_info.rc == MQTT_ERR_SUCCESS:  # 0:
+                logger.debug(
+                    f"Message published successfully. MID: {msg_info.mid}, Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}"
+                )
             else:
-                logger.error(f"Failed to publish message. Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}, Error: {self._client.error_string(msg_info.rc)}")
+                logger.error(
+                    f"Failed to publish message. Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}, Error: {self._client.error_string(msg_info.rc)}"
+                )
             return msg_info
         except Exception as e:
-            logger.error(f"An error occurred while publishing message to topic {topic}: {e}")
+            logger.error(
+                f"An error occurred while publishing message to topic {topic}: {e}"
+            )
             return None
 
     def subscribe(self, topic: str | None = None, qos: int = 2):
