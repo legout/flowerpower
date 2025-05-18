@@ -123,6 +123,7 @@ class JobQueueManager:
                 fs=fs,
                 storage_options=storage_options or {},
             ).job_queue.type
+            
 
         if type == "rq" and RQManager is not None:
             return RQManager(
@@ -146,9 +147,19 @@ class JobQueueManager:
             )
 
         else:
-            raise ValueError(
-                f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
-            )
+            if type == "rq" and RQManager is None:
+                raise ImportError(
+                    "RQ is not installed. Please install rq to use RQ job queue. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
+                )
+            elif type == "apscheduler" and APSManager is None:
+                raise ImportError(
+                    "APScheduler is not installed. Please install apscheduler to use APScheduler job queue. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
+                )
+            else:
+                raise ImportError(
+                    f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
+                )
+
 
 
 class Backend:
@@ -250,9 +261,18 @@ class Backend:
         elif job_queue_type == "apscheduler" and APSBackend is not None:
             return APSBackend(**kwargs)
         else:
-            raise ValueError(
-                f"Invalid job queue type: {job_queue_type}. Valid types: ['rq', 'apscheduler']"
-            )
+            if job_queue_type == "rq" and RQBackend is None:
+                raise ImportError(
+                    "RQ is not installed. Please install rq to use RQ backend. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
+                )
+            elif job_queue_type == "apscheduler" and APSBackend is None:
+                raise ImportError(
+                    "APScheduler is not installed. Please install apscheduler to use APScheduler backend. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
+                )
+            else:
+                raise ValueError(
+                    f"Invalid job queue type: {job_queue_type}. Valid types: ['rq', 'apscheduler']"
+                )
 
 
 __all__ = [

@@ -239,6 +239,14 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
 
 For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. 
 
+You have to install the job queue backend you want to use. FlowerPower supports two job queue backends: RQ (Redis Queue) and APScheduler.
+```bash
+# Install RQ (Redis Queue) or APScheduler
+uv pip install flowerpower[rq] # For RQ (Redis Queue)
+uv pip install flowerpower[apscheduler] # For APScheduler
+```
+*   **Note:** Ensure you have the required dependencies installed for your chosen job queue backend. For RQ, you need Redis running. For APScheduler, you need a data store (PostgreSQL, MySQL, SQLite, MongoDB) and an event broker (Redis, MQTT, PostgreSQL).
+
 **a) Configuring Job Queue Backends:** 
 Configuration of the job queue backend is done in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
 

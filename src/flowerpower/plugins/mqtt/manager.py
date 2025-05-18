@@ -9,7 +9,8 @@ from typing import Any, Callable
 import mmh3
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import CallbackAPIVersion, Client
+from paho.mqtt.client import CallbackAPIVersion, Client, MQTTMessageInfo, MQTT_ERR_SUCCESS
+from paho.mqtt.reasoncodes import ReasonCode
 
 from ...cfg import ProjectConfig
 from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
@@ -65,6 +66,14 @@ class MqttManager:
 
     @classmethod
     def from_event_broker(cls, base_dir: str | None = None):
+        """Create a MqttManager instance from the event broker configuration.
+        
+        Args:
+            base_dir (str | None): Base directory for the project. If None, uses the current working directory.
+
+        Returns:
+            MqttManager: An instance of MqttManager configured with the event broker settings.
+        """
         base_dir = base_dir or str(Path.cwd())
 
         jq_backend = ProjectConfig.load(base_dir=base_dir).job_queue.backend
@@ -100,6 +109,17 @@ class MqttManager:
         fs: AbstractFileSystem | None = None,
         storage_options: dict | BaseStorageOptions = {},
     ):
+        """Create a MqttManager instance from the provided configuration.
+
+        Args:
+            cfg (MqttConfig | None): Configuration for the MQTT client. If None, loads from the provided path.
+            path (str | None): Path to the configuration file. If None, uses the default configuration.
+            fs (AbstractFileSystem | None): File system to use for loading the configuration.
+            storage_options (dict | BaseStorageOptions): Storage options for the file system.
+        
+        Returns:
+            MqttManager: An instance of MqttManager configured with the provided settings.
+        """
         if cfg is None:
             if path is None:
                 raise ValueError(
@@ -122,6 +142,14 @@ class MqttManager:
 
     @classmethod
     def from_dict(cls, cfg: dict):
+        """Create a MqttManager instance from the provided dictionary configuration.
+
+        Args:
+            cfg (dict): Dictionary containing the configuration for the MQTT client.
+
+        Returns:
+            MqttManager: An instance of MqttManager configured with the provided settings.
+        """
         return cls(
             **cfg,
         )
@@ -173,9 +201,32 @@ class MqttManager:
             reconnect_count += 1
         logger.info(f"Reconnect failed after {reconnect_count} attempts. Exiting...")
 
+    # @staticmethod
+    # def _on_publish(client, userdata, mid, rc, properties):
+    #     logger.info(f"Published message id: {mid} with return code: {rc}")
+    #     if rc == 0:
+    #         logger.debug("Message published successfully!")
+    #     else:
+    #         logger.debug(f"Failed to publish message with return code: {rc}")
+
     @staticmethod
-    def _on_publish(client, userdata, mid, rc, properties):
-        logger.info(f"Published message id: {mid}")
+    def _on_publish(client, userdata, mid, reason_code_obj, properties):
+        """Callback function for when a message is published."""
+        if isinstance(reason_code_obj, ReasonCode):
+            if not reason_code_obj.is_failure:
+                logger.info(f"Broker acknowledged message_id: {mid} (ReasonCode: {reason_code_obj})")
+            else:
+                if reason_code_obj.value == 16: # MQTTReasonCode.NoMatchingSubscribers
+                    logger.warning(f"Message_id: {mid} published, but broker reported no matching subscribers (ReasonCode: {reason_code_obj}).")
+                else:
+                    logger.error(f"Broker acknowledgment error for message_id: {mid}. ReasonCode: {reason_code_obj}")
+        elif isinstance(reason_code_obj, int): # Fallback for simpler acks (legacy RCs)
+            if reason_code_obj == 0: # MQTT_ERR_SUCCESS
+                logger.info(f"Broker acknowledged message_id: {mid} (Legacy RC: {reason_code_obj})")
+            else:
+                logger.error(f"Broker acknowledgment error for message_id: {mid}. Legacy RC: {reason_code_obj} ({client.error_string(reason_code_obj)})")
+        else:
+            logger.warning(f"Message_id: {mid} published. Received unusual RC type in on_publish: {reason_code_obj} (Type: {type(reason_code_obj)})")
 
     @staticmethod
     def _on_subscribe(client, userdata, mid, qos, properties):
@@ -186,6 +237,10 @@ class MqttManager:
         logger.info(f"Subscribed {qos_msg}")
 
     def connect(self) -> Client:
+        """Connect to the MQTT broker.
+        Returns:
+            Client: The connected MQTT client.
+        """
         if self._client_id is None and self._clean_session:
             # Random Client ID when clean session is True
             self._client_id = f"flowerpower-client-{random.randint(0, 10000)}"
@@ -241,31 +296,90 @@ class MqttManager:
             self.subscribe()
 
     def disconnect(self):
+        """Disconnect from the MQTT broker."""
+        if self._client is None:
+            logger.warning("Client is not connected. Cannot disconnect.")
+            return
         self._max_reconnect_count = 0
         self._client._userdata.max_reconnect_count = 0
         self._client.disconnect()
 
     def reconnect(self):
-        self._client.reconnect()
-
-    def publish(self, topic, payload):
+        """Reconnect to the MQTT broker."""
         if self._client is None:
+            logger.warning("Client is not connected. Connecting instead.")
             self.connect()
-        # elif self._client.is_connected() is False:
-        #    self.reconnect()
-        self._client.publish(topic, payload)
+        else:
+            self._client.reconnect()
+
+    def publish(self, topic: str, payload: Any, qos: int = 0, retain: bool = False) -> 'MQTTMessageInfo | None':
+        """
+        Publish a message to the MQTT broker.
+
+        Args:
+            topic (str): The topic to publish the message to.
+            payload (Any): The message payload.
+            qos (int, optional): The Quality of Service level. Defaults to 0.
+            retain (bool, optional): Whether to retain the message. Defaults to False.
+
+        Returns:
+            MQTTMessageInfo | None: Information about the published message, or None if an error occurred.
+        """
+        if self._client is None or not self._client.is_connected():
+            logger.warning("Client is not connected. Attempting to connect before publishing.")
+            try:
+                self.connect()
+            except Exception as e:
+                logger.error(f"Failed to connect to MQTT broker before publishing: {e}")
+                return None
+
+        try:
+            msg_info = self._client.publish(topic=topic, payload=payload, qos=qos, retain=retain)
+            if msg_info.rc == MQTT_ERR_SUCCESS: # 0:
+                logger.debug(f"Message published successfully. MID: {msg_info.mid}, Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}")
+            else:
+                logger.error(f"Failed to publish message. Topic: {topic}, QoS: {qos}, Retain: {retain}, RC: {msg_info.rc}, Error: {self._client.error_string(msg_info.rc)}")
+            return msg_info
+        except Exception as e:
+            logger.error(f"An error occurred while publishing message to topic {topic}: {e}")
+            return None
 
     def subscribe(self, topic: str | None = None, qos: int = 2):
+        """
+        Subscribe to a topic on the MQTT broker.
+
+        Args:
+            topic (str | None): The topic to subscribe to. If None, uses the instance's topic.
+            qos (int): The Quality of Service level.
+        """
+        if self._client is None or not self._client.is_connected():
+            self.connect()
         if topic is not None:
             self.topic = topic
         self._client.subscribe(self.topic, qos=qos)
 
     def unsubscribe(self, topic: str | None = None):
+        """
+        Unsubscribe from a topic on the MQTT broker.
+
+        Args:
+            topic (str | None): The topic to unsubscribe from. If None, uses the instance's topic.
+        """
+        if self._client is None or not self._client.is_connected():
+            self.connect()
         if topic is not None:
             self.topic = topic
         self._client.unsubscribe(self.topic)
 
     def register_on_message(self, on_message: Callable):
+        """
+        Register a callback function to be called when a message is received.
+
+        Args:
+            on_message (Callable): The callback function to register.
+        """
+        if self._client is None or not self._client.is_connected():
+            self.connect()
         self._client.on_message = on_message
 
     def run_in_background(

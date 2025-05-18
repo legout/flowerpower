@@ -1,40 +1,49 @@
-# python generated files
+# Python
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
-*.egg-info
+*.egg-info/
+.installed.cfg
+*.egg
 
-# venv
-.venv
+# Virtual Environment
 .env
-.vscode
-docker/config/.bash_history
-docker/assets
-dev/simple
-dev/
-flowerpower.db
-**/.ipynb_checkpoints/
-Digraph.gv
-Digraph.gv.pdf
-test/test2.json
-.qodo/history.sqlite
-examples/hello-world3/
-examples/hello-world2/
-examples/hello-world4/
-~/.hamilton/db/db.sqlite3
-data/*
-test3.db
-test4.db*
-.gitignore
-flowerpower.db*
-.sesskey
-*.db
-abc.py
-src/flowerpower/worker/rq/worker.py
-ToDo.md
-func.py
-.repomixignore
-**.DS_Store
-repomix-output.md
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+.coverage-reports/
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+dev/**
+**/flowerpower.db
