@@ -3,6 +3,13 @@
 ## [0.10.5] - 2025-05-18
 
 ### Changes
+- style: improve logging message formatting and enhance readability in MqttManager
+
+
+
+## [0.10.5] - 2025-05-18
+
+### Changes
 - chore: update version to 0.10.5 and enhance MQTT message logging with error handling Remove result_ttl, run_in and **kwargs from `pm.run` in `MqttManager.run_pipeline_on_message`
 - style: improve code formatting for consistency and readability across multiple files
 
