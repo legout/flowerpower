@@ -14,11 +14,11 @@ from fsspec.spec import AbstractFileSystem
 from loguru import logger
 
 # Check if APScheduler is available
-if not importlib.util.find_spec("apscheduler"):
-    raise ImportError(
-        "APScheduler is not installed. Please install it using `pip install "
-        "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
-    )
+#if not importlib.util.find_spec("apscheduler"):
+#    raise ImportError(
+#        "APScheduler is not installed. Please install it using `pip install "
+#        "'apscheduler>4.0.0a1'`, 'conda install apscheduler4' or `pip install flowerpower[apscheduler]`"
+#    )
 
 from apscheduler import Job, Scheduler
 from apscheduler.executors.async_ import AsyncJobExecutor
