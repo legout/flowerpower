@@ -248,6 +248,7 @@ uv pip install flowerpower[apscheduler] # For APScheduler
 *   **Note:** Ensure you have the required dependencies installed for your chosen job queue backend. For RQ, you need Redis running. For APScheduler, you need a data store (PostgreSQL, MySQL, SQLite, MongoDB) and an event broker (Redis, MQTT, PostgreSQL).
 
 **a) Configuring Job Queue Backends:** 
+
 Configuration of the job queue backend is done in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
 
 *   **RQ (Redis Queue):**
@@ -261,17 +262,6 @@ Configuration of the job queue backend is done in your `conf/project.yml`. Curre
               host: localhost
               port: 6379
               ... # other redis options
-          ```
-    *   You can use environment variables to configure the job queue backend. This is useful for sensitive information like passwords or when you want to avoid hardcoding values in your configuration files.
-        e.g. use a `.env` file or set them in your environment:
-        ```
-        FP_JOB_QUEUE_TYPE=rq
-        FP_RQ_BACKEND=redis
-        FP_RQ_BACKEND_USERNAME=your_username
-        FP_RQ_BACKEND_PASSWORD=your_password
-        FP_RQ_BACKEND_HOST=localhost
-        FP_RQ_BACKEND_PORT=6379
-        ```
 
 *   **APScheduler:**
     *   **Requires:**
@@ -335,7 +325,7 @@ It is possible to override the job queue backend configuration using environment
     FP_APS_BACKEND_DS_PASSWORD
     FP_APS_BACKEND_DS_HOST
     FP_APS_BACKEND_DS_PORT
-    
+
     # APScheduler event broker
     FP_APS_BACKEND_EB
     FP_APS_BACKEND_EB_USERNAME
