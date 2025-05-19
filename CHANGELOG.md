@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.6.3] - 2025-05-19
+
+### Changes
+- bump: update version to 0.10.6.3 and refactor AwsStorageOptions initialization
+
+
+
 ## [0.10.6.2] - 2025-05-19
 
 ### Changes
