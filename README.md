@@ -262,7 +262,16 @@ Configuration of the job queue backend is done in your `conf/project.yml`. Curre
               port: 6379
               ... # other redis options
           ```
-    *   **Learn More:** [RQ Documentation](https://python-rq.org/)
+    *   You can use environment variables to configure the job queue backend. This is useful for sensitive information like passwords or when you want to avoid hardcoding values in your configuration files.
+        e.g. use a `.env` file or set them in your environment:
+        ```
+        FP_JOB_QUEUE_TYPE=rq
+        FP_RQ_BACKEND=redis
+        FP_RQ_BACKEND_USERNAME=your_username
+        FP_RQ_BACKEND_PASSWORD=your_password
+        FP_RQ_BACKEND_HOST=localhost
+        FP_RQ_BACKEND_PORT=6379
+        ```
 
 *   **APScheduler:**
     *   **Requires:**
@@ -286,7 +295,54 @@ Configuration of the job queue backend is done in your `conf/project.yml`. Curre
               port: 6379
               ... # other redis options
           ```
-    *   **Learn More:** [APScheduler Documentation](https://apscheduler.readthedocs.io/)
+    
+It is possible to override the job queue backend configuration using environment variables, the `settings` module or by monkey patching the backend configuration of the `PipelineManager` or `JobQueueManager` classes. This might be useful for testing or when you want to avoid hardcoding values in your configuration files.
+*   **Using the `settings` module:**
+    e.g to override the RQ backend username and password:
+    ```python
+    from flowerpower import settings
+    
+    # Override some configuration values. e.g. when using rq 
+    settings.RQ_BACKEND_USERNAME = 'your_username'
+    settings.RQ_BACKEND_PASSWORD = 'your_password'   
+    ```
+    See the `flowerpower/settings/job_queue.py` file for all available settings.
+
+*   **Monkey Patching:**
+    e.g to override the APScheduler data store username and password:
+    ```python
+    from flowerpower.pipeline import PipelineManager
+
+    pm = PipelineManager(base_dir='.')
+    pm.project_cfg.job_queue.backend.username = 'your_username'
+    pm.project_cfg.job_queue.backend.password = 'your_password'
+    ```
+*  **Using Environment Variables:**
+    e.g. use a `.env` file or set them in your environment. Here is a list of the available environment variables for the job queue backend configuration:
+    ```
+    FP_JOB_QUEUE_TYPE
+
+    # RQ (Redis Queue) backend
+    FP_RQ_BACKEND
+    FP_RQ_BACKEND_USERNAME
+    FP_RQ_BACKEND_PASSWORD
+    FP_RQ_BACKEND_HOST
+    FP_RQ_BACKEND_PORT
+
+    # APScheduler data store
+    FP_APS_BACKEND_DS
+    FP_APS_BACKEND_DS_USERNAME
+    FP_APS_BACKEND_DS_PASSWORD
+    FP_APS_BACKEND_DS_HOST
+    FP_APS_BACKEND_DS_PORT
+    
+    # APScheduler event broker
+    FP_APS_BACKEND_EB
+    FP_APS_BACKEND_EB_USERNAME
+    FP_APS_BACKEND_EB_PASSWORD
+    FP_APS_BACKEND_EB_HOST
+    FP_APS_BACKEND_EB_PORT
+    ```
 
 
 **b) Add Job to Queue:** 
