@@ -1,6 +1,7 @@
 import datetime as dt
 import importlib
 import os
+
 import msgspec
 
 from ... import settings
@@ -50,18 +51,13 @@ class APSDataStoreConfig(JobQueueBackendConfig):
         if self.password == BACKEND_PROPERTIES[self.type]["default_password"]:
             self.password = settings.APS_BACKEND_DS_PASSWORD
 
-    
     def update_from_env(self):
         if os.getenv("FP_APS_BACKEND_DS") is not None:
             settings.APS_BACKEND_DS = os.getenv("FP_APS_BACKEND_DS")
         if os.getenv("FP_APS_BACKEND_DS_USERNAME") is not None:
-            settings.APS_BACKEND_DS_USERNAME = os.getenv(
-                "FP_APS_BACKEND_DS_USERNAME"
-            )
+            settings.APS_BACKEND_DS_USERNAME = os.getenv("FP_APS_BACKEND_DS_USERNAME")
         if os.getenv("FP_APS_BACKEND_DS_PASSWORD") is not None:
-            settings.APS_BACKEND_DS_PASSWORD = os.getenv(
-                "FP_APS_BACKEND_DS_PASSWORD"
-            )
+            settings.APS_BACKEND_DS_PASSWORD = os.getenv("FP_APS_BACKEND_DS_PASSWORD")
         if os.getenv("FP_APS_BACKEND_DS_HOST") is not None:
             settings.APS_BACKEND_DS_HOST = os.getenv("FP_APS_BACKEND_DS_HOST")
         if os.getenv("FP_APS_BACKEND_DS_PORT") is not None:
@@ -109,6 +105,7 @@ class APSEventBrokerConfig(JobQueueBackendConfig):
         if os.getenv("FP_APS_BACKEND_EB_DB") is not None:
             settings.APS_BACKEND_EB_DB = os.getenv("FP_APS_BACKEND_EB_DB")
         self.update_from_settings()
+
 
 class APSBackendConfig(BaseConfig):
     data_store: APSDataStoreConfig = msgspec.field(default_factory=APSDataStoreConfig)
