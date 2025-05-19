@@ -47,3 +47,5 @@ coverage.xml
 .DS_Store
 dev/**
 **/flowerpower.db
+repomix-output.md
+src/flowerpower/_settings.py

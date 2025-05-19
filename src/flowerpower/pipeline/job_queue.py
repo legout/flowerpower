@@ -48,7 +48,7 @@ class PipelineJobQueue:
         self._job_queue_type = job_queue_type or project_cfg.job_queue.type
         if not self._job_queue_type:
             # Fallback or default if not specified in project config
-            self._job_queue_type = settings.DEFAULT_JOB_QUEUE
+            self._job_queue_type = settings.JOB_QUEUE_TYPE
             logger.warning(
                 f"Job queue type not specified in project config, defaulting to '{self._job_queue_type}'"
             )

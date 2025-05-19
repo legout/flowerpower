@@ -15,7 +15,7 @@ def init(
     base_dir: str | None = None,
     storage_options: dict | BaseStorageOptions | None = {},
     fs: AbstractFileSystem | None = None,
-    job_queue_type: str = settings.DEFAULT_JOB_QUEUE,
+    job_queue_type: str = settings.JOB_QUEUE_TYPE,
     cfg_dir: str = settings.CONFIG_DIR,
     pipelines_dir: str = settings.PIPELINES_DIR,
     hooks_dir: str = settings.HOOKS_DIR,

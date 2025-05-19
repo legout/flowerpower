@@ -4,7 +4,7 @@ from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .job_queue import JobQueueConfig
-
+from ... import settings
 
 class ProjectConfig(BaseConfig):
     """A configuration class for managing project-level settings in FlowerPower.
@@ -39,6 +39,8 @@ class ProjectConfig(BaseConfig):
             self.job_queue = JobQueueConfig.from_dict(self.job_queue)
         if isinstance(self.adapter, dict):
             self.adapter = AdapterConfig.from_dict(self.adapter)
+
+
 
     @classmethod
     def load(
