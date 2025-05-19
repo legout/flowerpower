@@ -4,19 +4,27 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.10.6.1"
-keywords = ["hamilton", "workflow", "pipeline", "scheduler", "apscheduler", "dask", "ray"]
+version = "0.10.6.2"
+keywords = [
+  "hamilton",
+  "workflow",
+  "pipeline",
+  "scheduler",
+  "apscheduler",
+  "dask",
+  "ray",
+]
 dependencies = [
   'aiobotocore<2.18.0',
   "aiosqlite>=0.21.0",
   'dill>=0.3.8',
-  "duration-parser>=1.0.1",
+  'duration-parser>=1.0.1',
   'fsspec>=2024.10.0',
-  "humanize>=4.12.2",
-  "msgspec>=0.19.0",
+  'humanize>=4.12.2',
+  'msgspec>=0.19.0',
   'munch>=4.0.0',
-  "orjson>=3.10.15",
-  'pyarrow<19.0.0',
+  'orjson>=3.10.15',
+  #'pyarrow<19.0.0',
   'python-dotenv>=1.0.1',
   'pyyaml>=6.0.1',
   'rich>=13.9.3',
@@ -28,14 +36,20 @@ dependencies = [
 
 
 [project.urls]
-"Homepage"    = "https://github.com/legout/flowerpower"
+"Homepage" = "https://github.com/legout/flowerpower"
 "Bug Tracker" = "https://github.com/legout/flowerpower/issues"
 
 [project.scripts]
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-apscheduler = ['aiosqlite>=0.21.0', 'apscheduler==4.0.0a5', 'asyncpg>=0.29.0', 'greenlet>=3.0.3', 'sqlalchemy>=2.0.30',   "cron-descriptor>=1.4.5",
+apscheduler = [
+  'aiosqlite>=0.21.0',
+  'apscheduler==4.0.0a5',
+  'asyncpg>=0.29.0',
+  'greenlet>=3.0.3',
+  'sqlalchemy>=2.0.30',
+  "cron-descriptor>=1.4.5",
 ]
 io = [
   "adbc-driver-manager>=1.4.0",
@@ -66,11 +80,7 @@ io-legacy = [
   "sherlock>=0.4.1",
 ]
 mongodb = ["pymongo>=4.7.2"]
-mqtt = [
-    "paho-mqtt>=2.1.0",
-    "orjson>=3.10.11",
-    "mmh3>=5.1.0",
-]
+mqtt = ["paho-mqtt>=2.1.0", "orjson>=3.10.11", "mmh3>=5.1.0"]
 opentelemetry = [
   "opentelemetry-api>=1.5.0",
   "opentelemetry-sdk>=1.5.0",
@@ -78,15 +88,11 @@ opentelemetry = [
 ]
 ray = ["ray>=2.34.0"]
 redis = ["redis>=5.0.4"]
-rq = [  "rq>=2.3.1",
-  "rq-scheduler>=0.14.0",   "cron-descriptor>=1.4.5",
-]
-tui       = ["textual>=0.85.2"]
-ui        = ["sf-hamilton-ui>=0.0.11"]
+rq = ["rq>=2.3.1", "rq-scheduler>=0.14.0", "cron-descriptor>=1.4.5"]
+tui = ["textual>=0.85.2"]
+ui = ["sf-hamilton-ui>=0.0.11"]
 webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11"]
-openlineage = [
-    "openlineage-python>=1.32.0",
-]
+openlineage = ["openlineage-python>=1.32.0"]
 
 
 [tool.uv]
