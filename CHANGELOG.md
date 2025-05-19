@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.6.2] - 2025-05-19
+
+### Changes
+- Refactor code structure for improved readability and maintainability
+- refactor: reorder imports and comment out APScheduler availability check for clarity
+- refactor: comment out APScheduler availability check for cleaner code
+- fix: update README to clarify job queue backend configuration and environment variable usage
+- feat: enhance job queue backend configuration with environment variable support
+
+
+
 ## [0.10.6.1] - 2025-05-19
 
 ### Changes
