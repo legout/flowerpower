@@ -890,7 +890,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.10.6.2"
+version = "0.10.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },

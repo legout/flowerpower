@@ -76,7 +76,7 @@ from flowerpower.fs.storage_options import AwsStorageOptions
 
 # Define where the data is and how to access S3
 s3_path = "s3://my-customer-data-bucket/processed_parquet/"
-aws_creds = AwsStorageOptions(profile="my_aws_profile") # Or keys directly
+aws_creds = AwsStorageOptions.create(profile="my_aws_profile") # Or keys directly
 
 # Create the Loader instance
 parquet_loader = ParquetDatasetReader(

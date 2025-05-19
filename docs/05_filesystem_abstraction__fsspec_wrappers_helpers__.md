@@ -75,7 +75,7 @@ config_file_relative_path = "conf/project.yml" # Relative path remains the same
 
 # Define storage options (e.g., credentials for S3)
 # These could also be loaded from environment variables automatically!
-s3_options = AwsStorageOptions(
+s3_options = AwsStorageOptions.create(
     key="YOUR_AWS_ACCESS_KEY_ID", # Replace with your actual key
     secret="YOUR_AWS_SECRET_ACCESS_KEY" # Replace with your actual secret
 )

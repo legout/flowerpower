@@ -31,7 +31,6 @@ from .utils import display_jobs, display_schedules
 #    )
 
 
-
 setup_logging()
 
 # Patch pickle if needed
@@ -183,11 +182,13 @@ class APSManager(BaseJobQueueManager):
                     sqla_engine=data_store.sqla_engine
                 )
             else:
-                event_broker = APSEventBroker(**{
-                    k: v
-                    for k, v in self.cfg.backend.event_broker.to_dict().items()
-                    if k != "from_ds_sqla"
-                })
+                event_broker = APSEventBroker(
+                    **{
+                        k: v
+                        for k, v in self.cfg.backend.event_broker.to_dict().items()
+                        if k != "from_ds_sqla"
+                    }
+                )
             self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
 
         logger.info(

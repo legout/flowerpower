@@ -2,13 +2,13 @@ import configparser
 import os
 from typing import Any, TypeVar, Union
 
+import msgspec
 import yaml
 from fsspec import AbstractFileSystem, filesystem
 from fsspec.utils import infer_storage_options
-from pydantic import BaseModel
 
 
-class BaseStorageOptions(BaseModel):
+class BaseStorageOptions(msgspec.Struct):
     """Base class for filesystem storage configuration options.
 
     Provides common functionality for all storage option classes including:
@@ -49,10 +49,18 @@ class BaseStorageOptions(BaseModel):
             >>> print(options.to_dict(with_protocol=True))
             {'protocol': 's3'}
         """
-        items = self.model_dump().items()
-        if not with_protocol:
-            return {k: v for k, v in items if k != "protocol" and v is not None}
-        return {k: v for k, v in items if v is not None}
+        data = msgspec.structs.asdict(self)
+        result = {}
+        for key, value in data.items():
+            if value is None:
+                continue
+
+            if key == "protocol":
+                if with_protocol:
+                    result[key] = value
+            else:
+                result[key] = value
+        return result
 
     @classmethod
     def from_yaml(
@@ -109,19 +117,22 @@ class BaseStorageOptions(BaseModel):
         """
         return filesystem(**self.to_dict(with_protocol=True))
 
-    def update(self, **kwargs: Any) -> None:
+    def update(self, **kwargs: Any) -> "BaseStorageOptions":
         """Update storage options with new values.
 
         Args:
             **kwargs: New option values to set
 
+        Returns:
+            BaseStorageOptions: Updated instance
+
         Example:
             >>> options = BaseStorageOptions(protocol="s3")
-            >>> options.update(region="us-east-1")
+            >>> options = options.update(region="us-east-1")
             >>> print(options.region)
             'us-east-1'
         """
-        self = self.model_copy(update=kwargs)
+        return self.replace(**kwargs)
 
 
 class AzureStorageOptions(BaseStorageOptions):
@@ -378,11 +389,8 @@ class AwsStorageOptions(BaseStorageOptions):
 
     Attributes:
         protocol (str): Always "s3" for S3 storage
-        key (str): AWS access key ID (alias for access_key_id)
         access_key_id (str): AWS access key ID
-        secret (str): AWS secret access key (alias for secret_access_key)
         secret_access_key (str): AWS secret access key
-        token (str): AWS session token (alias for session_token)
         session_token (str): AWS session token
         endpoint_url (str): Custom S3 endpoint URL
         region (str): AWS region name
@@ -399,7 +407,7 @@ class AwsStorageOptions(BaseStorageOptions):
         ... )
         >>>
         >>> # Profile-based auth
-        >>> options = AwsStorageOptions(profile="dev")
+        >>> options = AwsStorageOptions.create(profile="dev")
         >>>
         >>> # S3-compatible service (MinIO)
         >>> options = AwsStorageOptions(
@@ -411,54 +419,101 @@ class AwsStorageOptions(BaseStorageOptions):
     """
 
     protocol: str = "s3"
-    key: str | None = None
     access_key_id: str | None = None
-    secret: str | None = None
     secret_access_key: str | None = None
-    token: str | None = None
     session_token: str | None = None
     endpoint_url: str | None = None
     region: str | None = None
     allow_invalid_certificates: bool | None = None
     allow_http: bool | None = None
-    profile: str | None = None
 
-    def model_post_init(self, __context: Any) -> None:
-        """Post-initialization processing of AWS credentials.
-
-        Handles credential aliasing and profile-based loading.
-        Called automatically after initialization.
+    @classmethod
+    def create(
+        cls,
+        protocol: str = "s3",
+        access_key_id: str | None = None,
+        secret_access_key: str | None = None,
+        session_token: str | None = None,
+        endpoint_url: str | None = None,
+        region: str | None = None,
+        allow_invalid_certificates: bool | None = None,
+        allow_http: bool | None = None,
+        # Alias and loading params
+        key: str | None = None,
+        secret: str | None = None,
+        token: str | None = None,  # maps to session_token
+        profile: str | None = None,
+    ) -> "AwsStorageOptions":
+        """Creates an AwsStorageOptions instance, handling aliases and profile loading.
 
         Args:
-            __context: Pydantic validation context (unused)
+            protocol: Storage protocol, defaults to "s3".
+            access_key_id: AWS access key ID.
+            secret_access_key: AWS secret access key.
+            session_token: AWS session token.
+            endpoint_url: Custom S3 endpoint URL.
+            region: AWS region name.
+            allow_invalid_certificates: Skip SSL certificate validation.
+            allow_http: Allow unencrypted HTTP connections.
+            key: Alias for access_key_id.
+            secret: Alias for secret_access_key.
+            token: Alias for session_token.
+            profile: AWS credentials profile name to load credentials from.
 
-        Example:
-            >>> # Alias handling
-            >>> opts = AwsStorageOptions(
-            ...     key="ACCESS_KEY",
-            ...     secret="SECRET_KEY"
-            ... )
-            >>> print(opts.access_key_id)  # Normalized
-            'ACCESS_KEY'
+        Returns:
+            An initialized AwsStorageOptions instance.
         """
-        # Normalize credential aliases
-        if self.access_key_id is None and self.key is not None:
-            self.access_key_id = self.key
-        if self.secret_access_key is None and self.secret is not None:
-            self.secret_access_key = self.secret
-        if self.session_token is None and self.token is not None:
-            self.session_token = self.token
 
-        # Load profile if specified
-        if self.profile is not None:
-            profile_opts = self.from_aws_credentials(
-                profile=self.profile,
-                allow_invalid_certificates=self.allow_invalid_certificates,
-                allow_http=self.allow_http,
+        # Initial values from explicit args or their aliases
+        args = {
+            "protocol": protocol,
+            "access_key_id": access_key_id if access_key_id is not None else key,
+            "secret_access_key": secret_access_key
+            if secret_access_key is not None
+            else secret,
+            "session_token": session_token if session_token is not None else token,
+            "endpoint_url": endpoint_url,
+            "region": region,
+            "allow_invalid_certificates": allow_invalid_certificates,
+            "allow_http": allow_http,
+        }
+
+        if profile is not None:
+            # Note: allow_invalid_certificates and allow_http are passed to from_aws_credentials.
+            # If they are None here, from_aws_credentials will use its own defaults for those flags when reading.
+            profile_instance = cls.from_aws_credentials(
+                profile=profile,
+                allow_invalid_certificates=args["allow_invalid_certificates"],
+                allow_http=args["allow_http"],
             )
-            for k, v in profile_opts.to_dict().items():
-                if getattr(self, k) is None:
-                    setattr(self, k, v)
+            # Fill in missing values from profile if not already set by direct/aliased args
+            if args["access_key_id"] is None:
+                args["access_key_id"] = profile_instance.access_key_id
+            if args["secret_access_key"] is None:
+                args["secret_access_key"] = profile_instance.secret_access_key
+            if args["session_token"] is None:
+                args["session_token"] = profile_instance.session_token
+            if args["endpoint_url"] is None:
+                args["endpoint_url"] = profile_instance.endpoint_url
+            if args["region"] is None:
+                args["region"] = profile_instance.region
+            # If allow_invalid_certificates/allow_http were None in args, and from_aws_credentials
+            # used its defaults to set them on profile_instance, we update args.
+            if (
+                args["allow_invalid_certificates"] is None
+                and profile_instance.allow_invalid_certificates is not None
+            ):
+                args["allow_invalid_certificates"] = (
+                    profile_instance.allow_invalid_certificates
+                )
+            if args["allow_http"] is None and profile_instance.allow_http is not None:
+                args["allow_http"] = profile_instance.allow_http
+
+        # Ensure protocol is 's3' if it somehow became None
+        if args["protocol"] is None:
+            args["protocol"] = "s3"
+
+        return cls(**args)
 
     @classmethod
     def from_aws_credentials(
@@ -812,7 +867,7 @@ class GitLabStorageOptions(BaseStorageOptions):
     token: str | None = None
     api_version: str = "v4"
 
-    def model_post_init(self, __context: Any) -> None:
+    def __post_init__(self) -> None:
         """Validate GitLab configuration after initialization.
 
         Ensures either project_id or project_name is provided.
@@ -990,6 +1045,12 @@ def from_dict(protocol: str, storage_options: dict) -> BaseStorageOptions:
         'AwsStorageOptions'
     """
     if protocol == "s3":
+        if (
+            "profile" in storage_options
+            or "key" in storage_options
+            or "secret" in storage_options
+        ):
+            return AwsStorageOptions.create(**storage_options)
         return AwsStorageOptions(**storage_options)
     elif protocol in ["az", "abfs", "adl"]:
         return AzureStorageOptions(**storage_options)
@@ -1038,7 +1099,7 @@ def from_env(protocol: str) -> BaseStorageOptions:
         raise ValueError(f"Unsupported protocol: {protocol}")
 
 
-class StorageOptions(BaseModel):
+class StorageOptions(msgspec.Struct):
     """High-level storage options container and factory.
 
     Provides a unified interface for creating and managing storage options
@@ -1049,7 +1110,7 @@ class StorageOptions(BaseModel):
 
     Example:
         >>> # Create from protocol
-        >>> options = StorageOptions(
+        >>> options = StorageOptions.create(
         ...     protocol="s3",
         ...     access_key_id="KEY",
         ...     secret_access_key="SECRET"
@@ -1062,20 +1123,24 @@ class StorageOptions(BaseModel):
 
     storage_options: BaseStorageOptions
 
-    def __init__(self, **data: Any):
-        """Initialize storage options from arguments.
+    @classmethod
+    def create(cls, **data: Any) -> "StorageOptions":
+        """Create storage options from arguments.
 
         Args:
             **data: Either:
                 - protocol and configuration options
                 - storage_options=pre-configured instance
 
+        Returns:
+            StorageOptions: Configured storage options instance
+
         Raises:
             ValueError: If protocol missing or invalid
 
         Example:
             >>> # Direct protocol config
-            >>> options = StorageOptions(
+            >>> options = StorageOptions.create(
             ...     protocol="s3",
             ...     region="us-east-1"
             ... )
@@ -1086,7 +1151,10 @@ class StorageOptions(BaseModel):
 
         if "storage_options" not in data:
             if protocol == "s3":
-                storage_options = AwsStorageOptions(**data)
+                if "profile" in data or "key" in data or "secret" in data:
+                    storage_options = AwsStorageOptions.create(**data)
+                else:
+                    storage_options = AwsStorageOptions(**data)
             elif protocol == "github":
                 storage_options = GitHubStorageOptions(**data)
             elif protocol == "gitlab":
@@ -1100,9 +1168,9 @@ class StorageOptions(BaseModel):
             else:
                 raise ValueError(f"Unsupported protocol: {protocol}")
 
-            super().__init__(storage_options=storage_options)
+            return cls(storage_options=storage_options)
         else:
-            super().__init__(**data)
+            return cls(**data)
 
     @classmethod
     def from_yaml(cls, path: str, fs: AbstractFileSystem = None) -> "StorageOptions":
