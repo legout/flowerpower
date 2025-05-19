@@ -1,6 +1,6 @@
 import datetime as dt
 import importlib
-
+import os
 import msgspec
 
 from ... import settings
@@ -38,7 +38,7 @@ class APSDataStoreConfig(JobQueueBackendConfig):
     database: str = msgspec.field(default=settings.APS_BACKEND_DS_DB)
     schema: str | None = msgspec.field(default=settings.APS_BACKEND_DS_SCHEMA)
 
-    def update_from_settings(self, settings):
+    def update_from_settings(self):
         if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
             self.host = settings.APS_BACKEND_DS_HOST
         if self.port == BACKEND_PROPERTIES[self.type]["default_port"]:
@@ -50,10 +50,25 @@ class APSDataStoreConfig(JobQueueBackendConfig):
         if self.password == BACKEND_PROPERTIES[self.type]["default_password"]:
             self.password = settings.APS_BACKEND_DS_PASSWORD
 
+    
     def update_from_env(self):
-        importlib.reload(settings.job_queue)
-        importlib.reload(settings)
-        self.update_from_settings(settings=settings)
+        if os.getenv("FP_APS_BACKEND_DS") is not None:
+            settings.APS_BACKEND_DS = os.getenv("FP_APS_BACKEND_DS")
+        if os.getenv("FP_APS_BACKEND_DS_USERNAME") is not None:
+            settings.APS_BACKEND_DS_USERNAME = os.getenv(
+                "FP_APS_BACKEND_DS_USERNAME"
+            )
+        if os.getenv("FP_APS_BACKEND_DS_PASSWORD") is not None:
+            settings.APS_BACKEND_DS_PASSWORD = os.getenv(
+                "FP_APS_BACKEND_DS_PASSWORD"
+            )
+        if os.getenv("FP_APS_BACKEND_DS_HOST") is not None:
+            settings.APS_BACKEND_DS_HOST = os.getenv("FP_APS_BACKEND_DS_HOST")
+        if os.getenv("FP_APS_BACKEND_DS_PORT") is not None:
+            settings.APS_BACKEND_DS_PORT = int(os.getenv("FP_APS_BACKEND_DS_PORT"))
+        if os.getenv("FP_APS_BACKEND_DS_DB") is not None:
+            settings.APS_BACKEND_DS_DB = os.getenv("FP_APS_BACKEND_DS_DB")
+        self.update_from_settings()
 
 
 class APSEventBrokerConfig(JobQueueBackendConfig):
@@ -68,7 +83,7 @@ class APSEventBrokerConfig(JobQueueBackendConfig):
         and settings.APS_BACKEND_DS == "postgresql"
     )
 
-    def update_from_settings(self, settings):
+    def update_from_settings(self):
         if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
             self.host = settings.APS_BACKEND_EB_HOST
         if self.port == BACKEND_PROPERTIES[self.type]["default_port"]:
@@ -81,10 +96,19 @@ class APSEventBrokerConfig(JobQueueBackendConfig):
             self.database = settings.APS_BACKEND_EB_DB
 
     def update_from_env(self):
-        importlib.reload(settings.job_queue)
-        importlib.reload(settings)
-        self.update_from_settings(settings=settings)
-
+        if os.getenv("FP_APS_BACKEND_EB") is not None:
+            settings.APS_BACKEND_EB = os.getenv("FP_APS_BACKEND_EB")
+        if os.getenv("FP_APS_BACKEND_EB_USERNAME") is not None:
+            settings.APS_BACKEND_EB_USERNAME = os.getenv("FP_APS_BACKEND_EB_USERNAME")
+        if os.getenv("FP_APS_BACKEND_EB_PASSWORD") is not None:
+            settings.APS_BACKEND_EB_PASSWORD = os.getenv("FP_APS_BACKEND_EB_PASSWORD")
+        if os.getenv("FP_APS_BACKEND_EB_HOST") is not None:
+            settings.APS_BACKEND_EB_HOST = os.getenv("FP_APS_BACKEND_EB_HOST")
+        if os.getenv("FP_APS_BACKEND_EB_PORT") is not None:
+            settings.APS_BACKEND_EB_PORT = int(os.getenv("FP_APS_BACKEND_EB_PORT"))
+        if os.getenv("FP_APS_BACKEND_EB_DB") is not None:
+            settings.APS_BACKEND_EB_DB = os.getenv("FP_APS_BACKEND_EB_DB")
+        self.update_from_settings()
 
 class APSBackendConfig(BaseConfig):
     data_store: APSDataStoreConfig = msgspec.field(default_factory=APSDataStoreConfig)
@@ -113,7 +137,7 @@ class RQBackendConfig(JobQueueBackendConfig):
     queues: str | list[str] = msgspec.field(default_factory=lambda: settings.RQ_QUEUES)
     num_workers: int = msgspec.field(default=settings.RQ_NUM_WORKERS)  # int in seconds
 
-    def update_from_settings(self, settings):
+    def update_from_settings(self):
         if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
             self.host = settings.RQ_BACKEND_HOST
         if self.port == BACKEND_PROPERTIES[self.type]["default_port"]:
@@ -126,9 +150,19 @@ class RQBackendConfig(JobQueueBackendConfig):
             self.password = settings.RQ_BACKEND_PASSWORD
 
     def update_from_env(self):
-        importlib.reload(settings.job_queue)
-        importlib.reload(settings)
-        self.update_from_settings(settings=settings)
+        if os.getenv("FP_RQ_BACKEND") is not None:
+            settings.RQ_BACKEND = os.getenv("FP_RQ_BACKEND")
+        if os.getenv("FP_RQ_BACKEND_USERNAME") is not None:
+            settings.RQ_BACKEND_USERNAME = os.getenv("FP_RQ_BACKEND_USERNAME")
+        if os.getenv("FP_RQ_BACKEND_PASSWORD") is not None:
+            settings.RQ_BACKEND_PASSWORD = os.getenv("FP_RQ_BACKEND_PASSWORD")
+        if os.getenv("FP_RQ_BACKEND_HOST") is not None:
+            settings.RQ_BACKEND_HOST = os.getenv("FP_RQ_BACKEND_HOST")
+        if os.getenv("FP_RQ_BACKEND_PORT") is not None:
+            settings.RQ_BACKEND_PORT = int(os.getenv("FP_RQ_BACKEND_PORT"))
+        if os.getenv("FP_RQ_BACKEND_DB") is not None:
+            settings.RQ_BACKEND_DB = int(os.getenv("FP_RQ_BACKEND_DB"))
+        self.update_from_settings()
 
     def __post_init__(self):
         if isinstance(self.queues, str):
