@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.6.1] - 2025-05-19
+
+### Changes
+- fix: update version to 0.10.6.1 in pyproject.toml
+- refactor: clean up whitespace and improve readability in job queue configuration
+- feat: enhance environment variable handling in job queue configuration
+- refactor: remove unused import and clean up whitespace in ProjectConfig
+
+
+
 ## [0.10.6] - 2025-05-19
 
 ### Changes
