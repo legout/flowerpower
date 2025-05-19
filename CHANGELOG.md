@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.6] - 2025-05-19
+
+### Changes
+- - update version to 0.10.6 - refactor settings imports for consistency - new feat: job queue backend configuration via env variables
+- feat: reorganize settings structure and add backend properties management
+- style: improve logging message formatting and enhance readability in MqttManager
+- chore: update version to 0.10.5 and enhance MQTT message logging with error handling Remove result_ttl, run_in and **kwargs from `pm.run` in `MqttManager.run_pipeline_on_message`
+- style: improve code formatting for consistency and readability across multiple files
+- Refactor code structure for improved readability and maintainability
+- feat: update job queue backend installation instructions and enhance error handling; refactor .gitignore and add test fixtures
+
+
+
 ## [0.10.5] - 2025-05-18
 
 ### Changes
