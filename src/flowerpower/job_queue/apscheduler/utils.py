@@ -160,12 +160,10 @@ def format_trigger(trigger):
             )
             cron_parts = {k: v.strip("'") for k, v in cron_parts.items()}
             crontab = f"{cron_parts['minute']} {cron_parts['hour']} {cron_parts['day']} {cron_parts['month']} {cron_parts['day_of_week']}"
-            human_readable = humanize_crontab(
-                **{
-                    k: cron_parts[k]
-                    for k in ["minute", "hour", "day", "month", "day_of_week"]
-                }
-            )
+            human_readable = humanize_crontab(**{
+                k: cron_parts[k]
+                for k in ["minute", "hour", "day", "month", "day_of_week"]
+            })
             return f"Cron: {human_readable} ({crontab})"
         except Exception:
             return f"Cron: {str(trigger)}"
