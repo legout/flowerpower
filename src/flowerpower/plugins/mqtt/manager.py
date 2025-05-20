@@ -521,7 +521,7 @@ class MqttManager:
         fs: AbstractFileSystem | None = None,
         background: bool = False,
         qos: int = 2,
-        config_hook: Callable[[bytes, int], dict] | None = None,
+        config_hook: Callable[[bytes, str], dict] | None = None,
         **kwargs,
     ):
         """
@@ -553,7 +553,7 @@ class MqttManager:
             fs (AbstractFileSystem | None): File system for the pipeline
             background (bool): Run the listener in the background
             qos (int): Quality of Service for the MQTT client
-            config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
+            config_hook (Callable[[bytes, str], dict] | None): Hook function to modify the configuration of the pipeline
             **kwargs: Additional keyword arguments
 
         Returns:
@@ -683,7 +683,7 @@ def start_listener(
     qos: int = 2,
     client_id: str | None = None,
     client_id_suffix: str | None = None,
-    config_hook: Callable[[bytes, int], dict] | None = None,
+    config_hook: Callable[[bytes, str], dict] | None = None,
     **kwargs,
 ) -> None:
     """
@@ -709,7 +709,7 @@ def start_listener(
         qos (int): Quality of Service for the MQTT client
         client_id (str | None): Client ID for the MQTT client
         client_id_suffix (str | None): Client ID suffix for the MQTT client
-        config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
+        config_hook (Callable[[bytes, str], dict] | None): Hook function to modify the configuration of the pipeline
         **kwargs: Additional keyword arguments
 
     Returns:
@@ -797,7 +797,7 @@ def run_pipeline_on_message(
     qos: int = 2,
     client_id: str | None = None,
     client_id_suffix: str | None = None,
-    config_hook: Callable[[bytes, int], dict] | None = None,
+    config_hook: Callable[[bytes, str], dict] | None = None,
     **kwargs,
 ):
     """
@@ -838,7 +838,7 @@ def run_pipeline_on_message(
         qos (int): Quality of Service for the MQTT client
         client_id (str | None): Client ID for the MQTT client
         client_id_suffix (str | None): Client ID suffix for the MQTT client
-        config_hook (Callable[[bytes, int], dict] | None): Hook function to modify the configuration of the pipeline
+        config_hook (Callable[[bytes, str], dict] | None): Hook function to modify the configuration of the pipeline
         **kwargs: Additional keyword arguments
 
     Returns:
