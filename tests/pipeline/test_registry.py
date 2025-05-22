@@ -350,4 +350,3 @@ class TestPipelineRegistry:
         handle = mock_fs.open()
         handle.write.assert_called_once_with(expected_content)
 
-```
