@@ -1,168 +1,41 @@
-Analyze the 'Flowerpower' Python framework codebase to understand its architecture, core components (e.g., pipeline management, job queues, I/O plugins, configuration), data flow patterns, internal/external dependencies, error handling mechanisms, and adherence to Python best practices. Identify key modules and their interactions.
+# FlowerPower Codebase Analysis for Web Application Development
 
-Relevant files for analysis are located in the current workspace directory: `/Users/z0043ddz/flowerpower`.
-The file structure is as follows:
-CHANGELOG.md
-doc.md
-LICENSE
-pyproject.toml
-README.md
-repomix.config.json
-uv.lock
-docker/
-docker/Caddyfile
-docker/docker-compose.yml
-docker/conf/mosquitto.conf
-docker/conf/etc/hosts
-docker/data/mosquitto.db
-docker/python-worker/.dockerignore
-docker/python-worker/Dockerfile.dev
-docker/python-worker/hello.py
-docker/python-worker/pyproject.toml
-docker/python-worker/README.md
-docker/python-worker/uv.lock
-docs/
-docs/01_pipelineregistry_.md
-docs/02_pipelinemanager_.md
-docs/03_configuration__config___projectconfig___pipelineconfig__.md
-docs/04_pipelinerunner_.md
-docs/05_filesystem_abstraction__fsspec_wrappers_helpers__.md
-docs/06_i_o_plugins__basefilereader_writer__loaders__savers__.md
-docs/07_adapters__hamilton_integration__.md
-docs/08_jobqueuemanager___pipelinejobqueue_.md
-docs/getting_started.md
-docs/index.md
-examples/
-examples/apscheduler/hello-world/README.md
-examples/apscheduler/hello-world/conf/project.yml
-examples/apscheduler/hello-world/conf/pipelines/hello_world.yml
-examples/apscheduler/hello-world/conf/pipelines/test_mqtt.yml
-examples/apscheduler/hello-world/pipelines/hello_world.py
-examples/apscheduler/hello-world/pipelines/test_mqtt.py
-examples/hello-world/README.md
-examples/hello-world/conf/project.yml
-examples/hello-world/conf/pipelines/hello_world.yml
-examples/hello-world/conf/pipelines/test_mqtt.yml
-examples/hello-world/pipelines/hello_world.py
-examples/hello-world/pipelines/test_mqtt.py
-examples/rq/hello-world/README.md
-examples/rq/hello-world/conf/project.yml
-examples/rq/hello-world/conf/pipelines/hello_world.yml
-examples/rq/hello-world/pipelines/hello_world.py
-examples/rq/hello-world/pipelines/test_mqtt.py
-scripts/
-scripts/test.sh
-src/
-src/flowerpower/__init__.py
-src/flowerpower/flowerpower.py
-src/flowerpower/mqtt.py
-src/flowerpower/cfg/__init__.py
-src/flowerpower/cfg/base.py
-src/flowerpower/cfg/pipeline/__init__.py
-src/flowerpower/cfg/pipeline/adapter.py
-src/flowerpower/cfg/pipeline/run.py
-src/flowerpower/cfg/pipeline/schedule.py
-src/flowerpower/cfg/project/__init__.py
-src/flowerpower/cfg/project/adapter.py
-src/flowerpower/cfg/project/job_queue.py
-src/flowerpower/cli/__init__.py
-src/flowerpower/cli/cfg.py
-src/flowerpower/cli/job_queue.py
-src/flowerpower/cli/mqtt.py
-src/flowerpower/cli/pipeline.py
-src/flowerpower/cli/utils.py
-src/flowerpower/fs/__init__.py
-src/flowerpower/fs/base.py
-src/flowerpower/fs/ext.py
-src/flowerpower/fs/storage_options.py
-src/flowerpower/job_queue/__init__.py
-src/flowerpower/job_queue/base.py
-src/flowerpower/job_queue/apscheduler/__init__.py
-src/flowerpower/job_queue/apscheduler/manager.py
-src/flowerpower/job_queue/apscheduler/setup.py
-src/flowerpower/job_queue/apscheduler/trigger.py
-src/flowerpower/job_queue/apscheduler/utils.py
-src/flowerpower/job_queue/apscheduler/_setup/datastore.py
-src/flowerpower/job_queue/apscheduler/_setup/eventbroker.py
-src/flowerpower/job_queue/rq/__init__.py
-src/flowerpower/job_queue/rq/_trigger.py
-src/flowerpower/job_queue/rq/manager.py
-src/flowerpower/job_queue/rq/setup.py
-src/flowerpower/job_queue/rq/utils.py
-src/flowerpower/job_queue/rq/concurrent_workers/gevent_worker.py
-src/flowerpower/job_queue/rq/concurrent_workers/thread_worker.py
-src/flowerpower/pipeline/__init__.py
-src/flowerpower/pipeline/base.py
-src/flowerpower/pipeline/io.py
-src/flowerpower/pipeline/job_queue.py
-src/flowerpower/pipeline/manager.py
-src/flowerpower/pipeline/registry.py
-src/flowerpower/pipeline/runner.py
-src/flowerpower/pipeline/visualizer.py
-src/flowerpower/plugins/io/base.py
-src/flowerpower/plugins/io/metadata.py
-src/flowerpower/plugins/io/loader/__init__.py
-src/flowerpower/plugins/io/loader/_duckdb.py
-src/flowerpower/plugins/io/loader/csv.py
-src/flowerpower/plugins/io/loader/deltatable.py
-src/flowerpower/plugins/io/loader/duckdb.py
-src/flowerpower/plugins/io/loader/json.py
-src/flowerpower/plugins/io/loader/mqtt.py
-src/flowerpower/plugins/io/loader/mssql.py
-src/flowerpower/plugins/io/loader/mysql.py
-src/flowerpower/plugins/io/loader/oracle.py
-src/flowerpower/plugins/io/loader/parquet.py
-src/flowerpower/plugins/io/loader/postgres.py
-src/flowerpower/plugins/io/loader/pydala.py
-src/flowerpower/plugins/io/loader/sqlite.py
-src/flowerpower/plugins/io/saver/__init__.py
-src/flowerpower/plugins/io/saver/_duckdb.py
-src/flowerpower/plugins/io/saver/csv.py
-src/flowerpower/plugins/io/saver/deltatable.py
-src/flowerpower/plugins/io/saver/duckdb.py
-src/flowerpower/plugins/io/saver/json.py
-src/flowerpower/plugins/io/saver/mqtt.py
-src/flowerpower/plugins/io/saver/mssql.py
-src/flowerpower/plugins/io/saver/mysql.py
-src/flowerpower/plugins/io/saver/oracle.py
-src/flowerpower/plugins/io/saver/parquet.py
-src/flowerpower/plugins/io/saver/postgres.py
-src/flowerpower/plugins/io/saver/pydala.py
-src/flowerpower/plugins/io/saver/sqlite.py
-src/flowerpower/plugins/mqtt/__init__.py
-src/flowerpower/plugins/mqtt/cfg.py
-src/flowerpower/plugins/mqtt/manager.py
-src/flowerpower/settings/__init__.py
-src/flowerpower/settings/backend.py
-src/flowerpower/settings/executor.py
-src/flowerpower/settings/general.py
-src/flowerpower/settings/hamilton.py
-src/flowerpower/settings/job_queue.py
-src/flowerpower/settings/logging.py
-src/flowerpower/settings/retry.py
-src/flowerpower/utils/logging.py
-src/flowerpower/utils/misc.py
-src/flowerpower/utils/monkey.py
-src/flowerpower/utils/open_telemetry.py
-src/flowerpower/utils/polars.py
-src/flowerpower/utils/scheduler.py
-src/flowerpower/utils/sql.py
-src/flowerpower/utils/templates.py
-src/flowerpower/web/app.py
-src/flowerpower/web/templates/base.html
-src/flowerpower/web/templates/index.html
-src/flowerpower/web/templates/index1.html
-src/flowerpower/web/templates/new_pipeline.html
-src/flowerpower/web/templates/pipeline_detail.html
-src/flowerpower/web/templates/pipelines.html
-src/flowerpower/web/templates/schedule_pipeline.html
-src/flowerpower/web/templates/schedules.html
-tests/
-tests/conftest.py
-tests/cfg/test_base.py
-tests/cli/test_cli_integration.py
-tests/pipeline/__init__.py
-tests/pipeline/test_pipeline_module.py
-tests/pipeline/test_registry.py
-tests/pipeline/test_runner.py
-tests/utils/test_misc.py
+## Objective
+Analyze the existing FlowerPower codebase to understand the current architecture, core components, and data models that will inform the web application design.
+
+## Key Analysis Areas
+
+### 1. Core Architecture Components
+- **Pipeline Management**: Examine [src/flowerpower/pipeline/](src/flowerpower/pipeline/) for pipeline structure, execution models
+- **Job Queue Systems**: Analyze [src/flowerpower/job_queue/](src/flowerpower/job_queue/) for queue management patterns
+- **Configuration Systems**: Review [src/flowerpower/cfg/](src/flowerpower/cfg/) for project and pipeline configuration schemas
+- **Plugin Architecture**: Investigate [src/flowerpower/plugins/](src/flowerpower/plugins/) for extensibility patterns
+
+### 2. Data Models & APIs
+- Extract key data structures from pipeline, job queue, and configuration modules
+- Identify existing CLI interfaces in [src/flowerpower/cli/](src/flowerpower/cli/) that could inform web API design
+- Document configuration file formats from [examples/](examples/) directories
+
+### 3. Multi-Project Support Requirements
+- Examine how projects are currently defined and structured
+- Analyze project configuration patterns from example projects
+- Identify requirements for project management, switching, and organization
+
+### 4. Integration Points
+- Document existing integrations (Hamilton, MQTT, databases)
+- Identify extensibility points for web application integration
+- Assess current logging, monitoring, and observability features
+
+## Expected Deliverables
+1. Architecture overview document
+2. Data model specifications
+3. API interface recommendations
+4. Multi-project management requirements
+5. Integration strategy recommendations
+
+## Files to Focus On
+- [src/flowerpower/flowerpower.py](src/flowerpower/flowerpower.py) - Main entry point
+- [src/flowerpower/pipeline/manager.py](src/flowerpower/pipeline/manager.py) - Pipeline management
+- [src/flowerpower/job_queue/base.py](src/flowerpower/job_queue/base.py) - Job queue abstractions
+- [src/flowerpower/cfg/project/](src/flowerpower/cfg/project/) - Project configuration
+- [examples/](examples/) - Real-world usage patterns
