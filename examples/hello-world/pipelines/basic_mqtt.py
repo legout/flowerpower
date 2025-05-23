@@ -5,13 +5,16 @@
 # Import necessary libraries
 # NOTE: Remove or comment out imports that are not used in the pipeline
 
-#from hamilton.function_modifiers import parameterize, dataloader, datasaver
-#from hamilton.htypes import Parallelizable, Collect
-import orjson
 from pathlib import Path
-from loguru import logger
-from flowerpower.cfg import Config
+
+# from hamilton.function_modifiers import parameterize, dataloader, datasaver
+# from hamilton.htypes import Parallelizable, Collect
+import orjson
 import polars as pl
+from loguru import logger
+
+from flowerpower.cfg import Config
+
 ####################################################################################################
 # Load pipeline parameters. Do not modify this section.
 
@@ -27,6 +30,7 @@ PARAMS = Config.load(
 
 ####################################################################################################
 # Pipeline functions
+
 
 def data(payload: bytes, topic: str) -> dict:
     """Loads the payload from the MQTT message."""
