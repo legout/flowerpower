@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.6.3] - 2025-05-24
+
+### Changes
+- init webapp branch
+- refactor: Clean up import statements and ensure consistent formatting in basic_mqtt.py
+- Add basic MQTT pipeline configuration and implementation
+- feat: Add comprehensive development plans and documentation for FlowerPower web application
+- feat: Remove deprecated web templates and add new Test Engineer mode in configuration
+- feat: Add comprehensive analysis and documentation for Flowerpower framework
+- Add PyTest unit and integration tests
+- feat: add comprehensive documentation for FlowerPower framework including installation, project setup, and pipeline management
+- fix: update config_hook type annotation from int to str for consistency
+- refactor: simplify dictionary comprehension for event broker and DataFrame creation
+
+
+
 ## [0.10.6.3] - 2025-05-19
 
 ### Changes
