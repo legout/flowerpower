@@ -91,7 +91,8 @@ redis = ["redis>=5.0.4"]
 rq = ["rq>=2.3.1", "rq-scheduler>=0.14.0", "cron-descriptor>=1.4.5"]
 tui = ["textual>=0.85.2"]
 ui = ["sf-hamilton-ui>=0.0.11"]
-webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11"]
+webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11",  "datastar-py>=0.4.4",
+    "htpy>=25.4.2",]
 openlineage = ["openlineage-python>=1.32.0"]
 
 

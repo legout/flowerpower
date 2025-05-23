@@ -4,17 +4,31 @@
       "command": "uvx",
       "args": [
         "--from",
-        "context-portal-mcp", 
+        "context-portal-mcp",
         "conport-mcp",
         "--mode",
         "stdio",
         "--workspace_id",
         "${workspaceFolder}"
+      ],
+      "alwaysAllow": [
+        "get_active_context",
+        "get_decisions",
+        "get_progress",
+        "get_system_patterns",
+        "get_custom_data",
+        "get_recent_activity_summary",
+        "add_to_active_context",
+        "update_active_context",
+        "set_active_context_item"
       ]
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
     }
   }
 }

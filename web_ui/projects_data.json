@@ -1,0 +1,33 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "name": "Sample Data Pipeline",
+      "description": "A sample pipeline for processing CSV data",
+      "status": "Active",
+      "created_at": "2025-01-20T10:00:00Z",
+      "updated_at": "2025-01-20T10:00:00Z",
+      "config": {
+        "environment": "development",
+        "auto_run": true,
+        "notifications": true,
+        "retry_attempts": 3
+      }
+    },
+    {
+      "id": 2,
+      "name": "MQTT Analytics",
+      "description": "Real-time analytics pipeline for MQTT data streams",
+      "status": "Active",
+      "created_at": "2025-01-21T14:30:00Z",
+      "updated_at": "2025-01-21T14:30:00Z",
+      "config": {
+        "environment": "production",
+        "auto_run": false,
+        "notifications": true,
+        "retry_attempts": 5
+      }
+    }
+  ],
+  "last_updated": "2025-05-24T00:26:26.151754"
+}
