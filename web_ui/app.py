@@ -3,17 +3,19 @@ FlowerPower Web Application
 Main Sanic application with htpy templates and Datastar integration
 """
 
-from sanic import Sanic, Request
-from sanic.response import html, json
-from sanic_ext import Extend
-from datastar_py.sanic import ServerSentEventGenerator, datastar_respond, SSE_HEADERS
-import htpy as h
 import asyncio
-from typing import List, Dict, Any
 import json as json_module
 import os
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List
+
+import htpy as h
+from datastar_py.sanic import (SSE_HEADERS, ServerSentEventGenerator,
+                               datastar_respond)
+from sanic import Request, Sanic
+from sanic.response import html, json
+from sanic_ext import Extend
 
 # Initialize Sanic app
 app = Sanic("FlowerPowerWeb")
