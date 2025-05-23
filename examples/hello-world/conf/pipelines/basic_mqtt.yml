@@ -1,0 +1,43 @@
+adapter:
+  hamilton_tracker:
+    capture_data_statistics: false
+    dag_name: basic_mqtt_1
+    max_dict_length_capture: 10
+    max_list_length_capture: 50
+    project_id: 11
+    tags: {}
+  mlflow:
+    experiment_description: null
+    experiment_name: null
+    experiment_tags: {}
+    run_description: null
+    run_id: null
+    run_name: null
+    run_tags: {}
+params: {}
+run:
+  cache: false
+  config: {}
+  executor:
+    max_workers: 50
+    num_cpus: 10
+    type: threadpool
+  final_vars: [print_df]
+  inputs: {}
+  jitter_factor: 0.1
+  log_level: INFO
+  max_retries: 3
+  retry_delay: 1
+  retry_exceptions:
+  - Exception
+  with_adapter:
+    future: false
+    hamilton_tracker: true
+    mlflow: false
+    opentelemetry: false
+    progressbar: false
+    ray: false
+schedule:
+  cron: null
+  date: null
+  interval: null
