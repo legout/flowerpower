@@ -1,6 +1,7 @@
 import datetime as dt
 import posixpath
 import sys
+import os
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
@@ -128,7 +129,7 @@ class PipelineManager:
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(posixpath.expanduser(settings.CACHE_DIR), self._base_dir.split("://")[-1])
-            posixpath.makedirs(cache_storage, exist_ok=True)
+            os.makedirs(cache_storage, exist_ok=True)
         else:
             cached = False
             cache_storage = None

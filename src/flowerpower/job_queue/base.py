@@ -9,6 +9,7 @@ import abc
 import importlib
 import posixpath
 import sys
+import os
 import urllib.parse
 from dataclasses import dataclass, field
 from enum import Enum
@@ -356,7 +357,7 @@ class BaseJobQueueManager:
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1])
-            posixpath.makedirs(cache_storage, exist_ok=True)
+            os.makedirs(cache_storage, exist_ok=True)
         else:
             cached = False
             cache_storage = None
