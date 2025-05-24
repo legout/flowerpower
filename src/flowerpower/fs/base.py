@@ -220,7 +220,7 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
             # new items
             "size",
             "glob",
-            "sync",
+            "sync_cache",
             # previous
             "load_cache",
             "_open",

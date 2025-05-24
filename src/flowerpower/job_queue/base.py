@@ -24,7 +24,7 @@ else:
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
 # from ..utils.misc import update_config_from_dict
-from ..settings import BACKEND_PROPERTIES
+from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
 
 class BackendType(str, Enum):
@@ -350,12 +350,21 @@ class BaseJobQueueManager:
         self._storage_options = storage_options or {}
         self._backend = backend
         self._type = type
-        self._pipelines_dir = kwargs.get("pipelines_dir", "pipelines")
-        self._conf_dir = "conf"
+        self._pipelines_dir = kwargs.get("pipelines_dir", PIPELINES_DIR)
+        self._conf_dir = CONFIG_DIR
 
-        if fs is None:
-            fs = get_filesystem(self._base_dir, **(self._storage_options or {}))
+        if storage_options is not None:
+            cached = True
+            cache_storage = posixpath.join(posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1])
+            posixpath.makedirs(cache_storage, exist_ok=True)
+        else:
+            cached = False
+            cache_storage = None
+        if not fs:
+            fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
         self._fs = fs
+        if cached:
+            self._fs.sync()
 
         self._add_modules_path()
         self._load_config()
@@ -378,11 +387,17 @@ class BaseJobQueueManager:
             None
         """
         if self._fs.is_cache_fs:
-            self._fs.sync()
+            self._fs.sync_cache()
+            project_path = self._fs.mapper.directory
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
 
-        if self._fs.path not in sys.path:
-            sys.path.insert(0, self._fs.path)
+        else:
+            # Use the base directory directly if not using cache
+            project_path = self._fs.path
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
 
-        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+        if project_path not in sys.path:
+            sys.path.insert(0, project_path)
+
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)

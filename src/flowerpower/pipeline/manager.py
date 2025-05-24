@@ -125,9 +125,18 @@ class PipelineManager:
 
         self._base_dir = base_dir or str(Path.cwd())
         self._storage_options = storage_options
+        if storage_options is not None:
+            cached = True
+            cache_storage = posixpath.join(posixpath.expanduser(settings.CACHE_DIR), self._base_dir.split("://")[-1])
+            posixpath.makedirs(cache_storage, exist_ok=True)
+        else:
+            cached = False
+            cache_storage = None
         if not fs:
-            fs = get_filesystem(self._base_dir, storage_options=storage_options)
+            fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
         self._fs = fs
+        if cached:
+            self._fs.sync()
 
         # Store overrides for ProjectConfig loading
         self._cfg_dir = cfg_dir or settings.CONFIG_DIR
@@ -260,12 +269,18 @@ class PipelineManager:
             >>> import my_pipeline  # Now importable
         """
         if self._fs.is_cache_fs:
-            self._fs.sync()
+            self._fs.sync_cache()
+            project_path = self._fs.mapper.directory
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
 
-        if self._fs.path not in sys.path:
-            sys.path.insert(0, self._fs.path)
+        else:
+            # Use the base directory directly if not using cache
+            project_path = self._fs.path
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
 
-        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+        if project_path not in sys.path:
+            sys.path.insert(0, project_path)
+
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
 
