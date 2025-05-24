@@ -364,8 +364,6 @@ class BaseJobQueueManager:
         if not fs:
             fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
         self._fs = fs
-        if cached:
-            self._fs.sync()
 
         self._add_modules_path()
         self._load_config()
@@ -389,7 +387,7 @@ class BaseJobQueueManager:
         """
         if self._fs.is_cache_fs:
             self._fs.sync_cache()
-            project_path = self._fs.mapper.directory
+            project_path = self._fs_mapper.directory
             modules_path = posixpath.join(project_path, self._pipelines_dir)
 
         else:

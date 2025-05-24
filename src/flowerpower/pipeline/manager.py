@@ -270,7 +270,7 @@ class PipelineManager:
         """
         if self._fs.is_cache_fs:
             self._fs.sync_cache()
-            project_path = self._fs.mapper.directory
+            project_path = self._fs_mapper.directory
             modules_path = posixpath.join(project_path, self._pipelines_dir)
 
         else:
