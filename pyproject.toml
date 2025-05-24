@@ -4,7 +4,7 @@ description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.10.6.3"
+version = "0.10.6.4"
 keywords = [
   "hamilton",
   "workflow",
@@ -15,8 +15,6 @@ keywords = [
   "ray",
 ]
 dependencies = [
-  'aiobotocore<2.18.0',
-  "aiosqlite>=0.21.0",
   'dill>=0.3.8',
   'duration-parser>=1.0.1',
   'fsspec>=2024.10.0',
@@ -53,6 +51,7 @@ apscheduler = [
 ]
 io = [
   "adbc-driver-manager>=1.4.0",
+  "aiosqlite>=0.21.0",
   #"connectorx>=0.4.1",
   'datafusion>=43.1.0',
   "deltalake>=0.24.0",
@@ -64,6 +63,7 @@ io = [
   'pydala2>=0.9.4.5',
   "redis>=5.2.1",
   "sherlock>=0.4.1",
+  "sqlalchemy>=2.0.30"
 ]
 io-legacy = [
   "adbc-driver-manager>=1.4.0",
