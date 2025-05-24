@@ -80,9 +80,10 @@ class BasePipeline:
             None
         """
         if self._fs.is_cache_fs:
-            self._fs.sync()
-
-        modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+            self._fs.sync_cache()
+            modules_path = posixpath.join(self._fs.mapper.directory, self._fs.cache_path, self._pipelines_dir)
+        else:
+            modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
 

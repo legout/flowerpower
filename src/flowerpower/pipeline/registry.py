@@ -190,8 +190,8 @@ class PipelineRegistry:
             )
 
         # Sync filesystem if needed (using _fs)
-        if hasattr(self._fs, "sync") and callable(getattr(self._fs, "sync")):
-            self._fs.sync()
+        if hasattr(self._fs, "sync_cache") and callable(getattr(self._fs, "sync_cache")):
+            self._fs.sync_cache()
 
     def _get_files(self) -> list[str]:
         """

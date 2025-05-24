@@ -136,8 +136,7 @@ class PipelineManager:
         if not fs:
             fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
         self._fs = fs
-        if cached:
-            self._fs.sync()
+
 
         # Store overrides for ProjectConfig loading
         self._cfg_dir = cfg_dir or settings.CONFIG_DIR
