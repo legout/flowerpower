@@ -19,11 +19,12 @@ from sanic_ext import Extend
 
 # Import FlowerPower components for pipeline execution and job management
 try:
-    from src.flowerpower.cfg import ProjectConfig, PipelineConfig
+    from src.flowerpower.cfg import PipelineConfig, ProjectConfig
+    from src.flowerpower.fs import get_filesystem
+    from src.flowerpower.job_queue.apscheduler.manager import APSManager
     from src.flowerpower.pipeline.runner import PipelineRunner
     from src.flowerpower.pipeline.visualizer import PipelineVisualizer
-    from src.flowerpower.job_queue.apscheduler.manager import APSManager
-    from src.flowerpower.fs import get_filesystem
+
     FLOWERPOWER_AVAILABLE = True
 except ImportError as e:
     print(f"FlowerPower imports not available: {e}")
@@ -43,83 +44,92 @@ sse_connections = set()
 # Data storage file path
 PROJECTS_DATA_FILE = os.path.join(os.path.dirname(__file__), "projects_data.json")
 
+
 def load_data():
     """Load all data from JSON file"""
     if os.path.exists(PROJECTS_DATA_FILE):
         try:
-            with open(PROJECTS_DATA_FILE, 'r') as f:
+            with open(PROJECTS_DATA_FILE, "r") as f:
                 data = json_module.load(f)
                 return data
         except Exception as e:
             print(f"Error loading data: {e}")
-    return {'projects': [], 'pipelines': [], 'last_updated': datetime.now().isoformat()}
+    return {"projects": [], "pipelines": [], "last_updated": datetime.now().isoformat()}
+
 
 def save_data(data):
     """Save all data to JSON file"""
     try:
-        data['last_updated'] = datetime.now().isoformat()
-        with open(PROJECTS_DATA_FILE, 'w') as f:
+        data["last_updated"] = datetime.now().isoformat()
+        with open(PROJECTS_DATA_FILE, "w") as f:
             json_module.dump(data, f, indent=2)
         return True
     except Exception as e:
         print(f"Error saving data: {e}")
         return False
 
+
 def load_projects():
     """Load projects from JSON file"""
     data = load_data()
-    return data.get('projects', [])
+    return data.get("projects", [])
+
 
 def save_projects(projects):
     """Save projects to JSON file"""
     data = load_data()
-    data['projects'] = projects
+    data["projects"] = projects
     return save_data(data)
+
 
 def load_pipelines():
     """Load pipelines from JSON file"""
     data = load_data()
-    return data.get('pipelines', [])
+    return data.get("pipelines", [])
+
 
 def save_pipelines(pipelines):
     """Save pipelines to JSON file"""
     data = load_data()
-    data['pipelines'] = pipelines
+    data["pipelines"] = pipelines
     return save_data(data)
+
 
 def get_project_pipelines(project_id):
     """Get pipelines for a specific project"""
     pipelines = load_pipelines()
-    return [p for p in pipelines if p.get('project_id') == project_id]
+    return [p for p in pipelines if p.get("project_id") == project_id]
+
 
 def get_pipeline_execution_status():
     """Get real-time pipeline execution status from FlowerPower"""
     try:
         if not FLOWERPOWER_AVAILABLE:
             return {}
-        
+
         # This would connect to the job queue manager to get actual status
         # For now, return mock status based on our data
         pipelines = load_pipelines()
         status = {}
         for pipeline in pipelines:
-            status[pipeline['id']] = {
-                'status': pipeline.get('status', 'Inactive'),
-                'last_run': pipeline.get('metadata', {}).get('last_run'),
-                'next_run': pipeline.get('metadata', {}).get('next_run'),
-                'run_count': pipeline.get('metadata', {}).get('run_count', 0)
+            status[pipeline["id"]] = {
+                "status": pipeline.get("status", "Inactive"),
+                "last_run": pipeline.get("metadata", {}).get("last_run"),
+                "next_run": pipeline.get("metadata", {}).get("next_run"),
+                "run_count": pipeline.get("metadata", {}).get("run_count", 0),
             }
         return status
     except Exception as e:
         print(f"Error getting pipeline status: {e}")
         return {}
 
+
 def load_job_queue_manager():
     """Load and configure the FlowerPower job queue manager"""
     try:
         if not FLOWERPOWER_AVAILABLE:
             return None
-        
+
         # Initialize APScheduler manager with default configuration
         manager = APSManager(
             name="flowerpower_web_ui",
@@ -129,6 +139,7 @@ def load_job_queue_manager():
     except Exception as e:
         print(f"Error loading job queue manager: {e}")
         return None
+
 
 def execute_pipeline_with_flowerpower(pipeline_id: int, runtime_args: dict = None):
     """
@@ -140,127 +151,142 @@ def execute_pipeline_with_flowerpower(pipeline_id: int, runtime_args: dict = Non
     try:
         if not FLOWERPOWER_AVAILABLE:
             return {"status": "error", "message": "FlowerPower not available"}
-        
+
         pipelines = load_pipelines()
         pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
         if not pipeline:
             return {"status": "error", "message": "Pipeline not found"}
-        
+
         projects = load_projects()
         project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
         if not project:
             return {"status": "error", "message": "Project not found"}
-        
+
         # Create FlowerPower configurations (simplified for demo)
         project_cfg = ProjectConfig(
             name=project["name"],
             base_dir="./",
         )
-        
+
         pipeline_cfg = PipelineConfig(
             name=pipeline["name"],
             run={
                 "inputs": runtime_args or {},
                 "final_vars": [],  # Would be configured in real pipeline
                 "config": {},
-            }
+            },
         )
-        
+
         # Execute pipeline and update metadata on success
         with PipelineRunner(project_cfg, pipeline_cfg) as runner:
             result = runner.run(inputs=runtime_args)
-            
+
             # Update pipeline metadata after successful run
             pipelines = load_pipelines()
             for i, p in enumerate(pipelines):
                 if p["id"] == pipeline_id:
                     pipelines[i]["metadata"]["last_run"] = datetime.now().isoformat()
-                    pipelines[i]["metadata"]["run_count"] = p["metadata"].get("run_count", 0) + 1
-                    pipelines[i]["metadata"]["success_count"] = p["metadata"].get("success_count", 0) + 1
+                    pipelines[i]["metadata"]["run_count"] = (
+                        p["metadata"].get("run_count", 0) + 1
+                    )
+                    pipelines[i]["metadata"]["success_count"] = (
+                        p["metadata"].get("success_count", 0) + 1
+                    )
                     pipelines[i]["status"] = "Active"
                     break
             save_pipelines(pipelines)
-            
-            return {"status": "success", "result": result, "message": "Pipeline executed successfully"}
-            
+
+            return {
+                "status": "success",
+                "result": result,
+                "message": "Pipeline executed successfully",
+            }
+
     except Exception as e:
         # On error, increment error count and update status
         pipelines = load_pipelines()
         for i, p in enumerate(pipelines):
             if p["id"] == pipeline_id:
-                pipelines[i]["metadata"]["error_count"] = p["metadata"].get("error_count", 0) + 1
+                pipelines[i]["metadata"]["error_count"] = (
+                    p["metadata"].get("error_count", 0) + 1
+                )
                 pipelines[i]["status"] = "Error"
                 break
         save_pipelines(pipelines)
-        
+
         return {"status": "error", "message": f"Pipeline execution failed: {str(e)}"}
 
-def queue_pipeline_execution(pipeline_id: int, runtime_args: dict = None, run_at: str = None):
+
+def queue_pipeline_execution(
+    pipeline_id: int, runtime_args: dict = None, run_at: str = None
+):
     """Queue a pipeline for execution using FlowerPower job queue"""
     try:
         if not FLOWERPOWER_AVAILABLE:
             return {"status": "error", "message": "FlowerPower not available"}
-        
+
         manager = load_job_queue_manager()
         if not manager:
             return {"status": "error", "message": "Job queue manager not available"}
-        
+
         pipelines = load_pipelines()
         pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
         if not pipeline:
             return {"status": "error", "message": "Pipeline not found"}
-        
+
         # Define the job function that will execute the pipeline
         def pipeline_job():
             return execute_pipeline_with_flowerpower(pipeline_id, runtime_args)
-        
+
         # Add job to queue
         if run_at:
             # Schedule for later execution
-            run_at_dt = datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
-            job_id = manager.add_job(
-                pipeline_job,
-                run_at=run_at_dt
+            run_at_dt = (
+                datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
             )
+            job_id = manager.add_job(pipeline_job, run_at=run_at_dt)
         else:
             # Queue for immediate execution
             job_id = manager.add_job(pipeline_job)
-        
+
         return {
             "status": "success",
             "job_id": job_id,
-            "message": f"Pipeline queued successfully with job ID: {job_id}"
+            "message": f"Pipeline queued successfully with job ID: {job_id}",
         }
-        
+
     except Exception as e:
         return {"status": "error", "message": f"Failed to queue pipeline: {str(e)}"}
 
-def schedule_pipeline_execution(pipeline_id: int, cron_expression: str, runtime_args: dict = None):
+
+def schedule_pipeline_execution(
+    pipeline_id: int, cron_expression: str, runtime_args: dict = None
+):
     """Schedule a pipeline for recurring execution using cron expression"""
     try:
         if not FLOWERPOWER_AVAILABLE:
             return {"status": "error", "message": "FlowerPower not available"}
-        
+
         manager = load_job_queue_manager()
         if not manager:
             return {"status": "error", "message": "Job queue manager not available"}
-        
+
         pipelines = load_pipelines()
         pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
         if not pipeline:
             return {"status": "error", "message": "Pipeline not found"}
-        
+
         # Define the job function that will execute the pipeline
         def pipeline_job():
             return execute_pipeline_with_flowerpower(pipeline_id, runtime_args)
-        
+
         # Add schedule
         schedule_id = manager.add_schedule(
             pipeline_job,
             cron=cron_expression,
-            schedule_id=f"pipeline_{pipeline_id}_schedule"
+            schedule_id=f"pipeline_{pipeline_id}_schedule",
         )
-        
+
         # Update pipeline configuration
         pipelines = load_pipelines()
         for i, p in enumerate(pipelines):
@@ -270,115 +296,116 @@ def schedule_pipeline_execution(pipeline_id: int, cron_expression: str, runtime_
                 pipelines[i]["status"] = "Scheduled"
                 break
         save_pipelines(pipelines)
-        
+
         return {
             "status": "success",
             "schedule_id": schedule_id,
-            "message": f"Pipeline scheduled successfully with ID: {schedule_id}"
+            "message": f"Pipeline scheduled successfully with ID: {schedule_id}",
         }
-        
+
     except Exception as e:
         return {"status": "error", "message": f"Failed to schedule pipeline: {str(e)}"}
+
 
 def get_pipeline_dag_data(pipeline_id: int):
     """Extract DAG structure from FlowerPower pipeline for visualization"""
     try:
         if not FLOWERPOWER_AVAILABLE:
             return {"status": "error", "message": "FlowerPower not available"}
-        
+
         pipelines = load_pipelines()
         pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
         if not pipeline:
             return {"status": "error", "message": "Pipeline not found"}
-        
+
         projects = load_projects()
         project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
         if not project:
             return {"status": "error", "message": "Project not found"}
-        
+
         # Create FlowerPower configurations
         project_cfg = ProjectConfig(
             name=project["name"],
             base_dir="./",
         )
-        
+
         # Get filesystem
         fs = get_filesystem("./")
-        
+
         # Create visualizer
         visualizer = PipelineVisualizer(project_cfg, fs)
-        
+
         try:
             # Get the raw DAG object from Hamilton
             dag_obj = visualizer.show_dag(name=pipeline["name"], raw=True)
-            
+
             # Extract node and edge data from the graphviz object
             nodes = []
             edges = []
-            
+
             # Parse the graphviz source to extract nodes and edges
-            if hasattr(dag_obj, 'source'):
-                lines = dag_obj.source.split('\n')
+            if hasattr(dag_obj, "source"):
+                lines = dag_obj.source.split("\n")
                 for line in lines:
                     line = line.strip()
-                    if '->' in line:
+                    if "->" in line:
                         # This is an edge
-                        parts = line.split('->')
+                        parts = line.split("->")
                         if len(parts) == 2:
                             source = parts[0].strip().strip('"').strip()
-                            target = parts[1].strip().split('[')[0].strip().strip('"').strip()
+                            target = (
+                                parts[1]
+                                .strip()
+                                .split("[")[0]
+                                .strip()
+                                .strip('"')
+                                .strip()
+                            )
                             if source and target:
                                 edges.append({
                                     "id": f"{source}->{target}",
                                     "source": source,
-                                    "target": target
+                                    "target": target,
                                 })
-                    elif '[label=' in line and not '->' in line:
+                    elif "[label=" in line and not "->" in line:
                         # This is a node definition
-                        node_name = line.split('[')[0].strip().strip('"')
-                        if node_name and node_name not in ['digraph', '}', '{']:
+                        node_name = line.split("[")[0].strip().strip('"')
+                        if node_name and node_name not in ["digraph", "}", "{"]:
                             # Extract label if available
                             label = node_name
-                            if '[label=' in line:
+                            if "[label=" in line:
                                 try:
-                                    label_part = line.split('[label=')[1].split(']')[0]
+                                    label_part = line.split("[label=")[1].split("]")[0]
                                     label = label_part.strip('"').strip("'")
                                 except:
                                     pass
-                            
+
                             nodes.append({
                                 "id": node_name,
                                 "label": label,
-                                "type": "function"
+                                "type": "function",
                             })
-            
+
             # If we couldn't parse nodes from source, create basic nodes from edges
             if not nodes:
                 all_node_ids = set()
                 for edge in edges:
                     all_node_ids.add(edge["source"])
                     all_node_ids.add(edge["target"])
-                
+
                 for node_id in all_node_ids:
-                    nodes.append({
-                        "id": node_id,
-                        "label": node_id,
-                        "type": "function"
-                    })
-            
+                    nodes.append({"id": node_id, "label": node_id, "type": "function"})
+
             return {
                 "status": "success",
                 "pipeline": {
                     "id": pipeline_id,
                     "name": pipeline["name"],
-                    "project": project["name"]
+                    "project": project["name"],
                 },
-                "dag": {
-                    "nodes": nodes,
-                    "edges": edges
-                }
+                "dag": {"nodes": nodes, "edges": edges},
             }
-            
+
         except Exception as viz_error:
             # Fallback: create a simple mock DAG structure
             print(f"Error getting actual DAG, creating mock: {viz_error}")
@@ -387,35 +414,40 @@ def get_pipeline_dag_data(pipeline_id: int):
                 "pipeline": {
                     "id": pipeline_id,
                     "name": pipeline["name"],
-                    "project": project["name"]
+                    "project": project["name"],
                 },
                 "dag": {
                     "nodes": [
                         {"id": "input", "label": "Input Data", "type": "input"},
                         {"id": "process", "label": "Process", "type": "function"},
-                        {"id": "output", "label": "Output", "type": "output"}
+                        {"id": "output", "label": "Output", "type": "output"},
                     ],
                     "edges": [
-                        {"id": "input->process", "source": "input", "target": "process"},
-                        {"id": "process->output", "source": "process", "target": "output"}
-                    ]
-                }
+                        {
+                            "id": "input->process",
+                            "source": "input",
+                            "target": "process",
+                        },
+                        {
+                            "id": "process->output",
+                            "source": "process",
+                            "target": "output",
+                        },
+                    ],
+                },
             }
-            
+
     except Exception as e:
         return {"status": "error", "message": f"Failed to get pipeline DAG: {str(e)}"}
+
 
 async def emit_to_all(element_id: str, data: Dict[str, Any]):
     """Send data to all connected SSE clients"""
     if not sse_connections:
         return
-    
-    message = {
-        "selector": f"#{element_id}",
-        "merge_type": "innerHTML",
-        **data
-    }
-    
+
+    message = {"selector": f"#{element_id}", "merge_type": "innerHTML", **data}
+
     # Remove disconnected connections
     disconnected = set()
     for connection in sse_connections:
@@ -423,54 +455,68 @@ async def emit_to_all(element_id: str, data: Dict[str, Any]):
             await connection.put(message)
         except Exception:
             disconnected.add(connection)
-    
+
     sse_connections.difference_update(disconnected)
+
 
 def base_layout(title: str, content: Any) -> str:
     """Base HTML layout with navigation and Datastar setup"""
-    return str(h.html[
-        h.head[
-            h.meta(charset="utf-8"),
-            h.meta(name="viewport", content="width=device-width, initial-scale=1"),
-            h.title[f"{title} - FlowerPower"],
-            h.link(
-                href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
-                rel="stylesheet"
-            ),
-            h.script(src="https://unpkg.com/@starfederation/datastar@latest"),
-        ],
-        h.body(**{"data-ds-stream": "/datastar/stream"})[
-            h.nav(class_="navbar navbar-expand-lg navbar-dark bg-primary")[
-                h.div(class_="container-fluid")[
-                    h.a(class_="navbar-brand", href="/")["FlowerPower"],
-                    h.ul(class_="navbar-nav")[
-                        h.li(class_="nav-item")[h.a(class_="nav-link", href="/dashboard")["Dashboard"]],
-                        h.li(class_="nav-item")[h.a(class_="nav-link", href="/projects")["Projects"]],
-                        h.li(class_="nav-item")[h.a(class_="nav-link", href="/projects/new")["New Project"]],
-                        h.li(class_="nav-item")[h.a(class_="nav-link", href="/pipelines")["Pipelines"]],
-                        h.li(class_="nav-item")[h.a(class_="nav-link", href="/jobs")["Job Queue"]],
+    return str(
+        h.html[
+            h.head[
+                h.meta(charset="utf-8"),
+                h.meta(name="viewport", content="width=device-width, initial-scale=1"),
+                h.title[f"{title} - FlowerPower"],
+                h.link(
+                    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
+                    rel="stylesheet",
+                ),
+                h.script(src="https://unpkg.com/@starfederation/datastar@latest"),
+            ],
+            h.body(**{"data-ds-stream": "/datastar/stream"})[
+                h.nav(class_="navbar navbar-expand-lg navbar-dark bg-primary")[
+                    h.div(class_="container-fluid")[
+                        h.a(class_="navbar-brand", href="/")["FlowerPower"],
+                        h.ul(class_="navbar-nav")[
+                            h.li(class_="nav-item")[
+                                h.a(class_="nav-link", href="/dashboard")["Dashboard"]
+                            ],
+                            h.li(class_="nav-item")[
+                                h.a(class_="nav-link", href="/projects")["Projects"]
+                            ],
+                            h.li(class_="nav-item")[
+                                h.a(class_="nav-link", href="/projects/new")[
+                                    "New Project"
+                                ]
+                            ],
+                            h.li(class_="nav-item")[
+                                h.a(class_="nav-link", href="/pipelines")["Pipelines"]
+                            ],
+                            h.li(class_="nav-item")[
+                                h.a(class_="nav-link", href="/jobs")["Job Queue"]
+                            ],
+                        ],
                     ],
                 ],
-            ],
-            h.div(class_="main-content")[
-                h.div(class_="container mt-4")[content],
+                h.div(class_="main-content")[h.div(class_="container mt-4")[content],],
             ],
         ]
-    ])
+    )
+
 
 def project_card(project: Dict[str, Any]) -> Any:
     """Generate a project card component"""
-    status = project.get('status', 'Unknown')
+    status = project.get("status", "Unknown")
     status_class = {
-        'Active': 'success',
-        'Inactive': 'secondary',
-        'Error': 'danger'
-    }.get(status, 'secondary')
-    
+        "Active": "success",
+        "Inactive": "secondary",
+        "Error": "danger",
+    }.get(status, "secondary")
+
     # Count pipelines for this project
-    pipelines = get_project_pipelines(project['id'])
+    pipelines = get_project_pipelines(project["id"])
     pipeline_count = len(pipelines)
-    
+
     return h.div(class_="col-md-6 col-lg-4 mb-3")[
         h.div(class_="card")[
             h.div(class_="card-body")[
@@ -478,40 +524,55 @@ def project_card(project: Dict[str, Any]) -> Any:
                 h.p(class_="card-text")[project.get("description", "No description")],
                 h.div(class_="d-flex justify-content-between align-items-center mb-2")[
                     h.span(class_=f"badge bg-{status_class}")[status],
-                    h.small(class_="text-muted")[f"{pipeline_count} pipeline{'s' if pipeline_count != 1 else ''}"]
+                    h.small(class_="text-muted")[
+                        f"{pipeline_count} pipeline{'s' if pipeline_count != 1 else ''}"
+                    ],
                 ],
                 h.div(class_="d-flex justify-content-between align-items-center")[
                     h.div[
-                        h.a(class_="btn btn-primary btn-sm me-2", href=f"/projects/{project['id']}")["View"],
-                        h.a(class_="btn btn-outline-secondary btn-sm me-2", href=f"/projects/{project['id']}/edit")["Edit"],
+                        h.a(
+                            class_="btn btn-primary btn-sm me-2",
+                            href=f"/projects/{project['id']}",
+                        )["View"],
+                        h.a(
+                            class_="btn btn-outline-secondary btn-sm me-2",
+                            href=f"/projects/{project['id']}/edit",
+                        )["Edit"],
                     ],
                     h.div[
-                        h.a(class_="btn btn-outline-info btn-sm me-1", href=f"/projects/{project['id']}/pipelines")["Pipelines"],
-                        h.a(class_="btn btn-outline-success btn-sm", href=f"/projects/{project['id']}/pipelines/new")["+ Pipeline"],
-                    ]
-                ]
+                        h.a(
+                            class_="btn btn-outline-info btn-sm me-1",
+                            href=f"/projects/{project['id']}/pipelines",
+                        )["Pipelines"],
+                        h.a(
+                            class_="btn btn-outline-success btn-sm",
+                            href=f"/projects/{project['id']}/pipelines/new",
+                        )["+ Pipeline"],
+                    ],
+                ],
             ]
         ]
     ]
 
+
 def pipeline_card(pipeline: Dict[str, Any], project_name: str = None) -> Any:
     """Generate a pipeline card component"""
-    status = pipeline.get('status', 'Unknown')
+    status = pipeline.get("status", "Unknown")
     status_class = {
-        'Active': 'success',
-        'Inactive': 'secondary',
-        'Error': 'danger',
-        'Running': 'primary',
-        'Scheduled': 'info'
-    }.get(status, 'secondary')
-    
-    pipeline_type = pipeline.get('type', 'batch')
+        "Active": "success",
+        "Inactive": "secondary",
+        "Error": "danger",
+        "Running": "primary",
+        "Scheduled": "info",
+    }.get(status, "secondary")
+
+    pipeline_type = pipeline.get("type", "batch")
     type_class = {
-        'batch': 'secondary',
-        'streaming': 'info',
-        'scheduled': 'warning'
-    }.get(pipeline_type, 'secondary')
-    
+        "batch": "secondary",
+        "streaming": "info",
+        "scheduled": "warning",
+    }.get(pipeline_type, "secondary")
+
     return h.div(class_="col-md-6 col-lg-4 mb-3")[
         h.div(class_="card")[
             h.div(class_="card-body")[
@@ -520,54 +581,75 @@ def pipeline_card(pipeline: Dict[str, Any], project_name: str = None) -> Any:
                 h.div(class_="d-flex justify-content-between align-items-center mb-2")[
                     h.div[
                         h.span(class_=f"badge bg-{status_class} me-2")[status],
-                        h.span(class_=f"badge bg-{type_class}")[pipeline_type]
+                        h.span(class_=f"badge bg-{type_class}")[pipeline_type],
                     ]
                 ],
-                (h.div(class_="mb-2")[
-                    h.small(class_="text-muted")[f"Project: {project_name}"]
-                ] if project_name else h.div()),
+                (
+                    h.div(class_="mb-2")[
+                        h.small(class_="text-muted")[f"Project: {project_name}"]
+                    ]
+                    if project_name
+                    else h.div()
+                ),
                 h.div(class_="d-flex justify-content-between align-items-center")[
                     h.div[
-                        h.a(class_="btn btn-primary btn-sm me-2", href=f"/pipelines/{pipeline['id']}")["View"],
-                        h.a(class_="btn btn-outline-secondary btn-sm me-2", href=f"/pipelines/{pipeline['id']}/edit")["Edit"],
+                        h.a(
+                            class_="btn btn-primary btn-sm me-2",
+                            href=f"/pipelines/{pipeline['id']}",
+                        )["View"],
+                        h.a(
+                            class_="btn btn-outline-secondary btn-sm me-2",
+                            href=f"/pipelines/{pipeline['id']}/edit",
+                        )["Edit"],
                     ],
                     h.div[
-                        h.a(class_="btn btn-success btn-sm me-1", href=f"/pipelines/{pipeline['id']}/run")["Run"],
-                        h.a(class_="btn btn-outline-info btn-sm me-1", href=f"/pipelines/{pipeline['id']}/visualize")["DAG"],
-                        h.a(class_="btn btn-outline-secondary btn-sm", href=f"/pipelines/{pipeline['id']}/schedule")["Schedule"],
-                    ]
-                ]
+                        h.a(
+                            class_="btn btn-success btn-sm me-1",
+                            href=f"/pipelines/{pipeline['id']}/run",
+                        )["Run"],
+                        h.a(
+                            class_="btn btn-outline-info btn-sm me-1",
+                            href=f"/pipelines/{pipeline['id']}/visualize",
+                        )["DAG"],
+                        h.a(
+                            class_="btn btn-outline-secondary btn-sm",
+                            href=f"/pipelines/{pipeline['id']}/schedule",
+                        )["Schedule"],
+                    ],
+                ],
             ]
         ]
     ]
+
 
 def get_pipeline_status_from_flowerpower(pipeline_name: str) -> str:
     """Get pipeline status from FlowerPower library"""
     try:
         # Import FlowerPower pipeline manager
         from src.flowerpower.pipeline import PipelineManager
-        
+
         # Create manager instance - this might need project-specific config
         manager = PipelineManager()
-        
+
         # Check if pipeline exists in FlowerPower
         available_pipelines = manager.list_pipelines()
         if pipeline_name in available_pipelines:
             # For now, return 'Active' if pipeline exists
             # In future, we could check actual execution status
-            return 'Active'
+            return "Active"
         else:
-            return 'Inactive'
+            return "Inactive"
     except Exception as e:
         print(f"Error checking FlowerPower status for {pipeline_name}: {e}")
-        return 'Unknown'
+        return "Unknown"
+
 
 @app.route("/")
 async def index(request: Request):
     """Homepage"""
     projects = load_projects()
     total_projects = len(projects)
-    
+
     content = h.div[
         h.h1["Welcome to FlowerPower"],
         h.p(class_="lead")["Manage your automation projects with ease."],
@@ -583,32 +665,37 @@ async def index(request: Request):
         ],
         h.div(class_="mt-4")[
             h.a(class_="btn btn-primary btn-lg me-3", href="/dashboard")["Dashboard"],
-            h.a(class_="btn btn-outline-primary btn-lg", href="/projects")["View Projects"],
-        ]
+            h.a(class_="btn btn-outline-primary btn-lg", href="/projects")[
+                "View Projects"
+            ],
+        ],
     ]
-    
+
     return html(base_layout("Home", content))
+
 
 @app.route("/projects")
 async def projects_list(request: Request):
     """Projects listing page"""
     projects = load_projects()
-    
+
     content = h.div[
         h.h1["Projects"],
         h.a(class_="btn btn-success mb-3", href="/projects/new")["Create New Project"],
-        
         h.div(id="projects-list", **{"data-ds-id": "projects-list"})[
-            h.div(class_="row")[
-                [project_card(project) for project in projects]
-            ] if projects else h.div(class_="text-center p-4")[
+            h.div(class_="row")[[project_card(project) for project in projects]]
+            if projects
+            else h.div(class_="text-center p-4")[
                 h.p(class_="text-muted")["No projects found."],
-                h.a(class_="btn btn-primary", href="/projects/new")["Create your first project"],
+                h.a(class_="btn btn-primary", href="/projects/new")[
+                    "Create your first project"
+                ],
             ]
-        ]
+        ],
     ]
-    
+
     return html(base_layout("Projects", content))
+
 
 @app.route("/projects/new")
 async def new_project(request: Request):
@@ -618,10 +705,7 @@ async def new_project(request: Request):
         h.form(
             action="/projects",
             method="post",
-            **{
-                "data-ds-post": "/projects",
-                "data-ds-target": "#form-result"
-            }
+            **{"data-ds-post": "/projects", "data-ds-target": "#form-result"},
         )[
             h.div(class_="mb-3")[
                 h.label(for_="name", class_="form-label")["Project Name"],
@@ -630,7 +714,7 @@ async def new_project(request: Request):
                     id="name",
                     name="name",
                     class_="form-control",
-                    required=True
+                    required=True,
                 ),
             ],
             h.div(class_="mb-3")[
@@ -639,24 +723,20 @@ async def new_project(request: Request):
                     id="description",
                     name="description",
                     class_="form-control",
-                    rows="3"
+                    rows="3",
                 ),
             ],
             h.div(class_="mb-3")[
                 h.button(
-                    "Create Project",
-                    type="submit",
-                    class_="btn btn-primary me-2"
+                    "Create Project", type="submit", class_="btn btn-primary me-2"
                 ),
                 h.a("Cancel", href="/projects", class_="btn btn-secondary"),
             ],
         ],
-        h.div(
-            id="form-result",
-            **{"data-ds-id": "form-result"}
-        )
+        h.div(id="form-result", **{"data-ds-id": "form-result"}),
     ]
     return html(base_layout("New Project", content))
+
 
 @app.route("/projects", methods=["POST"])
 async def create_project(request: Request):
@@ -664,28 +744,35 @@ async def create_project(request: Request):
     try:
         name = request.form.get("name")
         description = request.form.get("description", "")
-        
+
         if not name:
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "Project name is required.",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div("Project name is required.", class_="alert alert-danger")
+                    )
+                },
+            )
             return json({"status": "error", "message": "Project name is required"})
-        
+
         projects = load_projects()
-        
+
         # Check if project name already exists
         if any(p["name"].lower() == name.lower() for p in projects):
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "A project with this name already exists.",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "A project with this name already exists.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "Project name already exists"})
-        
+
         # Create new project
         new_project = {
             "id": len(projects) + 1,
@@ -697,80 +784,97 @@ async def create_project(request: Request):
                 "environment": "development",
                 "auto_run": False,
                 "notifications": False,
-                "retry_attempts": 3
-            }
+                "retry_attempts": 3,
+            },
         }
-        
+
         projects.append(new_project)
-        
+
         if not save_projects(projects):
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "Error saving project. Please try again.",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "Error saving project. Please try again.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "Failed to save project"})
-        
+
         # Success response
         success_content = h.div[
             h.div(
-                f"Project '{name}' created successfully!",
-                class_="alert alert-success"
+                f"Project '{name}' created successfully!", class_="alert alert-success"
             ),
-            h.script[
-                "setTimeout(() => window.location.href = '/projects', 2000);"
-            ]
+            h.script["setTimeout(() => window.location.href = '/projects', 2000);"],
         ]
-        
-        await emit_to_all("form-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("form-result", {"content": str(success_content)})
+
         return json({"status": "success", "project_id": new_project["id"]})
-    
+
     except Exception as e:
-        await emit_to_all("form-result", {
-            "content": str(h.div(
-                f"Error creating project: {str(e)}",
-                class_="alert alert-danger"
-            ))
-        })
+        await emit_to_all(
+            "form-result",
+            {
+                "content": str(
+                    h.div(
+                        f"Error creating project: {str(e)}", class_="alert alert-danger"
+                    )
+                )
+            },
+        )
         return json({"status": "error", "message": str(e)})
+
 
 @app.route("/projects/<project_id:int>")
 async def project_detail(request: Request, project_id: int):
     """Project detail page"""
     projects = load_projects()
     project = next((p for p in projects if p["id"] == project_id), None)
-    
+
     if not project:
         content = h.div[
             h.h1["Project Not Found"],
             h.p["The requested project could not be found."],
-            h.a("Back to Projects", href="/projects", class_="btn btn-primary")
+            h.a("Back to Projects", href="/projects", class_="btn btn-primary"),
         ]
         return html(base_layout("Project Not Found", content))
-    
-    status = project.get('status', 'Unknown')
+
+    status = project.get("status", "Unknown")
     status_class = {
-        'Active': 'success',
-        'Inactive': 'secondary', 
-        'Error': 'danger'
-    }.get(status, 'secondary')
-    
-    config = project.get('config', {})
-    
+        "Active": "success",
+        "Inactive": "secondary",
+        "Error": "danger",
+    }.get(status, "secondary")
+
+    config = project.get("config", {})
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
                 h.h1(class_="d-inline me-3")[project["name"]],
-                h.span(class_=f"badge bg-{status_class}")[status]
+                h.span(class_=f"badge bg-{status_class}")[status],
             ],
             h.div[
-                h.a("Back to Projects", href="/projects", class_="btn btn-outline-secondary me-2"),
-                h.a("Edit Project", href=f"/projects/{project_id}/edit", class_="btn btn-primary me-2"),
-                h.a("Configuration", href=f"/projects/{project_id}/config", class_="btn btn-outline-info"),
+                h.a(
+                    "Back to Projects",
+                    href="/projects",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "Edit Project",
+                    href=f"/projects/{project_id}/edit",
+                    class_="btn btn-primary me-2",
+                ),
+                h.a(
+                    "Configuration",
+                    href=f"/projects/{project_id}/config",
+                    class_="btn btn-outline-info",
+                ),
             ],
         ],
         h.div(class_="card mb-3")[
@@ -788,9 +892,15 @@ async def project_detail(request: Request, project_id: int):
                     h.dt(class_="col-sm-3")["Status"],
                     h.dd(class_="col-sm-9")[status],
                     h.dt(class_="col-sm-3")["Created"],
-                    h.dd(class_="col-sm-9")[project["created_at"][:19].replace("T", " ")],
+                    h.dd(class_="col-sm-9")[
+                        project["created_at"][:19].replace("T", " ")
+                    ],
                     h.dt(class_="col-sm-3")["Updated"],
-                    h.dd(class_="col-sm-9")[project.get("updated_at", "N/A")[:19].replace("T", " ") if project.get("updated_at") != "N/A" else "N/A"],
+                    h.dd(class_="col-sm-9")[
+                        project.get("updated_at", "N/A")[:19].replace("T", " ")
+                        if project.get("updated_at") != "N/A"
+                        else "N/A"
+                    ],
                 ],
             ],
         ],
@@ -803,32 +913,36 @@ async def project_detail(request: Request, project_id: int):
                     h.dt(class_="col-sm-3")["Auto Run"],
                     h.dd(class_="col-sm-9")["Yes" if config.get("auto_run") else "No"],
                     h.dt(class_="col-sm-3")["Notifications"],
-                    h.dd(class_="col-sm-9")["Enabled" if config.get("notifications") else "Disabled"],
+                    h.dd(class_="col-sm-9")[
+                        "Enabled" if config.get("notifications") else "Disabled"
+                    ],
                     h.dt(class_="col-sm-3")["Retry Attempts"],
                     h.dd(class_="col-sm-9")[str(config.get("retry_attempts", "N/A"))],
                 ],
             ],
-        ]
+        ],
     ]
     return html(base_layout(f"Project: {project['name']}", content))
+
 
 @app.route("/dashboard")
 async def dashboard(request: Request):
     """Dashboard page"""
     projects = load_projects()
-    
+
     # Calculate statistics
     total_projects = len(projects)
-    active_projects = len([p for p in projects if p.get('status') == 'Active'])
-    inactive_projects = len([p for p in projects if p.get('status') == 'Inactive'])
-    error_projects = len([p for p in projects if p.get('status') == 'Error'])
-    
+    active_projects = len([p for p in projects if p.get("status") == "Active"])
+    inactive_projects = len([p for p in projects if p.get("status") == "Inactive"])
+    error_projects = len([p for p in projects if p.get("status") == "Error"])
+
     # Get recent projects (last 5)
-    recent_projects = sorted(projects, key=lambda x: x.get('created_at', ''), reverse=True)[:5]
-    
+    recent_projects = sorted(
+        projects, key=lambda x: x.get("created_at", ""), reverse=True
+    )[:5]
+
     content = h.div[
         h.h1["Project Dashboard"],
-        
         # Statistics cards
         h.div(class_="row mb-4")[
             h.div(class_="col-md-3")[
@@ -850,7 +964,9 @@ async def dashboard(request: Request):
             h.div(class_="col-md-3")[
                 h.div(class_="card")[
                     h.div(class_="card-body text-center")[
-                        h.h3(class_="card-title text-secondary")[str(inactive_projects)],
+                        h.h3(class_="card-title text-secondary")[
+                            str(inactive_projects)
+                        ],
                         h.p(class_="card-text")["Inactive Projects"],
                     ],
                 ],
@@ -864,85 +980,105 @@ async def dashboard(request: Request):
                 ],
             ],
         ],
-        
         # Recent projects
         h.div(class_="mb-4")[
             h.h2["Recent Projects"],
-            h.div(class_="row")[
-                [project_card(project) for project in recent_projects]
-            ] if recent_projects else h.div(class_="text-center p-4")[
+            h.div(class_="row")[[project_card(project) for project in recent_projects]]
+            if recent_projects
+            else h.div(class_="text-center p-4")[
                 h.p(class_="text-muted")["No projects found."],
-                h.a("Create your first project", href="/projects/new", class_="btn btn-primary"),
-            ]
+                h.a(
+                    "Create your first project",
+                    href="/projects/new",
+                    class_="btn btn-primary",
+                ),
+            ],
         ],
-        
         # Quick actions
         h.div[
             h.h2["Quick Actions"],
             h.div(class_="mb-3")[
-                h.a("Create New Project", href="/projects/new", class_="btn btn-primary me-2"),
-                h.a("View All Projects", href="/projects", class_="btn btn-outline-primary"),
-            ]
-        ]
+                h.a(
+                    "Create New Project",
+                    href="/projects/new",
+                    class_="btn btn-primary me-2",
+                ),
+                h.a(
+                    "View All Projects",
+                    href="/projects",
+                    class_="btn btn-outline-primary",
+                ),
+            ],
+        ],
     ]
     return html(base_layout("Dashboard", content))
 
+
 # ================== PIPELINE ROUTES ==================
+
 
 @app.route("/pipelines")
 async def pipelines_list(request: Request):
     """Pipelines listing page"""
     pipelines = load_pipelines()
     projects = load_projects()
-    
+
     # Create a mapping of project IDs to names for display
-    project_map = {p['id']: p['name'] for p in projects}
-    
+    project_map = {p["id"]: p["name"] for p in projects}
+
     content = h.div[
         h.h1["Pipelines"],
         h.div(class_="d-flex justify-content-between align-items-center mb-3")[
             h.div[
-                h.a(class_="btn btn-success me-2", href="/pipelines/new")["Create New Pipeline"],
-                h.a(class_="btn btn-outline-primary", href="/projects")["Manage Projects"],
+                h.a(class_="btn btn-success me-2", href="/pipelines/new")[
+                    "Create New Pipeline"
+                ],
+                h.a(class_="btn btn-outline-primary", href="/projects")[
+                    "Manage Projects"
+                ],
             ]
         ],
-        
         h.div(id="pipelines-list", **{"data-ds-id": "pipelines-list"})[
             h.div(class_="row")[
-                [pipeline_card(pipeline, project_map.get(pipeline.get('project_id'))) for pipeline in pipelines]
-            ] if pipelines else h.div(class_="text-center p-4")[
-                h.p(class_="text-muted")["No pipelines found."],
-                h.a(class_="btn btn-primary", href="/pipelines/new")["Create your first pipeline"],
+                [
+                    pipeline_card(pipeline, project_map.get(pipeline.get("project_id")))
+                    for pipeline in pipelines
+                ]
             ]
-        ]
+            if pipelines
+            else h.div(class_="text-center p-4")[
+                h.p(class_="text-muted")["No pipelines found."],
+                h.a(class_="btn btn-primary", href="/pipelines/new")[
+                    "Create your first pipeline"
+                ],
+            ]
+        ],
     ]
-    
+
     return html(base_layout("Pipelines", content))
+
 
 @app.route("/pipelines/new")
 async def new_pipeline(request: Request):
     """New pipeline form"""
     projects = load_projects()
-    
+
     if not projects:
         content = h.div[
             h.h1["Create New Pipeline"],
             h.div(class_="alert alert-warning")[
                 h.p["You need to create a project first before adding pipelines."],
-                h.a("Create Project", href="/projects/new", class_="btn btn-primary")
-            ]
+                h.a("Create Project", href="/projects/new", class_="btn btn-primary"),
+            ],
         ]
         return html(base_layout("New Pipeline", content))
-    
+
     content = h.div[
         h.h1["Create New Pipeline"],
         h.form(
             action="/pipelines",
             method="post",
-            **{
-                "data-ds-post": "/pipelines",
-                "data-ds-target": "#form-result"
-            }
+            **{"data-ds-post": "/pipelines", "data-ds-target": "#form-result"},
         )[
             h.div(class_="mb-3")[
                 h.label(for_="project_id", class_="form-label")["Project"],
@@ -950,10 +1086,13 @@ async def new_pipeline(request: Request):
                     id="project_id",
                     name="project_id",
                     class_="form-select",
-                    required=True
+                    required=True,
                 )[
                     h.option(value="", selected=True)["Select a project..."],
-                    [h.option(value=str(project['id']))[project['name']] for project in projects]
+                    [
+                        h.option(value=str(project["id"]))[project["name"]]
+                        for project in projects
+                    ],
                 ],
             ],
             h.div(class_="mb-3")[
@@ -964,7 +1103,7 @@ async def new_pipeline(request: Request):
                     name="name",
                     class_="form-control",
                     required=True,
-                    placeholder="e.g., data_processing_pipeline"
+                    placeholder="e.g., data_processing_pipeline",
                 ),
             ],
             h.div(class_="mb-3")[
@@ -974,16 +1113,12 @@ async def new_pipeline(request: Request):
                     name="description",
                     class_="form-control",
                     rows="3",
-                    placeholder="Brief description of what this pipeline does..."
+                    placeholder="Brief description of what this pipeline does...",
                 ),
             ],
             h.div(class_="mb-3")[
                 h.label(for_="type", class_="form-label")["Pipeline Type"],
-                h.select(
-                    id="type",
-                    name="type",
-                    class_="form-select"
-                )[
+                h.select(id="type", name="type", class_="form-select")[
                     h.option(value="batch", selected=True)["Batch Processing"],
                     h.option(value="streaming")["Streaming"],
                     h.option(value="scheduled")["Scheduled"],
@@ -998,9 +1133,11 @@ async def new_pipeline(request: Request):
                                 class_="form-check-input",
                                 type="checkbox",
                                 id="auto_run",
-                                name="auto_run"
+                                name="auto_run",
                             ),
-                            h.label(class_="form-check-label", for_="auto_run")["Auto-run on schedule"],
+                            h.label(class_="form-check-label", for_="auto_run")[
+                                "Auto-run on schedule"
+                            ],
                         ],
                     ],
                     h.div(class_="col-md-6")[
@@ -1010,15 +1147,19 @@ async def new_pipeline(request: Request):
                                 type="checkbox",
                                 id="notifications",
                                 name="notifications",
-                                checked=True
+                                checked=True,
                             ),
-                            h.label(class_="form-check-label", for_="notifications")["Enable notifications"],
+                            h.label(class_="form-check-label", for_="notifications")[
+                                "Enable notifications"
+                            ],
                         ],
                     ],
                 ],
                 h.div(class_="row mt-2")[
                     h.div(class_="col-md-6")[
-                        h.label(for_="retry_attempts", class_="form-label")["Retry Attempts"],
+                        h.label(for_="retry_attempts", class_="form-label")[
+                            "Retry Attempts"
+                        ],
                         h.input_(
                             type="number",
                             id="retry_attempts",
@@ -1026,37 +1167,35 @@ async def new_pipeline(request: Request):
                             class_="form-control",
                             value="3",
                             min="0",
-                            max="10"
+                            max="10",
                         ),
                     ],
                     h.div(class_="col-md-6")[
-                        h.label(for_="timeout", class_="form-label")["Timeout (seconds)"],
+                        h.label(for_="timeout", class_="form-label")[
+                            "Timeout (seconds)"
+                        ],
                         h.input_(
                             type="number",
                             id="timeout",
                             name="timeout",
                             class_="form-control",
                             value="3600",
-                            min="1"
+                            min="1",
                         ),
                     ],
                 ],
             ],
             h.div(class_="mb-3")[
                 h.button(
-                    "Create Pipeline",
-                    type="submit",
-                    class_="btn btn-primary me-2"
+                    "Create Pipeline", type="submit", class_="btn btn-primary me-2"
                 ),
                 h.a("Cancel", href="/pipelines", class_="btn btn-secondary"),
             ],
         ],
-        h.div(
-            id="form-result",
-            **{"data-ds-id": "form-result"}
-        )
+        h.div(id="form-result", **{"data-ds-id": "form-result"}),
     ]
     return html(base_layout("New Pipeline", content))
+
 
 @app.route("/pipelines", methods=["POST"])
 async def create_pipeline(request: Request):
@@ -1070,40 +1209,64 @@ async def create_pipeline(request: Request):
         notifications = bool(request.form.get("notifications"))
         retry_attempts = int(request.form.get("retry_attempts", 3))
         timeout = int(request.form.get("timeout", 3600))
-        
+
         if not project_id or not name:
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "Project and pipeline name are required.",
-                    class_="alert alert-danger"
-                ))
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "Project and pipeline name are required.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
+            return json({
+                "status": "error",
+                "message": "Project and pipeline name are required",
             })
-            return json({"status": "error", "message": "Project and pipeline name are required"})
-        
+
         # Validate project exists
         projects = load_projects()
         project = next((p for p in projects if p["id"] == int(project_id)), None)
         if not project:
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "Selected project does not exist.",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "Selected project does not exist.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "Project not found"})
-        
+
         pipelines = load_pipelines()
-        
+
         # Check if pipeline name already exists in this project
-        if any(p["name"].lower() == name.lower() and p["project_id"] == int(project_id) for p in pipelines):
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "A pipeline with this name already exists in the selected project.",
-                    class_="alert alert-danger"
-                ))
+        if any(
+            p["name"].lower() == name.lower() and p["project_id"] == int(project_id)
+            for p in pipelines
+        ):
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "A pipeline with this name already exists in the selected project.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
+            return json({
+                "status": "error",
+                "message": "Pipeline name already exists in project",
             })
-            return json({"status": "error", "message": "Pipeline name already exists in project"})
-        
+
         # Create new pipeline
         new_pipeline = {
             "id": len(pipelines) + 1,
@@ -1119,100 +1282,115 @@ async def create_pipeline(request: Request):
                 "retry_attempts": retry_attempts,
                 "timeout": timeout,
                 "executor": "local",
-                "schedule": {
-                    "enabled": False,
-                    "cron": None,
-                    "interval": None
-                }
+                "schedule": {"enabled": False, "cron": None, "interval": None},
             },
             "metadata": {
                 "last_run": None,
                 "next_run": None,
                 "run_count": 0,
                 "success_count": 0,
-                "error_count": 0
-            }
+                "error_count": 0,
+            },
         }
-        
+
         pipelines.append(new_pipeline)
-        
+
         if not save_pipelines(pipelines):
-            await emit_to_all("form-result", {
-                "content": str(h.div(
-                    "Error saving pipeline. Please try again.",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "form-result",
+                {
+                    "content": str(
+                        h.div(
+                            "Error saving pipeline. Please try again.",
+                            class_="alert alert-danger",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "Failed to save pipeline"})
-        
+
         # Success response
         success_content = h.div[
             h.div(
                 f"Pipeline '{name}' created successfully in project '{project['name']}'!",
-                class_="alert alert-success"
+                class_="alert alert-success",
             ),
-            h.script[
-                "setTimeout(() => window.location.href = '/pipelines', 2000);"
-            ]
+            h.script["setTimeout(() => window.location.href = '/pipelines', 2000);"],
         ]
-        
-        await emit_to_all("form-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("form-result", {"content": str(success_content)})
+
         return json({"status": "success", "pipeline_id": new_pipeline["id"]})
-    
+
     except Exception as e:
-        await emit_to_all("form-result", {
-            "content": str(h.div(
-                f"Error creating pipeline: {str(e)}",
-                class_="alert alert-danger"
-            ))
-        })
+        await emit_to_all(
+            "form-result",
+            {
+                "content": str(
+                    h.div(
+                        f"Error creating pipeline: {str(e)}",
+                        class_="alert alert-danger",
+                    )
+                )
+            },
+        )
         return json({"status": "error", "message": str(e)})
+
 
 @app.route("/pipelines/<pipeline_id:int>")
 async def pipeline_detail(request: Request, pipeline_id: int):
     """Pipeline detail page"""
     pipelines = load_pipelines()
     pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
-    
+
     if not pipeline:
         content = h.div[
             h.h1["Pipeline Not Found"],
             h.p["The requested pipeline could not be found."],
-            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary")
+            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary"),
         ]
         return html(base_layout("Pipeline Not Found", content))
-    
+
     # Get project information
     projects = load_projects()
     project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
     project_name = project["name"] if project else "Unknown Project"
-    
-    status = pipeline.get('status', 'Unknown')
+
+    status = pipeline.get("status", "Unknown")
     status_class = {
-        'Active': 'success',
-        'Inactive': 'secondary',
-        'Error': 'danger',
-        'Running': 'primary',
-        'Scheduled': 'info'
-    }.get(status, 'secondary')
-    
-    config = pipeline.get('config', {})
-    metadata = pipeline.get('metadata', {})
-    
+        "Active": "success",
+        "Inactive": "secondary",
+        "Error": "danger",
+        "Running": "primary",
+        "Scheduled": "info",
+    }.get(status, "secondary")
+
+    config = pipeline.get("config", {})
+    metadata = pipeline.get("metadata", {})
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
                 h.h1(class_="d-inline me-3")[pipeline["name"]],
                 h.span(class_=f"badge bg-{status_class} me-2")[status],
-                h.span(class_="badge bg-secondary")[pipeline.get("type", "batch")]
+                h.span(class_="badge bg-secondary")[pipeline.get("type", "batch")],
             ],
             h.div[
-                h.a("Back to Pipelines", href="/pipelines", class_="btn btn-outline-secondary me-2"),
-                h.a("Edit Pipeline", href=f"/pipelines/{pipeline_id}/edit", class_="btn btn-primary me-2"),
-                h.a("Run Now", href=f"/pipelines/{pipeline_id}/run", class_="btn btn-success"),
+                h.a(
+                    "Back to Pipelines",
+                    href="/pipelines",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "Edit Pipeline",
+                    href=f"/pipelines/{pipeline_id}/edit",
+                    class_="btn btn-primary me-2",
+                ),
+                h.a(
+                    "Run Now",
+                    href=f"/pipelines/{pipeline_id}/run",
+                    class_="btn btn-success",
+                ),
             ],
         ],
         h.div(class_="row")[
@@ -1231,14 +1409,20 @@ async def pipeline_detail(request: Request, pipeline_id: int):
                             h.dd(class_="col-sm-9")[str(pipeline["id"])],
                             h.dt(class_="col-sm-3")["Project"],
                             h.dd(class_="col-sm-9")[
-                                h.a(project_name, href=f"/projects/{pipeline['project_id']}", class_="text-decoration-none")
+                                h.a(
+                                    project_name,
+                                    href=f"/projects/{pipeline['project_id']}",
+                                    class_="text-decoration-none",
+                                )
                             ],
                             h.dt(class_="col-sm-3")["Type"],
                             h.dd(class_="col-sm-9")[pipeline.get("type", "batch")],
                             h.dt(class_="col-sm-3")["Status"],
                             h.dd(class_="col-sm-9")[status],
                             h.dt(class_="col-sm-3")["Created"],
-                            h.dd(class_="col-sm-9")[pipeline["created_at"][:19].replace("T", " ")],
+                            h.dd(class_="col-sm-9")[
+                                pipeline["created_at"][:19].replace("T", " ")
+                            ],
                         ],
                     ],
                 ],
@@ -1247,13 +1431,21 @@ async def pipeline_detail(request: Request, pipeline_id: int):
                         h.h5["Configuration"],
                         h.dl(class_="row")[
                             h.dt(class_="col-sm-3")["Auto Run"],
-                            h.dd(class_="col-sm-9")["Yes" if config.get("auto_run") else "No"],
+                            h.dd(class_="col-sm-9")[
+                                "Yes" if config.get("auto_run") else "No"
+                            ],
                             h.dt(class_="col-sm-3")["Notifications"],
-                            h.dd(class_="col-sm-9")["Enabled" if config.get("notifications") else "Disabled"],
+                            h.dd(class_="col-sm-9")[
+                                "Enabled" if config.get("notifications") else "Disabled"
+                            ],
                             h.dt(class_="col-sm-3")["Retry Attempts"],
-                            h.dd(class_="col-sm-9")[str(config.get("retry_attempts", "N/A"))],
+                            h.dd(class_="col-sm-9")[
+                                str(config.get("retry_attempts", "N/A"))
+                            ],
                             h.dt(class_="col-sm-3")["Timeout"],
-                            h.dd(class_="col-sm-9")[f"{config.get('timeout', 'N/A')} seconds"],
+                            h.dd(class_="col-sm-9")[
+                                f"{config.get('timeout', 'N/A')} seconds"
+                            ],
                             h.dt(class_="col-sm-3")["Executor"],
                             h.dd(class_="col-sm-9")[config.get("executor", "local")],
                         ],
@@ -1268,13 +1460,28 @@ async def pipeline_detail(request: Request, pipeline_id: int):
                             h.dt(class_="col-sm-6")["Total Runs"],
                             h.dd(class_="col-sm-6")[str(metadata.get("run_count", 0))],
                             h.dt(class_="col-sm-6")["Successful"],
-                            h.dd(class_="col-sm-6")[str(metadata.get("success_count", 0))],
+                            h.dd(class_="col-sm-6")[
+                                str(metadata.get("success_count", 0))
+                            ],
                             h.dt(class_="col-sm-6")["Errors"],
-                            h.dd(class_="col-sm-6")[str(metadata.get("error_count", 0))],
+                            h.dd(class_="col-sm-6")[
+                                str(metadata.get("error_count", 0))
+                            ],
                             h.dt(class_="col-sm-6")["Last Run"],
-                            h.dd(class_="col-sm-6")[metadata.get("last_run", "Never")[:19].replace("T", " ") if metadata.get("last_run") != "Never" else "Never"],
+                            h.dd(class_="col-sm-6")[
+                                metadata.get("last_run", "Never")[:19].replace("T", " ")
+                                if metadata.get("last_run") != "Never"
+                                else "Never"
+                            ],
                             h.dt(class_="col-sm-6")["Next Run"],
-                            h.dd(class_="col-sm-6")[metadata.get("next_run", "Not scheduled")[:19].replace("T", " ") if metadata.get("next_run") and metadata.get("next_run") != "Not scheduled" else "Not scheduled"],
+                            h.dd(class_="col-sm-6")[
+                                metadata.get("next_run", "Not scheduled")[:19].replace(
+                                    "T", " "
+                                )
+                                if metadata.get("next_run")
+                                and metadata.get("next_run") != "Not scheduled"
+                                else "Not scheduled"
+                            ],
                         ],
                     ],
                 ],
@@ -1282,35 +1489,56 @@ async def pipeline_detail(request: Request, pipeline_id: int):
                     h.div(class_="card-body")[
                         h.h5["Quick Actions"],
                         h.div(class_="d-grid gap-2")[
-                            h.a("Run Pipeline", href=f"/pipelines/{pipeline_id}/run", class_="btn btn-success"),
-                            h.a("Schedule", href=f"/pipelines/{pipeline_id}/schedule", class_="btn btn-outline-primary"),
-                            h.a("Visualize DAG", href=f"/pipelines/{pipeline_id}/visualize", class_="btn btn-outline-info"),
-                            h.a("View Logs", href=f"/pipelines/{pipeline_id}/logs", class_="btn btn-outline-info"),
-                            h.a("Export Config", href=f"/pipelines/{pipeline_id}/export", class_="btn btn-outline-secondary"),
+                            h.a(
+                                "Run Pipeline",
+                                href=f"/pipelines/{pipeline_id}/run",
+                                class_="btn btn-success",
+                            ),
+                            h.a(
+                                "Schedule",
+                                href=f"/pipelines/{pipeline_id}/schedule",
+                                class_="btn btn-outline-primary",
+                            ),
+                            h.a(
+                                "Visualize DAG",
+                                href=f"/pipelines/{pipeline_id}/visualize",
+                                class_="btn btn-outline-info",
+                            ),
+                            h.a(
+                                "View Logs",
+                                href=f"/pipelines/{pipeline_id}/logs",
+                                class_="btn btn-outline-info",
+                            ),
+                            h.a(
+                                "Export Config",
+                                href=f"/pipelines/{pipeline_id}/export",
+                                class_="btn btn-outline-secondary",
+                            ),
                         ],
                     ],
                 ],
             ],
-        ]
+        ],
     ]
     return html(base_layout(f"Pipeline: {pipeline['name']}", content))
+
 
 @app.route("/projects/<project_id:int>/pipelines")
 async def project_pipelines(request: Request, project_id: int):
     """Show pipelines for a specific project"""
     projects = load_projects()
     project = next((p for p in projects if p["id"] == project_id), None)
-    
+
     if not project:
         content = h.div[
             h.h1["Project Not Found"],
             h.p["The requested project could not be found."],
-            h.a("Back to Projects", href="/projects", class_="btn btn-primary")
+            h.a("Back to Projects", href="/projects", class_="btn btn-primary"),
         ]
         return html(base_layout("Project Not Found", content))
-    
+
     pipelines = get_project_pipelines(project_id)
-    
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
@@ -1318,57 +1546,64 @@ async def project_pipelines(request: Request, project_id: int):
                 h.p(class_="text-muted")[project.get("description", "")],
             ],
             h.div[
-                h.a("Back to Project", href=f"/projects/{project_id}", class_="btn btn-outline-secondary me-2"),
-                h.a("New Pipeline", href=f"/projects/{project_id}/pipelines/new", class_="btn btn-success"),
+                h.a(
+                    "Back to Project",
+                    href=f"/projects/{project_id}",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "New Pipeline",
+                    href=f"/projects/{project_id}/pipelines/new",
+                    class_="btn btn-success",
+                ),
             ],
         ],
-        
         h.div(id="project-pipelines-list", **{"data-ds-id": "project-pipelines-list"})[
-            h.div(class_="row")[
-                [pipeline_card(pipeline) for pipeline in pipelines]
-            ] if pipelines else h.div(class_="text-center p-4")[
+            h.div(class_="row")[[pipeline_card(pipeline) for pipeline in pipelines]]
+            if pipelines
+            else h.div(class_="text-center p-4")[
                 h.p(class_="text-muted")["No pipelines found for this project."],
-                h.a(class_="btn btn-primary", href=f"/projects/{project_id}/pipelines/new")["Create your first pipeline"],
+                h.a(
+                    class_="btn btn-primary",
+                    href=f"/projects/{project_id}/pipelines/new",
+                )["Create your first pipeline"],
             ]
-        ]
+        ],
     ]
-    
+
     return html(base_layout(f"Pipelines - {project['name']}", content))
+
 
 @app.route("/projects/<project_id:int>/pipelines/new")
 async def new_project_pipeline(request: Request, project_id: int):
     """New pipeline form for a specific project"""
     projects = load_projects()
     project = next((p for p in projects if p["id"] == project_id), None)
-    
+
     if not project:
         content = h.div[
             h.h1["Project Not Found"],
             h.p["The requested project could not be found."],
-            h.a("Back to Projects", href="/projects", class_="btn btn-primary")
+            h.a("Back to Projects", href="/projects", class_="btn btn-primary"),
         ]
         return html(base_layout("Project Not Found", content))
-    
+
     content = h.div[
         h.h1[f"Create New Pipeline - {project['name']}"],
         h.form(
             action="/pipelines",
             method="post",
-            **{
-                "data-ds-post": "/pipelines",
-                "data-ds-target": "#form-result"
-            }
+            **{"data-ds-post": "/pipelines", "data-ds-target": "#form-result"},
         )[
             # Hidden field for project ID
             h.input_(type="hidden", name="project_id", value=str(project_id)),
-            
             h.div(class_="mb-3")[
                 h.label(class_="form-label")["Project"],
                 h.input_(
                     type="text",
                     class_="form-control",
-                    value=project['name'],
-                    disabled=True
+                    value=project["name"],
+                    disabled=True,
                 ),
             ],
             h.div(class_="mb-3")[
@@ -1379,7 +1614,7 @@ async def new_project_pipeline(request: Request, project_id: int):
                     name="name",
                     class_="form-control",
                     required=True,
-                    placeholder="e.g., data_processing_pipeline"
+                    placeholder="e.g., data_processing_pipeline",
                 ),
             ],
             h.div(class_="mb-3")[
@@ -1389,16 +1624,12 @@ async def new_project_pipeline(request: Request, project_id: int):
                     name="description",
                     class_="form-control",
                     rows="3",
-                    placeholder="Brief description of what this pipeline does..."
+                    placeholder="Brief description of what this pipeline does...",
                 ),
             ],
             h.div(class_="mb-3")[
                 h.label(for_="type", class_="form-label")["Pipeline Type"],
-                h.select(
-                    id="type",
-                    name="type",
-                    class_="form-select"
-                )[
+                h.select(id="type", name="type", class_="form-select")[
                     h.option(value="batch", selected=True)["Batch Processing"],
                     h.option(value="streaming")["Streaming"],
                     h.option(value="scheduled")["Scheduled"],
@@ -1413,9 +1644,11 @@ async def new_project_pipeline(request: Request, project_id: int):
                                 class_="form-check-input",
                                 type="checkbox",
                                 id="auto_run",
-                                name="auto_run"
+                                name="auto_run",
                             ),
-                            h.label(class_="form-check-label", for_="auto_run")["Auto-run on schedule"],
+                            h.label(class_="form-check-label", for_="auto_run")[
+                                "Auto-run on schedule"
+                            ],
                         ],
                     ],
                     h.div(class_="col-md-6")[
@@ -1425,15 +1658,19 @@ async def new_project_pipeline(request: Request, project_id: int):
                                 type="checkbox",
                                 id="notifications",
                                 name="notifications",
-                                checked=True
+                                checked=True,
                             ),
-                            h.label(class_="form-check-label", for_="notifications")["Enable notifications"],
+                            h.label(class_="form-check-label", for_="notifications")[
+                                "Enable notifications"
+                            ],
                         ],
                     ],
                 ],
                 h.div(class_="row mt-2")[
                     h.div(class_="col-md-6")[
-                        h.label(for_="retry_attempts", class_="form-label")["Retry Attempts"],
+                        h.label(for_="retry_attempts", class_="form-label")[
+                            "Retry Attempts"
+                        ],
                         h.input_(
                             type="number",
                             id="retry_attempts",
@@ -1441,59 +1678,62 @@ async def new_project_pipeline(request: Request, project_id: int):
                             class_="form-control",
                             value="3",
                             min="0",
-                            max="10"
+                            max="10",
                         ),
                     ],
                     h.div(class_="col-md-6")[
-                        h.label(for_="timeout", class_="form-label")["Timeout (seconds)"],
+                        h.label(for_="timeout", class_="form-label")[
+                            "Timeout (seconds)"
+                        ],
                         h.input_(
                             type="number",
                             id="timeout",
                             name="timeout",
                             class_="form-control",
                             value="3600",
-                            min="1"
+                            min="1",
                         ),
                     ],
                 ],
             ],
             h.div(class_="mb-3")[
                 h.button(
-                    "Create Pipeline",
-                    type="submit",
-                    class_="btn btn-primary me-2"
+                    "Create Pipeline", type="submit", class_="btn btn-primary me-2"
                 ),
-                h.a("Cancel", href=f"/projects/{project_id}/pipelines", class_="btn btn-secondary"),
+                h.a(
+                    "Cancel",
+                    href=f"/projects/{project_id}/pipelines",
+                    class_="btn btn-secondary",
+                ),
             ],
         ],
-        h.div(
-            id="form-result",
-            **{"data-ds-id": "form-result"}
-        )
+        h.div(id="form-result", **{"data-ds-id": "form-result"}),
     ]
     return html(base_layout(f"New Pipeline - {project['name']}", content))
 
+
 # ================== ADVANCED PIPELINE EXECUTION ROUTES ==================
+
 
 @app.route("/pipelines/<pipeline_id:int>/run")
 async def pipeline_run_form(request: Request, pipeline_id: int):
     """Pipeline execution form with runtime arguments"""
     pipelines = load_pipelines()
     pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
-    
+
     if not pipeline:
         content = h.div[
             h.h1["Pipeline Not Found"],
             h.p["The requested pipeline could not be found."],
-            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary")
+            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary"),
         ]
         return html(base_layout("Pipeline Not Found", content))
-    
+
     # Get project information
     projects = load_projects()
     project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
     project_name = project["name"] if project else "Unknown Project"
-    
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
@@ -1501,8 +1741,16 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
                 h.p(class_="text-muted")[f"Project: {project_name}"],
             ],
             h.div[
-                h.a("Back to Pipeline", href=f"/pipelines/{pipeline_id}", class_="btn btn-outline-secondary me-2"),
-                h.a("View Logs", href=f"/pipelines/{pipeline_id}/logs", class_="btn btn-outline-info"),
+                h.a(
+                    "Back to Pipeline",
+                    href=f"/pipelines/{pipeline_id}",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "View Logs",
+                    href=f"/pipelines/{pipeline_id}/logs",
+                    class_="btn btn-outline-info",
+                ),
             ],
         ],
         h.div(class_="row")[
@@ -1510,52 +1758,70 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
                 h.div(class_="card")[
                     h.div(class_="card-body")[
                         h.h5["Runtime Configuration"],
-                        h.form(
-                            **{
-                                "data-ds-post": f"/pipelines/{pipeline_id}/execute",
-                                "data-ds-target": "#execution-result"
-                            }
-                        )[
+                        h.form(**{
+                            "data-ds-post": f"/pipelines/{pipeline_id}/execute",
+                            "data-ds-target": "#execution-result",
+                        })[
                             h.div(class_="mb-3")[
-                                h.label(for_="execution_mode", class_="form-label")["Execution Mode"],
+                                h.label(for_="execution_mode", class_="form-label")[
+                                    "Execution Mode"
+                                ],
                                 h.select(
                                     id="execution_mode",
                                     name="execution_mode",
-                                    class_="form-select"
+                                    class_="form-select",
                                 )[
-                                    h.option(value="immediate", selected=True)["Run Immediately"],
+                                    h.option(value="immediate", selected=True)[
+                                        "Run Immediately"
+                                    ],
                                     h.option(value="queue")["Add to Queue"],
                                     h.option(value="schedule")["Schedule for Later"],
                                 ],
                             ],
-                            h.div(class_="mb-3", id="schedule_options", style="display: none;")[
-                                h.label(for_="run_at", class_="form-label")["Schedule Run Time"],
+                            h.div(
+                                class_="mb-3",
+                                id="schedule_options",
+                                style="display: none;",
+                            )[
+                                h.label(for_="run_at", class_="form-label")[
+                                    "Schedule Run Time"
+                                ],
                                 h.input_(
                                     type="datetime-local",
                                     id="run_at",
                                     name="run_at",
-                                    class_="form-control"
+                                    class_="form-control",
                                 ),
-                                h.small(class_="form-text text-muted")["Select when to execute the pipeline"],
+                                h.small(class_="form-text text-muted")[
+                                    "Select when to execute the pipeline"
+                                ],
                             ],
                             h.div(class_="mb-3")[
-                                h.label(for_="runtime_args", class_="form-label")["Runtime Arguments (JSON)"],
+                                h.label(for_="runtime_args", class_="form-label")[
+                                    "Runtime Arguments (JSON)"
+                                ],
                                 h.textarea(
                                     id="runtime_args",
                                     name="runtime_args",
                                     class_="form-control",
                                     rows="6",
-                                    placeholder='{\n  "input_file": "/path/to/data.csv",\n  "output_dir": "/tmp/output",\n  "batch_size": 1000\n}'
+                                    placeholder='{\n  "input_file": "/path/to/data.csv",\n  "output_dir": "/tmp/output",\n  "batch_size": 1000\n}',
                                 ),
-                                h.small(class_="form-text text-muted")["Enter runtime arguments as JSON. Leave empty for default configuration."],
+                                h.small(class_="form-text text-muted")[
+                                    "Enter runtime arguments as JSON. Leave empty for default configuration."
+                                ],
                             ],
                             h.div(class_="mb-3")[
                                 h.button(
                                     "Execute Pipeline",
                                     type="submit",
-                                    class_="btn btn-success me-2"
+                                    class_="btn btn-success me-2",
                                 ),
-                                h.a("Cancel", href=f"/pipelines/{pipeline_id}", class_="btn btn-secondary"),
+                                h.a(
+                                    "Cancel",
+                                    href=f"/pipelines/{pipeline_id}",
+                                    class_="btn btn-secondary",
+                                ),
                             ],
                         ],
                     ],
@@ -1571,9 +1837,13 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
                             h.dt(class_="col-sm-6")["Status"],
                             h.dd(class_="col-sm-6")[pipeline.get("status", "Unknown")],
                             h.dt(class_="col-sm-6")["Executor"],
-                            h.dd(class_="col-sm-6")[pipeline.get("config", {}).get("executor", "local")],
+                            h.dd(class_="col-sm-6")[
+                                pipeline.get("config", {}).get("executor", "local")
+                            ],
                             h.dt(class_="col-sm-6")["Timeout"],
-                            h.dd(class_="col-sm-6")[f"{pipeline.get('config', {}).get('timeout', 3600)}s"],
+                            h.dd(class_="col-sm-6")[
+                                f"{pipeline.get('config', {}).get('timeout', 3600)}s"
+                            ],
                         ],
                     ],
                 ],
@@ -1582,15 +1852,27 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
                         h.h5["Recent Runs"],
                         h.dl(class_="row")[
                             h.dt(class_="col-sm-6")["Total"],
-                            h.dd(class_="col-sm-6")[str(pipeline.get("metadata", {}).get("run_count", 0))],
+                            h.dd(class_="col-sm-6")[
+                                str(pipeline.get("metadata", {}).get("run_count", 0))
+                            ],
                             h.dt(class_="col-sm-6")["Success"],
-                            h.dd(class_="col-sm-6")[str(pipeline.get("metadata", {}).get("success_count", 0))],
+                            h.dd(class_="col-sm-6")[
+                                str(
+                                    pipeline.get("metadata", {}).get("success_count", 0)
+                                )
+                            ],
                             h.dt(class_="col-sm-6")["Errors"],
-                            h.dd(class_="col-sm-6")[str(pipeline.get("metadata", {}).get("error_count", 0))],
+                            h.dd(class_="col-sm-6")[
+                                str(pipeline.get("metadata", {}).get("error_count", 0))
+                            ],
                             h.dt(class_="col-sm-6")["Last Run"],
                             h.dd(class_="col-sm-6")[
-                                pipeline.get("metadata", {}).get("last_run", "Never")[:19].replace("T", " ")
-                                if pipeline.get("metadata", {}).get("last_run") != "Never" else "Never"
+                                pipeline.get("metadata", {})
+                                .get("last_run", "Never")[:19]
+                                .replace("T", " ")
+                                if pipeline.get("metadata", {}).get("last_run")
+                                != "Never"
+                                else "Never"
                             ],
                         ],
                     ],
@@ -1598,12 +1880,10 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
             ],
         ],
         h.div(class_="mt-4")[
-            h.div(
-                id="execution-result",
-                **{"data-ds-id": "execution-result"}
-            )
+            h.div(id="execution-result", **{"data-ds-id": "execution-result"})
         ],
-        h.script["""
+        h.script[
+            """
             document.getElementById('execution_mode').addEventListener('change', function() {
                 const scheduleOptions = document.getElementById('schedule_options');
                 if (this.value === 'schedule') {
@@ -1612,9 +1892,11 @@ async def pipeline_run_form(request: Request, pipeline_id: int):
                     scheduleOptions.style.display = 'none';
                 }
             });
-        """]
+        """
+        ],
     ]
     return html(base_layout(f"Run Pipeline: {pipeline['name']}", content))
+
 
 @app.route("/pipelines/<pipeline_id:int>/execute", methods=["POST"])
 async def execute_pipeline(request: Request, pipeline_id: int):
@@ -1623,124 +1905,134 @@ async def execute_pipeline(request: Request, pipeline_id: int):
         execution_mode = request.form.get("execution_mode", "immediate")
         runtime_args_str = request.form.get("runtime_args", "")
         run_at = request.form.get("run_at")
-        
+
         # Parse runtime arguments if provided
         runtime_args = {}
         if runtime_args_str.strip():
             try:
                 import json
+
                 runtime_args = json.loads(runtime_args_str)
             except json.JSONDecodeError as e:
-                await emit_to_all("execution-result", {
-                    "content": str(h.div(
-                        f"Invalid JSON in runtime arguments: {str(e)}",
-                        class_="alert alert-danger"
-                    ))
+                await emit_to_all(
+                    "execution-result",
+                    {
+                        "content": str(
+                            h.div(
+                                f"Invalid JSON in runtime arguments: {str(e)}",
+                                class_="alert alert-danger",
+                            )
+                        )
+                    },
+                )
+                return json({
+                    "status": "error",
+                    "message": "Invalid JSON in runtime arguments",
                 })
-                return json({"status": "error", "message": "Invalid JSON in runtime arguments"})
-        
+
         if execution_mode == "immediate":
             # Execute immediately
             result = execute_pipeline_with_flowerpower(pipeline_id, runtime_args)
-            
+
             if result["status"] == "success":
                 success_content = h.div[
                     h.div(
                         f"Pipeline executed successfully! Result: {result.get('message', 'Completed')}",
-                        class_="alert alert-success"
+                        class_="alert alert-success",
                     ),
                     h.div(class_="mt-3")[
                         h.h6["Execution Details:"],
-                        h.pre(style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;")[
-                            str(result.get('result', 'No detailed result available'))
-                        ]
-                    ]
+                        h.pre(
+                            style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;"
+                        )[str(result.get("result", "No detailed result available"))],
+                    ],
                 ]
             else:
                 success_content = h.div(
                     f"Pipeline execution failed: {result.get('message', 'Unknown error')}",
-                    class_="alert alert-danger"
+                    class_="alert alert-danger",
                 )
-                
+
         elif execution_mode == "queue":
             # Add to queue
             result = queue_pipeline_execution(pipeline_id, runtime_args, run_at)
-            
+
             if result["status"] == "success":
                 success_content = h.div(
                     f"Pipeline queued successfully! Job ID: {result.get('job_id')}",
-                    class_="alert alert-success"
+                    class_="alert alert-success",
                 )
             else:
                 success_content = h.div(
                     f"Failed to queue pipeline: {result.get('message', 'Unknown error')}",
-                    class_="alert alert-danger"
+                    class_="alert alert-danger",
                 )
-                
+
         elif execution_mode == "schedule":
             # Schedule for later (convert datetime-local to proper scheduling)
             if not run_at:
-                await emit_to_all("execution-result", {
-                    "content": str(h.div(
-                        "Schedule time is required for scheduled execution",
-                        class_="alert alert-danger"
-                    ))
-                })
+                await emit_to_all(
+                    "execution-result",
+                    {
+                        "content": str(
+                            h.div(
+                                "Schedule time is required for scheduled execution",
+                                class_="alert alert-danger",
+                            )
+                        )
+                    },
+                )
                 return json({"status": "error", "message": "Schedule time required"})
-            
+
             result = queue_pipeline_execution(pipeline_id, runtime_args, run_at)
-            
+
             if result["status"] == "success":
                 success_content = h.div(
                     f"Pipeline scheduled successfully! Job ID: {result.get('job_id')} will run at {run_at}",
-                    class_="alert alert-success"
+                    class_="alert alert-success",
                 )
             else:
                 success_content = h.div(
                     f"Failed to schedule pipeline: {result.get('message', 'Unknown error')}",
-                    class_="alert alert-danger"
+                    class_="alert alert-danger",
                 )
-        
-        await emit_to_all("execution-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("execution-result", {"content": str(success_content)})
+
         return json({"status": "success", "message": "Pipeline execution initiated"})
-    
+
     except Exception as e:
         error_content = h.div(
-            f"Error executing pipeline: {str(e)}",
-            class_="alert alert-danger"
+            f"Error executing pipeline: {str(e)}", class_="alert alert-danger"
         )
-        await emit_to_all("execution-result", {
-            "content": str(error_content)
-        })
+        await emit_to_all("execution-result", {"content": str(error_content)})
         return json({"status": "error", "message": str(e)})
+
 
 @app.route("/pipelines/<pipeline_id:int>/schedule")
 async def pipeline_schedule_form(request: Request, pipeline_id: int):
     """Pipeline scheduling form with cron expressions"""
     pipelines = load_pipelines()
     pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
-    
+
     if not pipeline:
         content = h.div[
             h.h1["Pipeline Not Found"],
             h.p["The requested pipeline could not be found."],
-            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary")
+            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary"),
         ]
         return html(base_layout("Pipeline Not Found", content))
-    
+
     # Get project information
     projects = load_projects()
     project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
     project_name = project["name"] if project else "Unknown Project"
-    
+
     # Get current schedule if any
     current_schedule = pipeline.get("config", {}).get("schedule", {})
     is_scheduled = current_schedule.get("enabled", False)
     current_cron = current_schedule.get("cron", "")
-    
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
@@ -1748,8 +2040,16 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                 h.p(class_="text-muted")[f"Project: {project_name}"],
             ],
             h.div[
-                h.a("Back to Pipeline", href=f"/pipelines/{pipeline_id}", class_="btn btn-outline-secondary me-2"),
-                h.a("Run Now", href=f"/pipelines/{pipeline_id}/run", class_="btn btn-success"),
+                h.a(
+                    "Back to Pipeline",
+                    href=f"/pipelines/{pipeline_id}",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "Run Now",
+                    href=f"/pipelines/{pipeline_id}/run",
+                    class_="btn btn-success",
+                ),
             ],
         ],
         h.div(class_="row")[
@@ -1757,23 +2057,29 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                 h.div(class_="card")[
                     h.div(class_="card-body")[
                         h.h5["Schedule Configuration"],
-                        (h.div(class_="alert alert-info")[
-                            f"Current status: {'Scheduled' if is_scheduled else 'Not scheduled'}",
-                            (h.br() if is_scheduled else ""),
-                            (f"Cron expression: {current_cron}" if is_scheduled and current_cron else "")
-                        ]),
-                        h.form(
-                            **{
-                                "data-ds-post": f"/pipelines/{pipeline_id}/schedule",
-                                "data-ds-target": "#schedule-result"
-                            }
-                        )[
+                        (
+                            h.div(class_="alert alert-info")[
+                                f"Current status: {'Scheduled' if is_scheduled else 'Not scheduled'}",
+                                (h.br() if is_scheduled else ""),
+                                (
+                                    f"Cron expression: {current_cron}"
+                                    if is_scheduled and current_cron
+                                    else ""
+                                ),
+                            ]
+                        ),
+                        h.form(**{
+                            "data-ds-post": f"/pipelines/{pipeline_id}/schedule",
+                            "data-ds-target": "#schedule-result",
+                        })[
                             h.div(class_="mb-3")[
-                                h.label(for_="schedule_action", class_="form-label")["Action"],
+                                h.label(for_="schedule_action", class_="form-label")[
+                                    "Action"
+                                ],
                                 h.select(
                                     id="schedule_action",
                                     name="schedule_action",
-                                    class_="form-select"
+                                    class_="form-select",
                                 )[
                                     h.option(value="create")["Create/Update Schedule"],
                                     h.option(value="disable")["Disable Schedule"],
@@ -1781,16 +2087,20 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                                 ],
                             ],
                             h.div(class_="mb-3", id="cron_config")[
-                                h.label(for_="cron_expression", class_="form-label")["Cron Expression"],
+                                h.label(for_="cron_expression", class_="form-label")[
+                                    "Cron Expression"
+                                ],
                                 h.input_(
                                     type="text",
                                     id="cron_expression",
                                     name="cron_expression",
                                     class_="form-control",
                                     value=current_cron,
-                                    placeholder="0 */6 * * *"
+                                    placeholder="0 */6 * * *",
                                 ),
-                                h.small(class_="form-text text-muted")["Format: minute hour day month day-of-week"],
+                                h.small(class_="form-text text-muted")[
+                                    "Format: minute hour day month day-of-week"
+                                ],
                             ],
                             h.div(class_="mb-3", id="preset_schedules")[
                                 h.label(class_="form-label")["Common Schedules"],
@@ -1799,52 +2109,60 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                                         "Every minute",
                                         type="button",
                                         class_="btn btn-outline-secondary btn-sm",
-                                        onclick="document.getElementById('cron_expression').value = '* * * * *'"
+                                        onclick="document.getElementById('cron_expression').value = '* * * * *'",
                                     ),
                                     h.button(
                                         "Every hour",
                                         type="button",
                                         class_="btn btn-outline-secondary btn-sm",
-                                        onclick="document.getElementById('cron_expression').value = '0 * * * *'"
+                                        onclick="document.getElementById('cron_expression').value = '0 * * * *'",
                                     ),
                                     h.button(
                                         "Every 6 hours",
                                         type="button",
                                         class_="btn btn-outline-secondary btn-sm",
-                                        onclick="document.getElementById('cron_expression').value = '0 */6 * * *'"
+                                        onclick="document.getElementById('cron_expression').value = '0 */6 * * *'",
                                     ),
                                     h.button(
                                         "Daily at midnight",
                                         type="button",
                                         class_="btn btn-outline-secondary btn-sm",
-                                        onclick="document.getElementById('cron_expression').value = '0 0 * * *'"
+                                        onclick="document.getElementById('cron_expression').value = '0 0 * * *'",
                                     ),
                                     h.button(
                                         "Weekly (Sundays)",
                                         type="button",
                                         class_="btn btn-outline-secondary btn-sm",
-                                        onclick="document.getElementById('cron_expression').value = '0 0 * * 0'"
+                                        onclick="document.getElementById('cron_expression').value = '0 0 * * 0'",
                                     ),
                                 ],
                             ],
                             h.div(class_="mb-3")[
-                                h.label(for_="runtime_args", class_="form-label")["Default Runtime Arguments (JSON)"],
+                                h.label(for_="runtime_args", class_="form-label")[
+                                    "Default Runtime Arguments (JSON)"
+                                ],
                                 h.textarea(
                                     id="runtime_args",
                                     name="runtime_args",
                                     class_="form-control",
                                     rows="4",
-                                    placeholder='{\n  "batch_size": 1000\n}'
+                                    placeholder='{\n  "batch_size": 1000\n}',
                                 ),
-                                h.small(class_="form-text text-muted")["These arguments will be used for all scheduled executions."],
+                                h.small(class_="form-text text-muted")[
+                                    "These arguments will be used for all scheduled executions."
+                                ],
                             ],
                             h.div(class_="mb-3")[
                                 h.button(
                                     "Update Schedule",
                                     type="submit",
-                                    class_="btn btn-primary me-2"
+                                    class_="btn btn-primary me-2",
                                 ),
-                                h.a("Cancel", href=f"/pipelines/{pipeline_id}", class_="btn btn-secondary"),
+                                h.a(
+                                    "Cancel",
+                                    href=f"/pipelines/{pipeline_id}",
+                                    class_="btn btn-secondary",
+                                ),
                             ],
                         ],
                     ],
@@ -1870,22 +2188,24 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                             ],
                         ],
                         h.small[
-                            h.strong["Examples:"], h.br(),
-                            "*/15 * * * * - Every 15 minutes", h.br(),
-                            "0 9-17 * * 1-5 - Business hours", h.br(),
-                            "0 2 * * 0 - Sundays at 2 AM", h.br(),
-                        ]
+                            h.strong["Examples:"],
+                            h.br(),
+                            "*/15 * * * * - Every 15 minutes",
+                            h.br(),
+                            "0 9-17 * * 1-5 - Business hours",
+                            h.br(),
+                            "0 2 * * 0 - Sundays at 2 AM",
+                            h.br(),
+                        ],
                     ],
                 ],
             ],
         ],
         h.div(class_="mt-4")[
-            h.div(
-                id="schedule-result",
-                **{"data-ds-id": "schedule-result"}
-            )
+            h.div(id="schedule-result", **{"data-ds-id": "schedule-result"})
         ],
-        h.script["""
+        h.script[
+            """
             document.getElementById('schedule_action').addEventListener('change', function() {
                 const cronConfig = document.getElementById('cron_config');
                 const presetSchedules = document.getElementById('preset_schedules');
@@ -1897,9 +2217,11 @@ async def pipeline_schedule_form(request: Request, pipeline_id: int):
                     presetSchedules.style.display = 'none';
                 }
             });
-        """]
+        """
+        ],
     ]
     return html(base_layout(f"Schedule Pipeline: {pipeline['name']}", content))
+
 
 @app.route("/pipelines/<pipeline_id:int>/schedule", methods=["POST"])
 async def update_pipeline_schedule(request: Request, pipeline_id: int):
@@ -1908,112 +2230,127 @@ async def update_pipeline_schedule(request: Request, pipeline_id: int):
         schedule_action = request.form.get("schedule_action", "create")
         cron_expression = request.form.get("cron_expression", "")
         runtime_args_str = request.form.get("runtime_args", "")
-        
+
         # Parse runtime arguments if provided
         runtime_args = {}
         if runtime_args_str.strip():
             try:
                 import json
+
                 runtime_args = json.loads(runtime_args_str)
             except json.JSONDecodeError as e:
-                await emit_to_all("schedule-result", {
-                    "content": str(h.div(
-                        f"Invalid JSON in runtime arguments: {str(e)}",
-                        class_="alert alert-danger"
-                    ))
+                await emit_to_all(
+                    "schedule-result",
+                    {
+                        "content": str(
+                            h.div(
+                                f"Invalid JSON in runtime arguments: {str(e)}",
+                                class_="alert alert-danger",
+                            )
+                        )
+                    },
+                )
+                return json({
+                    "status": "error",
+                    "message": "Invalid JSON in runtime arguments",
                 })
-                return json({"status": "error", "message": "Invalid JSON in runtime arguments"})
-        
+
         pipelines = load_pipelines()
         pipeline_idx = None
         for i, p in enumerate(pipelines):
             if p["id"] == pipeline_id:
                 pipeline_idx = i
                 break
-        
+
         if pipeline_idx is None:
-            await emit_to_all("schedule-result", {
-                "content": str(h.div(
-                    "Pipeline not found",
-                    class_="alert alert-danger"
-                ))
-            })
+            await emit_to_all(
+                "schedule-result",
+                {
+                    "content": str(
+                        h.div("Pipeline not found", class_="alert alert-danger")
+                    )
+                },
+            )
             return json({"status": "error", "message": "Pipeline not found"})
-        
+
         if schedule_action == "create":
             if not cron_expression.strip():
-                await emit_to_all("schedule-result", {
-                    "content": str(h.div(
-                        "Cron expression is required",
-                        class_="alert alert-danger"
-                    ))
-                })
+                await emit_to_all(
+                    "schedule-result",
+                    {
+                        "content": str(
+                            h.div(
+                                "Cron expression is required",
+                                class_="alert alert-danger",
+                            )
+                        )
+                    },
+                )
                 return json({"status": "error", "message": "Cron expression required"})
-            
+
             # Create/update schedule using FlowerPower
-            result = schedule_pipeline_execution(pipeline_id, cron_expression, runtime_args)
-            
+            result = schedule_pipeline_execution(
+                pipeline_id, cron_expression, runtime_args
+            )
+
             if result["status"] == "success":
                 success_content = h.div[
                     h.div(
                         f"Pipeline scheduled successfully! Schedule ID: {result.get('schedule_id')}",
-                        class_="alert alert-success"
+                        class_="alert alert-success",
                     ),
                     h.div(class_="mt-3")[
                         h.h6["Schedule Details:"],
                         h.ul[
                             h.li[f"Cron Expression: {cron_expression}"],
-                            h.li[f"Runtime Arguments: {runtime_args if runtime_args else 'None'}"],
+                            h.li[
+                                f"Runtime Arguments: {runtime_args if runtime_args else 'None'}"
+                            ],
                             h.li[f"Status: Active"],
-                        ]
-                    ]
+                        ],
+                    ],
                 ]
             else:
                 success_content = h.div(
                     f"Failed to create schedule: {result.get('message', 'Unknown error')}",
-                    class_="alert alert-danger"
+                    class_="alert alert-danger",
                 )
-                
+
         elif schedule_action == "disable":
             # Disable schedule
             pipelines[pipeline_idx]["config"]["schedule"]["enabled"] = False
             pipelines[pipeline_idx]["status"] = "Inactive"
             save_pipelines(pipelines)
-            
+
             success_content = h.div(
-                "Pipeline schedule disabled successfully",
-                class_="alert alert-success"
+                "Pipeline schedule disabled successfully", class_="alert alert-success"
             )
-            
+
         elif schedule_action == "delete":
             # Delete schedule
             pipelines[pipeline_idx]["config"]["schedule"]["enabled"] = False
             pipelines[pipeline_idx]["config"]["schedule"]["cron"] = None
             pipelines[pipeline_idx]["status"] = "Inactive"
             save_pipelines(pipelines)
-            
+
             success_content = h.div(
-                "Pipeline schedule deleted successfully",
-                class_="alert alert-success"
+                "Pipeline schedule deleted successfully", class_="alert alert-success"
             )
-        
-        await emit_to_all("schedule-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("schedule-result", {"content": str(success_content)})
+
         return json({"status": "success", "message": "Schedule updated"})
-    
+
     except Exception as e:
         error_content = h.div(
-            f"Error updating schedule: {str(e)}",
-            class_="alert alert-danger"
+            f"Error updating schedule: {str(e)}", class_="alert alert-danger"
         )
-        await emit_to_all("schedule-result", {
-            "content": str(error_content)
-        })
+        await emit_to_all("schedule-result", {"content": str(error_content)})
         return json({"status": "error", "message": str(e)})
 
+
 # ================== JOB QUEUE MONITORING ROUTES ==================
+
 
 @app.route("/jobs")
 async def job_queue_monitor(request: Request):
@@ -2026,7 +2363,6 @@ async def job_queue_monitor(request: Request):
     content = h.div[
         h.h1["Job Queue Monitor"],
         h.p(class_="lead")["Monitor and manage pipeline execution jobs and schedules."],
-        
         # Status Cards
         h.div(class_="row mb-4")[
             h.div(class_="col-md-3")[
@@ -2048,7 +2384,9 @@ async def job_queue_monitor(request: Request):
             h.div(class_="col-md-3")[
                 h.div(class_="card")[
                     h.div(class_="card-body text-center")[
-                        h.h3(class_="card-title text-success", id="completed-jobs")["--"],
+                        h.h3(class_="card-title text-success", id="completed-jobs")[
+                            "--"
+                        ],
                         h.p(class_="card-text")["Completed Jobs"],
                     ],
                 ],
@@ -2062,7 +2400,6 @@ async def job_queue_monitor(request: Request):
                 ],
             ],
         ],
-        
         # Job Management Controls
         h.div(class_="row mb-4")[
             h.div(class_="col-md-6")[
@@ -2070,8 +2407,10 @@ async def job_queue_monitor(request: Request):
                     h.div(class_="card-header")[h.h5["Worker Management"]],
                     h.div(class_="card-body")[
                         h.div(class_="mb-3")[
-                            h.span(class_="badge bg-secondary me-2", id="worker-status")["Unknown"],
-                            h.span["Worker Status"]
+                            h.span(
+                                class_="badge bg-secondary me-2", id="worker-status"
+                            )["Unknown"],
+                            h.span["Worker Status"],
                         ],
                         h.div(class_="d-grid gap-2")[
                             h.button(
@@ -2079,19 +2418,19 @@ async def job_queue_monitor(request: Request):
                                 class_="btn btn-success",
                                 **{
                                     "data-ds-post": "/jobs/workers/start",
-                                    "data-ds-target": "#worker-result"
-                                }
+                                    "data-ds-target": "#worker-result",
+                                },
                             ),
                             h.button(
                                 "Stop Workers",
                                 class_="btn btn-danger",
                                 **{
                                     "data-ds-post": "/jobs/workers/stop",
-                                    "data-ds-target": "#worker-result"
-                                }
+                                    "data-ds-target": "#worker-result",
+                                },
                             ),
                         ],
-                        h.div(id="worker-result", class_="mt-3")
+                        h.div(id="worker-result", class_="mt-3"),
                     ],
                 ],
             ],
@@ -2105,32 +2444,31 @@ async def job_queue_monitor(request: Request):
                                 class_="btn btn-outline-primary",
                                 **{
                                     "data-ds-post": "/jobs/refresh",
-                                    "data-ds-target": "#jobs-list"
-                                }
+                                    "data-ds-target": "#jobs-list",
+                                },
                             ),
                             h.button(
                                 "Clear Completed",
                                 class_="btn btn-outline-warning",
                                 **{
                                     "data-ds-post": "/jobs/clear-completed",
-                                    "data-ds-target": "#queue-result"
-                                }
+                                    "data-ds-target": "#queue-result",
+                                },
                             ),
                             h.button(
                                 "Pause All Schedules",
                                 class_="btn btn-outline-secondary",
                                 **{
                                     "data-ds-post": "/jobs/schedules/pause",
-                                    "data-ds-target": "#queue-result"
-                                }
+                                    "data-ds-target": "#queue-result",
+                                },
                             ),
                         ],
-                        h.div(id="queue-result", class_="mt-3")
+                        h.div(id="queue-result", class_="mt-3"),
                     ],
                 ],
             ],
         ],
-        
         # Jobs and Schedules List
         h.div(class_="row")[
             h.div(class_="col-md-6")[
@@ -2158,9 +2496,9 @@ async def job_queue_monitor(request: Request):
                 ],
             ],
         ],
-        
         # Auto-refresh script
-        h.script["""
+        h.script[
+            """
             // Auto-refresh every 10 seconds
             setInterval(function() {
                 fetch('/jobs/status')
@@ -2197,10 +2535,12 @@ async def job_queue_monitor(request: Request):
                         });
                 }, 1000);
             });
-        """]
+        """
+        ],
     ]
-    
+
     return html(base_layout("Job Queue Monitor", content))
+
 
 @app.route("/jobs/status")
 async def job_queue_status(request: Request):
@@ -2213,119 +2553,131 @@ async def job_queue_status(request: Request):
                 "scheduled_jobs": 0,
                 "completed_jobs": 0,
                 "failed_jobs": 0,
-                "worker_status": "Not Available"
+                "worker_status": "Not Available",
             })
-        
+
         # Mock data based on pipeline metadata for now
         pipelines = load_pipelines()
-        active_jobs = len([p for p in pipelines if p.get('status') == 'Running'])
-        scheduled_jobs = len([p for p in pipelines if p.get('config', {}).get('schedule', {}).get('enabled')])
-        completed_jobs = sum(p.get('metadata', {}).get('success_count', 0) for p in pipelines)
-        failed_jobs = sum(p.get('metadata', {}).get('error_count', 0) for p in pipelines)
-        
+        active_jobs = len([p for p in pipelines if p.get("status") == "Running"])
+        scheduled_jobs = len([
+            p
+            for p in pipelines
+            if p.get("config", {}).get("schedule", {}).get("enabled")
+        ])
+        completed_jobs = sum(
+            p.get("metadata", {}).get("success_count", 0) for p in pipelines
+        )
+        failed_jobs = sum(
+            p.get("metadata", {}).get("error_count", 0) for p in pipelines
+        )
+
         return json({
             "status": "success",
             "active_jobs": active_jobs,
             "scheduled_jobs": scheduled_jobs,
             "completed_jobs": completed_jobs,
             "failed_jobs": failed_jobs,
-            "worker_status": "Unknown"  # Would check actual worker status
+            "worker_status": "Unknown",  # Would check actual worker status
         })
-        
+
     except Exception as e:
         return json({"status": "error", "message": str(e)})
+
 
 @app.route("/jobs/workers/start", methods=["POST"])
 async def start_workers(request: Request):
     """Start job queue workers"""
     try:
         if not FLOWERPOWER_AVAILABLE:
-            await emit_to_all("worker-result", {
-                "content": str(h.div(
-                    "FlowerPower not available - cannot start workers",
-                    class_="alert alert-warning"
-                ))
-            })
+            await emit_to_all(
+                "worker-result",
+                {
+                    "content": str(
+                        h.div(
+                            "FlowerPower not available - cannot start workers",
+                            class_="alert alert-warning",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "FlowerPower not available"})
-        
+
         # In a real implementation, you would start the actual worker processes
         success_content = h.div(
             "Workers started successfully! (Mock implementation)",
-            class_="alert alert-success"
+            class_="alert alert-success",
         )
-        
-        await emit_to_all("worker-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("worker-result", {"content": str(success_content)})
+
         return json({"status": "success", "message": "Workers started"})
-        
+
     except Exception as e:
         error_content = h.div(
-            f"Error starting workers: {str(e)}",
-            class_="alert alert-danger"
+            f"Error starting workers: {str(e)}", class_="alert alert-danger"
         )
-        await emit_to_all("worker-result", {
-            "content": str(error_content)
-        })
+        await emit_to_all("worker-result", {"content": str(error_content)})
         return json({"status": "error", "message": str(e)})
+
 
 @app.route("/jobs/workers/stop", methods=["POST"])
 async def stop_workers(request: Request):
     """Stop job queue workers"""
     try:
         if not FLOWERPOWER_AVAILABLE:
-            await emit_to_all("worker-result", {
-                "content": str(h.div(
-                    "FlowerPower not available - cannot stop workers",
-                    class_="alert alert-warning"
-                ))
-            })
+            await emit_to_all(
+                "worker-result",
+                {
+                    "content": str(
+                        h.div(
+                            "FlowerPower not available - cannot stop workers",
+                            class_="alert alert-warning",
+                        )
+                    )
+                },
+            )
             return json({"status": "error", "message": "FlowerPower not available"})
-        
+
         # In a real implementation, you would stop the actual worker processes
         success_content = h.div(
             "Workers stopped successfully! (Mock implementation)",
-            class_="alert alert-info"
+            class_="alert alert-info",
         )
-        
-        await emit_to_all("worker-result", {
-            "content": str(success_content)
-        })
-        
+
+        await emit_to_all("worker-result", {"content": str(success_content)})
+
         return json({"status": "success", "message": "Workers stopped"})
-        
+
     except Exception as e:
         error_content = h.div(
-            f"Error stopping workers: {str(e)}",
-            class_="alert alert-danger"
+            f"Error stopping workers: {str(e)}", class_="alert alert-danger"
         )
-        await emit_to_all("worker-result", {
-            "content": str(error_content)
-        })
+        await emit_to_all("worker-result", {"content": str(error_content)})
         return json({"status": "error", "message": str(e)})
 
+
 # ================== PIPELINE VISUALIZATION ROUTES ==================
+
 
 @app.route("/pipelines/<pipeline_id:int>/visualize")
 async def pipeline_visualize(request: Request, pipeline_id: int):
     """Pipeline DAG visualization page"""
     pipelines = load_pipelines()
     pipeline = next((p for p in pipelines if p["id"] == pipeline_id), None)
-    
+
     if not pipeline:
         content = h.div[
             h.h1["Pipeline Not Found"],
             h.p["The requested pipeline could not be found."],
-            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary")
+            h.a("Back to Pipelines", href="/pipelines", class_="btn btn-primary"),
         ]
         return html(base_layout("Pipeline Not Found", content))
-    
+
     # Get project information
     projects = load_projects()
     project = next((p for p in projects if p["id"] == pipeline["project_id"]), None)
     project_name = project["name"] if project else "Unknown Project"
-    
+
     content = h.div[
         h.div(class_="d-flex justify-content-between align-items-center mb-4")[
             h.div[
@@ -2333,14 +2685,24 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                 h.p(class_="text-muted")[f"Project: {project_name}"],
             ],
             h.div[
-                h.a("Back to Pipeline", href=f"/pipelines/{pipeline_id}", class_="btn btn-outline-secondary me-2"),
-                h.a("Run Pipeline", href=f"/pipelines/{pipeline_id}/run", class_="btn btn-success"),
+                h.a(
+                    "Back to Pipeline",
+                    href=f"/pipelines/{pipeline_id}",
+                    class_="btn btn-outline-secondary me-2",
+                ),
+                h.a(
+                    "Run Pipeline",
+                    href=f"/pipelines/{pipeline_id}/run",
+                    class_="btn btn-success",
+                ),
             ],
         ],
         h.div(class_="row")[
             h.div(class_="col-md-9")[
                 h.div(class_="card")[
-                    h.div(class_="card-header d-flex justify-content-between align-items-center")[
+                    h.div(
+                        class_="card-header d-flex justify-content-between align-items-center"
+                    )[
                         h.h5(class_="mb-0")["Pipeline Directed Acyclic Graph (DAG)"],
                         h.div[
                             h.button(
@@ -2348,28 +2710,33 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                                 class_="btn btn-outline-primary btn-sm me-2",
                                 **{
                                     "data-ds-post": f"/pipelines/{pipeline_id}/dag-data",
-                                    "data-ds-target": "#dag-container"
-                                }
+                                    "data-ds-target": "#dag-container",
+                                },
                             ),
                             h.button(
                                 "Fit to View",
                                 class_="btn btn-outline-secondary btn-sm",
-                                id="fit-view-btn"
+                                id="fit-view-btn",
                             ),
-                        ]
+                        ],
                     ],
                     h.div(class_="card-body p-0")[
                         h.div(
                             id="dag-container",
                             style="height: 600px; width: 100%; border: 1px solid #dee2e6;",
-                            **{"data-ds-id": "dag-container"}
+                            **{"data-ds-id": "dag-container"},
                         )[
-                            h.div(class_="d-flex justify-content-center align-items-center h-100")[
+                            h.div(
+                                class_="d-flex justify-content-center align-items-center h-100"
+                            )[
                                 h.div(class_="text-center")[
-                                    h.div(class_="spinner-border text-primary", role="status")[
-                                        h.span(class_="visually-hidden")["Loading..."]
+                                    h.div(
+                                        class_="spinner-border text-primary",
+                                        role="status",
+                                    )[h.span(class_="visually-hidden")["Loading..."]],
+                                    h.p(class_="mt-2 text-muted")[
+                                        "Loading pipeline DAG..."
                                     ],
-                                    h.p(class_="mt-2 text-muted")["Loading pipeline DAG..."]
                                 ]
                             ]
                         ]
@@ -2396,7 +2763,9 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                         h.div(class_="mb-3")[
                             h.label(class_="form-label")["Layout"],
                             h.select(class_="form-select", id="layout-select")[
-                                h.option(value="dagre", selected=True)["Hierarchical (Dagre)"],
+                                h.option(value="dagre", selected=True)[
+                                    "Hierarchical (Dagre)"
+                                ],
                                 h.option(value="circle")["Circle"],
                                 h.option(value="grid")["Grid"],
                                 h.option(value="random")["Random"],
@@ -2408,9 +2777,11 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                                     class_="form-check-input",
                                     type="checkbox",
                                     id="show-labels",
-                                    checked=True
+                                    checked=True,
                                 ),
-                                h.label(class_="form-check-label", for_="show-labels")["Show Labels"],
+                                h.label(class_="form-check-label", for_="show-labels")[
+                                    "Show Labels"
+                                ],
                             ],
                         ],
                         h.div(class_="mb-3")[
@@ -2418,9 +2789,11 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                                 h.input_(
                                     class_="form-check-input",
                                     type="checkbox",
-                                    id="animate-layout"
+                                    id="animate-layout",
                                 ),
-                                h.label(class_="form-check-label", for_="animate-layout")["Animate Layout"],
+                                h.label(
+                                    class_="form-check-label", for_="animate-layout"
+                                )["Animate Layout"],
                             ],
                         ],
                     ],
@@ -2438,7 +2811,8 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
         # Include Cytoscape.js for graph visualization
         h.script(src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"),
         h.script(src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"),
-        h.script[f"""
+        h.script[
+            f"""
             let cy;
             
             // Initialize Cytoscape when DAG data is loaded
@@ -2595,22 +2969,26 @@ async def pipeline_visualize(request: Request, pipeline_id: int):
                         }});
                 }}, 1000);
             }});
-        """]
+        """
+        ],
     ]
-    
+
     return html(base_layout(f"Visualize: {pipeline['name']}", content))
+
 
 @app.route("/pipelines/<pipeline_id:int>/dag-data")
 async def pipeline_dag_data(request: Request, pipeline_id: int):
     """API endpoint to get pipeline DAG data"""
     try:
         dag_data = get_pipeline_dag_data(pipeline_id)
-        
+
         if dag_data["status"] == "success":
             # Update the visualization container with success
-            dag_json = json_module.dumps(dag_data['dag'])
-            await emit_to_all("dag-container", {
-                "content": f"""
+            dag_json = json_module.dumps(dag_data["dag"])
+            await emit_to_all(
+                "dag-container",
+                {
+                    "content": f"""
                 <div class="d-flex justify-content-center align-items-center h-100">
                     <div class="text-center text-success">
                         <i class="fas fa-check-circle fa-3x"></i>
@@ -2623,54 +3001,63 @@ async def pipeline_dag_data(request: Request, pipeline_id: int):
                     }}
                 </script>
                 """
-            })
+                },
+            )
         else:
             # Update with error message
-            await emit_to_all("dag-container", {
-                "content": f"""
+            await emit_to_all(
+                "dag-container",
+                {
+                    "content": f"""
                 <div class="d-flex justify-content-center align-items-center h-100">
                     <div class="alert alert-danger">
-                        Error loading DAG: {dag_data.get('message', 'Unknown error')}
+                        Error loading DAG: {dag_data.get("message", "Unknown error")}
                     </div>
                 </div>
                 """
-            })
-        
+                },
+            )
+
         return json(dag_data)
-        
+
     except Exception as e:
         error_response = {"status": "error", "message": str(e)}
-        await emit_to_all("dag-container", {
-            "content": f"""
+        await emit_to_all(
+            "dag-container",
+            {
+                "content": f"""
             <div class="d-flex justify-content-center align-items-center h-100">
                 <div class="alert alert-danger">
                     Error: {str(e)}
                 </div>
             </div>
             """
-        })
+            },
+        )
         return json(error_response)
+
 
 @app.route("/datastar/stream")
 async def datastar_stream(request: Request):
     """SSE endpoint for Datastar"""
     generator = ServerSentEventGenerator()
     sse_connections.add(generator)
-    
+
     try:
         return await datastar_respond(generator, headers=SSE_HEADERS)
     finally:
         sse_connections.discard(generator)
+
 
 if __name__ == "__main__":
     # Create data file if it doesn't exist
     if not os.path.exists(PROJECTS_DATA_FILE):
         # Initialize with empty data structure
         initial_data = {
-            'projects': [],
-            'pipelines': [],
-            'last_updated': datetime.now().isoformat()
+            "projects": [],
+            "pipelines": [],
+            "last_updated": datetime.now().isoformat(),
         }
         save_data(initial_data)
-    
+
     app.run(host="0.0.0.0", port=8000, debug=True)
