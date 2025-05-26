@@ -29,5 +29,119 @@
       }
     }
   ],
-  "last_updated": "2025-05-24T00:26:26.151754"
+  "pipelines": [
+    {
+      "id": 1,
+      "project_id": 1,
+      "name": "csv_data_processor",
+      "description": "Processes CSV files and generates reports",
+      "type": "batch",
+      "status": "Active",
+      "created_at": "2025-01-20T11:00:00Z",
+      "config": {
+        "auto_run": false,
+        "notifications": true,
+        "retry_attempts": 3,
+        "timeout": 3600,
+        "executor": "local",
+        "schedule": {
+          "enabled": false,
+          "cron": null,
+          "interval": null
+        }
+      },
+      "metadata": {
+        "last_run": "2025-01-22T08:00:00Z",
+        "next_run": null,
+        "run_count": 5,
+        "success_count": 4,
+        "error_count": 1
+      }
+    },
+    {
+      "id": 2,
+      "project_id": 1,
+      "name": "data_validation",
+      "description": "Validates incoming data quality and completeness",
+      "type": "batch",
+      "status": "Active",
+      "created_at": "2025-01-20T12:00:00Z",
+      "config": {
+        "auto_run": true,
+        "notifications": true,
+        "retry_attempts": 2,
+        "timeout": 1800,
+        "executor": "local",
+        "schedule": {
+          "enabled": true,
+          "cron": "0 */6 * * *",
+          "interval": null
+        }
+      },
+      "metadata": {
+        "last_run": "2025-01-22T12:00:00Z",
+        "next_run": "2025-01-22T18:00:00Z",
+        "run_count": 15,
+        "success_count": 15,
+        "error_count": 0
+      }
+    },
+    {
+      "id": 3,
+      "project_id": 2,
+      "name": "mqtt_data_ingestion",
+      "description": "Ingests real-time MQTT data streams",
+      "type": "streaming",
+      "status": "Running",
+      "created_at": "2025-01-21T15:00:00Z",
+      "config": {
+        "auto_run": true,
+        "notifications": true,
+        "retry_attempts": 5,
+        "timeout": 7200,
+        "executor": "async",
+        "schedule": {
+          "enabled": false,
+          "cron": null,
+          "interval": null
+        }
+      },
+      "metadata": {
+        "last_run": "2025-01-22T00:00:00Z",
+        "next_run": null,
+        "run_count": 25,
+        "success_count": 23,
+        "error_count": 2
+      }
+    },
+    {
+      "id": 4,
+      "project_id": 2,
+      "name": "analytics_aggregator",
+      "description": "Aggregates MQTT data for analytics dashboard",
+      "type": "scheduled",
+      "status": "Scheduled",
+      "created_at": "2025-01-21T16:00:00Z",
+      "config": {
+        "auto_run": true,
+        "notifications": false,
+        "retry_attempts": 3,
+        "timeout": 2400,
+        "executor": "threadpool",
+        "schedule": {
+          "enabled": true,
+          "cron": "0 */2 * * *",
+          "interval": null
+        }
+      },
+      "metadata": {
+        "last_run": "2025-01-22T10:00:00Z",
+        "next_run": "2025-01-22T12:00:00Z",
+        "run_count": 10,
+        "success_count": 10,
+        "error_count": 0
+      }
+    }
+  ],
+  "last_updated": "2025-05-24T08:29:14.151754"
 }
