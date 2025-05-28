@@ -1,12 +1,12 @@
 import datetime as dt
+import os
 import posixpath
 import sys
-import os
+from functools import partial
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
 from uuid import UUID
-from functools import partial
 
 import duration_parser
 from loguru import logger
@@ -23,8 +23,8 @@ from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from ..utils.logging import setup_logging
 from ..utils.callback import run_with_callback
+from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .job_queue import PipelineJobQueue
 from .registry import HookType, PipelineRegistry
@@ -255,19 +255,18 @@ class PipelineManager:
             >>> result = run_func(inputs={"date": "2025-04-28"})
         """
         if (
-            name == self._current_pipeline_name
-            and not reload
-            #and hasattr(self, "_runner")
+            name == self._current_pipeline_name and not reload
+            # and hasattr(self, "_runner")
         ):
-            #run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=self._pipeline_cfg)
+            # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=self._pipeline_cfg)
             run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
                 run_pipeline
             )
             return run_func
 
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        #run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
-        
+        # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
+
         run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
             run_pipeline
         )
@@ -1317,9 +1316,9 @@ class PipelineManager:
             on_success=on_success_pipeline,
             on_failure=on_failure_pipeline,
         )
-        #run_func = run_with_callback(on_success=on_success_pipeline, on_failure=on_failure_pipeline)(
+        # run_func = run_with_callback(on_success=on_success_pipeline, on_failure=on_failure_pipeline)(
         #    run_func_
-        #)
+        # )
         run_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
             self.job_queue.run_job
         )
@@ -1368,8 +1367,12 @@ class PipelineManager:
         retry_exceptions: tuple = (Exception,),
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
+        on_failure_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
         **kwargs,  # JobQueue specific args
     ) -> str | UUID:
         """Adds a job to the job queue.
@@ -1444,7 +1447,12 @@ class PipelineManager:
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
 
-        run_func = self._get_run_func(name=name, reload=reload, on_success=on_success_pipeline, on_failure=on_failure_pipeline)
+        run_func = self._get_run_func(
+            name=name,
+            reload=reload,
+            on_success=on_success_pipeline,
+            on_failure=on_failure_pipeline,
+        )
 
         run_in = (
             duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
@@ -1507,8 +1515,12 @@ class PipelineManager:
         retry_exceptions: tuple | list | None = None,
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
+        on_failure_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
         **kwargs: Any,
     ) -> str | UUID:
         """Schedule a pipeline to run on a recurring or future basis.
@@ -1600,8 +1612,13 @@ class PipelineManager:
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
 
-        #pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func(name=name, reload=reload, on_success=on_success_pipeline, on_failure=on_failure_pipeline)
+        # pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        run_func = self._get_run_func(
+            name=name,
+            reload=reload,
+            on_success=on_success_pipeline,
+            on_failure=on_failure_pipeline,
+        )
         interval = (
             duration_parser.parse(interval) if isinstance(interval, str) else interval
         )

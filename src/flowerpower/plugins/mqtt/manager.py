@@ -9,12 +9,8 @@ from typing import Any, Callable
 import mmh3
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import (
-    MQTT_ERR_SUCCESS,
-    CallbackAPIVersion,
-    Client,
-    MQTTMessageInfo,
-)
+from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
+                              MQTTMessageInfo)
 from paho.mqtt.reasoncodes import ReasonCode
 
 from ...cfg import ProjectConfig
@@ -22,8 +18,8 @@ from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ...cfg.project.adapter import AdapterConfig
 from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ...pipeline.manager import PipelineManager
-from ...utils.logging import setup_logging
 from ...utils.callback import run_with_callback
+from ...utils.logging import setup_logging
 from .cfg import MqttConfig
 
 setup_logging()
@@ -538,8 +534,12 @@ class MqttManager:
         config_hook: Callable[[bytes, str], dict] | None = None,
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
+        on_failure_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
         **kwargs,
     ):
         """
@@ -636,9 +636,7 @@ class MqttManager:
             with PipelineManager(
                 storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
-                
                 if as_job:
-
                     res = pipeline.add_job(
                         name=name,
                         inputs=inputs,
@@ -658,7 +656,7 @@ class MqttManager:
                         retry_delay=retry_delay,
                         jitter_factor=jitter_factor,
                         retry_exceptions=retry_exceptions,
-                        on_failure= on_failure,
+                        on_failure=on_failure,
                         on_success=on_success,
                         on_failure_pipeline=on_failure_pipeline,
                         on_success_pipeline=on_success_pipeline,

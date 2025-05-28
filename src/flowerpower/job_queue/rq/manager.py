@@ -17,7 +17,7 @@ from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
-from rq.job import Job, Callback
+from rq.job import Callback, Job
 from rq.results import Result
 from rq.worker import Worker
 from rq.worker_pool import WorkerPool
@@ -670,7 +670,7 @@ class RQManager(BaseJobQueueManager):
                 retry = Retry(**retry)
             else:
                 raise ValueError("Invalid retry value. Must be int or dict.")
-            
+
         if isinstance(ttl, dt.timedelta):
             ttl = ttl.total_seconds()
         if isinstance(timeout, dt.timedelta):
@@ -1130,7 +1130,7 @@ class RQManager(BaseJobQueueManager):
             schedule_id: Optional unique identifier for the schedule.
             ttl: Time to live for the schedule, as seconds or timedelta.
             result_ttl: Time to live for the job result, as seconds or timedelta.
-            repeat: Number of repetitions 
+            repeat: Number of repetitions
             timeout: Maximum time the job can run before being killed, as seconds or timedelta.
             meta: Additional metadata to store with the schedule.
             on_success: Callback to run on schedule success. Can be a function,
@@ -1190,9 +1190,9 @@ class RQManager(BaseJobQueueManager):
         scheduler = self._scheduler
 
         use_local_time_zone = schedule_kwargs.get("use_local_time_zone", True)
-        #repeat = schedule_kwargs.get("repeat", None)
-        #result_ttl = schedule_kwargs.get("result_ttl", None)
-        #ttl = schedule_kwargs.get("ttl", None)
+        # repeat = schedule_kwargs.get("repeat", None)
+        # result_ttl = schedule_kwargs.get("result_ttl", None)
+        # ttl = schedule_kwargs.get("ttl", None)
         if isinstance(result_ttl, dt.timedelta):
             result_ttl = result_ttl.total_seconds()
         if isinstance(ttl, dt.timedelta):
@@ -1201,7 +1201,7 @@ class RQManager(BaseJobQueueManager):
             timeout = timeout.total_seconds()
         if isinstance(interval, dt.timedelta):
             interval = interval.total_seconds()
-        
+
         if isinstance(on_failure, (str, Callable)):
             on_failure = Callback(on_failure)
         if isinstance(on_success, (str, Callable)):
@@ -1209,7 +1209,6 @@ class RQManager(BaseJobQueueManager):
         if isinstance(on_stopped, (str, Callable)):
             on_stopped = Callback(on_stopped)
 
-        
         if cron:
             if meta:
                 meta.update({"cron": cron})
