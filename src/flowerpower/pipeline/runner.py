@@ -16,7 +16,6 @@ from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 from hamilton_sdk.api.clients import UnauthorizedException
 from requests.exceptions import ConnectionError, HTTPError
-
 from .. import settings
 
 if importlib.util.find_spec("opentelemetry"):
@@ -400,7 +399,8 @@ class PipelineRunner:
             HTTPError,
             UnauthorizedException,
         ),
-    ) -> dict[str, Any]:
+
+        ) -> dict[str, Any]:
         """
         Run the pipeline with the given parameters.
         Args:
@@ -419,6 +419,11 @@ class PipelineRunner:
             adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
             reload (bool, optional): Whether to reload the module. Defaults to False.
             log_level (str | None, optional): The log level to use. Defaults to None.
+            max_retries (int | None, optional): The maximum number of retry attempts. Defaults to None.
+            retry_delay (float | None, optional): The base delay between retries in seconds. Defaults to None.
+            jitter_factor (float | None, optional): The factor to apply for jitter. Defaults to None.
+            retry_exceptions: tuple | None, optional): The exceptions to catch for retries. 
+                Defaults to (Exception, HTTPError, UnauthorizedException).
 
         Returns:
             dict[str, Any]: The result of executing the pipeline.
@@ -475,9 +480,11 @@ class PipelineRunner:
                     logger.info("Shutting down executor...")
                     shutdown()
                     logger.info("Executor shut down.")
-
+                    
                 return res
             except tuple(retry_exceptions) as e:
+                # set success to False and handle retries 
+
                 if (
                     isinstance(e, HTTPError)
                     or isinstance(e, UnauthorizedException)
@@ -510,12 +517,16 @@ class PipelineRunner:
                         f"Retrying in {actual_delay:.2f} seconds (base: {base_delay:.2f}s, jitter: {jitter:.2f}s)"
                     )
                     time.sleep(actual_delay)
+                    
                 else:
                     # Last attempt failed
                     logger.error(
                         f"Pipeline execution failed after {max_retries} attempts"
                     )
                     raise last_exception
+                
+          
+                
 
 
 def run_pipeline(

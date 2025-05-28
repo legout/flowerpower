@@ -17,7 +17,7 @@ from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
-from rq.job import Job
+from rq.job import Job, Callback
 from rq.results import Result
 from rq.worker import Worker
 from rq.worker_pool import WorkerPool
@@ -539,7 +539,7 @@ class RQManager(BaseJobQueueManager):
                 logger.info("RQ scheduler process terminated")
             self._scheduler_process = None
         else:
-            logger.warning("No scheduler process to stop")
+            logger.debug("No scheduler process to stop")
 
     ## Jobs ###
 
@@ -549,14 +549,20 @@ class RQManager(BaseJobQueueManager):
         func_args: tuple | None = None,
         func_kwargs: dict[str, Any] | None = None,
         job_id: str | None = None,
-        result_ttl: float | dt.timedelta | None = None,
-        ttl: float | dt.timedelta | None = None,
+        result_ttl: int | dt.timedelta | None = None,
+        ttl: int | dt.timedelta | None = None,
+        timeout: int | dt.timedelta | None = None,
         queue_name: str | None = None,
         run_at: dt.datetime | str | None = None,
         run_in: dt.timedelta | int | str | None = None,
         retry: int | dict | None = None,
         repeat: int | dict | None = None,
         meta: dict | None = None,
+        failure_ttl: int | dt.timedelta | None = None,
+        group_id: str | None = None,
+        on_success: Callback | Callable | str | None = None,
+        on_failure: Callback | Callable | str | None = None,
+        on_stopped: Callback | Callable | str | None = None,
         **job_kwargs,
     ) -> Job:
         """Add a job for immediate or scheduled execution.
@@ -570,6 +576,7 @@ class RQManager(BaseJobQueueManager):
                 After this time, the result may be removed from Redis.
             ttl: Maximum time the job can exist in Redis, as seconds or timedelta.
                 After this time, the job will be removed even if not complete.
+            timeout: Maximum time the job can run before being killed, as seconds or timedelta.
             queue_name: Name of the queue to place the job in. If None, uses the
                 first queue from configuration.
             run_at: Schedule the job to run at a specific datetime.
@@ -579,6 +586,14 @@ class RQManager(BaseJobQueueManager):
             repeat: Number of repetitions or repeat configuration dictionary.
                 Example dict: {"max": 5, "interval": 3600}
             meta: Additional metadata to store with the job.
+            failure_ttl: Time to live for the job failure result, as seconds or timedelta.
+            group_id: Optional group ID to associate this job with a group.
+            on_success: Callback to run on job success. Can be a function, string,
+                or RQ Callback instance.
+            on_failure: Callback to run on job failure. Can be a function, string,
+                or RQ Callback instance.
+            on_stopped: Callback to run when the job is stopped. Can be a function,
+                string, or RQ Callback instance.
             **job_kwargs: Additional arguments for RQ's Job class.
 
         Returns:
@@ -655,6 +670,22 @@ class RQManager(BaseJobQueueManager):
                 retry = Retry(**retry)
             else:
                 raise ValueError("Invalid retry value. Must be int or dict.")
+            
+        if isinstance(ttl, dt.timedelta):
+            ttl = ttl.total_seconds()
+        if isinstance(timeout, dt.timedelta):
+            timeout = timeout.total_seconds()
+        if isinstance(result_ttl, dt.timedelta):
+            result_ttl = result_ttl.total_seconds()
+        if isinstance(failure_ttl, dt.timedelta):
+            failure_ttl = failure_ttl.total_seconds()
+
+        if isinstance(on_success, (str, Callable)):
+            on_success = Callback(on_success)
+        if isinstance(on_failure, (str, Callable)):
+            on_failure = Callback(on_failure)
+        if isinstance(on_stopped, (str, Callable)):
+            on_stopped = Callback(on_stopped)
 
         queue = self._queues[queue_name]
         if run_at:
@@ -668,11 +699,17 @@ class RQManager(BaseJobQueueManager):
                 args=func_args,
                 kwargs=func_kwargs,
                 job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                failure_ttl=int(failure_ttl) if failure_ttl else None,
+                timeout=int(timeout) if timeout else None,
                 retry=retry,
                 repeat=repeat,
                 meta=meta,
+                group_id=group_id,
+                on_success=on_success,
+                on_failure=on_failure,
+                on_stopped=on_stopped,
                 **job_kwargs,
             )
             logger.info(
@@ -694,11 +731,17 @@ class RQManager(BaseJobQueueManager):
                 args=func_args,
                 kwargs=func_kwargs,
                 job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                failure_ttl=int(failure_ttl) if failure_ttl else None,
+                timeout=int(timeout) if timeout else None,
                 retry=retry,
                 repeat=repeat,
                 meta=meta,
+                group_id=group_id,
+                on_success=on_success,
+                on_failure=on_failure,
+                on_stopped=on_stopped,
                 **job_kwargs,
             )
             logger.info(
@@ -711,11 +754,17 @@ class RQManager(BaseJobQueueManager):
                 args=func_args,
                 kwargs=func_kwargs,
                 job_id=job_id,
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                failure_ttl=int(failure_ttl) if failure_ttl else None,
+                timeout=int(timeout) if timeout else None,
                 retry=retry,
                 repeat=repeat,
                 meta=meta,
+                group_id=group_id,
+                on_success=on_success,
+                on_failure=on_failure,
+                on_stopped=on_stopped,
                 **job_kwargs,
             )
             logger.info(
@@ -729,12 +778,17 @@ class RQManager(BaseJobQueueManager):
         func_args: tuple | None = None,
         func_kwargs: dict[str, Any] | None = None,
         job_id: str | None = None,
-        result_ttl: float | dt.timedelta | None = None,
-        ttl: float | dt.timedelta | None = None,
+        result_ttl: int | dt.timedelta | None = None,
+        ttl: int | dt.timedelta | None = None,
         queue_name: str | None = None,
         retry: int | dict | None = None,
         repeat: int | dict | None = None,
         meta: dict | None = None,
+        failure_ttl: int | dt.timedelta | None = None,
+        group_id: str | None = None,
+        on_success: Callback | Callable | str | None = None,
+        on_failure: Callback | Callable | str | None = None,
+        on_stopped: Callback | Callable | str | None = None,
         **job_kwargs,
     ) -> Any:
         """Run a job immediately and return its result.
@@ -753,6 +807,11 @@ class RQManager(BaseJobQueueManager):
             retry: Number of retries or retry configuration.
             repeat: Number of repetitions or repeat configuration.
             meta: Additional metadata to store with the job.
+            failure_ttl: Time to live for the job failure result.
+            group_id: Optional group ID to associate this job with a group.
+            on_success: Callback to run on job success.
+            on_failure: Callback to run on job failure.
+            on_stopped: Callback to run when the job is stopped.
             **job_kwargs: Additional arguments for RQ's Job class.
 
         Returns:
@@ -787,6 +846,11 @@ class RQManager(BaseJobQueueManager):
             retry=retry,
             repeat=repeat,
             meta=meta,
+            failure_ttl=failure_ttl,
+            group_id=group_id,
+            on_success=on_success,
+            on_failure=on_failure,
+            on_stopped=on_stopped,
             **job_kwargs,
         )
         while not job.is_finished:
@@ -1041,7 +1105,16 @@ class RQManager(BaseJobQueueManager):
         cron: str | None = None,  # Cron expression for scheduling
         interval: int | None = None,  # Interval in seconds
         date: dt.datetime | None = None,  # Date to run the job
+        queue_name: str | None = None,
         schedule_id: str | None = None,
+        ttl: int | dt.timedelta | None = None,
+        result_ttl: int | dt.timedelta | None = None,
+        repeat: int | None = None,
+        timeout: int | dt.timedelta | None = None,
+        meta: dict | None = None,
+        on_success: Callback | Callable | str | None = None,
+        on_failure: Callback | Callable | str | None = None,
+        on_stopped: Callback | Callable | str | None = None,
         **schedule_kwargs,
     ) -> Job:
         """Schedule a job for repeated or one-time execution.
@@ -1053,7 +1126,19 @@ class RQManager(BaseJobQueueManager):
             cron: Cron expression for scheduling (e.g. "0 * * * *" for hourly).
             interval: Interval in seconds for recurring execution.
             date: Specific datetime for one-time execution.
+            queue_name: Name of the queue to use for the scheduled job.
             schedule_id: Optional unique identifier for the schedule.
+            ttl: Time to live for the schedule, as seconds or timedelta.
+            result_ttl: Time to live for the job result, as seconds or timedelta.
+            repeat: Number of repetitions 
+            timeout: Maximum time the job can run before being killed, as seconds or timedelta.
+            meta: Additional metadata to store with the schedule.
+            on_success: Callback to run on schedule success. Can be a function,
+                string, or RQ Callback instance.
+            on_failure: Callback to run on schedule failure. Can be a function,
+                string, or RQ Callback instance.
+            on_stopped: Callback to run when the schedule is stopped. Can be a function,
+                string, or RQ Callback instance.
             **schedule_kwargs: Additional scheduling parameters:
                 - repeat: Number of repetitions (int or dict)
                 - result_ttl: Time to live for results (float or timedelta)
@@ -1105,10 +1190,31 @@ class RQManager(BaseJobQueueManager):
         scheduler = self._scheduler
 
         use_local_time_zone = schedule_kwargs.get("use_local_time_zone", True)
-        repeat = schedule_kwargs.get("repeat", None)
-        result_ttl = schedule_kwargs.get("result_ttl", None)
-        ttl = schedule_kwargs.get("ttl", None)
+        #repeat = schedule_kwargs.get("repeat", None)
+        #result_ttl = schedule_kwargs.get("result_ttl", None)
+        #ttl = schedule_kwargs.get("ttl", None)
+        if isinstance(result_ttl, dt.timedelta):
+            result_ttl = result_ttl.total_seconds()
+        if isinstance(ttl, dt.timedelta):
+            ttl = ttl.total_seconds()
+        if isinstance(timeout, dt.timedelta):
+            timeout = timeout.total_seconds()
+        if isinstance(interval, dt.timedelta):
+            interval = interval.total_seconds()
+        
+        if isinstance(on_failure, (str, Callable)):
+            on_failure = Callback(on_failure)
+        if isinstance(on_success, (str, Callable)):
+            on_success = Callback(on_success)
+        if isinstance(on_stopped, (str, Callable)):
+            on_stopped = Callback(on_stopped)
+
+        
         if cron:
+            if meta:
+                meta.update({"cron": cron})
+            else:
+                meta = {"cron": cron}
             schedule = scheduler.cron(
                 cron_string=cron,
                 func=func,
@@ -1116,11 +1222,14 @@ class RQManager(BaseJobQueueManager):
                 kwargs=func_kwargs,
                 id=schedule_id,
                 repeat=repeat,  # Infinite by default
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                timeout=int(timeout) if timeout else None,
+                meta=meta,
                 use_local_time_zone=use_local_time_zone,
-                queue_name=self._scheduler_name,
-                meta={"cron": cron},
+                queue_name=queue_name or self._scheduler_name,
+                on_success=on_success,
+                on_failure=on_failure,
                 **schedule_kwargs,
             )
             logger.info(
@@ -1128,24 +1237,36 @@ class RQManager(BaseJobQueueManager):
             )
 
         if interval:
+            if meta:
+                meta.update({"interval": int(interval)})
+            else:
+                meta = {"interval": int(interval)}
             schedule = scheduler.schedule(
                 scheduled_time=dt.datetime.now(dt.timezone.utc),
                 func=func,
                 args=func_args,
                 kwargs=func_kwargs,
-                interval=interval,
+                interval=int(interval),
                 id=schedule_id,
                 repeat=repeat,  # Infinite by default
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
-                queue_name=self._scheduler_name,
-                meta={"interval": interval},
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                timeout=int(timeout) if timeout else None,
+                meta=meta,
+                queue_name=queue_name or self._scheduler_name,
+                on_success=on_success,
+                on_failure=on_failure,
+                **schedule_kwargs,
             )
             logger.info(
                 f"Scheduled job {schedule.id} ({func.__name__})  with interval '{precisedelta(interval)}'"
             )
 
         if date:
+            if meta:
+                meta.update({"date": date})
+            else:
+                meta = {"date": date}
             schedule = scheduler.schedule(
                 scheduled_time=date,
                 func=func,
@@ -1153,10 +1274,14 @@ class RQManager(BaseJobQueueManager):
                 kwargs=func_kwargs,
                 id=schedule_id,
                 repeat=1,  # Infinite by default
-                result_ttl=int(result_ttl.total_seconds()) if result_ttl else None,
-                ttl=int(ttl.total_seconds()) if ttl else None,
-                queue_name=self._scheduler_name,
-                meta={"date": date},
+                result_ttl=int(result_ttl) if result_ttl else None,
+                ttl=int(ttl) if ttl else None,
+                timeout=int(timeout) if timeout else None,
+                meta=meta,
+                queue_name=queue_name or self._scheduler_name,
+                on_success=on_success,
+                on_failure=on_failure,
+                on_stopped=on_stopped,
             )
             logger.info(
                 f"Scheduled job {schedule.id} ({func.__name__}) to run at '{date}'"

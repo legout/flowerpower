@@ -6,6 +6,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
 from uuid import UUID
+from functools import partial
 
 import duration_parser
 from loguru import logger
@@ -23,10 +24,11 @@ from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
+from ..utils.callback import run_with_callback
 from .io import PipelineIOManager
 from .job_queue import PipelineJobQueue
 from .registry import HookType, PipelineRegistry
-from .runner import PipelineRunner
+from .runner import PipelineRunner, run_pipeline
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -128,15 +130,22 @@ class PipelineManager:
         self._storage_options = storage_options
         if storage_options is not None:
             cached = True
-            cache_storage = posixpath.join(posixpath.expanduser(settings.CACHE_DIR), self._base_dir.split("://")[-1])
+            cache_storage = posixpath.join(
+                posixpath.expanduser(settings.CACHE_DIR),
+                self._base_dir.split("://")[-1],
+            )
             os.makedirs(cache_storage, exist_ok=True)
         else:
             cached = False
             cache_storage = None
         if not fs:
-            fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
+            fs = get_filesystem(
+                self._base_dir,
+                storage_options=storage_options,
+                cached=cached,
+                cache_storage=cache_storage,
+            )
         self._fs = fs
-
 
         # Store overrides for ProjectConfig loading
         self._cfg_dir = cfg_dir or settings.CONFIG_DIR
@@ -220,7 +229,13 @@ class PipelineManager:
         # Add cleanup code if needed
         pass
 
-    def _get_run_func_for_job(self, name: str, reload: bool = False) -> Callable:
+    def _get_run_func(
+        self,
+        name: str,
+        reload: bool = False,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+    ) -> Callable:
         """Create a PipelineRunner instance and return its run method.
 
         This internal helper method ensures that each job gets a fresh runner
@@ -242,14 +257,21 @@ class PipelineManager:
         if (
             name == self._current_pipeline_name
             and not reload
-            and hasattr(self, "_runner")
+            #and hasattr(self, "_runner")
         ):
-            return self._runner.run
+            #run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=self._pipeline_cfg)
+            run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
+                run_pipeline
+            )
+            return run_func
+
         pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        self._runner = PipelineRunner(
-            project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg
+        #run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
+        
+        run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
+            run_pipeline
         )
-        return self._runner.run
+        return run_func
 
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path.
@@ -440,6 +462,8 @@ class PipelineManager:
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -473,6 +497,8 @@ class PipelineManager:
             retry_delay (float): Delay between retries in seconds.
             jitter_factor (float): Random jitter factor to add to retry delay
             retry_exceptions (tuple): Exceptions that trigger a retry.
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
 
         Returns:
             dict[str, Any]: Pipeline execution results, mapping output variable names
@@ -505,7 +531,10 @@ class PipelineManager:
             ... )
         """
         # pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func_for_job(name=name, reload=reload)
+        run_func = self._get_run_func(
+            name=name, reload=reload, on_success=on_success, on_failure=on_failure
+        )
+
         res = run_func(
             inputs=inputs,
             final_vars=final_vars,
@@ -523,6 +552,7 @@ class PipelineManager:
             jitter_factor=jitter_factor,
             retry_exceptions=retry_exceptions,
         )
+
         return res
 
     # --- Delegated Methods ---
@@ -1187,9 +1217,17 @@ class PipelineManager:
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
+        on_failure_pipeline: Callable
+        | tuple[Callable, tuple | None, dict | None]
+        | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Execute a pipeline job immediately through the task queue.
+        """Execute a pipeline job immediately through the job queue.
 
         Unlike the run() method which executes synchronously, this method runs
         the pipeline through the configured worker system (RQ, APScheduler, etc.).
@@ -1221,11 +1259,26 @@ class PipelineManager:
             retry_delay (float): Delay between retries in seconds.
             jitter_factor (float): Random jitter factor to add to retry delay
             retry_exceptions (tuple): Exceptions that trigger a retry.
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful job execution.
+                This runs after the pipeline execution through the job queue was executed successfully.
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on job execution failure.
+                This runs if the job creation or the pipeline execution through the job queue fails or raises an exception.
+            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+                This runs after the pipeline completes successfully.
+            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
+                This runs if the pipeline fails or raises an exception.
 
             **kwargs: JobQueue-specific arguments
                 For RQ:
                     - queue_name: Queue to use (str)
                     - retry: Number of retries (int)
+                    - result_ttl: Time to live for the job result (float or timedelta)
+                    - ttl: Time to live for the job (float or timedelta)
+                    - timeout: Time to wait for the job to complete (float or timedelta)
+                    - repeat: Repeat count (int or dict)
+                    - rq_on_failure: Callback function on failure (callable)
+                    - rq_on_success: Callback function on success (callable)
+                    - rq_on_stopped: Callback function on stop (callable)
                 For APScheduler:
                     - job_executor: Executor type (str)
 
@@ -1254,10 +1307,26 @@ class PipelineManager:
             ...     queue_name="ml_jobs"
             ... )
         """
-        run_func = self._get_run_func_for_job(name=name, reload=reload)
-        return self.job_queue.run_job(
-            # run_func=run_func,
+        kwargs["on_success"] = kwargs.get("rq_on_success", None)
+        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
+        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
+
+        run_func = self._get_run_func(
+            name=name,
+            reload=reload,
+            on_success=on_success_pipeline,
+            on_failure=on_failure_pipeline,
+        )
+        #run_func = run_with_callback(on_success=on_success_pipeline, on_failure=on_failure_pipeline)(
+        #    run_func_
+        #)
+        run_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
+            self.job_queue.run_job
+        )
+
+        return run_job(
             run_func=run_func,
+            pipeline_cfg=self._pipeline_cfg,
             name=name,
             inputs=inputs,
             final_vars=final_vars,
@@ -1268,7 +1337,6 @@ class PipelineManager:
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
-            # reload=reload,
             log_level=log_level,
             max_retries=max_retries,
             retry_delay=retry_delay,
@@ -1298,9 +1366,13 @@ class PipelineManager:
         retry_delay: float = 1.0,
         jitter_factor: float = 0.1,
         retry_exceptions: tuple = (Exception,),
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         **kwargs,  # JobQueue specific args
     ) -> str | UUID:
-        """Adds a jobt to the task queue.
+        """Adds a job to the job queue.
 
         Args:
             name (str): Name of the pipeline to run. Must be a valid identifier.
@@ -1338,13 +1410,21 @@ class PipelineManager:
             retry_delay (float): Delay between retries in seconds.
             jitter_factor (float): Random jitter factor to add to retry delay
             retry_exceptions (tuple): Exceptions that trigger a retry.
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful job creation.
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on job creation failure.
+            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
             **kwargs: Additional keyword arguments passed to the worker's add_job method.
                 For RQ this includes:
                     - result_ttl: Time to live for the job result (float or timedelta)
                     - ttl: Time to live for the job (float or timedelta)
+                    - timeout: Time to wait for the job to complete (float or timedelta)
                     - queue_name: Name of the queue to use (str)
                     - retry: Number of retries (int)
                     - repeat: Repeat count (int or dict)
+                    - rq_on_failure: Callback function on failure (callable)
+                    - rq_on_success: Callback function on success (callable)
+                    - rq_on_stopped: Callback function on stop (callable)
                 For APScheduler, this includes:
                     - job_executor: Job executor to use (str)
 
@@ -1360,7 +1440,12 @@ class PipelineManager:
             >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
 
         """
-        run_func = self._get_run_func_for_job(name=name, reload=reload)
+        kwargs["on_success"] = kwargs.get("rq_on_success", None)
+        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
+        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
+
+        run_func = self._get_run_func(name=name, reload=reload, on_success=on_success_pipeline, on_failure=on_failure_pipeline)
+
         run_in = (
             duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
         )  # convert to seconds
@@ -1368,8 +1453,12 @@ class PipelineManager:
             dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
         )
 
-        return self.job_queue.add_job(
+        add_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
+            self.job_queue.add_job
+        )
+        return add_job(
             run_func=run_func,
+            pipeline_cfg=self._pipeline_cfg,
             name=name,  # Pass name for logging
             # Pass run parameters
             inputs=inputs,
@@ -1416,6 +1505,10 @@ class PipelineManager:
         retry_delay: float | None = None,
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         **kwargs: Any,
     ) -> str | UUID:
         """Schedule a pipeline to run on a recurring or future basis.
@@ -1449,10 +1542,20 @@ class PipelineManager:
             retry_delay (float): Delay between retries in seconds
             jitter_factor (float): Random jitter factor to add to retry delay
             retry_exceptions (tuple): Exceptions that trigger a retry
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful schedule creation.
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on schedule creation failure.
+            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
             **kwargs: JobQueue-specific scheduling options
                 For RQ:
                     - result_ttl: Result lifetime (int seconds)
+                    - ttl: Job lifetime (int seconds)
+                    - timeout: Job execution timeout (int seconds)
                     - queue_name: Queue to use (str)
+                    - repeat: Repeat count (int or dict)
+                    - rq_on_failure: Callback function on failure (callable)
+                    - rq_on_success: Callback function on success (callable)
+                    - rq_on_stopped: Callback function on stop (callable)
                 For APScheduler:
                     - misfire_grace_time: Late execution window
                     - coalesce: Combine missed executions (bool)
@@ -1493,16 +1596,23 @@ class PipelineManager:
             ...     executor_cfg={"type": "async"}
             ... )
         """
-        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func_for_job(name=name, reload=reload)
+        kwargs["on_success"] = kwargs.get("rq_on_success", None)
+        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
+        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
+
+        #pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        run_func = self._get_run_func(name=name, reload=reload, on_success=on_success_pipeline, on_failure=on_failure_pipeline)
         interval = (
             duration_parser.parse(interval) if isinstance(interval, str) else interval
         )
         date = dt.datetime.fromisoformat(date) if isinstance(date, str) else date
 
-        return self.job_queue.schedule(
+        schedule = run_with_callback(on_success=on_success, on_failure=on_failure)(
+            self.job_queue.schedule
+        )
+        return schedule(
             run_func=run_func,
-            pipeline_cfg=pipeline_cfg,
+            pipeline_cfg=self._pipeline_cfg,
             inputs=inputs,
             final_vars=final_vars,
             config=config,

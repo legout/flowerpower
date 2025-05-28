@@ -31,12 +31,12 @@ class JobQueueBackendConfig(BaseConfig):
 
 class APSDataStoreConfig(JobQueueBackendConfig):
     type: str = msgspec.field(default=settings.APS_BACKEND_DS)
-    username: str = msgspec.field(default=settings.APS_BACKEND_DS_USERNAME)
-    password: str = msgspec.field(default=settings.APS_BACKEND_DS_PASSWORD)
+    username: str | None = msgspec.field(default=settings.APS_BACKEND_DS_USERNAME)
+    password: str | None = msgspec.field(default=settings.APS_BACKEND_DS_PASSWORD)
 
-    host: str = msgspec.field(default=settings.APS_BACKEND_DS_HOST)
-    port: int = msgspec.field(default=settings.APS_BACKEND_DS_PORT)
-    database: str = msgspec.field(default=settings.APS_BACKEND_DS_DB)
+    host: str | None = msgspec.field(default=settings.APS_BACKEND_DS_HOST)
+    port: int | None = msgspec.field(default=settings.APS_BACKEND_DS_PORT)
+    database: str | None = msgspec.field(default=settings.APS_BACKEND_DS_DB)
     schema: str | None = msgspec.field(default=settings.APS_BACKEND_DS_SCHEMA)
 
     def update_from_settings(self):
@@ -69,11 +69,11 @@ class APSDataStoreConfig(JobQueueBackendConfig):
 
 class APSEventBrokerConfig(JobQueueBackendConfig):
     type: str = msgspec.field(default=settings.APS_BACKEND_EB)
-    username: str = msgspec.field(default=settings.APS_BACKEND_EB_USERNAME)
-    password: str = msgspec.field(default=settings.APS_BACKEND_EB_PASSWORD)
-    host: str = msgspec.field(default=settings.APS_BACKEND_EB_HOST)
-    port: int = msgspec.field(default=settings.APS_BACKEND_EB_PORT)
-    database: str = msgspec.field(default=settings.APS_BACKEND_EB_DB)
+    username: str | None = msgspec.field(default=settings.APS_BACKEND_EB_USERNAME)
+    password: str | None = msgspec.field(default=settings.APS_BACKEND_EB_PASSWORD)
+    host: str | None = msgspec.field(default=settings.APS_BACKEND_EB_HOST)
+    port: int | None = msgspec.field(default=settings.APS_BACKEND_EB_PORT)
+    database: str | None = msgspec.field(default=settings.APS_BACKEND_EB_DB)
     from_ds_sqla: bool = msgspec.field(
         default_factory=lambda: settings.APS_BACKEND_EB == "postgresql"
         and settings.APS_BACKEND_DS == "postgresql"

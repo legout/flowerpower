@@ -78,6 +78,7 @@ class PipelineJobQueue:
     def run_job(
         self,
         run_func: Callable,
+        pipeline_cfg: PipelineConfig,  # Pipeline configuration object
         name: str,  # name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
@@ -101,6 +102,7 @@ class PipelineJobQueue:
 
         Args:
             run_func (Callable): The function to execute in the job queue (e.g., a configured PipelineRunner.run).
+            pipeline_cfg (PipelineConfig): The pipeline configuration object.
             name (str): The name of the pipeline (used for logging).
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
@@ -126,6 +128,8 @@ class PipelineJobQueue:
 
         pipeline_run_args = {
             # 'name' is not passed to run_func, it's part of the context already in PipelineRunner
+            "project_cfg": self.project_cfg,
+            "pipeline_cfg": pipeline_cfg,
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
@@ -161,6 +165,7 @@ class PipelineJobQueue:
     def add_job(
         self,
         run_func: Callable,  # The actual function to run (e.g., PipelineRunner(...).run)
+        pipeline_cfg: PipelineConfig,  # Pipeline configuration object
         name: str,
         inputs: dict | None = None,
         final_vars: list | None = None,
@@ -190,6 +195,7 @@ class PipelineJobQueue:
 
         Args:
             run_func (Callable): The function to execute in the job queue (e.g., a configured PipelineRunner.run).
+            pipeline_cfg (PipelineConfig): The pipeline configuration object.
             name (str): The name of the pipeline (used for logging).
             inputs (dict | None): Inputs for the pipeline run.
             final_vars (list | None): Final variables for the pipeline run.
@@ -217,6 +223,8 @@ class PipelineJobQueue:
         logger.debug(f"Adding immediate job with result TTL for pipeline: {name}")
 
         pipeline_run_args = {
+            "project_cfg": self.project_cfg,
+            "pipeline_cfg": pipeline_cfg,
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
@@ -346,6 +354,8 @@ class PipelineJobQueue:
         # run_cfg = pipeline_cfg.run
 
         pipeline_run_args = {
+            "project_cfg": self.project_cfg,
+            "pipeline_cfg": pipeline_cfg,
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,

@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -889,7 +890,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.10.7.1"
+version = "0.10.7.4"
 source = { editable = "." }
 dependencies = [
     { name = "dill" },
@@ -1063,6 +1064,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.85.2" },
     { name = "typer", specifier = ">=0.12.3" },
 ]
+provides-extras = ["apscheduler", "io", "io-legacy", "mongodb", "mqtt", "opentelemetry", "ray", "redis", "rq", "tui", "ui", "webserver", "openlineage"]
 
 [package.metadata.requires-dev]
 dev = [

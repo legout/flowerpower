@@ -3,9 +3,10 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Any
-
+from typing import Any, Callable
+from collections.abc import Iterable
 import msgspec
+from loguru import logger
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa
@@ -458,3 +459,5 @@ def update_nested_dict(
             # Direct update
             result[key] = value
     return result
+
+

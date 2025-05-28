@@ -19,6 +19,7 @@ from ...cfg.project.adapter import AdapterConfig
 from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
+from ...utils.callback import run_with_callback
 from .cfg import MqttConfig
 
 setup_logging()
@@ -494,6 +495,15 @@ class MqttManager:
         self._client.loop_stop()
         logger.info("Client stopped.")
 
+    # def _run_pipeline(self, **kwargs):
+    #     """
+    #     Internal method to run a pipeline on a message.
+    #     This method is called by the `run_pipeline_on_message` method.
+    #     """
+    #     # This method is intentionally left empty. It is meant to be overridden
+    #     # by the `run_pipeline_on_message` method.
+    #     pm.run(self, **kwargs)
+
     def run_pipeline_on_message(
         self,
         name: str,
@@ -522,6 +532,8 @@ class MqttManager:
         background: bool = False,
         qos: int = 2,
         config_hook: Callable[[bytes, str], dict] | None = None,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         **kwargs,
     ):
         """
@@ -554,6 +566,8 @@ class MqttManager:
             background (bool): Run the listener in the background
             qos (int): Quality of Service for the MQTT client
             config_hook (Callable[[bytes, str], dict] | None): Hook function to modify the configuration of the pipeline
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function to run on successful pipeline execution
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function to run on failure of pipeline execution
             **kwargs: Additional keyword arguments
 
         Returns:
@@ -614,55 +628,53 @@ class MqttManager:
             with PipelineManager(
                 storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
-                try:
-                    if as_job:
-                        pipeline.add_job(
-                            name=name,
-                            inputs=inputs,
-                            final_vars=final_vars,
-                            config=config,
-                            cache=cache,
-                            executor_cfg=executor_cfg,
-                            with_adapter_cfg=with_adapter_cfg,
-                            pipeline_adapter_cfg=pipeline_adapter_cfg,
-                            project_adapter_cfg=project_adapter_cfg,
-                            adapter=adapter,
-                            run_in=run_in,
-                            reload=reload,
-                            log_level=log_level,
-                            result_ttl=result_ttl,
-                            max_retries=max_retries,
-                            retry_delay=retry_delay,
-                            jitter_factor=jitter_factor,
-                            retry_exceptions=retry_exceptions,
-                            **kwargs,
+                if as_job:
+                    add_job = run_with_callback(on_success=on_success, on_failure=on_failure)(pipeline.add_job)
+                    
+                    res = add_job(
+                        name=name,
+                        inputs=inputs,
+                        final_vars=final_vars,
+                        config=config,
+                        cache=cache,
+                        executor_cfg=executor_cfg,
+                        with_adapter_cfg=with_adapter_cfg,
+                        pipeline_adapter_cfg=pipeline_adapter_cfg,
+                        project_adapter_cfg=project_adapter_cfg,
+                        adapter=adapter,
+                        run_in=run_in,
+                        reload=reload,
+                        log_level=log_level,
+                        result_ttl=result_ttl,
+                        max_retries=max_retries,
+                        retry_delay=retry_delay,
+                        jitter_factor=jitter_factor,
+                        retry_exceptions=retry_exceptions,
+                        **kwargs,
                         )
-                    else:
-                        pipeline.run(
-                            name=name,
-                            inputs=inputs,
-                            final_vars=final_vars,
-                            config=config,
-                            cache=cache,
-                            executor_cfg=executor_cfg,
-                            with_adapter_cfg=with_adapter_cfg,
-                            pipeline_adapter_cfg=pipeline_adapter_cfg,
-                            project_adapter_cfg=project_adapter_cfg,
-                            adapter=adapter,
-                            reload=reload,
-                            log_level=log_level,
-                            max_retries=max_retries,
-                            retry_delay=retry_delay,
-                            jitter_factor=jitter_factor,
-                            retry_exceptions=retry_exceptions,
-                        )
-                    logger.success("Message processed successfully")
-                    return
-                except Exception as e:
-                    _ = e
-                    logger.exception(e)
 
-                logger.warning("Message processing failed")
+
+                else:
+                    run = run_with_callback(on_success=on_success, on_failure=on_failure)(pipeline.run)
+                    run(
+                        name=name,
+                        inputs=inputs,
+                        final_vars=final_vars,
+                        config=config,
+                        cache=cache,
+                        executor_cfg=executor_cfg,
+                        with_adapter_cfg=with_adapter_cfg,
+                        pipeline_adapter_cfg=pipeline_adapter_cfg,
+                        project_adapter_cfg=project_adapter_cfg,
+                            adapter=adapter,
+                            reload=reload,
+                            log_level=log_level,
+                            max_retries=max_retries,
+                            retry_delay=retry_delay,
+                            jitter_factor=jitter_factor,
+                            retry_exceptions=retry_exceptions,
+                        )
+                   
 
         self.start_listener(
             on_message=on_message, topic=topic, background=background, qos=qos
