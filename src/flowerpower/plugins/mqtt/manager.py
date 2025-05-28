@@ -9,8 +9,12 @@ from typing import Any, Callable
 import mmh3
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
-                              MQTTMessageInfo)
+from paho.mqtt.client import (
+    MQTT_ERR_SUCCESS,
+    CallbackAPIVersion,
+    Client,
+    MQTTMessageInfo,
+)
 from paho.mqtt.reasoncodes import ReasonCode
 
 from ...cfg import ProjectConfig
@@ -534,6 +538,8 @@ class MqttManager:
         config_hook: Callable[[bytes, str], dict] | None = None,
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_success_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        on_failure_pipeline: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         **kwargs,
     ):
         """
@@ -566,8 +572,10 @@ class MqttManager:
             background (bool): Run the listener in the background
             qos (int): Quality of Service for the MQTT client
             config_hook (Callable[[bytes, str], dict] | None): Hook function to modify the configuration of the pipeline
-            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function to run on successful pipeline execution
-            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function to run on failure of pipeline execution
+            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function for successful job creation
+            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function for failed job creation
+            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function for successful pipeline run
+            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback function for failed pipeline run
             **kwargs: Additional keyword arguments
 
         Returns:
@@ -628,10 +636,10 @@ class MqttManager:
             with PipelineManager(
                 storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
+                
                 if as_job:
-                    add_job = run_with_callback(on_success=on_success, on_failure=on_failure)(pipeline.add_job)
-                    
-                    res = add_job(
+
+                    res = pipeline.add_job(
                         name=name,
                         inputs=inputs,
                         final_vars=final_vars,
@@ -650,13 +658,15 @@ class MqttManager:
                         retry_delay=retry_delay,
                         jitter_factor=jitter_factor,
                         retry_exceptions=retry_exceptions,
+                        on_failure= on_failure,
+                        on_success=on_success,
+                        on_failure_pipeline=on_failure_pipeline,
+                        on_success_pipeline=on_success_pipeline,
                         **kwargs,
-                        )
-
+                    )
 
                 else:
-                    run = run_with_callback(on_success=on_success, on_failure=on_failure)(pipeline.run)
-                    run(
+                    res = pipeline.run(
                         name=name,
                         inputs=inputs,
                         final_vars=final_vars,
@@ -666,15 +676,16 @@ class MqttManager:
                         with_adapter_cfg=with_adapter_cfg,
                         pipeline_adapter_cfg=pipeline_adapter_cfg,
                         project_adapter_cfg=project_adapter_cfg,
-                            adapter=adapter,
-                            reload=reload,
-                            log_level=log_level,
-                            max_retries=max_retries,
-                            retry_delay=retry_delay,
-                            jitter_factor=jitter_factor,
-                            retry_exceptions=retry_exceptions,
-                        )
-                   
+                        adapter=adapter,
+                        reload=reload,
+                        log_level=log_level,
+                        max_retries=max_retries,
+                        retry_delay=retry_delay,
+                        jitter_factor=jitter_factor,
+                        retry_exceptions=retry_exceptions,
+                        on_failure=on_failure_pipeline,
+                        on_success=on_success_pipeline,
+                    )
 
         self.start_listener(
             on_message=on_message, topic=topic, background=background, qos=qos
