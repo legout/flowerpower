@@ -19,6 +19,7 @@ from .base import BaseBackend, BaseJobQueueManager
 
 setup_logging()
 
+
 class JobQueueBackend:
     """A factory class for creating backend instances for different job queue types.
 
@@ -252,7 +253,7 @@ class JobQueueManager:
                 base_dir=base_dir,
                 backend=backend,
                 storage_options=storage_options,
-                fs=fs, 
+                fs=fs,
                 log_level=log_level,
                 **kwargs,
             )
@@ -270,8 +271,6 @@ class JobQueueManager:
                 raise ImportError(
                     f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
                 )
-
-
 
 
 __all__ = [

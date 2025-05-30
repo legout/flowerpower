@@ -11,11 +11,10 @@ from loguru import logger
 from rich import print as rprint
 
 from .. import settings
-
 # Import necessary config types
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
-from ..job_queue import JobQueueManager, JobQueueBackend
+from ..job_queue import JobQueueBackend, JobQueueManager
 from ..utils.logging import setup_logging
 from .registry import PipelineRegistry
 

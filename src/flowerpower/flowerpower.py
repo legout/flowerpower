@@ -8,16 +8,14 @@ from loguru import logger
 
 from . import settings
 from .cfg import ProjectConfig
-from .fs import AbstractFileSystem, BaseStorageOptions, get_filesystem, DirFileSystem
-from .pipeline import PipelineManager
+from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
+                 get_filesystem)
 from .job_queue import JobQueueManager
+from .pipeline import PipelineManager
 from .utils.logging import setup_logging
 
 setup_logging(level=settings.LOG_LEVEL)
 
-
-
-   
 
 class FlowerPowerProject:
     def __init__(
@@ -41,7 +39,7 @@ class FlowerPowerProject:
         self.job_queue_backend = self.job_queue_manager.cfg.backend
 
     @staticmethod
-    def _check_project_exists(base_dir:str, fs: AbstractFileSystem | None = None):
+    def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):
         if fs is None:
             fs = get_filesystem(base_dir, dirfs=True)
         if isinstance(fs, DirFileSystem):
@@ -68,7 +66,7 @@ class FlowerPowerProject:
                     "[red]Project configuration or pipelines directory is missing[/red]"
                 )
                 return False
-            
+
         logger.debug(f"Project exists at {base_dir}")
         return True
 
@@ -337,7 +335,7 @@ def init(
         name=name,
         base_dir=base_dir,
         storage_options=storage_options,
-        fs=fs,  
+        fs=fs,
         job_queue_type=job_queue_type,
         cfg_dir=cfg_dir,
         pipelines_dir=pipelines_dir,

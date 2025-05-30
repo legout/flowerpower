@@ -126,7 +126,7 @@ class PipelineManager:
             setup_logging(level=log_level)
 
         self._base_dir = base_dir or str(Path.cwd())
-        #self._storage_options = storage_options
+        # self._storage_options = storage_options
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
@@ -151,8 +151,9 @@ class PipelineManager:
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
 
-
-        self._load_project_cfg(reload=True, job_queue_type=job_queue_type)  # Load project config
+        self._load_project_cfg(
+            reload=True, job_queue_type=job_queue_type
+        )  # Load project config
         self._job_queue_type = job_queue_type or self.project_cfg.job_queue.type
 
         # Ensure essential directories exist (using paths from loaded project_cfg)
@@ -305,7 +306,9 @@ class PipelineManager:
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
 
-    def _load_project_cfg(self, reload: bool = False, job_queue_type: str | None = None) -> ProjectConfig:
+    def _load_project_cfg(
+        self, reload: bool = False, job_queue_type: str | None = None
+    ) -> ProjectConfig:
         """Load or reload the project configuration.
 
         This internal method handles loading project-wide settings from the config
