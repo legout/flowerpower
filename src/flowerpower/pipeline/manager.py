@@ -2,7 +2,6 @@ import datetime as dt
 import os
 import posixpath
 import sys
-from functools import partial
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
@@ -28,10 +27,10 @@ from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .job_queue import PipelineJobQueue
 from .registry import HookType, PipelineRegistry
-from .runner import PipelineRunner, run_pipeline
+from .runner import run_pipeline
 from .visualizer import PipelineVisualizer
 
-setup_logging()
+setup_logging(level=settings.LOG_LEVEL)
 
 GraphType = TypeVar("GraphType")  # Type variable for graphviz.Digraph
 
@@ -77,8 +76,8 @@ class PipelineManager:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
-        cfg_dir: str | None = None,
-        pipelines_dir: str | None = None,
+        cfg_dir: str | None = settings.CONFIG_DIR,
+        pipelines_dir: str | None = settings.PIPELINES_DIR,
         job_queue_type: str | None = None,
         log_level: str | None = None,
     ) -> None:
@@ -127,7 +126,7 @@ class PipelineManager:
             setup_logging(level=log_level)
 
         self._base_dir = base_dir or str(Path.cwd())
-        self._storage_options = storage_options
+        #self._storage_options = storage_options
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
@@ -146,13 +145,15 @@ class PipelineManager:
                 cache_storage=cache_storage,
             )
         self._fs = fs
+        self._storage_options = storage_options or fs.storage_options
 
         # Store overrides for ProjectConfig loading
-        self._cfg_dir = cfg_dir or settings.CONFIG_DIR
-        self._pipelines_dir = pipelines_dir or settings.PIPELINES_DIR
-        self._job_queue_type = job_queue_type
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
 
-        self._load_project_cfg(reload=True)  # Load project config
+
+        self._load_project_cfg(reload=True, job_queue_type=job_queue_type)  # Load project config
+        self._job_queue_type = job_queue_type or self.project_cfg.job_queue.type
 
         # Ensure essential directories exist (using paths from loaded project_cfg)
         try:
@@ -177,7 +178,6 @@ class PipelineManager:
             fs=self._fs,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
-            job_queue_type=self._job_queue_type,
         )
         self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
         self.io = PipelineIOManager(registry=self.registry)
@@ -264,7 +264,7 @@ class PipelineManager:
             )
             return run_func
 
-        pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
+        _ = self._load_pipeline_cfg(name=name, reload=reload)
         # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
 
         run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
@@ -305,7 +305,7 @@ class PipelineManager:
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
 
-    def _load_project_cfg(self, reload: bool = False) -> ProjectConfig:
+    def _load_project_cfg(self, reload: bool = False, job_queue_type: str | None = None) -> ProjectConfig:
         """Load or reload the project configuration.
 
         This internal method handles loading project-wide settings from the config
@@ -337,7 +337,7 @@ class PipelineManager:
         # Pass overrides to ProjectConfig.load
         self._project_cfg = ProjectConfig.load(
             base_dir=self._base_dir,
-            job_queue_type=self._job_queue_type,
+            job_queue_type=job_queue_type,
             fs=self._fs,  # Pass pre-configured fs if provided
             storage_options=self._storage_options,
         )
@@ -535,6 +535,8 @@ class PipelineManager:
         )
 
         res = run_func(
+            project_cfg=self._project_cfg,
+            pipeline_cfg=self._pipeline_cfg,
             inputs=inputs,
             final_vars=final_vars,
             config=config,

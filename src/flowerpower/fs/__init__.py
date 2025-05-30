@@ -8,15 +8,16 @@ if has_orjson and has_polars:
 else:
     from fsspec import AbstractFileSystem
 
-from .base import get_filesystem  # noqa: E402
+from .base import get_filesystem, DirFileSystem # noqa: E402
 from .storage_options import AwsStorageOptions  # noqa: E402
 from .storage_options import AzureStorageOptions  # noqa: E402
-from .storage_options import (BaseStorageOptions, GcsStorageOptions,
+from .storage_options import (BaseStorageOptions, GcsStorageOptions, # noqa: E402
                               GitHubStorageOptions, GitLabStorageOptions,
                               StorageOptions)
 
 __all__ = [
     "get_filesystem",
+    "DirFileSystem",
     "AbstractFileSystem",
     "StorageOptions",
     "AwsStorageOptions",

@@ -11,10 +11,11 @@ from loguru import logger
 from rich import print as rprint
 
 from .. import settings
+
 # Import necessary config types
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
-from ..job_queue import JobQueueManager
+from ..job_queue import JobQueueManager, JobQueueBackend
 from ..utils.logging import setup_logging
 from .registry import PipelineRegistry
 
@@ -30,7 +31,7 @@ class PipelineJobQueue:
         fs: AbstractFileSystem,
         cfg_dir: str,
         pipelines_dir: str,
-        job_queue_type: str | None = None,
+        # job_queue_type: str | None = None,
     ):
         """Initialize PipelineJobQueue.
 
@@ -45,13 +46,15 @@ class PipelineJobQueue:
         self._fs = fs
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
-        self._job_queue_type = job_queue_type or project_cfg.job_queue.type
-        if not self._job_queue_type:
-            # Fallback or default if not specified in project config
-            self._job_queue_type = settings.JOB_QUEUE_TYPE
-            logger.warning(
-                f"Job queue type not specified in project config, defaulting to '{self._job_queue_type}'"
-            )
+        self._job_queue_type = project_cfg.job_queue.type
+        self._job_queue_backend = project_cfg.job_queue.backend
+
+        # if not self._job_queue_type:
+        #    # Fallback or default if not specified in project config
+        #    self._job_queue_type = settings.JOB_QUEUE_TYPE
+        #    logger.warning(
+        #        f"Job queue type not specified in project config, defaulting to '{self._job_queue_type}'"
+        #    )
 
     @property
     def job_queue(self):
@@ -64,8 +67,11 @@ class PipelineJobQueue:
         )
         # Pass the necessary parts of project_cfg to the Job queue
         return JobQueueManager(
+            name=self.project_cfg.name,
             type=self._job_queue_type,
-            fs=self._fs,
+            backend=JobQueueBackend(
+                job_queue_type=self._job_queue_type, **self._job_queue_backend.to_dict()
+            ),
         )
 
     def _get_schedule_ids(self) -> list[Any]:

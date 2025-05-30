@@ -24,6 +24,7 @@ else:
 
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
+
 # from ..utils.misc import update_config_from_dict
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
@@ -348,25 +349,34 @@ class BaseJobQueueManager:
         """
         self.name = name or ""
         self._base_dir = base_dir or str(Path.cwd())
-        self._storage_options = storage_options or {}
+        #self._storage_options = storage_options or {}
         self._backend = backend
         self._type = type
         self._pipelines_dir = kwargs.get("pipelines_dir", PIPELINES_DIR)
-        self._conf_dir = CONFIG_DIR
+        self._cfg_dir = CONFIG_DIR
 
         if storage_options is not None:
             cached = True
-            cache_storage = posixpath.join(posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1])
+            cache_storage = posixpath.join(
+                posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1]
+            )
             os.makedirs(cache_storage, exist_ok=True)
         else:
             cached = False
             cache_storage = None
         if not fs:
-            fs = get_filesystem(self._base_dir, storage_options=storage_options, cached=cached, cache_storage=cache_storage)
+            fs = get_filesystem(
+                self._base_dir,
+                storage_options=storage_options,
+                cached=cached,
+                cache_storage=cache_storage,
+            )
         self._fs = fs
+        self._storage_options = storage_options or fs.storage_options
 
         self._add_modules_path()
         self._load_config()
+
 
     def _load_config(self) -> None:
         """Load the configuration.
