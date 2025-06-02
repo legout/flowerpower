@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.10.8.1] - 2025-06-03
+
+### Changes
+- bump: Update version to 0.10.8.1 in pyproject.toml
+- refactor: Improve code formatting and readability across multiple files
+- Refactor code structure for improved readability and maintainability
+- chore: Bump version to 0.10.8 in pyproject.toml
+- refactor: Organize imports and improve code formatting across multiple modules
+- Refactor code structure for improved readability and maintainability
+- refactor: Clean up imports and improve code formatting across multiple modules
+- feat: Add callback support for successful and failed pipeline runs in MqttManager
+- feat: Enhance job management with callback support and improved error handling
+- chore: Update version to 0.10.7.4; fix incorrect attribute reference for filesystem mapper in job queue and pipeline manager
+- chore: Update version to 0.10.7.3; fix incorrect attribute reference for filesystem mapper in job queue and pipeline manager
+- chore: Update version to 0.10.7.2; refactor filesystem sync handling in pipeline classes
+- chore: Update version to 0.10.7.1; replace posixpath.makedirs with os.makedirs for cache directory creation
+- chore: Update version to 0.10.7 and add CACHE_DIR setting; refactor filesystem handling in job queue and pipeline manager
+- Refactor code structure for improved readability and maintainability
+- chore: Update version to 0.10.6.4 and adjust dependencies in pyproject.toml
+- refactor: Clean up import statements and ensure consistent formatting in basic_mqtt.py
+- Add basic MQTT pipeline configuration and implementation
+- feat: Add comprehensive development plans and documentation for FlowerPower web application
+- feat: Remove deprecated web templates and add new Test Engineer mode in configuration
+- feat: Add comprehensive analysis and documentation for Flowerpower framework
+- Add PyTest unit and integration tests
+- feat: add comprehensive documentation for FlowerPower framework including installation, project setup, and pipeline management
+- fix: update config_hook type annotation from int to str for consistency
+- refactor: simplify dictionary comprehension for event broker and DataFrame creation
+
+
+
 ## [0.10.8] - 2025-05-30
 
 ### Changes
