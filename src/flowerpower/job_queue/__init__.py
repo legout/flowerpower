@@ -1,6 +1,7 @@
-from loguru import logger
 import importlib
 from typing import Any, Optional
+
+from loguru import logger
 
 from ..cfg.project import ProjectConfig
 from ..fs import AbstractFileSystem
@@ -122,7 +123,7 @@ class JobQueueBackend:
         else:
             if job_queue_type == "rq" and RQBackend is None:
                 logger.warning(
-                    "RQ is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. " 
+                    "RQ is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. "
                     "Install rq to use RQ. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
                 )
                 return None
@@ -280,7 +281,6 @@ class JobQueueManager:
             raise ImportError(
                 f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
             )
-
 
 
 __all__ = [

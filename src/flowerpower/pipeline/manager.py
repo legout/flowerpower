@@ -1321,7 +1321,9 @@ class PipelineManager:
             ... )
         """
         if self.job_queue is None:
-            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            logger.error(
+                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
+            )
             return None
 
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
@@ -1464,9 +1466,11 @@ class PipelineManager:
 
         """
         if self.job_queue is None:
-            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            logger.error(
+                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
+            )
             return None
-        
+
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
@@ -1635,9 +1639,11 @@ class PipelineManager:
             ... )
         """
         if self.job_queue is None:
-            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            logger.error(
+                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
+            )
             return None
-        
+
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
@@ -1762,7 +1768,9 @@ class PipelineManager:
             ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
         """
         if self.job_queue is None:
-            logger.error("This PipelineManager instance does not have a job queue configured. Skipping schedule retrieval.")
+            logger.error(
+                "This PipelineManager instance does not have a job queue configured. Skipping schedule retrieval."
+            )
             return []
         try:
             return self.job_queue._get_schedules()

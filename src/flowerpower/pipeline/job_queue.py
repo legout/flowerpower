@@ -60,7 +60,7 @@ class PipelineJobQueue:
         """
         Lazily instantiate and cache a Job queue instance.
         Handles the case where JobQueueManager returns None due to missing dependencies.
-        
+
         Returns:
             Optional[Any]: The job queue manager instance, or None if the backend is unavailable.
         """
@@ -74,7 +74,7 @@ class PipelineJobQueue:
                 job_queue_type=self._job_queue_type, **self._job_queue_backend.to_dict()
             ),
         )
-        
+
         if manager_instance is None:
             if self._job_queue_type == "rq":
                 logger.warning(
@@ -92,7 +92,7 @@ class PipelineJobQueue:
 
     def _get_schedule_ids(self) -> list[Any]:
         """Get all schedules from the job queue backend.
-        
+
         Returns:
             list[Any]: List of schedule IDs, or empty list if job queue backend is unavailable.
         """
@@ -510,14 +510,16 @@ class PipelineJobQueue:
             **kwargs: Arguments passed directly to the `schedule` method for each pipeline.
                       Note: Pipeline-specific configurations will still take precedence for
                       defaults if not overridden by kwargs.
-                      
+
         Returns:
             Optional[list[str]]: List of scheduled pipeline IDs, or None if job queue backend is unavailable.
         """
         if self.job_queue is None:
-            logger.warning("Job queue backend is unavailable. Cannot schedule pipelines.")
+            logger.warning(
+                "Job queue backend is unavailable. Cannot schedule pipelines."
+            )
             return None
-            
+
         try:
             names = registry._get_names()  # Use registry to find pipelines
             if not names:
@@ -546,9 +548,13 @@ class PipelineJobQueue:
                     logger.info(f"Scheduling [cyan]{name}[/cyan]...")
                     # Pass kwargs, allowing overrides of config defaults
                     run_func = registry.get_runner(name).run
-                    schedule_id = self.schedule(run_func=run_func, pipeline_cfg=cfg.pipeline, **kwargs)
+                    schedule_id = self.schedule(
+                        run_func=run_func, pipeline_cfg=cfg.pipeline, **kwargs
+                    )
                     if schedule_id is None:
-                        logger.info(f"Skipping adding None schedule_id for pipeline '{name}' to scheduled_ids list.")
+                        logger.info(
+                            f"Skipping adding None schedule_id for pipeline '{name}' to scheduled_ids list."
+                        )
                         continue
                     scheduled_ids.append(schedule_id)
                 except Exception as e:
@@ -564,7 +570,7 @@ class PipelineJobQueue:
                 logger.success(
                     f"\n[bold green]Successfully scheduled {len(scheduled_ids)} pipelines.[/bold green]"
                 )
-            
+
             return scheduled_ids
 
         except Exception as e:

@@ -19,7 +19,9 @@ setup_logging(level=settings.LOG_LEVEL)
 
 class FlowerPowerProject:
     def __init__(
-        self, pipeline_manager: PipelineManager, job_queue_manager: JobQueueManager | None = None
+        self,
+        pipeline_manager: PipelineManager,
+        job_queue_manager: JobQueueManager | None = None,
     ):
         """
         Initialize a FlowerPower project.
@@ -35,8 +37,16 @@ class FlowerPowerProject:
         self._storage_options = self.pipeline_manager._storage_options
         self._cfg_dir = self.pipeline_manager._cfg_dir
         self._pipelines_dir = self.pipeline_manager._pipelines_dir
-        self.job_queue_type = self.job_queue_manager.cfg.type if self.job_queue_manager is not None else None
-        self.job_queue_backend = self.job_queue_manager.cfg.backend if self.job_queue_manager is not None else None
+        self.job_queue_type = (
+            self.job_queue_manager.cfg.type
+            if self.job_queue_manager is not None
+            else None
+        )
+        self.job_queue_backend = (
+            self.job_queue_manager.cfg.backend
+            if self.job_queue_manager is not None
+            else None
+        )
 
     @staticmethod
     def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):

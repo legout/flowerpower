@@ -1,8 +1,8 @@
-from logging.config import fileConfig
-
 import sqlite3
+from logging.config import fileConfig
 from pathlib import Path
-from sqlalchemy import create_engine # Import create_engine
+
+from sqlalchemy import create_engine  # Import create_engine
 
 from alembic import context
 
@@ -60,8 +60,10 @@ def run_migrations_online() -> None:
     # Get the database URL from alembic.ini
     db_url = config.get_main_option("sqlalchemy.url")
     if not db_url or not db_url.startswith("sqlite:///"):
-        raise ValueError("sqlalchemy.url must be set to a sqlite path in alembic.ini (e.g., sqlite:///path/to/db.sqlite)")
-    
+        raise ValueError(
+            "sqlalchemy.url must be set to a sqlite path in alembic.ini (e.g., sqlite:///path/to/db.sqlite)"
+        )
+
     # Extract the file path from the URL
     db_path = Path(db_url.replace("sqlite:///", ""))
 
@@ -70,9 +72,12 @@ def run_migrations_online() -> None:
     # even though we are doing manual migrations.
     engine = create_engine(db_url)
 
-    with engine.connect() as connection: # Use engine.connect() to get a connection with dialect
+    with (
+        engine.connect() as connection
+    ):  # Use engine.connect() to get a connection with dialect
         context.configure(
-            connection=connection, target_metadata=None # Explicitly None for manual migrations
+            connection=connection,
+            target_metadata=None,  # Explicitly None for manual migrations
         )
 
         with context.begin_transaction():

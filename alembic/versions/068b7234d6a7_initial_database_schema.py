@@ -1,18 +1,19 @@
 """Initial database schema
 
 Revision ID: 068b7234d6a7
-Revises: 
+Revises:
 Create Date: 2025-05-30 10:08:37.259497
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '068b7234d6a7'
+revision: str = "068b7234d6a7"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -177,7 +178,9 @@ def upgrade() -> None:
             change_source TEXT
         )
     """)
-    op.execute("CREATE INDEX idx_product_context_history_version ON product_context_history (version)")
+    op.execute(
+        "CREATE INDEX idx_product_context_history_version ON product_context_history (version)"
+    )
 
     # Active Context History
     op.execute("""
@@ -189,7 +192,9 @@ def upgrade() -> None:
             change_source TEXT
         )
     """)
-    op.execute("CREATE INDEX idx_active_context_history_version ON active_context_history (version)")
+    op.execute(
+        "CREATE INDEX idx_active_context_history_version ON active_context_history (version)"
+    )
 
 
 def downgrade() -> None:
