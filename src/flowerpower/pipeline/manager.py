@@ -174,12 +174,19 @@ class PipelineManager:
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
         )
-        self.job_queue = PipelineJobQueue(
+        pipeline_job_queue = PipelineJobQueue(
             project_cfg=self.project_cfg,
             fs=self._fs,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
         )
+        if pipeline_job_queue.job_queue is None:
+            logger.warning(
+                "Job queue backend is unavailable. Some features may not work."
+            )
+            self.job_queue = None
+        else:
+            self.job_queue = pipeline_job_queue
         self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
         self.io = PipelineIOManager(registry=self.registry)
 
@@ -265,7 +272,7 @@ class PipelineManager:
             )
             return run_func
 
-        _ = self._load_pipeline_cfg(name=name, reload=reload)
+        _ = self.load_pipeline(name=name, reload=reload)
         # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
 
         run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
@@ -347,7 +354,7 @@ class PipelineManager:
         # Update internal fs reference in case ProjectConfig loaded/created one
         return self._project_cfg
 
-    def _load_pipeline_cfg(self, name: str, reload: bool = False) -> PipelineConfig:
+    def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load or reload configuration for a specific pipeline.
 
         This internal method handles loading pipeline-specific settings from the config
@@ -1230,11 +1237,13 @@ class PipelineManager:
         | tuple[Callable, tuple | None, dict | None]
         | None = None,
         **kwargs: Any,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         """Execute a pipeline job immediately through the job queue.
 
         Unlike the run() method which executes synchronously, this method runs
         the pipeline through the configured worker system (RQ, APScheduler, etc.).
+
+        If the job queue is not configured, it logs an error and returns None.
 
         Args:
             name (str): Name of the pipeline to run. Must be a valid identifier.
@@ -1287,7 +1296,7 @@ class PipelineManager:
                     - job_executor: Executor type (str)
 
         Returns:
-            dict[str, Any]: Job execution results
+            dict[str, Any] | None: Job execution results if successful, otherwise None.
 
         Raises:
             ValueError: If pipeline or configuration is invalid
@@ -1311,6 +1320,10 @@ class PipelineManager:
             ...     queue_name="ml_jobs"
             ... )
         """
+        if self.job_queue is None:
+            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            return None
+
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
@@ -1379,8 +1392,10 @@ class PipelineManager:
         | tuple[Callable, tuple | None, dict | None]
         | None = None,
         **kwargs,  # JobQueue specific args
-    ) -> str | UUID:
+    ) -> str | UUID | None:
         """Adds a job to the job queue.
+
+        If the job queue is not configured, it logs an error and returns None.
 
         Args:
             name (str): Name of the pipeline to run. Must be a valid identifier.
@@ -1437,7 +1452,7 @@ class PipelineManager:
                     - job_executor: Job executor to use (str)
 
         Returns:
-            str | UUID: The ID of the job.
+            str | UUID | None: The ID of the job that was added to the job queue, or None if the job queue is not configured.
 
         Raises:
             ValueError: If the job ID is not valid or if the job cannot be scheduled.
@@ -1448,6 +1463,10 @@ class PipelineManager:
             >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
 
         """
+        if self.job_queue is None:
+            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            return None
+        
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
@@ -1527,8 +1546,10 @@ class PipelineManager:
         | tuple[Callable, tuple | None, dict | None]
         | None = None,
         **kwargs: Any,
-    ) -> str | UUID:
+    ) -> str | UUID | None:
         """Schedule a pipeline to run on a recurring or future basis.
+
+        If the job queue is not configured, it logs an error and returns None.
 
         Args:
             name (str): The name of the pipeline to run.
@@ -1579,7 +1600,7 @@ class PipelineManager:
                     - max_running_jobs: Concurrent instances limit (int)
 
         Returns:
-            str | UUID: Unique identifier for the created schedule
+            str | UUID | None: Unique identifier for the created schedule, or None if scheduling fails.
 
         Raises:
             ValueError: If schedule parameters are invalid
@@ -1613,6 +1634,10 @@ class PipelineManager:
             ...     executor_cfg={"type": "async"}
             ... )
         """
+        if self.job_queue is None:
+            logger.error("This PipelineManager instance does not have a job queue configured. Skipping job execution.")
+            return None
+        
         kwargs["on_success"] = kwargs.get("rq_on_success", None)
         kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
         kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
@@ -1693,7 +1718,7 @@ class PipelineManager:
         logger.info(f"Attempting to schedule {len(pipeline_names)} pipelines...")
         for name in pipeline_names:
             try:
-                pipeline_cfg = self._load_pipeline_cfg(name=name, reload=True)
+                pipeline_cfg = self.load_pipeline(name=name, reload=True)
 
                 if not pipeline_cfg.schedule.enabled:
                     logger.info(
@@ -1703,6 +1728,11 @@ class PipelineManager:
 
                 logger.info(f"Scheduling [cyan]{name}[/cyan]...")
                 schedule_id = self.schedule(name=name, reload=False, **kwargs)
+                if schedule_id is None:
+                    logger.info(
+                        f"🟡 Skipping adding schedule for [cyan]{name}[/cyan]: Job queue backend not available or scheduling failed."
+                    )
+                    continue
                 scheduled_ids.append(schedule_id)
             except Exception as e:
                 logger.error(f"Failed to schedule pipeline '{name}': {e}")
@@ -1731,6 +1761,9 @@ class PipelineManager:
             >>> for schedule in manager.schedules:
             ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
         """
+        if self.job_queue is None:
+            logger.error("This PipelineManager instance does not have a job queue configured. Skipping schedule retrieval.")
+            return []
         try:
             return self.job_queue._get_schedules()
         except Exception as e:

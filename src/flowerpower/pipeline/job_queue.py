@@ -4,7 +4,7 @@
 """Pipeline Job Queue."""
 
 import datetime as dt
-from typing import Any, Callable
+from typing import Any, Callable, Optional, Union
 from uuid import UUID
 
 from loguru import logger
@@ -56,26 +56,49 @@ class PipelineJobQueue:
         #    )
 
     @property
-    def job_queue(self):
+    def job_queue(self) -> Optional[Any]:
         """
         Lazily instantiate and cache a Job queue instance.
+        Handles the case where JobQueueManager returns None due to missing dependencies.
+        
+        Returns:
+            Optional[Any]: The job queue manager instance, or None if the backend is unavailable.
         """
-        # Lazily instantiate job queue using project_cfg attributes
         logger.debug(
             f"Instantiating job queue of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
         )
-        # Pass the necessary parts of project_cfg to the Job queue
-        return JobQueueManager(
+        manager_instance = JobQueueManager(
             name=self.project_cfg.name,
             type=self._job_queue_type,
             backend=JobQueueBackend(
                 job_queue_type=self._job_queue_type, **self._job_queue_backend.to_dict()
             ),
         )
+        
+        if manager_instance is None:
+            if self._job_queue_type == "rq":
+                logger.warning(
+                    "JobQueueManager could not be instantiated. The RQ backend is unavailable. "
+                    "Please ensure RQ is installed and configured correctly and that the Redis server is running."
+                )
+            elif self._job_queue_type == "apscheduler":
+                logger.warning(
+                    "JobQueueManager could not be instantiated. The APScheduler backend is unavailable. "
+                    f"Please ensure APScheduler is installed and configured correctly, and that the configured data store ({self.project_cfg.job_queue.backend.data_store.type}) "
+                    f"and event_broker ({self.project_cfg.job_queue.backend.event_broker.type}) are accessible."
+                )
+            return None
+        return manager_instance
 
     def _get_schedule_ids(self) -> list[Any]:
-        """Get all schedules from the job queue backend."""
+        """Get all schedules from the job queue backend.
+        
+        Returns:
+            list[Any]: List of schedule IDs, or empty list if job queue backend is unavailable.
+        """
 
+        if self.job_queue is None:
+            return []
         with self.job_queue as job_queue:
             logger.debug("Fetching schedules ids from job queue")
             return job_queue.schedule_ids
@@ -101,7 +124,7 @@ class PipelineJobQueue:
         jitter_factor: float | None = None,
         retry_exceptions: tuple | None = None,
         **kwargs,
-    ) -> dict[str, Any]:
+    ) -> Optional[dict[str, Any]]:
         """
         Add a job to run the pipeline immediately via the job queue queue.
 
@@ -127,7 +150,7 @@ class PipelineJobQueue:
             **kwargs: Additional keyword arguments passed directly to the job queue's add_job method.
 
         Returns:
-            dict[str, Any]: The result of the job execution.
+            Optional[dict[str, Any]]: The result of the job execution, or None if job queue backend is unavailable.
         """
         logger.debug(f"Adding immediate job for pipeline: {name}")
 
@@ -158,6 +181,8 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job '{name}': {pipeline_run_args}"
         )
 
+        if self.job_queue is None:
+            return None
         with self.job_queue as job_queue:
             res = job_queue.run_job(
                 func=run_func,
@@ -191,7 +216,7 @@ class PipelineJobQueue:
         jitter_factor: float | None = None,
         retry_exceptions: tuple | list | None = None,
         **kwargs,  # Allow other job queue-specific args if needed
-    ) -> Any:
+    ) -> Optional[Any]:
         """
         Add a job to run the pipeline immediately via the job queue, storing the result.
 
@@ -223,7 +248,7 @@ class PipelineJobQueue:
             **kwargs: Additional keyword arguments passed directly to the job queue's add_job method.
 
         Returns:
-            Any: The ID of the added job or the job object itself, depending on the job queue backend.
+            Optional[Any]: The ID of the added job or the job object itself, or None if job queue backend is unavailable.
         """
         logger.debug(f"Adding immediate job with result TTL for pipeline: {name}")
 
@@ -253,6 +278,8 @@ class PipelineJobQueue:
             f"Resolved arguments for target run_func for job (TTL) '{name}': {pipeline_run_args}"
         )
 
+        if self.job_queue is None:
+            return None
         with self.job_queue as job_queue:
             job = job_queue.add_job(
                 func=run_func,
@@ -298,7 +325,7 @@ class PipelineJobQueue:
         overwrite: bool = False,
         schedule_id: str | None = None,
         **kwargs,
-    ) -> str | UUID:
+    ) -> Optional[Union[str, UUID]]:
         """
         Schedule a pipeline for execution using the configured job queue.
 
@@ -341,7 +368,7 @@ class PipelineJobQueue:
 
 
         Returns:
-            str | UUID: The ID of the scheduled pipeline.
+            Optional[Union[str, UUID]]: The ID of the scheduled pipeline, or None if job queue backend is unavailable.
 
         Raises:
             ValueError: If trigger_type is invalid or required args are missing.
@@ -446,6 +473,8 @@ class PipelineJobQueue:
 
         # --- Add Schedule via Job queue ---
         try:
+            if self.job_queue is None:
+                return None
             with self.job_queue as job_queue:
                 # Job queue is now responsible for creating the trigger object
                 # Pass trigger type and kwargs directly
@@ -472,21 +501,28 @@ class PipelineJobQueue:
     # --- schedule_all method removed ---
     # PipelineManager will be responsible for iterating and calling schedule()
 
-    def schedule_all(self, registry: PipelineRegistry, **kwargs):
+    def schedule_all(self, registry: PipelineRegistry, **kwargs) -> Optional[list[str]]:
         """
         Schedule all pipelines found by the registry.
 
         Args:
+            registry (PipelineRegistry): The pipeline registry to use for finding pipelines.
             **kwargs: Arguments passed directly to the `schedule` method for each pipeline.
                       Note: Pipeline-specific configurations will still take precedence for
                       defaults if not overridden by kwargs.
+                      
+        Returns:
+            Optional[list[str]]: List of scheduled pipeline IDs, or None if job queue backend is unavailable.
         """
+        if self.job_queue is None:
+            logger.warning("Job queue backend is unavailable. Cannot schedule pipelines.")
+            return None
+            
         try:
-            registry = self._get_registry_func()
             names = registry._get_names()  # Use registry to find pipelines
             if not names:
                 logger.info("[yellow]No pipelines found to schedule.[/yellow]")
-                return
+                return []
 
             logger.info(f"Attempting to schedule {len(names)} pipelines...")
             scheduled_ids = []
@@ -495,7 +531,7 @@ class PipelineJobQueue:
                 try:
                     # Load config specifically for this pipeline to get defaults
                     # Note: schedule() will load it again, potential optimization later
-                    cfg = self._load_config_func(name=name)
+                    cfg = registry.load_config(name=name)
                     if (
                         not cfg
                         or not cfg.pipeline
@@ -509,7 +545,11 @@ class PipelineJobQueue:
 
                     logger.info(f"Scheduling [cyan]{name}[/cyan]...")
                     # Pass kwargs, allowing overrides of config defaults
-                    schedule_id = self.schedule(name=name, **kwargs)
+                    run_func = registry.get_runner(name).run
+                    schedule_id = self.schedule(run_func=run_func, pipeline_cfg=cfg.pipeline, **kwargs)
+                    if schedule_id is None:
+                        logger.info(f"Skipping adding None schedule_id for pipeline '{name}' to scheduled_ids list.")
+                        continue
                     scheduled_ids.append(schedule_id)
                 except Exception as e:
                     logger.error(f"Failed to schedule pipeline '{name}': {e}")
@@ -524,8 +564,11 @@ class PipelineJobQueue:
                 logger.success(
                     f"\n[bold green]Successfully scheduled {len(scheduled_ids)} pipelines.[/bold green]"
                 )
+            
+            return scheduled_ids
 
         except Exception as e:
             logger.error(
                 f"[bold red]An unexpected error occurred during schedule_all: {e}[/bold red]"
             )
+            return None

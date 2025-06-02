@@ -1,3 +1,4 @@
+from loguru import logger
 import importlib
 from typing import Any, Optional
 
@@ -120,13 +121,17 @@ class JobQueueBackend:
             return APSBackend(**kwargs)
         else:
             if job_queue_type == "rq" and RQBackend is None:
-                raise ImportError(
-                    "RQ is not installed. Please install rq to use RQ backend. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
+                logger.warning(
+                    "RQ is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. " 
+                    "Install rq to use RQ. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
                 )
+                return None
             elif job_queue_type == "apscheduler" and APSBackend is None:
-                raise ImportError(
-                    "APScheduler is not installed. Please install apscheduler to use APScheduler backend. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
+                logger.warning(
+                    "APScheduler is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. "
+                    "Install apscheduler to use APScheduler. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
                 )
+                return None
             else:
                 raise ValueError(
                     f"Invalid job queue type: {job_queue_type}. Valid types: ['rq', 'apscheduler']"
@@ -237,40 +242,45 @@ class JobQueueManager:
                 storage_options=storage_options or {},
             ).job_queue.type
 
-        if type == "rq" and RQManager is not None:
-            return RQManager(
-                name=name,
-                base_dir=base_dir,
-                backend=backend,
-                storage_options=storage_options,
-                fs=fs,
-                log_level=log_level,
-                **kwargs,
-            )
-        elif type == "apscheduler" and APSManager is not None:
-            return APSManager(
-                name=name,
-                base_dir=base_dir,
-                backend=backend,
-                storage_options=storage_options,
-                fs=fs,
-                log_level=log_level,
-                **kwargs,
-            )
-
-        else:
-            if type == "rq" and RQManager is None:
-                raise ImportError(
-                    "RQ is not installed. Please install rq to use RQ job queue. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
-                )
-            elif type == "apscheduler" and APSManager is None:
-                raise ImportError(
-                    "APScheduler is not installed. Please install apscheduler to use APScheduler job queue. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
+        if type == "rq":
+            if RQManager is not None:
+                return RQManager(
+                    name=name,
+                    base_dir=base_dir,
+                    backend=backend,
+                    storage_options=storage_options,
+                    fs=fs,
+                    log_level=log_level,
+                    **kwargs,
                 )
             else:
-                raise ImportError(
-                    f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
+                logger.warning(
+                    "`JobQueueManager` can not be initialized. This might be due to missing dependencies (RQ), invalid configuration or backend not being available."
                 )
+                return None
+
+        elif type == "apscheduler":
+            if APSManager is not None:
+                return APSManager(
+                    name=name,
+                    base_dir=base_dir,
+                    backend=backend,
+                    storage_options=storage_options,
+                    fs=fs,
+                    log_level=log_level,
+                    **kwargs,
+                )
+            else:
+                logger.warning(
+                    "`JobQueueManager` can not be initialized. This might be due to missing dependencies (APScheduler), invalid configuration or backend not being available."
+                )
+                return None
+
+        else:
+            raise ImportError(
+                f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
+            )
+
 
 
 __all__ = [
