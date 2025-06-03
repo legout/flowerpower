@@ -46,7 +46,7 @@ class PipelineJobQueue:
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
         self._job_queue_type = project_cfg.job_queue.type
-        self._job_queue_backend = project_cfg.job_queue.backend
+        self._job_queue_backend_cfg = project_cfg.job_queue.backend
 
         # if not self._job_queue_type:
         #    # Fallback or default if not specified in project config
@@ -71,7 +71,7 @@ class PipelineJobQueue:
             name=self.project_cfg.name,
             type=self._job_queue_type,
             backend=JobQueueBackend(
-                job_queue_type=self._job_queue_type, **self._job_queue_backend.to_dict()
+                job_queue_type=self._job_queue_type, **self._job_queue_backend_cfg.to_dict()
             ),
         )
 
