@@ -34,41 +34,51 @@ RQ_NUM_WORKERS = int(os.getenv("FP_RQ_NUM_WORKERS", EXECUTOR_NUM_CPUS))
 APS_BACKEND_DS = os.getenv("FP_APS_BACKEND_DS", "memory")
 
 APS_BACKEND_DS_HOST = os.getenv(
-    "FP_APS_BACKEND_DS_HOST", BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_host", None)
+    "FP_APS_BACKEND_DS_HOST",
+    BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_host", None),
 )
 APS_BACKEND_DS_PORT = int(
     os.getenv(
-        "FP_APS_BACKEND_DS_PORT", BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_port", 0)
+        "FP_APS_BACKEND_DS_PORT",
+        BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_port", 0),
     )
 )
 APS_BACKEND_DS_DB = os.getenv(
-    "FP_APS_BACKEND_DS_DB", BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_database", None)
+    "FP_APS_BACKEND_DS_DB",
+    BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_database", None),
 )
 APS_BACKEND_DS_USERNAME = os.getenv(
-    "FP_APS_BACKEND_DS_USERNAME", BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_username", None)
+    "FP_APS_BACKEND_DS_USERNAME",
+    BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_username", None),
 )
 APS_BACKEND_DS_PASSWORD = os.getenv(
-    "FP_APS_BACKEND_DS_PASSWORD", BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_password", None)
+    "FP_APS_BACKEND_DS_PASSWORD",
+    BACKEND_PROPERTIES.get(APS_BACKEND_DS, {}).get("default_password", None),
 )
 APS_BACKEND_DS_SCHEMA = os.getenv("FP_APS_BACKEND_DS_SCHEMA", "flowerpower")
 
 APS_BACKEND_EB = os.getenv("FP_APS_BACKEND_EB", "memory")
 APS_BACKEND_EB_HOST = os.getenv(
-    "FP_APS_BACKEND_EB_HOST", BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_host", None)
+    "FP_APS_BACKEND_EB_HOST",
+    BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_host", None),
 )
 APS_BACKEND_EB_PORT = int(
     os.getenv(
-        "FP_APS_BACKEND_EB_PORT", BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_port", 0)
+        "FP_APS_BACKEND_EB_PORT",
+        BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_port", 0),
     )
 )
 APS_BACKEND_EB_DB = os.getenv(
-    "FP_APS_BACKEND_EB_DB", BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_database", None)
+    "FP_APS_BACKEND_EB_DB",
+    BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_database", None),
 )
 APS_BACKEND_EB_USERNAME = os.getenv(
-    "FP_APS_BACKEND_EB_USERNAME", BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_username", None)
+    "FP_APS_BACKEND_EB_USERNAME",
+    BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_username", None),
 )
 APS_BACKEND_EB_PASSWORD = os.getenv(
-    "FP_APS_BACKEND_EB_PASSWORD", BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_password", None)
+    "FP_APS_BACKEND_EB_PASSWORD",
+    BACKEND_PROPERTIES.get(APS_BACKEND_EB, {}).get("default_password", None),
 )
 
 APS_CLEANUP_INTERVAL = int(os.getenv("FP_APS_CLEANUP_INTERVAL", 300))

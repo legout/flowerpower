@@ -126,7 +126,6 @@ class RQManager(BaseJobQueueManager):
 
         if self._backend is None:
             self._setup_backend()
-        
 
         redis_conn = self._backend.client
         self._queues = {}

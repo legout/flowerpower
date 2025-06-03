@@ -210,8 +210,9 @@ class APSDataStore(BaseBackend):
                 self._setup_memory()
         except Exception as e:
             logger.error(
-                f"Failed to initialize APScheduler data store for type {self.type}: {e}")
-            
+                f"Failed to initialize APScheduler data store for type {self.type}: {e}"
+            )
+
             self._client = None
             self._sqla_engine = None
 
@@ -533,7 +534,10 @@ class APSBackend:
             self.data_store.setup()
         if self.event_broker is not None:
             if isinstance(self.event_broker, dict):
-                if "from_ds_sqla" in self.event_broker and self.data_store._sqla_engine is not None:
+                if (
+                    "from_ds_sqla" in self.event_broker
+                    and self.data_store._sqla_engine is not None
+                ):
                     self.event_broker = APSEventBroker.from_ds_sqla(
                         self.data_store.sqla_engine
                     )
@@ -543,7 +547,7 @@ class APSBackend:
             self.event_broker.setup()
         if self.event_broker is not None:
             self.event_broker.setup()
-        
+
         if self.data_store._client is None or self.event_broker._client is None:
             logger.warning(
                 "APSBackend is not fully initialized. Job Queue is not available."

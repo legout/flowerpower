@@ -177,18 +177,19 @@ class APSManager(BaseJobQueueManager):
         else:
             data_store = APSDataStore(**self.cfg.backend.data_store.to_dict())
 
-            if self.cfg.backend.event_broker.to_dict().get("from_ds_sqla", False) and data_store._sqla_engine is not None:
+            if (
+                self.cfg.backend.event_broker.to_dict().get("from_ds_sqla", False)
+                and data_store._sqla_engine is not None
+            ):
                 event_broker = APSEventBroker.from_ds_sqla(
                     sqla_engine=data_store.sqla_engine
                 )
             else:
-                event_broker = APSEventBroker(
-                    **{
-                        k: v
-                        for k, v in self.cfg.backend.event_broker.to_dict().items()
-                        if k != "from_ds_sqla"
-                    }
-                )
+                event_broker = APSEventBroker(**{
+                    k: v
+                    for k, v in self.cfg.backend.event_broker.to_dict().items()
+                    if k != "from_ds_sqla"
+                })
             self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
 
         logger.info(
@@ -231,7 +232,7 @@ class APSManager(BaseJobQueueManager):
 
         # Allow configuration override for pool sizes
         if num_workers is None:
-           num_workers = self.cfg.num_workers or multiprocessing.cpu_count()
+            num_workers = self.cfg.num_workers or multiprocessing.cpu_count()
 
         # Adjust thread and process pool executor sizes
         if "processpool" in self._job_executors:
