@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.9] - 2025-06-03
+
+### Changes
+- bump: Update version to 0.10.9 in pyproject.toml
+- refactor: Improve code formatting and readability in job queue and settings modules
+- - Refactor code structure for improved readability and maintainability - Changed job queue default config handling
+
+
+
 ## [0.10.8.1] - 2025-06-03
 
 ### Changes
