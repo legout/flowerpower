@@ -1,25 +1,15 @@
-name: hello-world
+name: null
 job_queue:
-  type: rq
+  type: apscheduler
+  num_workers: 100
   backend:
-    type: redis
-    uri: null
-    username: null
-    password: null
-    host: localhost
-    port: 6379
-    database: 0
-    ssl: false
-    cert_file: null
-    key_file: null
-    ca_file: null
-    verify_ssl: false
-    queues:
-    - default
-    - high
-    - low
-    - scheduler
-    num_workers: 10
+    data_store:
+      type: memory
+    event_broker:
+      type: memory
+    cleanup_interval: 300
+    max_concurrent_jobs: 10
+    default_job_executor: threadpool
 adapter:
   hamilton_tracker:
     username: null

@@ -201,12 +201,19 @@ class APSDataStore(BaseBackend):
         This is the main setup method that should be called after creating the data store.
         It delegates to the appropriate setup method based on the backend type.
         """
-        if self.type.is_sqla_type:
-            self._setup_sqlalchemy()
-        elif self.type.is_mongodb_type:
-            self._setup_mongodb()
-        else:
-            self._setup_memory()
+        try:
+            if self.type.is_sqla_type:
+                self._setup_sqlalchemy()
+            elif self.type.is_mongodb_type:
+                self._setup_mongodb()
+            else:
+                self._setup_memory()
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize APScheduler data store for type {self.type}: {e}")
+            
+            self._client = None
+            self._sqla_engine = None
 
     @property
     def client(self) -> BaseDataStore:
@@ -376,14 +383,21 @@ class APSEventBroker(BaseBackend):
         This is the main setup method that should be called after creating the event broker.
         It delegates to the appropriate setup method based on the backend type.
         """
-        if self.type.is_sqla_type:
-            self._setup_asyncpg_event_broker()
-        elif self.type.is_mqtt_type:
-            self._setup_mqtt_event_broker()
-        elif self.type.is_redis_type:
-            self._setup_redis_event_broker()
-        else:
-            self._setup_local_event_broker()
+        try:
+            if self.type.is_sqla_type:
+                self._setup_asyncpg_event_broker()
+            elif self.type.is_mqtt_type:
+                self._setup_mqtt_event_broker()
+            elif self.type.is_redis_type:
+                self._setup_redis_event_broker()
+            else:
+                self._setup_local_event_broker()
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize APScheduler event broker for type {self.type}: {e}"
+            )
+            self._client = None
+            self._sqla_engine = None
 
     @property
     def client(self) -> BaseEventBroker:
@@ -462,6 +476,9 @@ class APSBackend:
         event_broker (APSEventBroker | dict | None): Event broker configuration, either as
             an APSEventBroker instance or a configuration dictionary. Defaults to a new
             APSEventBroker instance.
+        cleanup_interval (int): Interval in seconds for cleaning up old jobs. Defaults to 300.
+        max_concurrent_jobs (int): Maximum number of jobs that can run concurrently.
+        default_job_executor (str): Default job executor to use. Defaults to "threadpool".
 
     Example:
         ```python
@@ -496,6 +513,9 @@ class APSBackend:
 
     data_store: APSDataStore | dict | None = field(default_factory=APSDataStore)
     event_broker: APSEventBroker | dict | None = field(default_factory=APSEventBroker)
+    cleanup_interval: int = field(default=300)
+    max_concurrent_jobs: int = field(default=10)
+    default_job_executor: str = field(default="threadpool")
 
     def __post_init__(self):
         """Initialize and setup data store and event broker components.
@@ -513,12 +533,18 @@ class APSBackend:
             self.data_store.setup()
         if self.event_broker is not None:
             if isinstance(self.event_broker, dict):
-                if "from_ds_sqla" in self.event_broker:
+                if "from_ds_sqla" in self.event_broker and self.data_store._sqla_engine is not None:
                     self.event_broker = APSEventBroker.from_ds_sqla(
                         self.data_store.sqla_engine
                     )
                 else:
+                    self.event_broker.pop("from_ds_sqla", None)
                     self.event_broker = APSEventBroker.from_dict(self.event_broker)
             self.event_broker.setup()
         if self.event_broker is not None:
             self.event_broker.setup()
+        
+        if self.data_store._client is None or self.event_broker._client is None:
+            logger.warning(
+                "APSBackend is not fully initialized. Job Queue is not available."
+            )

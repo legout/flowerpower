@@ -141,8 +141,11 @@ class BackendType(str, Enum):
 
         # Special handling for SQLite and memory types
         if self.is_sqlite_type or self.is_memory_type:
-            if self.is_sqlite_type and database:
-                return f"{uri_prefix}{database}"
+            if self.is_sqlite_type:
+                if database:
+                    return f"{uri_prefix}{database}"
+                else:
+                    return f"{uri_prefix}"
             return "memory://"
 
         # Build path component

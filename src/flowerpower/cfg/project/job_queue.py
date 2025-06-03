@@ -30,28 +30,23 @@ class JobQueueBackendConfig(BaseConfig):
 
 
 class APSDataStoreConfig(JobQueueBackendConfig):
-    type: str = msgspec.field(default=settings.APS_BACKEND_DS)
-    username: str | None = msgspec.field(default=settings.APS_BACKEND_DS_USERNAME)
-    password: str | None = msgspec.field(default=settings.APS_BACKEND_DS_PASSWORD)
+    type: str = msgspec.field(default=settings.APS_BACKEND_DS or "memory")
+    username: str | None = msgspec.field(default=None)
+    password: str | None = msgspec.field(default=None)
+    host: str | None = msgspec.field(default=None)
+    port: int | None = msgspec.field(default=None)
+    database: str | None = msgspec.field(default=None)
+    schema: str | None = msgspec.field(default=None)
 
-    host: str | None = msgspec.field(default=settings.APS_BACKEND_DS_HOST)
-    port: int | None = msgspec.field(default=settings.APS_BACKEND_DS_PORT)
-    database: str | None = msgspec.field(default=settings.APS_BACKEND_DS_DB)
-    schema: str | None = msgspec.field(default=settings.APS_BACKEND_DS_SCHEMA)
+    def __post_init__(self):
+        self.update_settings_from_env()
+        self.host = settings.APS_BACKEND_DS_HOST or BACKEND_PROPERTIES[self.type]["default_host"]
+        self.port = settings.APS_BACKEND_DS_PORT or BACKEND_PROPERTIES[self.type]["default_port"]
+        self.database = settings.APS_BACKEND_DS_DB or BACKEND_PROPERTIES[self.type]["default_database"]
+        self.username = settings.APS_BACKEND_DS_USERNAME or BACKEND_PROPERTIES[self.type]["default_username"]
+        self.password = settings.APS_BACKEND_DS_PASSWORD or BACKEND_PROPERTIES[self.type]["default_password"]
 
-    def update_from_settings(self):
-        if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
-            self.host = settings.APS_BACKEND_DS_HOST
-        if self.port == BACKEND_PROPERTIES[self.type]["default_port"]:
-            self.port = settings.APS_BACKEND_DS_PORT
-        if self.database == BACKEND_PROPERTIES[self.type]["default_database"]:
-            self.database = settings.APS_BACKEND_DS_DB
-        if self.username == BACKEND_PROPERTIES[self.type]["default_username"]:
-            self.username = settings.APS_BACKEND_DS_USERNAME
-        if self.password == BACKEND_PROPERTIES[self.type]["default_password"]:
-            self.password = settings.APS_BACKEND_DS_PASSWORD
-
-    def update_from_env(self):
+    def update_settings_from_env(self):
         if os.getenv("FP_APS_BACKEND_DS") is not None:
             settings.APS_BACKEND_DS = os.getenv("FP_APS_BACKEND_DS")
         if os.getenv("FP_APS_BACKEND_DS_USERNAME") is not None:
@@ -64,34 +59,31 @@ class APSDataStoreConfig(JobQueueBackendConfig):
             settings.APS_BACKEND_DS_PORT = int(os.getenv("FP_APS_BACKEND_DS_PORT"))
         if os.getenv("FP_APS_BACKEND_DS_DB") is not None:
             settings.APS_BACKEND_DS_DB = os.getenv("FP_APS_BACKEND_DS_DB")
-        self.update_from_settings()
+
 
 
 class APSEventBrokerConfig(JobQueueBackendConfig):
-    type: str = msgspec.field(default=settings.APS_BACKEND_EB)
-    username: str | None = msgspec.field(default=settings.APS_BACKEND_EB_USERNAME)
-    password: str | None = msgspec.field(default=settings.APS_BACKEND_EB_PASSWORD)
-    host: str | None = msgspec.field(default=settings.APS_BACKEND_EB_HOST)
-    port: int | None = msgspec.field(default=settings.APS_BACKEND_EB_PORT)
-    database: str | None = msgspec.field(default=settings.APS_BACKEND_EB_DB)
+    type: str = msgspec.field(default=settings.APS_BACKEND_EB or "memory")
+    username: str | None = msgspec.field(default=None)
+    password: str | None = msgspec.field(default=None)
+    host: str | None = msgspec.field(default=None)
+    port: int | None = msgspec.field(default=None)
+    database: str | None = msgspec.field(default=None)
     from_ds_sqla: bool = msgspec.field(
         default_factory=lambda: settings.APS_BACKEND_EB == "postgresql"
         and settings.APS_BACKEND_DS == "postgresql"
     )
 
-    def update_from_settings(self):
-        if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
-            self.host = settings.APS_BACKEND_EB_HOST
-        if self.port == BACKEND_PROPERTIES[self.type]["default_port"]:
-            self.port = settings.APS_BACKEND_EB_PORT
-        if self.username == BACKEND_PROPERTIES[self.type]["default_username"]:
-            self.username = settings.APS_BACKEND_EB_USERNAME
-        if self.password == BACKEND_PROPERTIES[self.type]["default_password"]:
-            self.password = settings.APS_BACKEND_EB_PASSWORD
-        if self.database == BACKEND_PROPERTIES[self.type]["default_database"]:
-            self.database = settings.APS_BACKEND_EB_DB
+    def __post_init__(self):
+        self.update_settings_from_env()
+        self.host = settings.APS_BACKEND_EB_HOST or BACKEND_PROPERTIES[self.type]["default_host"]
+        self.port = settings.APS_BACKEND_EB_PORT or BACKEND_PROPERTIES[self.type]["default_port"]
+        self.database = settings.APS_BACKEND_EB_DB or BACKEND_PROPERTIES[self.type]["default_database"]
+        self.username = settings.APS_BACKEND_EB_USERNAME or BACKEND_PROPERTIES[self.type]["default_username"]
+        self.password = settings.APS_BACKEND_EB_PASSWORD or BACKEND_PROPERTIES[self.type]["default_password"]
+        
 
-    def update_from_env(self):
+    def update_settings_from_env(self):
         if os.getenv("FP_APS_BACKEND_EB") is not None:
             settings.APS_BACKEND_EB = os.getenv("FP_APS_BACKEND_EB")
         if os.getenv("FP_APS_BACKEND_EB_USERNAME") is not None:
@@ -104,7 +96,7 @@ class APSEventBrokerConfig(JobQueueBackendConfig):
             settings.APS_BACKEND_EB_PORT = int(os.getenv("FP_APS_BACKEND_EB_PORT"))
         if os.getenv("FP_APS_BACKEND_EB_DB") is not None:
             settings.APS_BACKEND_EB_DB = os.getenv("FP_APS_BACKEND_EB_DB")
-        self.update_from_settings()
+        
 
 
 class APSBackendConfig(BaseConfig):
@@ -117,11 +109,11 @@ class APSBackendConfig(BaseConfig):
     )  # int in seconds
     max_concurrent_jobs: int = msgspec.field(default=settings.APS_MAX_CONCURRENT_JOBS)
     default_job_executor: str | None = msgspec.field(default=settings.EXECUTOR)
-    num_workers: int | None = msgspec.field(default=settings.APS_NUM_WORKERS)
+    #num_workers: int | None = msgspec.field(default=settings.APS_NUM_WORKERS)
 
-    def __post_init__(self):
-        self.data_store.update_from_env()
-        self.event_broker.update_from_env()
+    # def __post_init__(self):
+    #     self.data_store.update_settings_from_env()
+    #     self.event_broker.update_settings_from_env()
 
 
 class RQBackendConfig(JobQueueBackendConfig):
@@ -132,7 +124,7 @@ class RQBackendConfig(JobQueueBackendConfig):
     port: int = msgspec.field(default=settings.RQ_BACKEND_PORT)
     database: int = msgspec.field(default=settings.RQ_BACKEND_DB)
     queues: str | list[str] = msgspec.field(default_factory=lambda: settings.RQ_QUEUES)
-    num_workers: int = msgspec.field(default=settings.RQ_NUM_WORKERS)  # int in seconds
+    #num_workers: int = msgspec.field(default=settings.RQ_NUM_WORKERS)  # int in seconds
 
     def update_from_settings(self):
         if self.host == BACKEND_PROPERTIES[self.type]["default_host"]:
@@ -178,48 +170,36 @@ class HueyBackendConfig(JobQueueBackendConfig):
 class JobQueueConfig(BaseConfig):
     type: str | None = msgspec.field(default="rq")
     backend: dict | None = msgspec.field(default=None)
+    num_workers: int | None = msgspec.field(default=None)
 
     def __post_init__(self):
         if self.type is not None:
             self.type = self.type.lower()
             if self.type == "rq":
-                if self.backend is None:
-                    self.backend = RQBackendConfig()
-                else:
-                    if isinstance(self.backend, dict):
-                        self.backend = RQBackendConfig.from_dict(self.backend)
-                    elif isinstance(self.backend, RQBackendConfig):
-                        pass
-                    else:
-                        raise ValueError(
-                            f"Invalid backend type for RQ: {type(self.backend)}"
-                        )
-            elif self.type == "apscheduler":
-                if self.backend is None:
-                    self.backend = APSBackendConfig()
-                else:
-                    if isinstance(self.backend, dict):
-                        self.backend = APSBackendConfig.from_dict(self.backend)
-                    elif isinstance(self.backend, APSBackendConfig):
-                        pass
-                    else:
-                        raise ValueError(
-                            f"Invalid backend type for APScheduler: {type(self.backend)}"
-                        )
 
-            elif self.type == "huey":
-                if self.backend is None:
-                    self.backend = HueyBackendConfig()
+                self.backend = self.backend or RQBackendConfig()
+
+                if isinstance(self.backend, dict):
+                    self.backend = RQBackendConfig.from_dict(self.backend)
+                elif isinstance(self.backend, RQBackendConfig):
+                    pass
                 else:
-                    if isinstance(self.backend, dict):
-                        self.backend = HueyBackendConfig.from_dict(self.backend)
-                    elif isinstance(self.backend, HueyBackendConfig):
-                        pass
-                    else:
-                        raise ValueError(
-                            f"Invalid backend type for Huey: {type(self.backend)}"
-                        )
-                    self.backend = HueyBackendConfig(**self.backend)
+                    raise ValueError(
+                        f"Invalid backend type for RQ: {type(self.backend)}"
+                    )
+                self.num_workers = self.num_workers or settings.RQ_NUM_WORKERS
+
+            elif self.type == "apscheduler":
+                self.backend = self.backend or APSBackendConfig()
+                if isinstance(self.backend, dict):
+                    self.backend = APSBackendConfig.from_dict(self.backend)
+                elif isinstance(self.backend, APSBackendConfig):
+                    pass
+                else:
+                    raise ValueError(
+                        f"Invalid backend type for APScheduler: {type(self.backend)}"
+                    )
+                self.num_workers = self.num_workers or settings.APS_NUM_WORKERS
             else:
                 raise ValueError(
                     f"Invalid job queue type: {self.type}. Valid types: {['rq', 'apscheduler', 'huey']}"

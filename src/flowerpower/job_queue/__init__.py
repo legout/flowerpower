@@ -36,14 +36,14 @@ class JobQueueBackend:
     Example:
         ```python
         # Create RQ backend with Redis
-        rq_backend = Backend(
+        rq_backend = JobQueueBackend(
             job_queue_type="rq",
             uri="redis://localhost:6379/0",
             queues=["high", "default", "low"]
         )
 
         # Create APScheduler backend with PostgreSQL and Redis
-        aps_backend = Backend(
+        aps_backend = JobQueueBackend(
             job_queue_type="apscheduler",
             data_store={
                 "type": "postgresql",

@@ -126,6 +126,7 @@ class RQManager(BaseJobQueueManager):
 
         if self._backend is None:
             self._setup_backend()
+        
 
         redis_conn = self._backend.client
         self._queues = {}
@@ -369,12 +370,12 @@ class RQManager(BaseJobQueueManager):
         burst = kwargs.pop("burst", False)
         max_jobs = kwargs.pop("max_jobs", None)
 
+        # if num_workers is None:
+        #     backend = getattr(self.cfg, "backend", None)
+        #     if backend is not None:
+        #         num_workers = getattr(backend, "num_workers", None)
         if num_workers is None:
-            backend = getattr(self.cfg, "rq_backend", None)
-            if backend is not None:
-                num_workers = getattr(backend, "num_workers", None)
-            if num_workers is None:
-                num_workers = multiprocessing.cpu_count()
+            num_workers = self.cfg.num_workers or multiprocessing.cpu_count()
         # Determine which queues to process
         if queue_names is None:
             # Use all queues by default

@@ -43,7 +43,7 @@ flowerpower = "flowerpower.cli:app"
 [project.optional-dependencies]
 apscheduler = [
   'aiosqlite>=0.21.0',
-  'apscheduler==4.0.0a5',
+  "apscheduler==4.0.0a5",
   'asyncpg>=0.29.0',
   'greenlet>=3.0.3',
   'sqlalchemy>=2.0.30',

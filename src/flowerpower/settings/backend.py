@@ -67,7 +67,7 @@ BACKEND_PROPERTIES = {
     },
     "memory": {
         "uri_prefix": "memory://",
-        "default_port": None,
+        "default_port": 0,
         "default_host": "",
         "default_database": "",
         "default_username": None,
