@@ -170,13 +170,16 @@ class APSManager(BaseJobQueueManager):
         elif isinstance(backend, dict):
             backend_cfg = self.cfg.backend.to_dict()
             backend_cfg.update(backend)
-            self._backend = APSBackend(**backend_cfg)     
+            self._backend = APSBackend(**backend_cfg)
 
-        if self._backend.data_store._client is not None and self._backend.event_broker._client is not None:
-           logger.info(
-               f"Data store and event broker set up successfully: data store type"
-               f" '{self._backend.data_store.type}', event broker type '{self._backend.event_broker.type}'"
-           )
+        if (
+            self._backend.data_store._client is not None
+            and self._backend.event_broker._client is not None
+        ):
+            logger.info(
+                f"Data store and event broker set up successfully: data store type"
+                f" '{self._backend.data_store.type}', event broker type '{self._backend.event_broker.type}'"
+            )
 
     def start_worker(
         self, background: bool = False, num_workers: int | None = None

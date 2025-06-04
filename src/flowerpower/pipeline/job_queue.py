@@ -73,10 +73,10 @@ class PipelineJobQueue:
                 name=self.project_cfg.name,
                 type=self._job_queue_type,
                 backend=JobQueueBackend(
-                    job_queue_type=self._job_queue_type, **self._job_queue_backend_cfg.to_dict()
+                    job_queue_type=self._job_queue_type,
+                    **self._job_queue_backend_cfg.to_dict(),
                 ),
             )
-
 
         if self._job_queue is None:
             if self._job_queue_type == "rq":
@@ -92,7 +92,6 @@ class PipelineJobQueue:
                 )
             return None
         return self._job_queue
-        
 
     def _get_schedule_ids(self) -> list[Any]:
         """Get all schedules from the job queue backend.

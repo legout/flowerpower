@@ -533,7 +533,7 @@ class APSBackend:
         if self.data_store is not None:
             if isinstance(self.data_store, dict):
                 self.data_store = APSDataStore.from_dict(self.data_store)
-                #self.data_store.setup()
+                # self.data_store.setup()
         if self.event_broker is not None:
             if isinstance(self.event_broker, dict):
                 if (
@@ -546,7 +546,7 @@ class APSBackend:
                 else:
                     self.event_broker.pop("from_ds_sqla", None)
                     self.event_broker = APSEventBroker.from_dict(self.event_broker)
-                #self.event_broker.setup()
+                # self.event_broker.setup()
 
         if self.data_store._client is None or self.event_broker._client is None:
             logger.warning(
