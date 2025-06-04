@@ -134,7 +134,9 @@ class APSManager(BaseJobQueueManager):
         )
 
         if not isinstance(backend, APSBackend):
-            self._setup_backend()
+            self._setup_backend(backend)
+        else:
+            self._backend = backend
 
         # Set up job executors
         self._job_executors = {
@@ -144,16 +146,16 @@ class APSManager(BaseJobQueueManager):
         }
         self._worker = Scheduler(
             job_executors=self._job_executors,
-            event_broker=self._backend.event_broker.client,
-            data_store=self._backend.data_store.client,
+            event_broker=self._backend.event_broker._client,
+            data_store=self._backend.data_store._client,
             identity=self.name,
             logger=logger,
-            cleanup_interval=self.cfg.backend.cleanup_interval,
-            max_concurrent_jobs=self.cfg.backend.max_concurrent_jobs,
-            default_job_executor=self.cfg.backend.default_job_executor,
+            cleanup_interval=self._backend.cleanup_interval,
+            max_concurrent_jobs=self._backend.max_concurrent_jobs,
+            default_job_executor=self._backend.default_job_executor,
         )
 
-    def _setup_backend(self) -> None:
+    def _setup_backend(self, backend: dict | None) -> None:
         """
         Set up the data store and SQLAlchemy engine for the scheduler.
 
@@ -163,39 +165,18 @@ class APSManager(BaseJobQueueManager):
         Raises:
             RuntimeError: If the data store setup fails due to misconfiguration or connection errors.
         """
-        if isinstance(self._backend, dict):
-            if "data_store" in self._backend:
-                data_store = APSDataStore(**self._backend["data_store"])
-            if "event_broker" in self._backend:
-                if self._backend["event_broker"].get("from_ds_sqla", False):
-                    event_broker = APSEventBroker.from_ds_sqla(
-                        sqla_engine=data_store.sqla_engine
-                    )
-                else:
-                    event_broker = APSEventBroker(**self._backend["event_broker"])
-            self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
-        else:
-            data_store = APSDataStore(**self.cfg.backend.data_store.to_dict())
+        if backend is None:
+            self._backend = APSBackend(**self.cfg.backend.to_dict())
+        elif isinstance(backend, dict):
+            backend_cfg = self.cfg.backend.to_dict()
+            backend_cfg.update(backend)
+            self._backend = APSBackend(**backend_cfg)     
 
-            if (
-                self.cfg.backend.event_broker.to_dict().get("from_ds_sqla", False)
-                and data_store._sqla_engine is not None
-            ):
-                event_broker = APSEventBroker.from_ds_sqla(
-                    sqla_engine=data_store.sqla_engine
-                )
-            else:
-                event_broker = APSEventBroker(**{
-                    k: v
-                    for k, v in self.cfg.backend.event_broker.to_dict().items()
-                    if k != "from_ds_sqla"
-                })
-            self._backend = APSBackend(data_store=data_store, event_broker=event_broker)
-
-        logger.info(
-            f"Data store and event broker set up successfully: data store type"
-            f" '{data_store.type}', event broker type '{event_broker.type}'"
-        )
+        if self._backend.data_store._client is not None and self._backend.event_broker._client is not None:
+           logger.info(
+               f"Data store and event broker set up successfully: data store type"
+               f" '{self._backend.data_store.type}', event broker type '{self._backend.event_broker.type}'"
+           )
 
     def start_worker(
         self, background: bool = False, num_workers: int | None = None

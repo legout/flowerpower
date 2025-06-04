@@ -100,6 +100,7 @@ class APSDataStore(BaseBackend):
                 "When you need to use schemas, you can use several SQLite databases, ",
                 "one for each schema. Or use PostgreSQL or MySQL.",
             )
+        self.setup()
 
     async def _setup_db(self) -> None:
         """Initialize database and schema for SQL backends.
@@ -209,7 +210,7 @@ class APSDataStore(BaseBackend):
             else:
                 self._setup_memory()
         except Exception as e:
-            logger.error(
+            logger.info(
                 f"Failed to initialize APScheduler data store for type {self.type}: {e}"
             )
 
@@ -315,6 +316,7 @@ class APSEventBroker(BaseBackend):
                     ]
                 }"
             )
+        self.setup()
 
     def _setup_asyncpg_event_broker(self):
         """Initialize PostgreSQL event broker.
@@ -394,7 +396,7 @@ class APSEventBroker(BaseBackend):
             else:
                 self._setup_local_event_broker()
         except Exception as e:
-            logger.error(
+            logger.info(
                 f"Failed to initialize APScheduler event broker for type {self.type}: {e}"
             )
             self._client = None
@@ -531,7 +533,7 @@ class APSBackend:
         if self.data_store is not None:
             if isinstance(self.data_store, dict):
                 self.data_store = APSDataStore.from_dict(self.data_store)
-            self.data_store.setup()
+                #self.data_store.setup()
         if self.event_broker is not None:
             if isinstance(self.event_broker, dict):
                 if (
@@ -539,14 +541,12 @@ class APSBackend:
                     and self.data_store._sqla_engine is not None
                 ):
                     self.event_broker = APSEventBroker.from_ds_sqla(
-                        self.data_store.sqla_engine
+                        self.data_store._sqla_engine
                     )
                 else:
                     self.event_broker.pop("from_ds_sqla", None)
                     self.event_broker = APSEventBroker.from_dict(self.event_broker)
-            self.event_broker.setup()
-        if self.event_broker is not None:
-            self.event_broker.setup()
+                #self.event_broker.setup()
 
         if self.data_store._client is None or self.event_broker._client is None:
             logger.warning(

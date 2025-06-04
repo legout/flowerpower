@@ -47,6 +47,7 @@ class PipelineJobQueue:
         self._pipelines_dir = pipelines_dir
         self._job_queue_type = project_cfg.job_queue.type
         self._job_queue_backend_cfg = project_cfg.job_queue.backend
+        self._job_queue = None
 
         # if not self._job_queue_type:
         #    # Fallback or default if not specified in project config
@@ -67,15 +68,17 @@ class PipelineJobQueue:
         logger.debug(
             f"Instantiating job queue of type: {self._job_queue_type} for project '{self.project_cfg.name}'"
         )
-        manager_instance = JobQueueManager(
-            name=self.project_cfg.name,
-            type=self._job_queue_type,
-            backend=JobQueueBackend(
-                job_queue_type=self._job_queue_type, **self._job_queue_backend_cfg.to_dict()
-            ),
-        )
+        if self._job_queue is None:
+            self._job_queue = JobQueueManager(
+                name=self.project_cfg.name,
+                type=self._job_queue_type,
+                backend=JobQueueBackend(
+                    job_queue_type=self._job_queue_type, **self._job_queue_backend_cfg.to_dict()
+                ),
+            )
 
-        if manager_instance is None:
+
+        if self._job_queue is None:
             if self._job_queue_type == "rq":
                 logger.warning(
                     "JobQueueManager could not be instantiated. The RQ backend is unavailable. "
@@ -88,7 +91,8 @@ class PipelineJobQueue:
                     f"and event_broker ({self.project_cfg.job_queue.backend.event_broker.type}) are accessible."
                 )
             return None
-        return manager_instance
+        return self._job_queue
+        
 
     def _get_schedule_ids(self) -> list[Any]:
         """Get all schedules from the job queue backend.

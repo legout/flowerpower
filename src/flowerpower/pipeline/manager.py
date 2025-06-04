@@ -184,9 +184,9 @@ class PipelineManager:
             logger.warning(
                 "Job queue backend is unavailable. Some features may not work."
             )
-            self.job_queue = None
+            self.jqm = None
         else:
-            self.job_queue = pipeline_job_queue
+            self.jqm = pipeline_job_queue
         self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
         self.io = PipelineIOManager(registry=self.registry)
 
@@ -1320,7 +1320,7 @@ class PipelineManager:
             ...     queue_name="ml_jobs"
             ... )
         """
-        if self.job_queue is None:
+        if self.jqm is None:
             logger.error(
                 "This PipelineManager instance does not have a job queue configured. Skipping job execution."
             )
@@ -1340,7 +1340,7 @@ class PipelineManager:
         #    run_func_
         # )
         run_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.job_queue.run_job
+            self.jqm.run_job
         )
 
         return run_job(
@@ -1465,7 +1465,7 @@ class PipelineManager:
             >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
 
         """
-        if self.job_queue is None:
+        if self.jqm is None:
             logger.error(
                 "This PipelineManager instance does not have a job queue configured. Skipping job execution."
             )
@@ -1490,7 +1490,7 @@ class PipelineManager:
         )
 
         add_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.job_queue.add_job
+            self.jqm.add_job
         )
         return add_job(
             run_func=run_func,
@@ -1638,7 +1638,7 @@ class PipelineManager:
             ...     executor_cfg={"type": "async"}
             ... )
         """
-        if self.job_queue is None:
+        if self.jqm is None:
             logger.error(
                 "This PipelineManager instance does not have a job queue configured. Skipping job execution."
             )
@@ -1661,7 +1661,7 @@ class PipelineManager:
         date = dt.datetime.fromisoformat(date) if isinstance(date, str) else date
 
         schedule = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.job_queue.schedule
+            self.jqm.schedule
         )
         return schedule(
             run_func=run_func,
@@ -1767,13 +1767,13 @@ class PipelineManager:
             >>> for schedule in manager.schedules:
             ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
         """
-        if self.job_queue is None:
+        if self.jqm is None:
             logger.error(
                 "This PipelineManager instance does not have a job queue configured. Skipping schedule retrieval."
             )
             return []
         try:
-            return self.job_queue._get_schedules()
+            return self.jqm._get_schedules()
         except Exception as e:
             logger.error(f"Failed to retrieve schedules: {e}")
             return []
