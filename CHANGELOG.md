@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.9.1] - 2025-06-04
+
+### Changes
+- bump: Update version to 0.10.9.1 in pyproject.toml
+- refactor: Improve code formatting and readability in APScheduler manager and setup modules
+- refactor: Enhance job queue backend setup and logging configuration
+- refactor: Rename job queue backend variable for clarity
+
+
+
 ## [0.10.9] - 2025-06-03
 
 ### Changes
