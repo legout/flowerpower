@@ -11,14 +11,14 @@ from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
 from pydantic import BaseModel, ConfigDict
 
-from ..fs import get_filesystem
-from ..fs.ext import _dict_to_dataframe, path_to_glob
-from ..fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
+from ...fs import get_filesystem
+from ...fs.ext import _dict_to_dataframe, path_to_glob
+from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
                                   GcsStorageOptions, GitHubStorageOptions,
                                   GitLabStorageOptions, StorageOptions)
-from ..utils.misc import convert_large_types_to_standard, to_pyarrow_table
-from ..utils.polars import pl
-from ..utils.sql import sql2polars_filter, sql2pyarrow_filter
+from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
+from ...utils.polars import pl
+from ...utils.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
 if importlib.util.find_spec("pydala"):
