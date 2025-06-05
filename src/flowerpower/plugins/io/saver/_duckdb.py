@@ -5,12 +5,12 @@ import duckdb
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from pydantic import BaseModel
+import msgspec
 
 from ...utils.misc import _dict_to_dataframe
 
 
-class DuckDBSaver(BaseModel):
+class DuckDBSaver(msgspec.Struct):
     path: str | None = None
     table_name: str
     mode: Literal["overwrite", "append", "fail", "merge", "update"] = "append"
@@ -31,7 +31,7 @@ class DuckDBSaver(BaseModel):
             header = f.read(16)
         return header.startswith(b"SQLite format 3\x00")
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if self.path is None:
             self.path = ":memory:"
             self.conn = duckdb.connect(self.path)

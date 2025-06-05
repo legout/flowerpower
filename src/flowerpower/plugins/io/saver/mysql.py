@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class MySQLWriter(BaseDatabaseWriter):
     """MySQL writer.
 
@@ -20,7 +22,4 @@ class MySQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "mysql"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="mysql", init=False)

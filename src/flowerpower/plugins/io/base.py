@@ -2,6 +2,7 @@ import importlib
 import posixpath
 from typing import Any, Generator
 
+import attrs
 import datafusion
 import duckdb
 import pandas as pd
@@ -9,7 +10,6 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
-from pydantic import BaseModel, ConfigDict
 
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
@@ -34,7 +34,8 @@ else:
     text = None
 
 
-class BaseFileIO(BaseModel):
+@attrs.define
+class BaseFileIO:
     """
     Base class for file I/O operations supporting various storage backends.
     This class provides a foundation for file operations across different storage systems
@@ -65,7 +66,6 @@ class BaseFileIO(BaseModel):
 
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
     path: str | list[str]
     storage_options: (
         StorageOptions
@@ -79,8 +79,9 @@ class BaseFileIO(BaseModel):
     ) = None
     fs: AbstractFileSystem | None = None
     format: str | None = None
+    _metadata: dict[str, Any] = attrs.field(init=False, factory=dict)
 
-    def model_post_init(self, __context):
+    def __attrs_post_init__(self):
         self._raw_path = self.path
         if isinstance(self.storage_options, dict):
             if "protocol" not in self.storage_options:
@@ -144,6 +145,7 @@ class BaseFileIO(BaseModel):
         return self.fs.glob(self._glob_path)
 
 
+@attrs.define
 class BaseFileReader(BaseFileIO):
     """
     Base class for file loading operations supporting various file formats.
@@ -688,6 +690,7 @@ class BaseFileReader(BaseFileIO):
         return self._metadata
 
 
+@attrs.define
 class BaseDatasetReader(BaseFileReader):
     """
     Base class for dataset loading operations supporting various file formats.
@@ -963,8 +966,6 @@ class BaseDatasetReader(BaseFileReader):
                 conn = duckdb.connect()
             self.conn = conn
 
-        self.to_pyarrow_dataset(reload=reload, **kwargs)
-
         self.conn.register(name, self._dataset)
         if metadata:
             return self.conn, self._metadata
@@ -991,12 +992,15 @@ class BaseDatasetReader(BaseFileReader):
             conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
             name (str, optional): Name for the DuckDB table.
             metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
-            duckdb.DuckDBPyRelation | duckdb.DuckDBPyConnection: DuckDB relation or connection instance.
-        """
+            duckdb.DuckDBPyRelation | duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyRelation, dict[str, Any]] |
+                tuple[duckdb.DuckDBPyConnection, dict[str, Any]]: DuckDB relation or connection instance
+                or DuckDB relation or connection instance and optional metadata.
 
+        """
         if as_relation:
             return self.to_duckdb_relation(
                 conn=conn, metadata=metadata, reload=reload, **kwargs
@@ -1019,11 +1023,11 @@ class BaseDatasetReader(BaseFileReader):
             ctx (datafusion.SessionContext): DataFusion session context instance.
             name (str, optional): Name for the DataFusion table.
             metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
             **kwargs: Additional keyword arguments.
 
         Returns:
-            datafusion.SessionContext | tuple[datafusion.SessionContext, dict[str, Any]]: DataFusion session
-                context or instance and optional metadata.
+            None
         """
         if name is None:
             name = f"{self.format}:{self.path}"
@@ -1033,40 +1037,79 @@ class BaseDatasetReader(BaseFileReader):
                 ctx = datafusion.SessionContext()
             self.ctx = ctx
 
-        self.to_pyarrow_dataset(reload=reload, **kwargs)
+        self.ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
 
-        self.ctx.register_dataset(name, self._dataset)
-
-        if metadata:
-            return self.ctx, self._metadata
-
-        return self.ctx
-
-    def filter(self, filter_exp: str | pa.compute.Expression) -> pds.Dataset:
-        """
-        Filter data based on a filter expression.
+    def filter(
+        self, filter_expr: str | pl.Expr | pa.compute.Expression
+    ) -> (
+        pl.DataFrame
+        | pl.LazyFrame
+        | pa.Table
+        | list[pl.DataFrame]
+        | list[pl.LazyFrame]
+        | list[pa.Table]
+    ):
+        """Filter data based on a filter expression.
 
         Args:
-            filter_exp (str | pa.compute.Expression): Filter expression. Can be a SQL expression or
-                PyArrow compute expression.
+            filter_expr (str | pl.Expr | pa.compute.Expression): Filter expression. Can be a SQL expression, Polars
+                expression, or PyArrow compute expression.
 
         Returns:
-            pds.Dataset: Filtered dataset.
-
+            pl.DataFrame | pl.LazyFrame | pa.Table | list[pl.DataFrame] | list[pl.LazyFrame]
+                | list[pa.Table]: Filtered data.
         """
-        if not hasattr(self, "_dataset"):
-            self.to_pyarrow_dataset()
-        if isinstance(filter_exp, str):
-            filter_exp = sql2pyarrow_filter(filter_exp, self._dataset.schema)
-        return self._dataset.filter(filter_exp)
+        if isinstance(self._data, pl.DataFrame | pl.LazyFrame):
+            pl_schema = (
+                self._data.schema
+                if isinstance(self._data, pl.DataFrame)
+                else self._data.collect_schema()
+            )
+            filter_expr = (
+                sql2polars_filter(filter_expr, pl_schema)
+                if isinstance(filter_expr, str)
+                else filter_expr
+            )
+            return self._data.filter(filter_expr)
+
+        elif isinstance(self._data, pa.Table):
+            pa_schema = self._data.schema
+            filter_expr = (
+                sql2pyarrow_filter(filter_expr, pa_schema)
+                if isinstance(filter_expr, str)
+                else filter_expr
+            )
+            return self._data.filter(filter_expr)
+
+        if isinstance(self._data, str):
+            if isinstance(self._data[0], pl.DataFrame | pl.LazyFrame):
+                pl_schema = (
+                    self._data.schema
+                    if isinstance(self._data[0], pl.DataFrame)
+                    else self._data[0].collect_schema()
+                )
+                filter_expr = (
+                    sql2polars_filter(filter_expr, pl_schema)
+                    if isinstance(filter_expr, str)
+                    else filter_expr
+                )
+                return [d.filter(filter_expr) for d in self._data]
+            elif isinstance(self._data[0], pa.Table):
+                pa_schema = self._data[0].schema
+                filter_expr = (
+                    sql2pyarrow_filter(filter_expr, pa_schema)
+                    if isinstance(filter_expr, str)
+                    else filter_expr
+                )
+                return [d.filter(filter_expr) for d in self._data]
 
     @property
     def metadata(self):
         if not hasattr(self, "_metadata"):
-            self.to_pyarrow_dataset()
+            self._load()
         return self._metadata
 
-
+@attrs.define
 class BaseFileWriter(BaseFileIO):
     """
     Base class for file writing operations supporting various storage backends.
@@ -1173,7 +1216,7 @@ class BaseFileWriter(BaseFileIO):
             return {}
         return self._metadata
 
-
+@attrs.define
 class BaseDatasetWriter(BaseFileWriter):
     """
     Base class for dataset writing operations supporting various file formats.
@@ -1357,9 +1400,10 @@ class BaseDatasetWriter(BaseFileWriter):
         if not hasattr(self, "_metadata"):
             return {}
         return self._metadata
+    
 
-
-class BaseDatabaseIO(BaseModel):
+@attrs.define
+class BaseDatabaseIO:
     """
     Base class for database read/write operations supporting various database systems.
     This class provides a foundation for database read/write operations across different database systems
@@ -1375,7 +1419,6 @@ class BaseDatabaseIO(BaseModel):
         server (str | None, optional): Server address for the database.
         port (str | None, optional): Port number for the database.
         database (str | None, optional): Database name.
-        mode (str, optional): Write mode (append, replace, fail).
 
     Examples:
         ```python
@@ -1404,8 +1447,10 @@ class BaseDatabaseIO(BaseModel):
     port: str | int | None = None
     database: str | None = None
     ssl: bool = False
+    _metadata: dict[str, Any] = attrs.field(init=False, factory=dict)
+    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = attrs.field(init=False, factory=lambda: None)
 
-    def model_post_init(self, __context):
+    def __attrs_post_init__(self):
         db = self.type_.lower()
         if (
             db in ["postgres", "mysql", "mssql", "oracle"]
@@ -1519,6 +1564,7 @@ class BaseDatabaseIO(BaseModel):
         return self.create_engine().connect()
 
 
+@attrs.define
 class BaseDatabaseWriter(BaseDatabaseIO):
     """
     Base class for database writing operations supporting various database systems.
@@ -1647,7 +1693,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
                 except Exception as e:
                     raise e
 
-            conn.execute(f"DROP TABLE temp_{self.table_name};")
+            conn.execute(f"DROP VIEW temp_{self.table_name};")
 
         conn.close()
         return self._metadata
@@ -1707,7 +1753,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         Args:
             data (pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader | pd.DataFrame |
                 dict[str, Any] | list[pl.DataFrame | pl.LazyFrame | pa.Table | pa.RecordBatch | pa.RecordBatchReader |
-                pd.DataFrame | dict[str, Any]] | None, optional): Data to write.
+                pd.DataFrame | dict[str, Any]], optional): Data to write.
             mode (str, optional): Write mode (append, replace, fail).
             concat (bool, optional): Concatenate multiple files into a single DataFrame.
             unique (bool | list[str] | str, optional): Unique columns for deduplication.
@@ -1738,6 +1784,7 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         return self._metadata
 
 
+@attrs.define
 class BaseDatabaseReader(BaseDatabaseIO):
     """
     Base class for database read operations supporting various database systems.
@@ -1773,8 +1820,8 @@ class BaseDatabaseReader(BaseDatabaseIO):
 
     query: str | None = None
 
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
         if self.connection_string is not None:
             if "+" in self.connection_string:
                 self.connection_string = (

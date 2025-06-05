@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class SQLiteWriter(BaseDatabaseWriter):
     """SQLite writer.
 
@@ -18,8 +20,5 @@ class SQLiteWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "sqlite"
+    type_: str = attrs.field(default="sqlite", init=False)
 
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
-        # self.type_ = "sqlite"

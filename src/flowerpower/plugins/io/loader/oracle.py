@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseDatabaseReader
 
 
+@attrs.define
 class OracleDBReader(BaseDatabaseReader):
     """OracleDB loader.
 
@@ -20,7 +22,4 @@ class OracleDBReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = "oracle"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="oracle", init=False)

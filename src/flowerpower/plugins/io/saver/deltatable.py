@@ -1,19 +1,21 @@
 from typing import Any
 
+import attrs
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-from deltalake.table import (ColumnProperties, CommitProperties,
-                             PostCommitHookProperties)
-from deltalake.writer import WriterProperties, write_deltalake
+
+from deltalake.writer import WriterProperties, write_deltalake, ColumnProperties
+from deltalake.transaction import CommitProperties, PostCommitHookProperties
 from redis import Redis, StrictRedis
 from sherlock import RedisLock
 
-from ...utils.misc import _dict_to_dataframe
+from ....utils.misc import _dict_to_dataframe
 from ..base import BaseDatasetWriter
 from ..metadata import get_dataframe_metadata
 
 
+@attrs.define
 class DeltaTableWriter(BaseDatasetWriter):
     """Delta table writer.
 
@@ -29,11 +31,10 @@ class DeltaTableWriter(BaseDatasetWriter):
     description: str | None = None
     with_lock: bool = False
     redis: StrictRedis | Redis | None = None
-    format: str = "delta"
+    format: str = attrs.field(default="delta", init=False)
 
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
-        self.format = "delta"
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
         if self.with_lock and self.redis is None:
             raise ValueError("Redis connection is required when using locks.")
 

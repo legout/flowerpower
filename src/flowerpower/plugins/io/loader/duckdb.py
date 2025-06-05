@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseDatabaseReader
 
 
+@attrs.define
 class DuckDBReader(BaseDatabaseReader):
     """DuckDB loader.
 
@@ -13,7 +15,4 @@ class DuckDBReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = "duckdb"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="duckdb", init=False)

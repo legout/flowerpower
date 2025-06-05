@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseFileReader
 
 
+@attrs.define
 class JsonFileReader(BaseFileReader):
     """
     JSON file loader.
@@ -14,12 +16,10 @@ class JsonFileReader(BaseFileReader):
         ```
     """
 
-    format: str = "json"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="json", init=False)
 
 
+@attrs.define
 class JsonDatasetReader(BaseFileReader):
     """
     JSON dataset loader.
@@ -33,7 +33,4 @@ class JsonDatasetReader(BaseFileReader):
         ```
     """
 
-    format: str = "json"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="json", init=False)

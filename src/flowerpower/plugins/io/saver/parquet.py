@@ -1,38 +1,35 @@
+import attrs
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
+@attrs.define
 class ParquetFileWriter(BaseFileWriter):
-    """CSV file writer.
+    """Parquet file writer.
 
-    This class is responsible for writing dataframes to CSV files.
+    This class is responsible for writing dataframes to Parquet files.
 
     Examples:
         ```python
-        writer = CSVFileWriter(df, "data.csv")
+        writer = ParquetFileWriter(df, "data.parquet")
         writer.write()
         ```
     """
 
-    format: str = "parquet"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)
 
 
+@attrs.define
 class ParquetDatasetWriter(BaseDatasetWriter):
-    """CSV dataset writer.
+    """Parquet dataset writer.
 
-    This class is responsible for writing dataframes to CSV dataset.
+    This class is responsible for writing dataframes to Parquet dataset.
 
     Examples:
         ```python
-        writer = CSVDatasetWriter(df, "csv_data/")
+        writer = ParquetDatasetWriter(df, "parquet_data/")
         writer.write()
         ```
 
     """
 
-    format: str = "parquet"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)

@@ -50,3 +50,4 @@ dev/**
 repomix-output.md
 src/flowerpower/_settings.py
 .sesskey
+test.db*

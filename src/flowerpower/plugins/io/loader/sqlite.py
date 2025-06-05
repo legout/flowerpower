@@ -1,6 +1,8 @@
+import attrs
 from ..base import BaseDatabaseReader
 
 
+@attrs.define
 class SQLiteReader(BaseDatabaseReader):
     """SQLite loader.
 
@@ -17,7 +19,4 @@ class SQLiteReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = "sqlite"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="sqlite", init=False)

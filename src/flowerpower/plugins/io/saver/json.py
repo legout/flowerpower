@@ -1,38 +1,35 @@
+import attrs
 from ..base import BaseFileWriter
 
 
+@attrs.define
 class JsonFileWriter(BaseFileWriter):
-    """CSV file writer.
+    """JSON file writer.
 
-    This class is responsible for writing dataframes to CSV files.
+    This class is responsible for writing dataframes to JSON files.
 
     Examples:
         ```python
-        writer = CSVFileWriter(df, "data.csv")
+        writer = JsonFileWriter(df, "data.json")
         writer.write()
         ```
     """
 
-    format: str = "json"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="json", init=False)
 
 
+@attrs.define
 class JsonDatasetWriter(BaseFileWriter):
-    """CSV dataset writer.
+    """JSON dataset writer.
 
-    This class is responsible for writing dataframes to CSV dataset.
+    This class is responsible for writing dataframes to JSON dataset.
 
     Examples:
         ```python
-        writer = CSVDatasetWriter([df1, df2], "csv_data/")
+        writer = JsonDatasetWriter([df1, df2], "json_data/")
         writer.write()
         ```
 
     """
 
-    format: str = "json"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="json", init=False)
