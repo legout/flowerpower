@@ -52,6 +52,7 @@ io = [
   "adbc-driver-manager>=1.4.0",
   "aiosqlite>=0.21.0",
   #"connectorx>=0.4.1",
+  "attrs>=25.3.0",
   'datafusion>=43.1.0',
   "deltalake>=0.24.0",
   'duckdb>=1.1.3',
@@ -62,7 +63,7 @@ io = [
   'pydala2>=0.9.4.5',
   "redis>=5.2.1",
   "sherlock>=0.4.1",
-  "sqlalchemy>=2.0.30"
+  "sqlalchemy>=2.0.30",
 ]
 io-legacy = [
   "adbc-driver-manager>=1.4.0",

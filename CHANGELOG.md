@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.9.1] - 2025-06-05
+
+### Changes
+- feat: refactor codebase to use attrs for data classes and improve structure
+- refactor: Update import statements for consistency and clarity
+
+
+
+## [0.10.9.1] - 2025-06-05
+
+### Changes
+- feat: refactor codebase to use attrs for data classes and improve structure
+- refactor: Update import statements for consistency and clarity
+
+
+
 ## [0.10.9.1] - 2025-06-04
 
 ### Changes

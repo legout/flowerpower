@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseReader
 
 
+@attrs.define
 class MySQLReader(BaseDatabaseReader):
     """MySQL loader.
 
@@ -20,7 +23,4 @@ class MySQLReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = "mysql"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="mysql", init=False)

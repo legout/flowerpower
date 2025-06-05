@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatasetWriter
 
 
+@attrs.define
 class PydalaDatasetWriter(BaseDatasetWriter):
     """Writer for Pydala dataset.
 
@@ -13,8 +16,5 @@ class PydalaDatasetWriter(BaseDatasetWriter):
         ```
     """
 
-    format: str = "parquet"
-    is_pydala_dataset: bool = True
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)
+    is_pydala_dataset: bool = attrs.field(default=True, init=False)

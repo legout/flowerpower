@@ -2,15 +2,14 @@
 import os
 
 import duckdb
+import msgspec
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-# from hamilton.function_modifiers import dataloader
-from pydantic import BaseModel
 
 
-class DuckDBLoader(BaseModel):
+class DuckDBLoader(msgspec.Struct):
     path: str | None = None
     read_only: bool = False
     conn: duckdb.DuckDBPyConnection | None = None
@@ -29,7 +28,7 @@ class DuckDBLoader(BaseModel):
             header = f.read(16)
         return header.startswith(b"SQLite format 3\x00")
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if self.path is None:
             self.path = ":memory:"
             self.conn = duckdb.connect(self.path, self.read_only)
@@ -329,4 +328,5 @@ class DuckDBLoader(BaseModel):
 #         "timestamp": dt.datetime.now().timestamp(),
 #         "query": query,
 #     }
+#     return table, metadata
 #     return table, metadata

@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseReader
 
 
+@attrs.define
 class MSSQLReader(BaseDatabaseReader):
     """MSSQL loader.
 
@@ -20,7 +23,4 @@ class MSSQLReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = "mssql"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="mssql", init=False)

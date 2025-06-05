@@ -3,11 +3,13 @@
 
 import datetime
 
+import attrs
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
 from deltalake.exceptions import TableNotFoundError
-# from ..utils import get_dataframe_metadata, get_delta_metadata
+from deltalake.transaction import CommitProperties, PostCommitHookProperties
+from deltalake.writer import WriterProperties
 from loguru import logger
 from sherlock import RedisLock
 
@@ -15,9 +17,8 @@ from ..base import BaseDatasetReader
 from ..metadata import (get_dataframe_metadata, get_delta_metadata,
                         get_pyarrow_dataset_metadata)
 
-# from hamilton.function_modifiers import dataloader
 
-
+@attrs.define
 class DeltaTableReader(BaseDatasetReader):
     """Delta table loader.
 
@@ -29,10 +30,10 @@ class DeltaTableReader(BaseDatasetReader):
     delta_table: DeltaTable | None = None
     with_lock: bool = False
     redis: str | None = None
-    format: str = "delta"
+    format: str = attrs.field(default="delta", init=False)
 
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
 
         self._init_dt()
         if self.with_lock and self.redis is None:
@@ -111,10 +112,10 @@ class DeltaTableReader(BaseDatasetReader):
         target_size: int = None,
         max_concurrent_tasks: int = None,
         min_commit_interval: int | datetime.timedelta | None = None,
-        writer_properties: table.WriterProperties = None,
+        writer_properties: WriterProperties = None,
         custom_metadata: dict[str, str] | None = None,
-        post_commithook_properties: table.PostCommitHookProperties | None = None,
-        commit_properties: table.CommitProperties | None = None,
+        post_commithook_properties: PostCommitHookProperties | None = None,
+        commit_properties: CommitProperties | None = None,
     ) -> dict[str, any]:
         def _compact():
             self.delta_table.compact(
@@ -148,10 +149,10 @@ class DeltaTableReader(BaseDatasetReader):
         target_size: int = None,
         max_concurrent_tasks: int = None,
         min_commit_interval: int | datetime.timedelta | None = None,
-        writer_properties: table.WriterProperties = None,
+        writer_properties: WriterProperties = None,
         custom_metadata: dict[str, str] | None = None,
-        post_commithook_properties: table.PostCommitHookProperties | None = None,
-        commit_properties: table.CommitProperties | None = None,
+        post_commithook_properties: PostCommitHookProperties | None = None,
+        commit_properties: CommitProperties | None = None,
     ) -> dict[str, any]:
         def _z_order():
             self.delta_table.z_order(
@@ -181,6 +182,9 @@ class DeltaTableReader(BaseDatasetReader):
 
     @property
     def metadata(self) -> dict:
+        if not hasattr(self, "_metadata"):
+            self._metadata = get_delta_metadata(self.delta_table, self._raw_path)
+        return self._metadata
         if not hasattr(self, "_metadata"):
             self._metadata = get_delta_metadata(self.delta_table, self._raw_path)
         return self._metadata

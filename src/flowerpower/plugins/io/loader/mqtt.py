@@ -2,26 +2,25 @@ from typing import Any
 
 import datafusion
 import duckdb
+import msgspec
 import orjson
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-from pydantic import BaseModel, ConfigDict
 
 from ...utils.sql import sql2polars_filter
 from ..metadata import get_dataframe_metadata, get_duckdb_metadata
 
 
-class PayloadReader(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+class PayloadReader(msgspec.Struct):
     payload: bytes | dict[str, Any]
     topic: str | None = None
     conn: duckdb.DuckDBPyConnection | None = None
     ctx: datafusion.SessionContext | None = None
     format: str = "mqtt"
 
-    def model_post_init(self, __context):
+    def __post_init__(self):
         if isinstance(self.payload, bytes):
             self.payload = orjson.loads(self.payload)
 
@@ -156,4 +155,5 @@ class PayloadReader(BaseModel):
             if isinstance(filter_expr, str)
             else filter_expr
         )
+        return self._data.filter(filter_expr)
         return self._data.filter(filter_expr)

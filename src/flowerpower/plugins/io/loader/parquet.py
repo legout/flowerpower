@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatasetReader, BaseFileReader
 
 
+@attrs.define
 class ParquetFileReader(BaseFileReader):
     """Parquet file loader.
 
@@ -13,12 +16,10 @@ class ParquetFileReader(BaseFileReader):
         ```
     """
 
-    format: str = "parquet"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)
 
 
+@attrs.define
 class ParquetDatasetReader(BaseDatasetReader):
     """Parquet dataset loader.
 
@@ -31,7 +32,4 @@ class ParquetDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = "parquet"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)

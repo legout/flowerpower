@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatasetReader, BaseFileReader
 
 
+@attrs.define
 class CSVFileReader(BaseFileReader):
     """CSV file loader.
 
@@ -14,12 +17,10 @@ class CSVFileReader(BaseFileReader):
     ```
     """
 
-    format: str = "csv"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="csv", init=False)
 
 
+@attrs.define
 class CSVDatasetReader(BaseDatasetReader):
     """CSV dataset loader.
 
@@ -33,7 +34,4 @@ class CSVDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = "csv"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="csv", init=False)

@@ -943,7 +943,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.10.8.1"
+version = "0.10.9.1"
 source = { editable = "." }
 dependencies = [
     { name = "dill" },
@@ -974,6 +974,7 @@ apscheduler = [
 io = [
     { name = "adbc-driver-manager" },
     { name = "aiosqlite" },
+    { name = "attrs" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -1060,6 +1061,7 @@ requires-dist = [
     { name = "aiosqlite", marker = "extra == 'io'", specifier = ">=0.21.0" },
     { name = "apscheduler", marker = "extra == 'apscheduler'", specifier = "==4.0.0a5" },
     { name = "asyncpg", marker = "extra == 'apscheduler'", specifier = ">=0.29.0" },
+    { name = "attrs", marker = "extra == 'io'", specifier = ">=25.3.0" },
     { name = "cron-descriptor", marker = "extra == 'apscheduler'", specifier = ">=1.4.5" },
     { name = "cron-descriptor", marker = "extra == 'rq'", specifier = ">=1.4.5" },
     { name = "datafusion", marker = "extra == 'io'", specifier = ">=43.1.0" },

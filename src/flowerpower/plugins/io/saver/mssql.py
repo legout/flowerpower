@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class MSSQLWriter(BaseDatabaseWriter):
     """MSSQL writer.
 
@@ -20,7 +23,4 @@ class MSSQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "mssql"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="mssql", init=False)

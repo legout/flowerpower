@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatasetReader
 
 
+@attrs.define
 class PydalaDatasetReader(BaseDatasetReader):
     """Pydala dataset loader.
 
@@ -13,7 +16,4 @@ class PydalaDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = "parquet"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="parquet", init=False)

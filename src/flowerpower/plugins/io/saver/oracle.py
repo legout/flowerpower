@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class OracleDBWriter(BaseDatabaseWriter):
     """OracleDB writer.
 
@@ -20,7 +23,4 @@ class OracleDBWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "oracle"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="oracle", init=False)

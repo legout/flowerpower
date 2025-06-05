@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class PostgreSQLWriter(BaseDatabaseWriter):
     """PostgreSQL writer.
 
@@ -20,7 +23,4 @@ class PostgreSQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "postgres"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="postgres", init=False)

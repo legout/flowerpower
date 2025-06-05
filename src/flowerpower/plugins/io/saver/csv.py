@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
+@attrs.define
 class CSVFileWriter(BaseFileWriter):
     """CSV file writer.
 
@@ -13,12 +16,10 @@ class CSVFileWriter(BaseFileWriter):
         ```
     """
 
-    format: str = "csv"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="csv", init=False)
 
 
+@attrs.define
 class CSVDatasetWriter(BaseDatasetWriter):
     """CSV dataset writer.
 
@@ -32,7 +33,4 @@ class CSVDatasetWriter(BaseDatasetWriter):
 
     """
 
-    format: str = "csv"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    format: str = attrs.field(default="csv", init=False)

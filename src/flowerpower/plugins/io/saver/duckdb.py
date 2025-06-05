@@ -1,6 +1,9 @@
+import attrs
+
 from ..base import BaseDatabaseWriter
 
 
+@attrs.define
 class DuckDBWriter(BaseDatabaseWriter):
     """DuckDB writer.
 
@@ -13,7 +16,4 @@ class DuckDBWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = "duckdb"
-
-    def model_post_init(self, __context):
-        super().model_post_init(__context)
+    type_: str = attrs.field(default="duckdb", init=False)
