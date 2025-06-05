@@ -14,8 +14,8 @@ from fsspec.utils import get_protocol
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
 from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                  GcsStorageOptions, GitHubStorageOptions,
-                                  GitLabStorageOptions, StorageOptions)
+                                   GcsStorageOptions, GitHubStorageOptions,
+                                   GitLabStorageOptions, StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from ...utils.polars import pl
 from ...utils.sql import sql2polars_filter, sql2pyarrow_filter
@@ -1109,6 +1109,7 @@ class BaseDatasetReader(BaseFileReader):
             self._load()
         return self._metadata
 
+
 @attrs.define
 class BaseFileWriter(BaseFileIO):
     """
@@ -1215,6 +1216,7 @@ class BaseFileWriter(BaseFileIO):
         if not hasattr(self, "_metadata"):
             return {}
         return self._metadata
+
 
 @attrs.define
 class BaseDatasetWriter(BaseFileWriter):
@@ -1400,7 +1402,7 @@ class BaseDatasetWriter(BaseFileWriter):
         if not hasattr(self, "_metadata"):
             return {}
         return self._metadata
-    
+
 
 @attrs.define
 class BaseDatabaseIO:
@@ -1448,7 +1450,9 @@ class BaseDatabaseIO:
     database: str | None = None
     ssl: bool = False
     _metadata: dict[str, Any] = attrs.field(init=False, factory=dict)
-    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = attrs.field(init=False, factory=lambda: None)
+    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = attrs.field(
+        init=False, factory=lambda: None
+    )
 
     def __attrs_post_init__(self):
         db = self.type_.lower()
@@ -1456,15 +1460,13 @@ class BaseDatabaseIO:
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all(
-                [
-                    self.username,
-                    self.password,
-                    self.server,
-                    self.port,
-                    self.database,
-                ]
-            ):
+            if not all([
+                self.username,
+                self.password,
+                self.server,
+                self.port,
+                self.database,
+            ]):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."

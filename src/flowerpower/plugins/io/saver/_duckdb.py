@@ -2,10 +2,10 @@ import os
 from typing import Literal
 
 import duckdb
+import msgspec
 import pandas as pd
 import polars as pl
 import pyarrow as pa
-import msgspec
 
 from ...utils.misc import _dict_to_dataframe
 

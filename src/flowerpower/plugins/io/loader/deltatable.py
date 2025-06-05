@@ -7,9 +7,9 @@ import attrs
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
-from deltalake.writer import WriterProperties
-from deltalake.transaction import PostCommitHookProperties, CommitProperties
 from deltalake.exceptions import TableNotFoundError
+from deltalake.transaction import CommitProperties, PostCommitHookProperties
+from deltalake.writer import WriterProperties
 from loguru import logger
 from sherlock import RedisLock
 

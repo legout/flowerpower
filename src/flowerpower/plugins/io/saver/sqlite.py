@@ -1,4 +1,5 @@
 import attrs
+
 from ..base import BaseDatabaseWriter
 
 
@@ -21,4 +22,3 @@ class SQLiteWriter(BaseDatabaseWriter):
     """
 
     type_: str = attrs.field(default="sqlite", init=False)
-

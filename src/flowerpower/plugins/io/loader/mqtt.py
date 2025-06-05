@@ -2,12 +2,12 @@ from typing import Any
 
 import datafusion
 import duckdb
+import msgspec
 import orjson
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
-import msgspec
 
 from ...utils.sql import sql2polars_filter
 from ..metadata import get_dataframe_metadata, get_duckdb_metadata
