@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.1] - 2025-06-06
+
+### Changes
+- bump: update version to 0.11.1
+- refactor: standardize comments for attrs definition across loader and saver modules
+- Refactor data loader and saver classes to use msgspec for field definitions
+
+
+
 ## [0.11.0] - 2025-06-05
 
 ### Changes
