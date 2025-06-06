@@ -276,7 +276,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         return df
 
     def iter_pandas(
-        self, batch_size: int = 1, reload: bool = False, **kwargs
+        self, reload: bool = False, **kwargs
     ) -> Generator[pd.DataFrame, None, None]:
         """Iterate over Pandas DataFrames.
 
@@ -287,7 +287,10 @@ class BaseFileReader(BaseFileIO, gc=False):
         Returns:
             Generator[pd.DataFrame, None, None]: Generator of Pandas DataFrames.
         """
-        self._load(batch_size=batch_size, reload=reload, **kwargs)
+        if self.batch_size is None and "batch_size" not in kwargs:
+            self.batch_size = 1
+
+        self._load(reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pd.DataFrame) else df.to_pandas()
@@ -324,14 +327,17 @@ class BaseFileReader(BaseFileIO, gc=False):
         return df
 
     def _iter_polars_dataframe(
-        self, batch_size: int = 1, reload: bool = False, **kwargs
+        self, reload: bool = False, **kwargs
     ) -> Generator[pl.DataFrame, None, None]:
         """Iterate over Polars DataFrames.
 
         Returns:
             Generator[pl.DataFrame, None, None]: Generator of Polars DataFrames.
         """
-        self._load(batch_size=batch_size, reload=reload, **kwargs)
+        if self.batch_size is None and "batch_size" not in kwargs:
+            self.batch_size = 1
+
+        self._load(reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pl.DataFrame) else pl.from_arrow(df)
@@ -361,7 +367,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         return df
 
     def _iter_polars_lazyframe(
-        self, batch_size: int = 1, reload: bool = False, **kwargs
+        self, reload: bool = False, **kwargs
     ) -> Generator[pl.LazyFrame, None, None]:
         """Iterate over Polars LazyFrames.
 
@@ -372,7 +378,9 @@ class BaseFileReader(BaseFileIO, gc=False):
         Returns:
             Generator[pl.LazyFrame, None, None]: Generator of Polars LazyFrames.
         """
-        self._load(batch_size=batch_size, reload=reload, **kwargs)
+        if self.batch_size is None and "batch_size" not in kwargs:
+            self.batch_size = 1
+        self._load(reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield (
@@ -420,12 +428,11 @@ class BaseFileReader(BaseFileIO, gc=False):
     def iter_polars(
         self,
         lazy: bool = False,
-        batch_size: int = 1,
         **kwargs,
     ) -> Generator[pl.DataFrame | pl.LazyFrame, None, None]:
         if lazy:
-            yield from self._iter_polars_lazyframe(batch_size=batch_size, **kwargs)
-        yield from self._iter_polars_dataframe(batch_size=batch_size, **kwargs)
+            yield from self._iter_polars_lazyframe(**kwargs)
+        yield from self._iter_polars_dataframe(**kwargs)
 
     def to_pyarrow_table(
         self, metadata: bool = False, reload: bool = False, **kwargs
@@ -459,14 +466,17 @@ class BaseFileReader(BaseFileIO, gc=False):
         return df
 
     def iter_pyarrow_table(
-        self, batch_size: int = 1, reload: bool = False, **kwargs
+        self,  reload: bool = False, **kwargs
     ) -> Generator[pa.Table, None, None]:
         """Iterate over PyArrow Tables.
 
         Returns:
             Generator[pa.Table, None, None]: Generator of PyArrow Tables.
         """
-        self._load(batch_size=batch_size, reload=reload, **kwargs)
+        if self.batch_size is None and "batch_size" not in kwargs:
+            self.batch_size = 1
+            
+        self._load(reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
