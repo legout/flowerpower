@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.4] - 2025-06-06
+
+### Changes
+- bump: update version to 0.11.4 in pyproject.toml
+- fix: clean up whitespace in iter_pyarrow_table method in BaseFileReader
+- fix: remove batch_size parameter from iterators in BaseFileReader and set default value
+
+
+
 ## [0.11.3] - 2025-06-06
 
 ### Changes
