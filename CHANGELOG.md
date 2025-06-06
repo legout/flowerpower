@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.3] - 2025-06-06
+
+### Changes
+- bump: update version to 0.11.3 in pyproject.toml
+- fix: handle TypeError in _opt_dtype function when casting to Float32
+- fix: handle TypeError when casting to Float32 in _opt_dtype function
+- refactor: remove unused msgspec import from multiple saver modules
+
+
+
 ## [0.11.2] - 2025-06-06
 
 ### Changes
