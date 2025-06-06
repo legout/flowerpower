@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.2] - 2025-06-06
+
+### Changes
+- bump: update version to 0.11.2 in pyproject.toml
+- refactor: comment out unused import from collections.abc in misc.py
+- refactor: remove unused msgspec imports across various modules
+- refactor: clean up imports in datetime and sql modules
+- refactor: move timestamp_from_string function to datetime module and clean up sql.py
+
+
+
 ## [0.11.1] - 2025-06-06
 
 ### Changes
