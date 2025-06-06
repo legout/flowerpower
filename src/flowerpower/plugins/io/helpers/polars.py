@@ -125,7 +125,7 @@ def _opt_dtype(
                 except TypeError:
                     # if min or max is None, we cannot cast to Float32
                     pass
-                
+
             else:
                 s = s.shrink_dtype()
 
