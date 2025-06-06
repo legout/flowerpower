@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
-@attrs.define
-class ParquetFileWriter(BaseFileWriter):
+#@attrs.define
+class ParquetFileWriter(BaseFileWriter, gc=False):
     """Parquet file writer.
 
     This class is responsible for writing dataframes to Parquet files.
@@ -16,11 +17,11 @@ class ParquetFileWriter(BaseFileWriter):
         ```
     """
 
-    format: str = attrs.field(default="parquet", init=False)
+    format: str = field(default="parquet")
 
 
-@attrs.define
-class ParquetDatasetWriter(BaseDatasetWriter):
+#@attrs.define
+class ParquetDatasetWriter(BaseDatasetWriter, gc=False):
     """Parquet dataset writer.
 
     This class is responsible for writing dataframes to Parquet dataset.
@@ -33,4 +34,4 @@ class ParquetDatasetWriter(BaseDatasetWriter):
 
     """
 
-    format: str = attrs.field(default="parquet", init=False)
+    format: str = field(default="parquet")

@@ -2,9 +2,13 @@ import importlib
 import posixpath
 from typing import Any, Generator
 
-import attrs
-import datafusion
+if importlib.util.find_spec("datafusion"):
+    import datafusion
+else:
+    raise ImportError("To use this module, please install `flowerpower[io]`.")
 import duckdb
+import msgspec  
+from msgspec import field 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
@@ -17,25 +21,20 @@ from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
                                    GcsStorageOptions, GitHubStorageOptions,
                                    GitLabStorageOptions, StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
-from ...utils.polars import pl
-from ...utils.sql import sql2polars_filter, sql2pyarrow_filter
+from .helpers.polars import pl
+from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
-if importlib.util.find_spec("pydala"):
-    from pydala.dataset import ParquetDataset
-else:
-    ParquetDataset = None
+
+from pydala.dataset import ParquetDataset
+
 import sqlite3
 
-if importlib.util.find_spec("sqlalchemy"):
-    from sqlalchemy import create_engine, text
-else:
-    create_engine = None
-    text = None
+from sqlalchemy import create_engine, text
 
 
-@attrs.define
-class BaseFileIO:
+# @attrs.define # Removed
+class BaseFileIO(msgspec.Struct, gc=False): 
     """
     Base class for file I/O operations supporting various storage backends.
     This class provides a foundation for file operations across different storage systems
@@ -76,12 +75,13 @@ class BaseFileIO:
         | GitHubStorageOptions
         | dict[str, Any]
         | None
-    ) = None
-    fs: AbstractFileSystem | None = None
+    ) = field(default=None)  
+    fs: AbstractFileSystem | None = field(default=None) 
     format: str | None = None
-    _metadata: dict[str, Any] = attrs.field(init=False, factory=dict)
+    _raw_path: str | list[str] | None = field(default=None)
+    _metadata : dict[str, Any] | None = field(default=None)
 
-    def __attrs_post_init__(self):
+    def __post_init__(self): 
         self._raw_path = self.path
         if isinstance(self.storage_options, dict):
             if "protocol" not in self.storage_options:
@@ -145,8 +145,8 @@ class BaseFileIO:
         return self.fs.glob(self._glob_path)
 
 
-@attrs.define
-class BaseFileReader(BaseFileIO):
+# @attrs.define # Removed
+class BaseFileReader(BaseFileIO, gc=False): 
     """
     Base class for file loading operations supporting various file formats.
     This class provides a foundation for file loading operations across different file formats
@@ -180,13 +180,14 @@ class BaseFileReader(BaseFileIO):
 
     """
 
-    include_file_path: bool = False
-    concat: bool = True
-    batch_size: int | None = None
-    conn: duckdb.DuckDBPyConnection | None = None
-    ctx: datafusion.SessionContext | None = None
-    jsonlines: bool | None = None
-    partitioning: str | list[str] | pds.Partitioning | None = None
+    include_file_path: bool = field(default=False)
+    concat: bool = field(default=True)
+    batch_size: int | None = field(default=None)
+    conn: duckdb.DuckDBPyConnection | None = field(default=None)
+    ctx: datafusion.SessionContext | None = field(default=None)
+    jsonlines: bool | None = field(default=None)
+    partitioning: str | list[str] | pds.Partitioning | None = field(default=None)
+    _data: Any | None = field(default=None) 
 
     def _load(self, reload: bool = False, **kwargs):
         if "include_file_path" in kwargs:
@@ -497,16 +498,16 @@ class BaseFileReader(BaseFileIO):
             duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]: DuckDB relation and optional
                 metadata.
         """
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn= conn
 
         if metadata:
-            return self.conn.from_arrow(
+            return self._conn.from_arrow(
                 self.to_pyarrow_table(concat=True, reload=reload, **kwargs),
             ), self._metadata
-        return self.conn.from_arrow(
+        return self._conn.from_arrow(
             self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
         )
 
@@ -533,17 +534,17 @@ class BaseFileReader(BaseFileIO):
         if name is None:
             name = f"{self.format}:{self.path}"
 
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn = conn
 
-        self.conn.register(
+        self._conn.register(
             name, self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
         )
         if metadata:
-            return self.conn, self._metadata
-        return self.conn
+            return self._conn, self._metadata
+        return self._conn
 
     def to_duckdb(
         self,
@@ -606,17 +607,17 @@ class BaseFileReader(BaseFileIO):
         if name is None:
             name = f"{self.format}:{self.path}"
 
-        if self.ctx is None:
+        if self._ctx is None:
             if ctx is None:
                 ctx = datafusion.SessionContext()
-            self.ctx = ctx
+            self._ctx = ctx
 
-        self.ctx.register_record_batches(
+        self._ctx.register_record_batches(
             name,
             [self.to_pyarrow_table(concat=True, reload=reload, **kwargs).to_batches()],
         )
         if metadata:
-            return self.ctx, self._metadata
+            return self._ctx, self._metadata
         return ctx
 
     def filter(
@@ -690,8 +691,8 @@ class BaseFileReader(BaseFileIO):
         return self._metadata
 
 
-@attrs.define
-class BaseDatasetReader(BaseFileReader):
+# @attrs.define # Removed
+class BaseDatasetReader(BaseFileReader, gc=False): 
     """
     Base class for dataset loading operations supporting various file formats.
     This class provides a foundation for dataset loading operations across different file formats
@@ -734,8 +735,9 @@ class BaseDatasetReader(BaseFileReader):
 
     """
 
-    schema_: pa.Schema | None = None
-    partitioning: str | list[str] | pds.Partitioning | None = None
+    schema_: pa.Schema | None = field(default=None)  
+    _dataset: pds.Dataset | None = field(default=None) 
+    _pydala_dataset: Any | None = field(default=None) 
 
     def to_pyarrow_dataset(
         self,
@@ -894,11 +896,11 @@ class BaseDatasetReader(BaseFileReader):
             raise ImportError("pydala is not installed.")
         if not hasattr(self, "_pydala_dataset") or reload:
             if not hasattr(self, "conn"):
-                self.conn = duckdb.connect()
+                self._conn= duckdb.connect()
             self._pydala_dataset = self.fs.pydala_dataset(
                 self._path,
                 partitioning=self.partitioning,
-                ddb_con=self.conn,
+                ddb_con=self._conn,
                 **kwargs,
             )
             self._pydala_dataset.load(update_metadata=True)
@@ -927,15 +929,15 @@ class BaseDatasetReader(BaseFileReader):
             duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]: DuckDB relation and optional
                 metadata.
         """
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn= conn
 
         self.to_pyarrow_dataset(reload=reload, **kwargs)
         if metadata:
-            return self.conn.from_arrow(self._dataset), self._metadata
-        return self.conn.from_arrow(self._dataset)
+            return self._conn.from_arrow(self._dataset), self._metadata
+        return self._conn.from_arrow(self._dataset)
 
     def register_in_duckdb(
         self,
@@ -952,7 +954,6 @@ class BaseDatasetReader(BaseFileReader):
             name (str, optional): Name for the DuckDB table.
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
-            **kwargs: Additional keyword arguments.
 
         Returns:
             duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, Any]]: DuckDB connection instance
@@ -961,15 +962,15 @@ class BaseDatasetReader(BaseFileReader):
         if name is None:
             name = f"{self.format}:{self.path}"
 
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn = conn
 
-        self.conn.register(name, self._dataset)
+        self._conn.register(name, self._dataset)
         if metadata:
-            return self.conn, self._metadata
-        return self.conn
+            return self._conn, self._metadata
+        return self._conn
 
     def to_duckdb(
         self,
@@ -1032,12 +1033,12 @@ class BaseDatasetReader(BaseFileReader):
         if name is None:
             name = f"{self.format}:{self.path}"
 
-        if self.ctx is None:
+        if self._ctx is None:
             if ctx is None:
                 ctx = datafusion.SessionContext()
-            self.ctx = ctx
+            self._ctx = ctx
 
-        self.ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
+        self._ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
 
     def filter(
         self, filter_expr: str | pl.Expr | pa.compute.Expression
@@ -1110,8 +1111,8 @@ class BaseDatasetReader(BaseFileReader):
         return self._metadata
 
 
-@attrs.define
-class BaseFileWriter(BaseFileIO):
+# @attrs.define # Removed
+class BaseFileWriter(BaseFileIO, gc=False): 
     """
     Base class for file writing operations supporting various storage backends.
     This class provides a foundation for file writing operations across different storage systems
@@ -1152,10 +1153,10 @@ class BaseFileWriter(BaseFileIO):
         - Supports writing data to cloud storage with various write modes
     """
 
-    basename: str | None = None
-    concat: bool = False
-    mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
-    unique: bool | list[str] | str = False
+    basename: str | None = field(default=None)
+    concat: bool = field(default=False)
+    mode: str = field(default="append")
+    unique: bool | list[str] | str = field(default=False)
 
     def write(
         self,
@@ -1218,8 +1219,8 @@ class BaseFileWriter(BaseFileIO):
         return self._metadata
 
 
-@attrs.define
-class BaseDatasetWriter(BaseFileWriter):
+# @attrs.define # Removed
+class BaseDatasetWriter(BaseFileWriter, gc=False): 
     """
     Base class for dataset writing operations supporting various file formats.
     This class provides a foundation for dataset writing operations across different file formats
@@ -1277,16 +1278,13 @@ class BaseDatasetWriter(BaseFileWriter):
         - Supports writing data as a Pydala ParquetDataset
     """
 
-    basename: str | None = None
+    # basename, concat, unique, mode are inherited from BaseFileWriter
     schema_: pa.Schema | None = None
     partition_by: str | list[str] | pds.Partitioning | None = None
     partitioning_flavor: str | None = None
     compression: str = "zstd"
     row_group_size: int | None = 250_000
     max_rows_per_file: int | None = 2_500_000
-    concat: bool = False
-    unique: bool | list[str] | str = False
-    mode: str = "append"  # append, overwrite, delete_matching, error_if_exists
     is_pydala_dataset: bool = False
 
     def write(
@@ -1404,8 +1402,8 @@ class BaseDatasetWriter(BaseFileWriter):
         return self._metadata
 
 
-@attrs.define
-class BaseDatabaseIO:
+# @attrs.define # Removed
+class BaseDatabaseIO(msgspec.Struct, gc=False): 
     """
     Base class for database read/write operations supporting various database systems.
     This class provides a foundation for database read/write operations across different database systems
@@ -1438,23 +1436,22 @@ class BaseDatabaseIO:
         - Supports reading data from databases into DataFrames
         - Supports writing data to databases from DataFrames
     """
+    type_: str
+    table_name: str = field(default="")
+    path: str | None = field(default=None)
+    username: str | None = field(default=None)
+    password: str | None = field(default=None)
+    server: str | None = field(default=None)
+    port: str | int | None = field(default=None)
+    database: str | None = field(default=None)
+    ssl: bool = field(default=False)
+    connection_string: str | None = field(default=None)
+    _metadata: dict[str, Any] = field(default_factory=dict)
+    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = field(default=None)
+    _conn: duckdb.DuckDBPyConnection | None = field(default=None)
+    _ctx: datafusion.SessionContext | None = field(default=None)
 
-    type_: str  # "sqlite", "duckdb", "postgres", "mysql", "mssql", or "oracle"
-    table_name: str
-    path: str | None = None  # For sqlite or duckdb file paths
-    connection_string: str | None = None  # For SQLAlchemy-based databases
-    username: str | None = None
-    password: str | None = None
-    server: str | None = None
-    port: str | int | None = None
-    database: str | None = None
-    ssl: bool = False
-    _metadata: dict[str, Any] = attrs.field(init=False, factory=dict)
-    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = attrs.field(
-        init=False, factory=lambda: None
-    )
-
-    def __attrs_post_init__(self):
+    def __post_init__(self): # Renamed from __attrs_post_init__
         db = self.type_.lower()
         if (
             db in ["postgres", "mysql", "mssql", "oracle"]
@@ -1499,6 +1496,10 @@ class BaseDatabaseIO:
             if not self.path:
                 raise ValueError("SQLite requires a file path.")
             self.connection_string = f"sqlite:///{self.path}"
+        elif db == "duckdb":
+            if not self.path:
+                raise ValueError("DuckDB requires a file path.")
+            self.connection_string = self.path
 
     def execute(self, query: str, cursor: bool = True, **query_kwargs):
         """Execute a SQL query.
@@ -1566,8 +1567,8 @@ class BaseDatabaseIO:
         return self.create_engine().connect()
 
 
-@attrs.define
-class BaseDatabaseWriter(BaseDatabaseIO):
+# @attrs.define # Removed
+class BaseDatabaseWriter(BaseDatabaseIO, gc=False): 
     """
     Base class for database writing operations supporting various database systems.
     This class provides a foundation for database writing operations across different database systems
@@ -1603,9 +1604,9 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         - Supports writing data to databases from DataFrames
     """
 
-    mode: str = "append"  # append, replace, fail
-    concat: bool = False
-    unique: bool | list[str] | str = False
+    mode: str = field(default="append")  # append, replace, fail
+    concat: bool = field(default=False)
+    unique: bool | list[str] | str = field(default=False)
 
     def _write_sqlite(
         self,
@@ -1630,9 +1631,9 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         if not isinstance(data, list):
             data = [data]
 
-        conn = sqlite3.connect(self.path)
-        # Activate WAL mode:
-        conn.execute("PRAGMA journal_mode=WAL;")
+        with sqlite3.connect(self.path) as conn:
+            # Activate WAL mode:
+            conn.execute("PRAGMA journal_mode=WAL;")
 
         self._metadata = get_dataframe_metadata(
             df=data, path=self.connection_string, format=self.type_
@@ -1642,7 +1643,6 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             df = self._to_pandas(_data)
             df.to_sql(self.table_name, conn, if_exists=mode or self.mode, index=False)
 
-        conn.close()
         return self._metadata
 
     def _write_duckdb(
@@ -1672,32 +1672,31 @@ class BaseDatabaseWriter(BaseDatabaseIO):
             df=data, path=self.connection_string, format=self.type_
         )
 
-        conn = duckdb.connect(database=self.path)
-        mode = mode or self.mode
-        for _data in data:
-            conn.register(f"temp_{self.table_name}", _data)
-            if mode == "append":
-                conn.execute(
-                    f"CREATE TABLE IF NOT EXISTS {self.table_name} AS SELECT * FROM temp_{self.table_name} LIMIT 0;"
-                )
-                conn.execute(
-                    f"INSERT INTO {self.table_name} SELECT * FROM temp_{self.table_name};"
-                )
-            elif mode == "replace":
-                conn.execute(
-                    f"CREATE OR REPLACE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
-                )
-            elif mode == "fail":
-                try:
+        with duckdb.connect(database=self.path) as conn:
+            mode = mode or self.mode
+            for _data in data:
+                conn.register(f"temp_{self.table_name}", _data)
+                if mode == "append":
                     conn.execute(
-                        f"CREATE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
+                        f"CREATE TABLE IF NOT EXISTS {self.table_name} AS SELECT * FROM temp_{self.table_name} LIMIT 0;"
                     )
-                except Exception as e:
-                    raise e
+                    conn.execute(
+                        f"INSERT INTO {self.table_name} SELECT * FROM temp_{self.table_name};"
+                    )
+                elif mode == "replace":
+                    conn.execute(
+                        f"CREATE OR REPLACE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
+                    )
+                elif mode == "fail":
+                    try:
+                        conn.execute(
+                            f"CREATE TABLE {self.table_name} AS SELECT * FROM temp_{self.table_name};"
+                        )
+                    except Exception as e:
+                        raise e
 
-            conn.execute(f"DROP VIEW temp_{self.table_name};")
+                conn.execute(f"DROP TABLE temp_{self.table_name};")  # Fixed: TABLE not VIEW
 
-        conn.close()
         return self._metadata
 
     def _write_sqlalchemy(
@@ -1786,8 +1785,8 @@ class BaseDatabaseWriter(BaseDatabaseIO):
         return self._metadata
 
 
-@attrs.define
-class BaseDatabaseReader(BaseDatabaseIO):
+# @attrs.define # Removed
+class BaseDatabaseReader(BaseDatabaseIO, gc=False): 
     """
     Base class for database read operations supporting various database systems.
     This class provides a foundation for database read operations across different database systems
@@ -1822,8 +1821,8 @@ class BaseDatabaseReader(BaseDatabaseIO):
 
     query: str | None = None
 
-    def __attrs_post_init__(self):
-        super().__attrs_post_init__()
+    def __post_init__(self): # Renamed from __attrs_post_init__
+        super().__post_init__() # Call super's post_init if BaseDatabaseIO has one and it's needed
         if self.connection_string is not None:
             if "+" in self.connection_string:
                 self.connection_string = (
@@ -1862,9 +1861,8 @@ class BaseDatabaseReader(BaseDatabaseIO):
                 raise ValueError("DuckDB requires a file path.")
 
             if not hasattr(self, "_data") or self._data is None or reload:
-                conn = duckdb.connect(database=self.path)
-                self._data = conn.execute(query).arrow()
-                conn.close()
+                with duckdb.connect(database=self.path) as conn:
+                    self._data = conn.execute(query).arrow()
 
         else:
             if not self.connection_string:
@@ -1980,13 +1978,13 @@ class BaseDatabaseReader(BaseDatabaseIO):
             duckdb.DuckDBPyRelation: DuckDB relation.
         """
         self._load(query=query, reload=reload, **kwargs)
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn = conn
         if metadata:
-            return self.conn.from_arrow(self._data), self.metadata
-        return self.conn.from_arrow(self._data)
+            return self._conn.from_arrow(self._data), self.metadata
+        return self._conn.from_arrow(self._data)
 
     def register_in_duckdb(
         self,
@@ -2011,13 +2009,13 @@ class BaseDatabaseReader(BaseDatabaseIO):
         if name is None:
             name = f"{self.type_}:{self.table_name}"
 
-        if self.conn is None:
+        if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self.conn = conn
+            self._conn = conn
 
         self._load(query=query, reload=reload, **kwargs)
-        self.conn.register(name, self._data)
+        self._conn.register(name, self._data)
 
     def register_in_datafusion(
         self,
@@ -2042,16 +2040,20 @@ class BaseDatabaseReader(BaseDatabaseIO):
         if name is None:
             name = f"{self.type_}:{self.table_name}"
 
-        if self.ctx is None:
+        if self._ctx is None:
             if ctx is None:
                 ctx = datafusion.SessionContext()
-            self.ctx = ctx
+            self._ctx = ctx
 
         self._load(query=query, reload=reload, **kwargs)
 
-        self.ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
+        self._ctx.register_record_batches(name, [self.to_pyarrow_table().to_batches()])
 
     @property
+    def metadata(self):
+        if not hasattr(self, "_metadata"):
+            self._load()
+        return self._metadata
     def metadata(self):
         if not hasattr(self, "_metadata"):
             self._load()

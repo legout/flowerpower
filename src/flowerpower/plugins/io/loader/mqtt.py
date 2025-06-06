@@ -9,7 +9,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
 
-from ...utils.sql import sql2polars_filter
+from ..helpers.sql import sql2polars_filter
 from ..metadata import get_dataframe_metadata, get_duckdb_metadata
 
 

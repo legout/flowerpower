@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class PostgreSQLReader(BaseDatabaseReader):
+#@attrs.define
+class PostgreSQLReader(BaseDatabaseReader, gc=False):
     """PostgreSQL loader.
 
     This class is responsible for loading dataframes from PostgreSQL database.
@@ -23,4 +23,4 @@ class PostgreSQLReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = attrs.field(default="postgres", init=False)
+    type_: str = field(default="postgres")

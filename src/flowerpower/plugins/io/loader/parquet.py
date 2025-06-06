@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatasetReader, BaseFileReader
 
 
-@attrs.define
-class ParquetFileReader(BaseFileReader):
+#@attrs.define
+class ParquetFileReader(BaseFileReader, gc=False):
     """Parquet file loader.
 
     This class is responsible for loading dataframes from Parquet files.
@@ -16,11 +16,11 @@ class ParquetFileReader(BaseFileReader):
         ```
     """
 
-    format: str = attrs.field(default="parquet", init=False)
+    format: str = field(default="parquet")
 
 
-@attrs.define
-class ParquetDatasetReader(BaseDatasetReader):
+#@attrs.define
+class ParquetDatasetReader(BaseDatasetReader, gc=False):
     """Parquet dataset loader.
 
     This class is responsible for loading dataframes from Parquet dataset.
@@ -32,4 +32,4 @@ class ParquetDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = attrs.field(default="parquet", init=False)
+    format: str = field(default="parquet")

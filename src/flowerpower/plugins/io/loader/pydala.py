@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatasetReader
 
 
-@attrs.define
-class PydalaDatasetReader(BaseDatasetReader):
+#@attrs.define
+class PydalaDatasetReader(BaseDatasetReader, gc=False):
     """Pydala dataset loader.
 
     This class is responsible for loading dataframes from Pydala dataset.
@@ -16,4 +16,4 @@ class PydalaDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = attrs.field(default="parquet", init=False)
+    format: str = field(default="parquet")

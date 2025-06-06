@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseFileReader
 
 
-@attrs.define
-class JsonFileReader(BaseFileReader):
+#@attrs.define
+class JsonFileReader(BaseFileReader, gc=False):
     """
     JSON file loader.
 
@@ -17,11 +17,11 @@ class JsonFileReader(BaseFileReader):
         ```
     """
 
-    format: str = attrs.field(default="json", init=False)
+    format: str = field(default="json")
 
 
-@attrs.define
-class JsonDatasetReader(BaseFileReader):
+#@attrs.define
+class JsonDatasetReader(BaseFileReader, gc=False):
     """
     JSON dataset loader.
 
@@ -34,4 +34,4 @@ class JsonDatasetReader(BaseFileReader):
         ```
     """
 
-    format: str = attrs.field(default="json", init=False)
+    format: str = field(default="json")

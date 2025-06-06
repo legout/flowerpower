@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class PostgreSQLWriter(BaseDatabaseWriter):
+#@attrs.define
+class PostgreSQLWriter(BaseDatabaseWriter, gc=False):
     """PostgreSQL writer.
 
     This class is responsible for writing dataframes to PostgreSQL database.
@@ -23,4 +24,4 @@ class PostgreSQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="postgres", init=False)
+    type_: str = field(default="postgres")

@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class MySQLReader(BaseDatabaseReader):
+#@attrs.define
+class MySQLReader(BaseDatabaseReader, gc=False):
     """MySQL loader.
 
     This class is responsible for loading dataframes from MySQL database.
@@ -23,4 +23,4 @@ class MySQLReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = attrs.field(default="mysql", init=False)
+    type_: str = field(default="mysql")

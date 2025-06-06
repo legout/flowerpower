@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class MSSQLWriter(BaseDatabaseWriter):
+#@attrs.define
+class MSSQLWriter(BaseDatabaseWriter, gc=False):
     """MSSQL writer.
 
     This class is responsible for writing dataframes to MsSQL database.
@@ -23,4 +24,4 @@ class MSSQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="mssql", init=False)
+    type_: str = field(default="mssql")

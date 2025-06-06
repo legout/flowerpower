@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class DuckDBReader(BaseDatabaseReader):
+#@attrs.define
+class DuckDBReader(BaseDatabaseReader, gc=False):
     """DuckDB loader.
 
     This class is responsible for loading dataframes from DuckDB database.
@@ -15,5 +15,4 @@ class DuckDBReader(BaseDatabaseReader):
         df = loader.to_polars("SELECT * FROM table WHERE column = 'value'")
         ```
     """
-
-    type_: str = attrs.field(default="duckdb", init=False)
+    type_: str = field(default="duckdb")

@@ -1,10 +1,10 @@
-import attrs
-
+import msgspec
+from msgspec import field
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class MSSQLReader(BaseDatabaseReader):
+#@attrs.define
+class MSSQLReader(BaseDatabaseReader, gc=False):
     """MSSQL loader.
 
     This class is responsible for loading dataframes from MSSQL database.
@@ -23,4 +23,4 @@ class MSSQLReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = attrs.field(default="mssql", init=False)
+    type_: str = field(default="mssql")

@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
-@attrs.define
-class CSVFileWriter(BaseFileWriter):
+#@attrs.define
+class CSVFileWriter(BaseFileWriter, gc=False):
     """CSV file writer.
 
     This class is responsible for writing dataframes to CSV files.
@@ -16,11 +17,11 @@ class CSVFileWriter(BaseFileWriter):
         ```
     """
 
-    format: str = attrs.field(default="csv", init=False)
+    format: str = field(default="csv")
 
 
-@attrs.define
-class CSVDatasetWriter(BaseDatasetWriter):
+#@attrs.define
+class CSVDatasetWriter(BaseDatasetWriter, gc=False):
     """CSV dataset writer.
 
     This class is responsible for writing dataframes to CSV dataset.
@@ -33,4 +34,4 @@ class CSVDatasetWriter(BaseDatasetWriter):
 
     """
 
-    format: str = attrs.field(default="csv", init=False)
+    format: str = field(default="csv")

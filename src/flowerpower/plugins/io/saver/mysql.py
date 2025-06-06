@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class MySQLWriter(BaseDatabaseWriter):
+#@attrs.define
+class MySQLWriter(BaseDatabaseWriter, gc=False):
     """MySQL writer.
 
     This class is responsible for writing dataframes to MySQL database.
@@ -23,4 +24,4 @@ class MySQLWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="mysql", init=False)
+    type_: str = field(default="mysql")
