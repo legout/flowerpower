@@ -466,7 +466,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         return df
 
     def iter_pyarrow_table(
-        self,  reload: bool = False, **kwargs
+        self, reload: bool = False, **kwargs
     ) -> Generator[pa.Table, None, None]:
         """Iterate over PyArrow Tables.
 
@@ -475,7 +475,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         """
         if self.batch_size is None and "batch_size" not in kwargs:
             self.batch_size = 1
-            
+
         self._load(reload=reload, **kwargs)
         if isinstance(self._data, list | Generator):
             for df in self._data:
