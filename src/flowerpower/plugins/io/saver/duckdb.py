@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class DuckDBWriter(BaseDatabaseWriter):
+# @attrs.define
+class DuckDBWriter(BaseDatabaseWriter, gc=False):
     """DuckDB writer.
 
     This class is responsible for writing dataframes to DuckDB database.
@@ -16,4 +17,4 @@ class DuckDBWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="duckdb", init=False)
+    type_: str = field(default="duckdb")

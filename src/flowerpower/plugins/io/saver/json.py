@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseFileWriter
 
 
-@attrs.define
-class JsonFileWriter(BaseFileWriter):
+# @attrs.define
+class JsonFileWriter(BaseFileWriter, gc=False):
     """JSON file writer.
 
     This class is responsible for writing dataframes to JSON files.
@@ -16,11 +17,11 @@ class JsonFileWriter(BaseFileWriter):
         ```
     """
 
-    format: str = attrs.field(default="json", init=False)
+    format: str = field(default="json")
 
 
-@attrs.define
-class JsonDatasetWriter(BaseFileWriter):
+# @attrs.define
+class JsonDatasetWriter(BaseFileWriter, gc=False):
     """JSON dataset writer.
 
     This class is responsible for writing dataframes to JSON dataset.
@@ -33,4 +34,4 @@ class JsonDatasetWriter(BaseFileWriter):
 
     """
 
-    format: str = attrs.field(default="json", init=False)
+    format: str = field(default="json")

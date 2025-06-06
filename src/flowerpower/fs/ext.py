@@ -4,26 +4,22 @@ import posixpath
 import uuid
 from typing import Any, Generator
 
+if importlib.util.find_spec("duckdb") is not None:
+    import duckdb
+else:
+    raise ImportError("To use this module, please install `flowerpower[io]`.")
+
 import orjson
 import pandas as pd
+import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
+from pydala.dataset import ParquetDataset
 
 from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
                           run_parallel, to_pyarrow_table)
-from ..utils.polars import pl
-
-if importlib.util.find_spec("duckdb") is not None:
-    import duckdb
-else:
-    duckdb = None
-
-if importlib.util.find_spec("pydala") is not None:
-    from pydala.dataset import ParquetDataset
-else:
-    ParquetDataset = None
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:

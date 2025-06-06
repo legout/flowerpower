@@ -1,88 +1,47 @@
-import re
 from functools import partial
 
 import pandas as pd
 import polars as pl
 import polars.selectors as cs
 
+from .datetime import get_timedelta_str, get_timestamp_column
 
-def get_timestamp_column(df: pl.DataFrame | pl.LazyFrame) -> str | list[str]:
-    return df.select(cs.datetime() | cs.date()).collect_schema().names()
-
-
-def get_timedelta_str(timedelta_string: str, to: str = "polars") -> str:
-    polars_timedelta_units = [
-        "ns",
-        "us",
-        "ms",
-        "s",
-        "m",
-        "h",
-        "d",
-        "w",
-        "mo",
-        "y",
-    ]
-    duckdb_timedelta_units = [
-        "nanosecond",
-        "microsecond",
-        "millisecond",
-        "second",
-        "minute",
-        "hour",
-        "day",
-        "week",
-        "month",
-        "year",
-    ]
-
-    unit = re.sub("[0-9]", "", timedelta_string).strip()
-    val = timedelta_string.replace(unit, "").strip()
-    if to == "polars":
-        return (
-            timedelta_string
-            if unit in polars_timedelta_units
-            else val
-            + dict(zip(duckdb_timedelta_units, polars_timedelta_units))[
-                re.sub("s$", "", unit)
-            ]
-        )
-
-    if unit in polars_timedelta_units:
-        return (
-            f"{val} " + dict(zip(polars_timedelta_units, duckdb_timedelta_units))[unit]
-        )
-
-    return f"{val} " + re.sub("s$", "", unit)
+# import string
 
 
-def unnest_with_prefix(
-    df: pl.DataFrame | pl.LazyFrame, seperator="_", columns: list[str] | None = None
-) -> pl.DataFrame | pl.LazyFrame:
-    all_columns = df.columns if isinstance(df, pl.DataFrame) else df.collect_schema()
-
-    def _unnest_with_prefix(columns):
-        return df.with_columns(
-            [
-                pl.col(col).struct.rename_fields(
-                    [
+def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None):
+    def _unnest_all(struct_columns):
+        if fields is not None:
+            return (
+                df.with_columns([
+                    pl.col(col).struct.rename_fields([
                         f"{col}{seperator}{field_name}"
                         for field_name in df[col].struct.fields
-                    ]
+                    ])
+                    for col in struct_columns
+                ])
+                .unnest(struct_columns)
+                .select(
+                    list(set(df.columns) - set(struct_columns))
+                    + sorted([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in fields
+                        for col in struct_columns
+                    ])
                 )
-                for col in columns
-            ]
-        ).unnest(columns)
+            )
 
-    if columns is None:
-        columns = [col for col in all_columns if df[col].dtype == pl.Struct]
+        return df.with_columns([
+            pl.col(col).struct.rename_fields([
+                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
+            ])
+            for col in struct_columns
+        ]).unnest(struct_columns)
 
-    if isinstance(columns, str):
-        columns = [columns]
-
-    while len(columns):
-        df = _unnest_with_prefix(columns=columns)
-        columns = [col for col in all_columns if df[col].dtype == pl.Struct]
+    struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
+    while len(struct_columns):
+        df = _unnest_all(struct_columns=struct_columns)
+        struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]
     return df
 
 
@@ -107,6 +66,7 @@ def _opt_dtype(
                 )
                 s = s.set(s == "-", None).set(s == "", None).set(s == "None", None)
                 if s.str.contains(r"\.").any() | s.str.contains("NaN").any():
+                    s = s.cast(pl.Float64(), strict=True)
                     if shrink_dtype:
                         if s.min() >= -16777216 and s.max() <= 16777216:
                             s = s.cast(pl.Float32(), strict=True)
@@ -164,20 +124,18 @@ def _opt_dtype(
 
 
 def opt_dtype(
-    df: pl.DataFrame | pl.LazyFrame,
+    df: pl.DataFrame,
     exclude: str | list[str] | None = None,
     strict: bool = True,
     include: str | list[str] | None = None,
-) -> pl.DataFrame | pl.LazyFrame:
-    _opt_dtype_strict = partial(_opt_dtype, strict=strict)
-    _opt_dtype_not_strict = partial(_opt_dtype, strict=False)
-    all_columns = (
-        df.columns if isinstance(df, pl.DataFrame) else df.collect_schema().names()
-    )
+    shrink_dtype: bool = True,
+) -> pl.DataFrame:
+    _opt_dtype_strict = partial(_opt_dtype, strict=strict, shrink_dtype=shrink_dtype)
+    _opt_dtype_not_strict = partial(_opt_dtype, strict=False, shrink_dtype=shrink_dtype)
     if include is not None:
         if isinstance(include, str):
             include = [include]
-        exclude = [col for col in all_columns if col not in include]
+        exclude = [col for col in df.columns if col not in include]
     return (
         df.with_columns(
             pl.all()
@@ -191,11 +149,8 @@ def opt_dtype(
     )
 
 
-def explode_all(df: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
-    all_columns = (
-        df.columns if isinstance(df, pl.DataFrame) else df.collect_schema().names()
-    )
-    list_columns = [col for col in all_columns if df[col].dtype == pl.List]
+def explode_all(df: pl.DataFrame | pl.LazyFrame):
+    list_columns = [col for col in df.columns if df[col].dtype == pl.List]
     for col in list_columns:
         df = df.explode(col)
     return df
@@ -227,15 +182,13 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns(
-            [
-                pl.col(timestamp_column)
-                .dt.strftime(strftime_)
-                .fill_null(0)
-                .alias(column_name)
-                for strftime_, column_name in zip(strftime, column_names)
-            ]
-        ),
+        df.with_columns([
+            pl.col(timestamp_column)
+            .dt.strftime(strftime_)
+            .fill_null(0)
+            .alias(column_name)
+            for strftime_, column_name in zip(strftime, column_names)
+        ]),
         include=column_names,
         strict=False,
     )
@@ -270,12 +223,10 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns(
-        [
-            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-            for truncate_, column_name in zip(truncate_by, column_names)
-        ]
-    )
+    return df.with_columns([
+        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+        for truncate_, column_name in zip(truncate_by, column_names)
+    ])
 
 
 def with_datepart_columns(
@@ -330,10 +281,8 @@ def with_datepart_columns(
     if minute:
         strftime.append("%M")
         column_names.append("minute")
-    all_columns = (
-        df.columns if isinstance(df, pl.DataFrame) else df.collect_schema().names()
-    )
-    column_names = [col for col in column_names if col not in all_columns]
+
+    column_names = [col for col in column_names if col not in df.columns]
     # print("timestamp_column, with_datepart_columns", timestamp_column)
     return with_strftime_columns(
         df=df,
@@ -364,6 +313,48 @@ def with_row_count(
         )
 
 
+# def delta(
+#     df1: pl.DataFrame | pl.LazyFrame,
+#     df2: pl.DataFrame | pl.LazyFrame,
+#     subset: str | list[str] | None = None,
+#     eager: bool = False,
+# ) -> pl.LazyFrame:
+#     columns = sorted(set(df1.columns) & set(df2.columns))
+
+#     if subset is None:
+#         subset = columns
+#     if isinstance(subset, str):
+#         subset = [subset]
+
+#     subset = sorted(set(columns) & set(subset))
+
+#     if isinstance(df1, pl.LazyFrame) and isinstance(df2, pl.DataFrame):
+#         df2 = df2.lazy()
+
+#     elif isinstance(df1, pl.DataFrame) and isinstance(df2, pl.LazyFrame):
+#         df1 = df1.lazy()
+
+#     df = (
+#         pl.concat(
+#             [
+#                 df1.select(columns)
+#                 .with_columns(pl.lit(1).alias("df"))
+#                 .with_row_count(),
+#                 df2.select(columns)
+#                 .with_columns(pl.lit(2).alias("df"))
+#                 .with_row_count(),
+#             ],
+#             how="vertical_relaxed",
+#         )
+#         .filter((pl.count().over(subset) == 1) & (pl.col("df") == 1))
+#         .select(pl.exclude(["df", "row_nr"]))
+#     )
+
+#     if eager and isinstance(df, pl.LazyFrame):
+#         return df.collect()
+#     return df
+
+
 def unify_schema(dfs: list[pl.DataFrame | pl.LazyFrame]) -> pl.Schema:
     df = pl.concat(dfs, how="diagonal_relaxed")
     if isinstance(df, pl.LazyFrame):
@@ -379,20 +370,11 @@ def cast_relaxed(
     else:
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
-
     if len(new_columns):
-        return df.with_columns(
-            [pl.lit(None).alias(new_col) for new_col in new_columns]
-        ).cast(schema)
-
+        return df.with_columns([
+            pl.lit(None).alias(new_col) for new_col in new_columns
+        ]).cast(schema)
     return df.cast(schema)
-
-
-def remove_all_null_columns(
-    df: pl.DataFrame | pl.LazyFrame,
-) -> pl.DataFrame | pl.LazyFrame:
-    all_columns = df.columns if isinstance(df, pl.DataFrame) else df.collect_schema()
-    return df.select([col for col in all_columns if not df[col].is_null().all()])
 
 
 def delta(
@@ -450,10 +432,6 @@ def partition_by(
 
     drop_columns = columns_.copy()
 
-    all_columns = (
-        df.columns if isinstance(df, pl.DataFrame) else df.collect_schema().names()
-    )
-
     if strftime is not None:
         if isinstance(strftime, str):
             strftime = [strftime]
@@ -479,6 +457,19 @@ def partition_by(
         drop_columns += timedelta_columns
 
     if columns_:
+        # datetime_columns = {
+        #     col: col in [col.lower() for col in columns_]
+        #     for col in [
+        #         "year",
+        #         "month",
+        #         "week",
+        #         "yearday",
+        #         "monthday",
+        #         "weekday",
+        #         "strftime",
+        #     ]
+        #     if col not in [table_col.lower() for table_col in df.columns]
+        # }
         datetime_columns = [
             col.lower()
             for col in columns_
@@ -495,7 +486,7 @@ def partition_by(
                 "minute",
                 "strftime",
             ]
-            and col not in all_columns
+            and col not in df.columns
         ]
 
         datetime_columns = {
@@ -518,9 +509,9 @@ def partition_by(
                 timestamp_column=timestamp_column, **datetime_columns
             )
 
-        # if isinstance(df, pl.LazyFrame):
-        #    df = df.collect()
-        columns_ = [col for col in columns_ if col in all_columns]
+        if isinstance(df, pl.LazyFrame):
+            df = df.collect()
+        columns_ = [col for col in columns_ if col in df.columns]
 
     if num_rows is not None:
         df = df.with_row_count_ext(over=columns_).with_columns(
@@ -548,8 +539,7 @@ def drop_null_columns(df: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.Lazy
     return df.select([col for col in df.columns if not df[col].is_null().all()])
 
 
-# pl.DataFrame.unnest_all = unnest_all
-pl.DataFrame.unnest_with_prefix = unnest_with_prefix
+pl.DataFrame.unnest_all = unnest_all
 pl.DataFrame.explode_all = explode_all
 pl.DataFrame.opt_dtype = opt_dtype
 pl.DataFrame.with_row_count_ext = with_row_count
@@ -557,21 +547,18 @@ pl.DataFrame.with_datepart_columns = with_datepart_columns
 pl.DataFrame.with_duration_columns = with_truncated_columns
 pl.DataFrame.with_striftime_columns = with_strftime_columns
 pl.DataFrame.cast_relaxed = cast_relaxed
-pl.DataFrame.remove_all_null_columns = remove_all_null_columns
 pl.DataFrame.delta = delta
 pl.DataFrame.partition_by_ext = partition_by
 pl.DataFrame.drop_null_columns = drop_null_columns
 
-# pl.LazyFrame.unnest_all = unnest_all
-pl.LazyFrame.unnest_with_prefix = unnest_with_prefix
+pl.LazyFrame.unnest_all = unnest_all
 pl.LazyFrame.explode_all = explode_all
 pl.LazyFrame.opt_dtype = opt_dtype
 pl.LazyFrame.with_row_count_ext = with_row_count
 pl.LazyFrame.with_datepart_columns = with_datepart_columns
 pl.LazyFrame.with_duration_columns = with_truncated_columns
 pl.LazyFrame.with_striftime_columns = with_strftime_columns
-pl.LazyFrame.cast_relaxed = cast_relaxed
-pl.LazyFrame.remove_all_null_columns = remove_all_null_columns
 pl.LazyFrame.delta = delta
+pl.LazyFrame.cast_relaxed = cast_relaxed
 pl.LazyFrame.partition_by_ext = partition_by
 pl.LazyFrame.drop_null_columns = drop_null_columns

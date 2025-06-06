@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class SQLiteWriter(BaseDatabaseWriter):
+# @attrs.define
+class SQLiteWriter(BaseDatabaseWriter, gc=False):
     """SQLite writer.
 
     This class is responsible for writing dataframes to SQLite database.
@@ -21,4 +22,4 @@ class SQLiteWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="sqlite", init=False)
+    type_: str = field(default="sqlite")

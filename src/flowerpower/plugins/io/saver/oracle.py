@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseWriter
 
 
-@attrs.define
-class OracleDBWriter(BaseDatabaseWriter):
+# @attrs.define
+class OracleDBWriter(BaseDatabaseWriter, gc=False):
     """OracleDB writer.
 
     This class is responsible for writing dataframes to OracleDB database.
@@ -23,4 +24,4 @@ class OracleDBWriter(BaseDatabaseWriter):
         ```
     """
 
-    type_: str = attrs.field(default="oracle", init=False)
+    type_: str = field(default="oracle")

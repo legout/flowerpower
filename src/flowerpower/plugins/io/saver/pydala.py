@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatasetWriter
 
 
-@attrs.define
-class PydalaDatasetWriter(BaseDatasetWriter):
+# @attrs.define
+class PydalaDatasetWriter(BaseDatasetWriter, gc=False):
     """Writer for Pydala dataset.
 
     This class is responsible for writing dataframes to Pydala dataset.
@@ -16,5 +17,5 @@ class PydalaDatasetWriter(BaseDatasetWriter):
         ```
     """
 
-    format: str = attrs.field(default="parquet", init=False)
-    is_pydala_dataset: bool = attrs.field(default=True, init=False)
+    format: str = field(default="parquet")
+    is_pydala_dataset: bool = field(default=True)

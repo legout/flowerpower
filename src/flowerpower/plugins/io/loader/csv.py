@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatasetReader, BaseFileReader
 
 
-@attrs.define
-class CSVFileReader(BaseFileReader):
+# @attrs.define
+class CSVFileReader(BaseFileReader, gc=False):
     """CSV file loader.
 
     This class is responsible for loading CSV files into several dataframe formats,
@@ -17,11 +18,11 @@ class CSVFileReader(BaseFileReader):
     ```
     """
 
-    format: str = attrs.field(default="csv", init=False)
+    format: str = field(default="csv")
 
 
-@attrs.define
-class CSVDatasetReader(BaseDatasetReader):
+# @attrs.define
+class CSVDatasetReader(BaseDatasetReader, gc=False):
     """CSV dataset loader.
 
     This class is responsible for loading CSV files into several dataframe formats,
@@ -34,4 +35,4 @@ class CSVDatasetReader(BaseDatasetReader):
         ```
     """
 
-    format: str = attrs.field(default="csv", init=False)
+    format: str = field(default="csv")

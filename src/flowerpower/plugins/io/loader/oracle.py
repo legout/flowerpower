@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class OracleDBReader(BaseDatabaseReader):
+# @attrs.define
+class OracleDBReader(BaseDatabaseReader, gc=False):
     """OracleDB loader.
 
     This class is responsible for loading dataframes from OracleDB database.
@@ -23,4 +24,4 @@ class OracleDBReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = attrs.field(default="oracle", init=False)
+    type_: str = field(default="oracle")

@@ -3,7 +3,7 @@
 
 import datetime
 
-import attrs
+import msgspec
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
@@ -11,6 +11,7 @@ from deltalake.exceptions import TableNotFoundError
 from deltalake.transaction import CommitProperties, PostCommitHookProperties
 from deltalake.writer import WriterProperties
 from loguru import logger
+from msgspec import field
 from sherlock import RedisLock
 
 from ..base import BaseDatasetReader
@@ -18,8 +19,8 @@ from ..metadata import (get_dataframe_metadata, get_delta_metadata,
                         get_pyarrow_dataset_metadata)
 
 
-@attrs.define
-class DeltaTableReader(BaseDatasetReader):
+# @attrs.define
+class DeltaTableReader(BaseDatasetReader, gc=False):
     """Delta table loader.
 
     This class is responsible for loading Delta tables into several dataframe formats,
@@ -30,10 +31,10 @@ class DeltaTableReader(BaseDatasetReader):
     delta_table: DeltaTable | None = None
     with_lock: bool = False
     redis: str | None = None
-    format: str = attrs.field(default="delta", init=False)
+    format: str = field(default="delta")
 
-    def __attrs_post_init__(self):
-        super().__attrs_post_init__()
+    def __post_init__(self):
+        super().__post_init__()
 
         self._init_dt()
         if self.with_lock and self.redis is None:

@@ -1,10 +1,11 @@
-import attrs
+import msgspec
+from msgspec import field
 
 from ..base import BaseDatabaseReader
 
 
-@attrs.define
-class SQLiteReader(BaseDatabaseReader):
+# @attrs.define
+class SQLiteReader(BaseDatabaseReader, gc=False):
     """SQLite loader.
 
     This class is responsible for loading dataframes from SQLite database.
@@ -20,4 +21,4 @@ class SQLiteReader(BaseDatabaseReader):
         ```
     """
 
-    type_: str = attrs.field(default="sqlite", init=False)
+    type_: str = field(default="sqlite")
