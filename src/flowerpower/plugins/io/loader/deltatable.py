@@ -3,7 +3,6 @@
 
 import datetime
 
-import msgspec
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table

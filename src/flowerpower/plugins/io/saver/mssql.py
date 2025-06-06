@@ -1,4 +1,3 @@
-import msgspec
 from msgspec import field
 
 from ..base import BaseDatabaseWriter

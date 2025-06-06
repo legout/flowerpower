@@ -3,11 +3,11 @@ import os
 import subprocess
 import tempfile
 import time
-from collections.abc import Iterable
-from typing import Any, Callable
+
+#from collections.abc import Iterable
+from typing import Any
 
 import msgspec
-from loguru import logger
 
 if importlib.util.find_spec("pyarrow"):
     import pyarrow as pa

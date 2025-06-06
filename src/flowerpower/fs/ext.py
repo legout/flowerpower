@@ -4,13 +4,12 @@ import posixpath
 import uuid
 from typing import Any, Generator
 
-if importlib.util.find_spec("duckdb") is not None:
-    import duckdb
+if importlib.util.find_spec("pandas") is not None:
+    import pandas as pd
 else:
     raise ImportError("To use this module, please install `flowerpower[io]`.")
 
 import orjson
-import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
