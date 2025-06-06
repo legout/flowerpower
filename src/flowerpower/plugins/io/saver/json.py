@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseFileWriter
 
 
-#@attrs.define
+# @attrs.define
 class JsonFileWriter(BaseFileWriter, gc=False):
     """JSON file writer.
 
@@ -20,7 +20,7 @@ class JsonFileWriter(BaseFileWriter, gc=False):
     format: str = field(default="json")
 
 
-#@attrs.define
+# @attrs.define
 class JsonDatasetWriter(BaseFileWriter, gc=False):
     """JSON dataset writer.
 

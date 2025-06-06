@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseDatasetReader, BaseFileReader
 
 
-#@attrs.define
+# @attrs.define
 class CSVFileReader(BaseFileReader, gc=False):
     """CSV file loader.
 
@@ -20,7 +21,7 @@ class CSVFileReader(BaseFileReader, gc=False):
     format: str = field(default="csv")
 
 
-#@attrs.define
+# @attrs.define
 class CSVDatasetReader(BaseDatasetReader, gc=False):
     """CSV dataset loader.
 

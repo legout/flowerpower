@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseDatabaseWriter
 
 
-#@attrs.define
+# @attrs.define
 class OracleDBWriter(BaseDatabaseWriter, gc=False):
     """OracleDB writer.
 

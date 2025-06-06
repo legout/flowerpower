@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
-#@attrs.define
+# @attrs.define
 class ParquetFileWriter(BaseFileWriter, gc=False):
     """Parquet file writer.
 
@@ -20,7 +20,7 @@ class ParquetFileWriter(BaseFileWriter, gc=False):
     format: str = field(default="parquet")
 
 
-#@attrs.define
+# @attrs.define
 class ParquetDatasetWriter(BaseDatasetWriter, gc=False):
     """Parquet dataset writer.
 

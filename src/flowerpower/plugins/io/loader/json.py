@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseFileReader
 
 
-#@attrs.define
+# @attrs.define
 class JsonFileReader(BaseFileReader, gc=False):
     """
     JSON file loader.
@@ -20,7 +21,7 @@ class JsonFileReader(BaseFileReader, gc=False):
     format: str = field(default="json")
 
 
-#@attrs.define
+# @attrs.define
 class JsonDatasetReader(BaseFileReader, gc=False):
     """
     JSON dataset loader.

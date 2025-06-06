@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseDatabaseReader
 
 
-#@attrs.define
+# @attrs.define
 class OracleDBReader(BaseDatabaseReader, gc=False):
     """OracleDB loader.
 

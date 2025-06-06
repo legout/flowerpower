@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseDatabaseReader
 
 
-#@attrs.define
+# @attrs.define
 class DuckDBReader(BaseDatabaseReader, gc=False):
     """DuckDB loader.
 
@@ -15,4 +16,5 @@ class DuckDBReader(BaseDatabaseReader, gc=False):
         df = loader.to_polars("SELECT * FROM table WHERE column = 'value'")
         ```
     """
+
     type_: str = field(default="duckdb")

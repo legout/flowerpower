@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseDatabaseWriter
 
 
-#@attrs.define
+# @attrs.define
 class MSSQLWriter(BaseDatabaseWriter, gc=False):
     """MSSQL writer.
 

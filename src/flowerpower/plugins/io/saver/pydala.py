@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseDatasetWriter
 
 
-#@attrs.define
+# @attrs.define
 class PydalaDatasetWriter(BaseDatasetWriter, gc=False):
     """Writer for Pydala dataset.
 

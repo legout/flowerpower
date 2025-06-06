@@ -1,13 +1,13 @@
 from typing import Any
 
 import msgspec
-from msgspec import field
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 from deltalake.transaction import CommitProperties, PostCommitHookProperties
 from deltalake.writer import (ColumnProperties, WriterProperties,
                               write_deltalake)
+from msgspec import field
 from redis import Redis, StrictRedis
 from sherlock import RedisLock
 
@@ -16,7 +16,7 @@ from ..base import BaseDatasetWriter
 from ..metadata import get_dataframe_metadata
 
 
-#@attrs.define
+# @attrs.define
 class DeltaTableWriter(BaseDatasetWriter, gc=False):
     """Delta table writer.
 

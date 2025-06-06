@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseDatasetReader
 
 
-#@attrs.define
+# @attrs.define
 class PydalaDatasetReader(BaseDatasetReader, gc=False):
     """Pydala dataset loader.
 

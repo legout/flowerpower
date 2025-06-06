@@ -4,14 +4,14 @@
 import datetime
 
 import msgspec
-from msgspec import field
 import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable, table
-from deltalake.writer import WriterProperties
-from deltalake.transaction import PostCommitHookProperties, CommitProperties
 from deltalake.exceptions import TableNotFoundError
+from deltalake.transaction import CommitProperties, PostCommitHookProperties
+from deltalake.writer import WriterProperties
 from loguru import logger
+from msgspec import field
 from sherlock import RedisLock
 
 from ..base import BaseDatasetReader
@@ -19,7 +19,7 @@ from ..metadata import (get_dataframe_metadata, get_delta_metadata,
                         get_pyarrow_dataset_metadata)
 
 
-#@attrs.define
+# @attrs.define
 class DeltaTableReader(BaseDatasetReader, gc=False):
     """Delta table loader.
 

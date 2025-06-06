@@ -4,7 +4,7 @@ from msgspec import field
 from ..base import BaseDatasetWriter, BaseFileWriter
 
 
-#@attrs.define
+# @attrs.define
 class CSVFileWriter(BaseFileWriter, gc=False):
     """CSV file writer.
 
@@ -20,7 +20,7 @@ class CSVFileWriter(BaseFileWriter, gc=False):
     format: str = field(default="csv")
 
 
-#@attrs.define
+# @attrs.define
 class CSVDatasetWriter(BaseDatasetWriter, gc=False):
     """CSV dataset writer.
 

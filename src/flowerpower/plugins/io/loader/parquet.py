@@ -1,9 +1,10 @@
 import msgspec
 from msgspec import field
+
 from ..base import BaseDatasetReader, BaseFileReader
 
 
-#@attrs.define
+# @attrs.define
 class ParquetFileReader(BaseFileReader, gc=False):
     """Parquet file loader.
 
@@ -19,7 +20,7 @@ class ParquetFileReader(BaseFileReader, gc=False):
     format: str = field(default="parquet")
 
 
-#@attrs.define
+# @attrs.define
 class ParquetDatasetReader(BaseDatasetReader, gc=False):
     """Parquet dataset loader.
 

@@ -6,14 +6,18 @@ if importlib.util.find_spec("datafusion"):
     import datafusion
 else:
     raise ImportError("To use this module, please install `flowerpower[io]`.")
+import sqlite3
+
 import duckdb
-import msgspec  
-from msgspec import field 
+import msgspec
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
 from fsspec import AbstractFileSystem
 from fsspec.utils import get_protocol
+from msgspec import field
+from pydala.dataset import ParquetDataset
+from sqlalchemy import create_engine, text
 
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
@@ -26,15 +30,8 @@ from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
 
-from pydala.dataset import ParquetDataset
-
-import sqlite3
-
-from sqlalchemy import create_engine, text
-
-
 # @attrs.define # Removed
-class BaseFileIO(msgspec.Struct, gc=False): 
+class BaseFileIO(msgspec.Struct, gc=False):
     """
     Base class for file I/O operations supporting various storage backends.
     This class provides a foundation for file operations across different storage systems
@@ -75,13 +72,13 @@ class BaseFileIO(msgspec.Struct, gc=False):
         | GitHubStorageOptions
         | dict[str, Any]
         | None
-    ) = field(default=None)  
-    fs: AbstractFileSystem | None = field(default=None) 
+    ) = field(default=None)
+    fs: AbstractFileSystem | None = field(default=None)
     format: str | None = None
     _raw_path: str | list[str] | None = field(default=None)
-    _metadata : dict[str, Any] | None = field(default=None)
+    _metadata: dict[str, Any] | None = field(default=None)
 
-    def __post_init__(self): 
+    def __post_init__(self):
         self._raw_path = self.path
         if isinstance(self.storage_options, dict):
             if "protocol" not in self.storage_options:
@@ -146,7 +143,7 @@ class BaseFileIO(msgspec.Struct, gc=False):
 
 
 # @attrs.define # Removed
-class BaseFileReader(BaseFileIO, gc=False): 
+class BaseFileReader(BaseFileIO, gc=False):
     """
     Base class for file loading operations supporting various file formats.
     This class provides a foundation for file loading operations across different file formats
@@ -187,7 +184,7 @@ class BaseFileReader(BaseFileIO, gc=False):
     ctx: datafusion.SessionContext | None = field(default=None)
     jsonlines: bool | None = field(default=None)
     partitioning: str | list[str] | pds.Partitioning | None = field(default=None)
-    _data: Any | None = field(default=None) 
+    _data: Any | None = field(default=None)
 
     def _load(self, reload: bool = False, **kwargs):
         if "include_file_path" in kwargs:
@@ -501,7 +498,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self._conn= conn
+            self._conn = conn
 
         if metadata:
             return self._conn.from_arrow(
@@ -692,7 +689,7 @@ class BaseFileReader(BaseFileIO, gc=False):
 
 
 # @attrs.define # Removed
-class BaseDatasetReader(BaseFileReader, gc=False): 
+class BaseDatasetReader(BaseFileReader, gc=False):
     """
     Base class for dataset loading operations supporting various file formats.
     This class provides a foundation for dataset loading operations across different file formats
@@ -735,9 +732,9 @@ class BaseDatasetReader(BaseFileReader, gc=False):
 
     """
 
-    schema_: pa.Schema | None = field(default=None)  
-    _dataset: pds.Dataset | None = field(default=None) 
-    _pydala_dataset: Any | None = field(default=None) 
+    schema_: pa.Schema | None = field(default=None)
+    _dataset: pds.Dataset | None = field(default=None)
+    _pydala_dataset: Any | None = field(default=None)
 
     def to_pyarrow_dataset(
         self,
@@ -896,7 +893,7 @@ class BaseDatasetReader(BaseFileReader, gc=False):
             raise ImportError("pydala is not installed.")
         if not hasattr(self, "_pydala_dataset") or reload:
             if not hasattr(self, "conn"):
-                self._conn= duckdb.connect()
+                self._conn = duckdb.connect()
             self._pydala_dataset = self.fs.pydala_dataset(
                 self._path,
                 partitioning=self.partitioning,
@@ -932,7 +929,7 @@ class BaseDatasetReader(BaseFileReader, gc=False):
         if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
-            self._conn= conn
+            self._conn = conn
 
         self.to_pyarrow_dataset(reload=reload, **kwargs)
         if metadata:
@@ -1112,7 +1109,7 @@ class BaseDatasetReader(BaseFileReader, gc=False):
 
 
 # @attrs.define # Removed
-class BaseFileWriter(BaseFileIO, gc=False): 
+class BaseFileWriter(BaseFileIO, gc=False):
     """
     Base class for file writing operations supporting various storage backends.
     This class provides a foundation for file writing operations across different storage systems
@@ -1220,7 +1217,7 @@ class BaseFileWriter(BaseFileIO, gc=False):
 
 
 # @attrs.define # Removed
-class BaseDatasetWriter(BaseFileWriter, gc=False): 
+class BaseDatasetWriter(BaseFileWriter, gc=False):
     """
     Base class for dataset writing operations supporting various file formats.
     This class provides a foundation for dataset writing operations across different file formats
@@ -1403,7 +1400,7 @@ class BaseDatasetWriter(BaseFileWriter, gc=False):
 
 
 # @attrs.define # Removed
-class BaseDatabaseIO(msgspec.Struct, gc=False): 
+class BaseDatabaseIO(msgspec.Struct, gc=False):
     """
     Base class for database read/write operations supporting various database systems.
     This class provides a foundation for database read/write operations across different database systems
@@ -1436,6 +1433,7 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
         - Supports reading data from databases into DataFrames
         - Supports writing data to databases from DataFrames
     """
+
     type_: str
     table_name: str = field(default="")
     path: str | None = field(default=None)
@@ -1447,11 +1445,13 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
     ssl: bool = field(default=False)
     connection_string: str | None = field(default=None)
     _metadata: dict[str, Any] = field(default_factory=dict)
-    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = field(default=None)
+    _data: pa.Table | pl.DataFrame | pl.LazyFrame | pd.DataFrame | None = field(
+        default=None
+    )
     _conn: duckdb.DuckDBPyConnection | None = field(default=None)
     _ctx: datafusion.SessionContext | None = field(default=None)
 
-    def __post_init__(self): # Renamed from __attrs_post_init__
+    def __post_init__(self):  # Renamed from __attrs_post_init__
         db = self.type_.lower()
         if (
             db in ["postgres", "mysql", "mssql", "oracle"]
@@ -1568,7 +1568,7 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
 
 
 # @attrs.define # Removed
-class BaseDatabaseWriter(BaseDatabaseIO, gc=False): 
+class BaseDatabaseWriter(BaseDatabaseIO, gc=False):
     """
     Base class for database writing operations supporting various database systems.
     This class provides a foundation for database writing operations across different database systems
@@ -1695,7 +1695,9 @@ class BaseDatabaseWriter(BaseDatabaseIO, gc=False):
                     except Exception as e:
                         raise e
 
-                conn.execute(f"DROP TABLE temp_{self.table_name};")  # Fixed: TABLE not VIEW
+                conn.execute(
+                    f"DROP TABLE temp_{self.table_name};"
+                )  # Fixed: TABLE not VIEW
 
         return self._metadata
 
@@ -1786,7 +1788,7 @@ class BaseDatabaseWriter(BaseDatabaseIO, gc=False):
 
 
 # @attrs.define # Removed
-class BaseDatabaseReader(BaseDatabaseIO, gc=False): 
+class BaseDatabaseReader(BaseDatabaseIO, gc=False):
     """
     Base class for database read operations supporting various database systems.
     This class provides a foundation for database read operations across different database systems
@@ -1821,8 +1823,8 @@ class BaseDatabaseReader(BaseDatabaseIO, gc=False):
 
     query: str | None = None
 
-    def __post_init__(self): # Renamed from __attrs_post_init__
-        super().__post_init__() # Call super's post_init if BaseDatabaseIO has one and it's needed
+    def __post_init__(self):  # Renamed from __attrs_post_init__
+        super().__post_init__()  # Call super's post_init if BaseDatabaseIO has one and it's needed
         if self.connection_string is not None:
             if "+" in self.connection_string:
                 self.connection_string = (
@@ -2054,6 +2056,7 @@ class BaseDatabaseReader(BaseDatabaseIO, gc=False):
         if not hasattr(self, "_metadata"):
             self._load()
         return self._metadata
+
     def metadata(self):
         if not hasattr(self, "_metadata"):
             self._load()
