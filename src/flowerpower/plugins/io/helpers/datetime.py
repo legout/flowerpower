@@ -1,12 +1,12 @@
 import datetime as dt
 import re
 from functools import lru_cache
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-#import pendulum as pdl
+# import pendulum as pdl
 import polars as pl
 import polars.selectors as cs
 import pyarrow as pa
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 def get_timestamp_column(df: pl.DataFrame | pl.LazyFrame | pa.Table) -> str | list[str]:
@@ -99,8 +99,6 @@ def get_timedelta_str(timedelta_string: str, to: str = "polars") -> str:
 #             pdl_timestamp = pdl_timestamp.naive()
 
 #     return pdl_timestamp
-
-
 
 
 @lru_cache(maxsize=128)
@@ -235,7 +233,6 @@ def timestamp_from_string(
         pass
 
     return parsed_obj
-
 
 
 # def timedelta_from_string(

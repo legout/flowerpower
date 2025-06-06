@@ -5,9 +5,8 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from sqlglot import exp, parse_one
 
-from .polars import pl
 from .datetime import timestamp_from_string
-
+from .polars import pl
 
 # Compile regex patterns once for efficiency
 SPLIT_PATTERN = re.compile(
