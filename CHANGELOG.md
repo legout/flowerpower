@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.11.4] - 2025-06-09
+
+### Changes
+- feat: Implement Adapter and Pipeline Configuration
+- bump: update version to 0.11.4 in pyproject.toml
+- fix: clean up whitespace in iter_pyarrow_table method in BaseFileReader
+- fix: remove batch_size parameter from iterators in BaseFileReader and set default value
+- bump: update version to 0.11.3 in pyproject.toml
+- fix: handle TypeError in _opt_dtype function when casting to Float32
+- fix: handle TypeError when casting to Float32 in _opt_dtype function
+- refactor: remove unused msgspec import from multiple saver modules
+- bump: update version to 0.11.2 in pyproject.toml
+- refactor: comment out unused import from collections.abc in misc.py
+- refactor: remove unused msgspec imports across various modules
+- refactor: clean up imports in datetime and sql modules
+- refactor: move timestamp_from_string function to datetime module and clean up sql.py
+- bump: update version to 0.11.1
+- refactor: standardize comments for attrs definition across loader and saver modules
+- Refactor data loader and saver classes to use msgspec for field definitions
+- bump: update version to 0.11.0
+- feat: refactor codebase to use attrs for data classes and improve structure
+- refactor: Update import statements for consistency and clarity
+- bump: Update version to 0.10.9.1 in pyproject.toml
+- refactor: Improve code formatting and readability in APScheduler manager and setup modules
+- refactor: Enhance job queue backend setup and logging configuration
+- refactor: Rename job queue backend variable for clarity
+- bump: Update version to 0.10.9 in pyproject.toml
+- refactor: Improve code formatting and readability in job queue and settings modules
+- - Refactor code structure for improved readability and maintainability - Changed job queue default config handling
+- bump: Update version to 0.10.8.1 in pyproject.toml
+- refactor: Improve code formatting and readability across multiple files
+- Refactor code structure for improved readability and maintainability
+
+
+
 ## [0.11.4] - 2025-06-06
 
 ### Changes
