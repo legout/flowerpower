@@ -3,6 +3,13 @@
 ## [0.11.4] - 2025-06-09
 
 ### Changes
+- fix: clean up imports and whitespace across multiple files
+
+
+
+## [0.11.4] - 2025-06-09
+
+### Changes
 - feat: Implement Adapter and Pipeline Configuration
 - bump: update version to 0.11.4 in pyproject.toml
 - fix: clean up whitespace in iter_pyarrow_table method in BaseFileReader
