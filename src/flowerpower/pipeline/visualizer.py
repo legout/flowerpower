@@ -8,7 +8,7 @@ from rich import print
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.misc import view_img
-from .base import load_module  # Import module loading utility
+from .pipeline import load_module  # Import module loading utility
 
 
 class PipelineVisualizer:

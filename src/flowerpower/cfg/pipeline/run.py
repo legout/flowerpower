@@ -21,6 +21,20 @@ class ExecutorConfig(BaseConfig):
     num_cpus: int | None = msgspec.field(default=settings.EXECUTOR_NUM_CPUS)
 
 
+class RetryConfig(BaseConfig):
+    max_retries: int = msgspec.field(default=0)
+    delay: int | float = msgspec.field(default=1)
+    jitter_factor: float | None = msgspec.field(default=0.1)
+    exceptions: list[str] = msgspec.field(
+        default_factory=lambda: [
+            "Exception",
+            "HTTPError",
+            "TimeoutError",
+            "UnauthorizedException",
+        ]
+    )
+
+
 class RunConfig(BaseConfig):
     inputs: dict | None = msgspec.field(default_factory=dict)
     final_vars: list[str] | None = msgspec.field(default_factory=list)
@@ -29,10 +43,7 @@ class RunConfig(BaseConfig):
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     log_level: str | None = msgspec.field(default="INFO")
-    max_retries: int = msgspec.field(default=3)
-    retry_delay: int | float = msgspec.field(default=1)
-    jitter_factor: float | None = msgspec.field(default=0.1)
-    retry_exceptions: list[str] = msgspec.field(default_factory=lambda: ["Exception"])
+    retry: RetryConfig = msgspec.field(default_factory=RetryConfig)
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
@@ -45,3 +56,5 @@ class RunConfig(BaseConfig):
             self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
         if isinstance(self.executor, dict):
             self.executor = ExecutorConfig.from_dict(self.executor)
+        if isinstance(self.retry, dict):
+            self.retry = RetryConfig.from_dict(self.retry)

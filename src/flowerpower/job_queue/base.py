@@ -5,7 +5,6 @@ This module defines the abstract base classes for scheduling operations
 that can be implemented by different backend providers (APScheduler, RQ, etc.).
 """
 
-import abc
 import importlib
 import os
 import posixpath
@@ -29,11 +28,9 @@ from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
 
 class BackendType(str, Enum):
-    POSTGRESQL = "postgresql"
-    MYSQL = "mysql"
+    #POSTGRESQL = "postgresql"
+    #MYSQL = "mysql"
     SQLITE = "sqlite"
-    MONGODB = "mongodb"
-    MQTT = "mqtt"
     REDIS = "redis"
     NATS_KV = "nats_kv"
     MEMORY = "memory"
@@ -69,14 +66,6 @@ class BackendType(str, Enum):
     @property
     def is_sqla_type(self) -> bool:
         return self.properties.get("is_sqla_type", False)
-
-    @property
-    def is_mongodb_type(self) -> bool:
-        return self.value == "mongodb"
-
-    @property
-    def is_mqtt_type(self) -> bool:
-        return self.value == "mqtt"
 
     @property
     def is_redis_type(self) -> bool:
@@ -120,10 +109,6 @@ class BackendType(str, Enum):
             uri_prefix = "rediss://" if ssl else "redis://"
         elif self.is_nats_kv_type:
             uri_prefix = "nats+tls://" if ssl else "nats://"
-        elif self.is_mqtt_type:
-            uri_prefix = "mqtts://" if ssl else "mqtt://"
-            if ssl and port == 1883:
-                port = 8883
         else:
             uri_prefix = self.uri_prefix
 
@@ -167,23 +152,7 @@ class BackendType(str, Enum):
                 if cert_file:
                     query_params.append(f"sslcert={urllib.parse.quote(cert_file)}")
                 if key_file:
-                    query_params.append(f"sslkey={urllib.parse.quote(key_file)}")
-            elif self.value == "mysql":
-                query_params.append("ssl=true")
-                if ca_file:
-                    query_params.append(f"ssl_ca={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(f"ssl_cert={urllib.parse.quote(cert_file)}")
-                if key_file:
-                    query_params.append(f"ssl_key={urllib.parse.quote(key_file)}")
-            elif self.is_mongodb_type:
-                query_params.append("tls=true")
-                if ca_file:
-                    query_params.append(f"tlsCAFile={urllib.parse.quote(ca_file)}")
-                if cert_file and key_file:
-                    query_params.append(
-                        f"tlsCertificateKeyFile={urllib.parse.quote(cert_file)}"
-                    )
+                    query_params.append(f"sslkey={urllib.parse.quote(key_file)}")         
             elif self.is_redis_type:
                 if not verify_ssl:
                     query_params.append("ssl_cert_reqs=none")
@@ -194,16 +163,6 @@ class BackendType(str, Enum):
                 if key_file:
                     query_params.append(f"ssl_keyfile={urllib.parse.quote(key_file)}")
             elif self.is_nats_kv_type:
-                query_params.append("tls=true")
-                if ca_file:
-                    query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(
-                        f"tls_cert_file={urllib.parse.quote(cert_file)}"
-                    )
-                if key_file:
-                    query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
-            elif self.is_mqtt_type:
                 query_params.append("tls=true")
                 if ca_file:
                     query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
@@ -273,30 +232,6 @@ class BaseBackend:
     @classmethod
     def from_dict(cls, d: dict) -> "BaseBackend":
         return cls(**d)
-
-
-class BaseTrigger(abc.ABC):
-    """
-    Abstract base class for schedule triggers.
-
-    A trigger determines when a scheduled job should be executed.
-    """
-
-    def __init__(self, trigger_type: str):
-        self.trigger_type = trigger_type
-
-    @abc.abstractmethod
-    def get_trigger_instance(self, **kwargs) -> Any:
-        """
-        Get the backend-specific trigger instance.
-
-        Args:
-            **kwargs: Keyword arguments specific to the trigger type
-
-        Returns:
-            Any: A backend-specific trigger instance
-        """
-        pass
 
 
 class BaseJobQueueManager:

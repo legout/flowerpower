@@ -7,11 +7,6 @@ from ..cfg.project import ProjectConfig
 from ..fs import AbstractFileSystem
 from ..utils.logging import setup_logging
 
-if importlib.util.find_spec("apscheduler"):
-    from .apscheduler import APSBackend, APSManager
-else:
-    APSBackend = None
-    APSManager = None
 if importlib.util.find_spec("rq"):
     from .rq import RQBackend, RQManager
 else:
@@ -42,18 +37,6 @@ class JobQueueBackend:
             queues=["high", "default", "low"]
         )
 
-        # Create APScheduler backend with PostgreSQL and Redis
-        aps_backend = JobQueueBackend(
-            job_queue_type="apscheduler",
-            data_store={
-                "type": "postgresql",
-                "uri": "postgresql+asyncpg://user:pass@localhost/db"
-            },
-            event_broker={
-                "type": "redis",
-                "uri": "redis://localhost:6379/0"
-            }
-        )
         ```
     """
 
@@ -67,18 +50,12 @@ class JobQueueBackend:
         Args:
             job_queue_type: The type of backend to create. Valid values are:
                 - "rq": Redis Queue backend using Redis
-                - "apscheduler": APScheduler backend supporting various databases
-                    and event brokers
+               
             **kwargs: Backend-specific configuration options:
                 For RQ:
                     - uri (str): Redis connection URI
                     - queues (list[str]): List of queue names
-                    - result_ttl (int): Time to live for results in seconds
-                For APScheduler:
-                    - data_store (dict): Data store configuration
-                    - event_broker (dict): Event broker configuration
-                    - cleanup_interval (int): Cleanup interval in seconds
-                    - max_concurrent_jobs (int): Maximum concurrent jobs
+           
 
         Returns:
             BaseBackend: An instance of RQBackend or APSBackend depending on
@@ -99,43 +76,20 @@ class JobQueueBackend:
                 result_ttl=3600
             )
 
-            # Create APScheduler backend with PostgreSQL and Redis
-            aps_backend = Backend(
-                job_queue_type="apscheduler",
-                data_store={
-                    "type": "postgresql",
-                    "uri": "postgresql+asyncpg://user:pass@localhost/db",
-                    "schema": "scheduler"
-                },
-                event_broker={
-                    "type": "redis",
-                    "uri": "redis://localhost:6379/0"
-                },
-                cleanup_interval=300,
-                max_concurrent_jobs=10
-            )
             ```
         """
         if job_queue_type == "rq" and RQBackend is not None:
             return RQBackend(**kwargs)
-        elif job_queue_type == "apscheduler" and APSBackend is not None:
-            return APSBackend(**kwargs)
+       
         else:
             if job_queue_type == "rq" and RQBackend is None:
                 logger.warning(
                     "RQ is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. "
                     "Install rq to use RQ. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
                 )
-                return None
-            elif job_queue_type == "apscheduler" and APSBackend is None:
-                logger.warning(
-                    "APScheduler is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. "
-                    "Install apscheduler to use APScheduler. `uv pip install flowerpower[apscheduler]` or `uv add flowerpower[apscheduler]`"
-                )
-                return None
             else:
                 raise ValueError(
-                    f"Invalid job queue type: {job_queue_type}. Valid types: ['rq', 'apscheduler']"
+                    f"Invalid job queue type: {job_queue_type}. Valid types: ['rq']"
                 )
 
 
@@ -143,7 +97,7 @@ class JobQueueManager:
     """A factory class for creating job queue instances for job scheduling and execution.
 
     This class provides a unified interface for creating different types of job queue instances
-    (RQ, APScheduler, Huey) based on the specified backend type. Each job queue type provides
+    (RQ) based on the specified backend type. Each job queue type provides
     different capabilities for job scheduling and execution.
 
     The job queue instances handle:
@@ -161,17 +115,6 @@ class JobQueueManager:
             log_level="DEBUG"
         )
 
-        # Create an APScheduler job queue with custom backend
-        from flowerpower.job_queue.apscheduler import APSBackend
-        backend_config = APSBackend(
-            data_store={"type": "postgresql", "uri": "postgresql+asyncpg://user:pass@localhost/db"},
-            event_broker={"type": "redis", "uri": "redis://localhost:6379/0"}
-        )
-        aps_worker = JobQueueManager(
-            type="apscheduler",
-            name="scheduler",
-            backend=backend_config
-        )
 
         ```
     """
@@ -192,7 +135,6 @@ class JobQueueManager:
         Args:
             type: The type of job queue to create. Valid values are:
                 - "rq": Redis Queue job queue for Redis-based job queuing
-                - "apscheduler": APScheduler job queue for advanced job scheduling
             name: Name of the job queue instance. Used for identification in logs
                 and monitoring.
             base_dir: Base directory for job queue files and configuration. Defaults
@@ -224,14 +166,6 @@ class JobQueueManager:
             # Basic RQ job queue
             worker = JobQueueManager(type="rq", name="basic_worker")
 
-            # APScheduler with custom logging and storage
-            worker = JobQueueManager(
-                type="apscheduler",
-                name="scheduler",
-                base_dir="/app/data",
-                storage_options={"mode": "async"},
-                log_level="DEBUG"
-            )
 
             ```
         """
@@ -260,35 +194,15 @@ class JobQueueManager:
                 )
                 return None
 
-        elif type == "apscheduler":
-            if APSManager is not None:
-                return APSManager(
-                    name=name,
-                    base_dir=base_dir,
-                    backend=backend,
-                    storage_options=storage_options,
-                    fs=fs,
-                    log_level=log_level,
-                    **kwargs,
-                )
-            else:
-                logger.warning(
-                    "`JobQueueManager` can not be initialized. This might be due to missing dependencies (APScheduler), invalid configuration or backend not being available."
-                )
-                return None
-
         else:
             raise ImportError(
-                f"Invalid job queue type: {type}. Valid types: ['rq', 'apscheduler']"
+                f"Invalid job queue type: {type}. Valid types: ['rq']"
             )
 
 
 __all__ = [
     "JobQueueManager",
     "RQManager",
-    "APSManager",
-    # "HueyWorker",
     "JobQueueBackend",
     "RQBackend",
-    "APSBackend",
 ]

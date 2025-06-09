@@ -1,23 +1,36 @@
-# -*- coding: utf-8 -*-
-"""Pipeline Runner."""
-
-from __future__ import annotations
-
 import datetime as dt
-import importlib.util
+import importlib
+import os
+import posixpath
 import random
+import sys
 import time
+from types import TracebackType
 from typing import Any, Callable
 
 import humanize
+import rich
 from hamilton import driver
 from hamilton.execution import executors
+from hamilton.plugins import h_rich
+from hamilton.plugins.h_threadpool import FutureAdapter
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
+from hamilton_sdk.adapters import HamiltonTracker
 from hamilton_sdk.api.clients import UnauthorizedException
+from hamilton_sdk.tracking import constants
+from loguru import logger
+from munch import Munch
 from requests.exceptions import ConnectionError, HTTPError
 
 from .. import settings
+from ..cfg import PipelineConfig, ProjectConfig
+from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
+from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from ..utils.logging import setup_logging
+from ..utils.templates import PIPELINE_PY_TEMPLATE
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -32,11 +45,6 @@ if importlib.util.find_spec("mlflow"):
 else:
     h_mlflow = None
 
-from hamilton.plugins import h_rich
-from hamilton.plugins.h_threadpool import FutureAdapter
-from hamilton_sdk.adapters import HamiltonTracker
-from hamilton_sdk.tracking import constants
-from loguru import logger
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
@@ -51,16 +59,27 @@ if importlib.util.find_spec("ray"):
 else:
     h_ray = None
 
-from ..cfg import PipelineConfig, ProjectConfig
-from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig, RetryConfig
-from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from ..utils.logging import setup_logging
-from .pipeline import load_module
 
 setup_logging(level=settings.LOG_LEVEL)
 
-# from .executor import get_executor
+
+def load_module(name: str, reload: bool = False):
+    """
+    Load a module.
+
+    Args:
+        name (str): The name of the module.
+
+    Returns:
+        module: The loaded module.
+    """
+    if name in sys.modules:
+        if reload:
+            return importlib.reload(sys.modules[name])
+        return sys.modules[name]
+    return importlib.import_module(name)
+
+
 
 
 class PipelineRunner:
@@ -390,7 +409,7 @@ class PipelineRunner:
         pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
         project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
         retry: dict | RetryConfig | None = None,
-        adapter: dict[str, Any] | None = None,
+        hamilton_adapter: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
     ) -> dict[str, Any]:
@@ -409,7 +428,7 @@ class PipelineRunner:
                 Overrides the adapter settings in the pipeline config. Defaults to None.
             project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
                 Overrides the adapter settings in the project config. Defaults to None.
-            adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
+            hamilton_adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
             reload (bool, optional): Whether to reload the module. Defaults to False.
             log_level (str | None, optional): The log level to use. Defaults to None.
             retry (dict | RetryConfig | None, optional): The retry configuration.
@@ -443,7 +462,9 @@ class PipelineRunner:
         last_exception = None
 
         while attempts <= retry.get("max_retries", 0):
-            logger.debug(f"Attempting to execute pipeline {attempts}/{retry.get('max_retries', 0)}")
+            logger.debug(
+                f"Attempting to execute pipeline {attempts}/{retry.get('max_retries', 0)}"
+            )
             try:
                 dr, shutdown = self._get_driver(
                     config=config,
@@ -452,7 +473,7 @@ class PipelineRunner:
                     with_adapter_cfg=with_adapter_cfg,
                     pipeline_adapter_cfg=pipeline_adapter_cfg,
                     project_adapter_cfg=project_adapter_cfg,
-                    adapter=adapter,
+                    adapter=hamilton_adapter,
                     reload=reload,
                 )
 
@@ -495,7 +516,11 @@ class PipelineRunner:
                     base_delay = retry.get("delay", 1) * (2 ** (attempts - 1))
 
                     # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
-                    jitter = base_delay * retry.get("jitter_factor", 0.1) * (2 * random.random() - 1)
+                    jitter = (
+                        base_delay
+                        * retry.get("jitter_factor", 0.1)
+                        * (2 * random.random() - 1)
+                    )
                     actual_delay = max(
                         0, base_delay + jitter
                     )  # Ensure non-negative delay
@@ -513,65 +538,241 @@ class PipelineRunner:
                     raise last_exception
 
 
-def run_pipeline(
-    project_cfg: ProjectConfig,
-    pipeline_cfg: PipelineConfig,
-    inputs: dict | None = None,
-    final_vars: list[str] | None = None,
-    config: dict | None = None,
-    cache: dict | None = None,
-    executor_cfg: str | dict | ExecutorConfig | None = None,
-    with_adapter_cfg: dict | WithAdapterConfig | None = None,
-    pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-    project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-    retry: dict | RetryConfig | None = None,
-    adapter: dict[str, Any] | None = None,
-    reload: bool = False,
-    log_level: str | None = None,
-) -> dict[str, Any]:
-    """Run the pipeline with the given parameters.
-
-    Args:
-
-        project_cfg (ProjectConfig): The project configuration.
-        pipeline_cfg (PipelineConfig): The pipeline configuration.
-        inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
-        final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
-        config (dict | None, optional): The config for the hamilton driver. Defaults to None.
-        cache (dict | None, optional): The cache configuration. Defaults to None.
-        executor_cfg (str | dict | ExecutorConfig | None, optional): The executor to use.
-            Overrides the executor settings in the pipeline config. Defaults to None.
-        with_adapter_cfg (dict | WithAdapterConfig | None, optional): The adapter configuration.
-            Overrides the with_adapter settings in the pipeline config. Defaults to None.
-        pipeline_adapter_cfg (dict | PipelineAdapterConfig | None, optional): The pipeline adapter configuration.
-            Overrides the adapter settings in the pipeline config. Defaults to None.
-        project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
-            Overrides the adapter settings in the project config. Defaults to None.
-        adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
-        reload (bool, optional): Whether to reload the module. Defaults to False.
-        log_level (str | None, optional): The log level to use. Defaults to None.
-        retry (dict | RetryConfig | None, optional): The retry configuration.
-            If provided, it overrides the retry settings in the pipeline config.
-    Returns:
-
-        dict[str, Any]: The result of executing the pipeline.
-
-    Raises:
-        Exception: If the pipeline execution fails after the maximum number of retries.
+class Pipeline:
+    """
+    Base class for all pipelines.
     """
 
-    with PipelineRunner(project_cfg, pipeline_cfg) as runner:
-        return runner.run(
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            retry=retry,
-            adapter=adapter,
-            reload=reload,
-            log_level=log_level,
+    def __init__(
+        self,
+        name: str | None = None,
+        base_dir: str | None = None,
+        storage_options: dict | Munch | BaseStorageOptions = {},
+        fs: AbstractFileSystem | None = None,
+        cfg_dir: str = "conf",
+        pipelines_dir: str = "pipelines",
+        project_cfg: ProjectConfig | None = None,
+        # job_queue_type: str | None = None,  # New parameter for worker backend
+    ):
+        self.name = name
+        self._base_dir = base_dir or os.getcwd()
+        self._storage_options = storage_options
+        if fs is None:
+            fs = get_filesystem(self._base_dir, **self._storage_options)
+        self._fs = fs
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
+        # self._job_queue_type = job_queue_type
+        self._cfg = self._load_pipeline_cfg
+        self._project_cfg = project_cfg or self._load_project_cfg
+
+        try:
+            self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
+            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Error creating directories: {e}")
+
+        self._add_modules_path()
+
+    def __enter__(self) -> "Pipeline":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        pass
+
+    def _add_modules_path(self):
+        """
+        Sync the filesystem.
+
+        Returns:
+            None
+        """
+        if self._fs.is_cache_fs:
+            self._fs.sync_cache()
+            modules_path = posixpath.join(
+                self._fs._mapper.directory, self._fs.cache_path, self._pipelines_dir
+            )
+        else:
+            modules_path = posixpath.join(self._fs.path, self._pipelines_dir)
+        if modules_path not in sys.path:
+            sys.path.insert(0, modules_path)
+
+    def _load_project_cfg(self) -> ProjectConfig:
+        """
+        Load the project configuration.
+
+        Returns:
+            ProjectConfig: The loaded project configuration.
+        """
+        return ProjectConfig.load(
+            base_dir=self._base_dir,
+            job_queue_type=self._job_queue_type,
+            fs=self._fs,
+            storage_options=self._storage_options,
         )
+
+    def _load_pipeline_cfg(self) -> PipelineConfig:
+        """
+        Load the pipeline configuration.
+
+        Returns:
+            PipelineConfig: The loaded pipeline configuration.
+        """
+        return PipelineConfig.load(
+            base_dir=self._base_dir,
+            name=self.name,
+            fs=self._fs,
+            storage_options=self._storage_options,
+        )
+
+    @property
+    def cfg(self) -> PipelineConfig:
+        """
+        Get the pipeline configuration.
+
+        Returns:
+            PipelineConfig: The pipeline configuration.
+        """
+        if not isinstance(self._cfg, PipelineConfig):
+            self._cfg = self._load_pipeline_cfg()
+        return self._cfg
+
+    @property
+    def project_cfg(self) -> ProjectConfig:
+        """
+        Get the project configuration.
+
+        Returns:
+            ProjectConfig: The project configuration.
+        """
+        if not isinstance(self._project_cfg, ProjectConfig):
+            self._project_cfg = self._load_project_cfg()
+        return self._project_cfg
+
+    # --- Methods moved from PipelineManager ---
+    def new(self, name: str, overwrite: bool = False):
+        """
+        Adds a pipeline with the given name.
+
+        Args:
+            name (str): The name of the pipeline.
+            overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
+            job_queue_type (str | None): The type of worker to use. Defaults to None.
+
+        Raises:
+            ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
+
+        Examples:
+            >>> pm = PipelineManager()
+            >>> pm.new("my_pipeline")
+        """
+        # Use attributes derived from self.project_cfg
+        for dir_path, label in (
+            (self._cfg_dir, "configuration"),
+            (self._pipelines_dir, "pipeline"),
+        ):
+            if not self._fs.exists(dir_path):
+                raise ValueError(
+                    f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first."
+                )
+
+        formatted_name = name.replace(".", "/").replace("-", "_")
+        pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
+        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
+
+        def check_and_handle(path: str):
+            if self._fs.exists(path):
+                if overwrite:
+                    self._fs.rm(path)
+                else:
+                    raise ValueError(
+                        f"Pipeline {self.project_cfg.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
+                    )
+
+        check_and_handle(pipeline_file)
+        check_and_handle(cfg_file)
+
+        # Ensure directories for the new files exist
+        for file_path in (pipeline_file, cfg_file):
+            self._fs.makedirs(file_path.rsplit("/", 1)[0], exist_ok=True)
+
+        # Write pipeline code template
+        with self._fs.open(pipeline_file, "w") as f:
+            f.write(
+                PIPELINE_PY_TEMPLATE.format(
+                    name=name,
+                    date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            )
+
+        # Create default pipeline config and save it directly
+        new_pipeline_cfg = PipelineConfig(name=name)
+        new_pipeline_cfg.save(fs=self._fs)  # Save only the pipeline part
+
+        rich.print(
+            f"🔧 Created new pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue]"
+        )
+
+    def delete(self, name: str, cfg: bool = True, module: bool = False):
+        """
+        Delete a pipeline.
+
+        Args:
+            name (str): The name of the pipeline.
+            cfg (bool, optional): Whether to delete the config file. Defaults to True.
+            module (bool, optional): Whether to delete the module file. Defaults to False.
+
+        Returns:
+            None
+
+        Raises:
+            FileNotFoundError: If the specified files do not exist.
+
+        Examples:
+            >>> pm = PipelineManager()
+            >>> pm.delete("my_pipeline")
+        """
+        deleted_files = []
+        if cfg:
+            pipeline_cfg_path = posixpath.join(
+                self._cfg_dir, "pipelines", f"{name}.yml"
+            )
+            if self._fs.exists(pipeline_cfg_path):
+                self._fs.rm(pipeline_cfg_path)
+                deleted_files.append(pipeline_cfg_path)
+                logger.debug(
+                    f"Deleted pipeline config: {pipeline_cfg_path}"
+                )  # Changed to DEBUG
+            else:
+                logger.warning(
+                    f"Config file not found, skipping deletion: {pipeline_cfg_path}"
+                )
+
+        if module:
+            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
+            if self._fs.exists(pipeline_py_path):
+                self._fs.rm(pipeline_py_path)
+                deleted_files.append(pipeline_py_path)
+                logger.debug(
+                    f"Deleted pipeline module: {pipeline_py_path}"
+                )  # Changed to DEBUG
+            else:
+                logger.warning(
+                    f"Module file not found, skipping deletion: {pipeline_py_path}"
+                )
+
+        if not deleted_files:
+            logger.warning(
+                f"No files found or specified for deletion for pipeline '{name}'."
+            )
+
+        # Sync filesystem if needed (using _fs)
+        if hasattr(self._fs, "sync_cache") and callable(
+            getattr(self._fs, "sync_cache")
+        ):
+            self._fs.sync_cache()

@@ -7,7 +7,7 @@ from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
-
+from .adapter import AdapterConfig
 
 class Config(BaseConfig):
     """Main configuration class for FlowerPower, combining project and pipeline settings.
@@ -39,9 +39,21 @@ class Config(BaseConfig):
 
     pipeline: PipelineConfig = msgspec.field(default_factory=PipelineConfig)
     project: ProjectConfig = msgspec.field(default_factory=ProjectConfig)
-    fs: AbstractFileSystem | None = None
-    base_dir: str | Path | None = None
+    adapter: AdapterConfig | None = msgspec.field(default_factory=AdapterConfig)
+    fs: AbstractFileSystem | None = msgspec.field(default=None)
+    base_dir: str | Path | None = msgspec.field(default=None)
     storage_options: dict | Munch = msgspec.field(default_factory=Munch)
+
+    def __post_init__(self):
+        if self.adapter is None:
+            self.adapter = AdapterConfig.from_adapters(
+                project_hamilton_tracker_cfg=self.project.hamilton_tracker,
+                pipeline_hamilton_tracker_cfg=self.pipeline.hamilton_tracker,
+                project_mlflow_cfg=self.project.mlflow,
+                pipeline_mlflow_cfg=self.pipeline.mlflow,
+                ray_cfg=self.project.ray,
+                opentelemetry_cfg=self.project.opentelemetry,
+            )
 
     @classmethod
     def load(
