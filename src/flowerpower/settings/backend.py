@@ -22,7 +22,6 @@ BACKEND_PROPERTIES = {
         "is_sqla_type": True,
         "is_sqlite_type": True,
     },
-   
     "redis": {
         "uri_prefix": "redis://",
         "default_port": 6379,

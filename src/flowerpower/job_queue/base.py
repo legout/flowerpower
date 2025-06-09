@@ -28,8 +28,8 @@ from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
 
 class BackendType(str, Enum):
-    #POSTGRESQL = "postgresql"
-    #MYSQL = "mysql"
+    # POSTGRESQL = "postgresql"
+    # MYSQL = "mysql"
     SQLITE = "sqlite"
     REDIS = "redis"
     NATS_KV = "nats_kv"
@@ -152,7 +152,7 @@ class BackendType(str, Enum):
                 if cert_file:
                     query_params.append(f"sslcert={urllib.parse.quote(cert_file)}")
                 if key_file:
-                    query_params.append(f"sslkey={urllib.parse.quote(key_file)}")         
+                    query_params.append(f"sslkey={urllib.parse.quote(key_file)}")
             elif self.is_redis_type:
                 if not verify_ssl:
                     query_params.append("ssl_cert_reqs=none")

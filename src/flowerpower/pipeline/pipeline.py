@@ -80,8 +80,6 @@ def load_module(name: str, reload: bool = False):
     return importlib.import_module(name)
 
 
-
-
 class PipelineRunner:
     """PipelineRunner is responsible for executing a specific pipeline run.
     It handles the loading of the pipeline module, configuration, and execution"""

@@ -14,6 +14,7 @@ class JobQueueBackendConfig(BaseConfig):
     Job Queue backend configuration for FlowerPower.
     Inherits from BaseConfig and adapts Redis logic.
     """
+
     type: str | None = msgspec.field(default=None)
     uri: str | None = msgspec.field(default=None)
     username: str | None = msgspec.field(default=None)
@@ -26,7 +27,6 @@ class JobQueueBackendConfig(BaseConfig):
     key_file: str | None = msgspec.field(default=None)
     ca_file: str | None = msgspec.field(default=None)
     verify_ssl: bool = msgspec.field(default=False)
-
 
 
 class RQBackendConfig(JobQueueBackendConfig):
@@ -95,7 +95,6 @@ class JobQueueConfig(BaseConfig):
                     )
                 self.num_workers = self.num_workers or settings.RQ_NUM_WORKERS
 
-         
     def update_type(self, type: str):
         if type != self.type:
             self.type = type

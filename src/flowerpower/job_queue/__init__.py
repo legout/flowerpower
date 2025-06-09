@@ -50,12 +50,12 @@ class JobQueueBackend:
         Args:
             job_queue_type: The type of backend to create. Valid values are:
                 - "rq": Redis Queue backend using Redis
-               
+
             **kwargs: Backend-specific configuration options:
                 For RQ:
                     - uri (str): Redis connection URI
                     - queues (list[str]): List of queue names
-           
+
 
         Returns:
             BaseBackend: An instance of RQBackend or APSBackend depending on
@@ -80,7 +80,7 @@ class JobQueueBackend:
         """
         if job_queue_type == "rq" and RQBackend is not None:
             return RQBackend(**kwargs)
-       
+
         else:
             if job_queue_type == "rq" and RQBackend is None:
                 logger.warning(
@@ -195,9 +195,7 @@ class JobQueueManager:
                 return None
 
         else:
-            raise ImportError(
-                f"Invalid job queue type: {type}. Valid types: ['rq']"
-            )
+            raise ImportError(f"Invalid job queue type: {type}. Valid types: ['rq']")
 
 
 __all__ = [

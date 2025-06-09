@@ -1,17 +1,15 @@
 import msgspec
+from munch import munchify
+
 from .. import settings
 from .base import BaseConfig
-from munch import munchify
-from .project.adapter import (
-    HamiltonTrackerConfig as ProjectHamiltonTrackerConfig,
-    MLFlowConfig as ProjectMLFlowConfig,
-    RayConfig,
-    OpenTelemetryConfig,
-)
-from .pipeline.adapter import (
-    HamiltonTracerConfig as PipelineHamiltonTracerConfig,
-    MLFlowConfig as PipelineMLFlowConfig,
-)
+from .pipeline.adapter import \
+    HamiltonTracerConfig as PipelineHamiltonTracerConfig
+from .pipeline.adapter import MLFlowConfig as PipelineMLFlowConfig
+from .project.adapter import \
+    HamiltonTrackerConfig as ProjectHamiltonTrackerConfig
+from .project.adapter import MLFlowConfig as ProjectMLFlowConfig
+from .project.adapter import OpenTelemetryConfig, RayConfig
 
 
 class HamiltonTrackerConfig(BaseConfig):
@@ -78,12 +76,14 @@ class AdapterConfig(BaseConfig):
         opentelemetry_cfg: OpenTelemetryConfig,
     ) -> "AdapterConfig":
         return cls(
-            hamilton_tracker=HamiltonTrackerConfig.from_dict(
-                **{**project_hamilton_tracker_cfg, **pipeline_hamilton_tracker_cfg}
-            ),
-            mlflow=MLFlowConfig.from_dict(
-                **{**project_mlflow_cfg, **pipeline_mlflow_cfg}
-            ),
+            hamilton_tracker=HamiltonTrackerConfig.from_dict(**{
+                **project_hamilton_tracker_cfg,
+                **pipeline_hamilton_tracker_cfg,
+            }),
+            mlflow=MLFlowConfig.from_dict(**{
+                **project_mlflow_cfg,
+                **pipeline_mlflow_cfg,
+            }),
             ray=ray_cfg
             if isinstance(ray_cfg, RayConfig)
             else RayConfig.from_dict(ray_cfg),

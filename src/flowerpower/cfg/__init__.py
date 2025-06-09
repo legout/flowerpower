@@ -4,10 +4,11 @@ import msgspec
 from munch import Munch
 
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from .adapter import AdapterConfig
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
-from .adapter import AdapterConfig
+
 
 class Config(BaseConfig):
     """Main configuration class for FlowerPower, combining project and pipeline settings.

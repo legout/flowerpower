@@ -53,7 +53,7 @@ else:
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig, RetryConfig
+from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..utils.logging import setup_logging
 from .pipeline import load_module
@@ -443,7 +443,9 @@ class PipelineRunner:
         last_exception = None
 
         while attempts <= retry.get("max_retries", 0):
-            logger.debug(f"Attempting to execute pipeline {attempts}/{retry.get('max_retries', 0)}")
+            logger.debug(
+                f"Attempting to execute pipeline {attempts}/{retry.get('max_retries', 0)}"
+            )
             try:
                 dr, shutdown = self._get_driver(
                     config=config,
@@ -495,7 +497,11 @@ class PipelineRunner:
                     base_delay = retry.get("delay", 1) * (2 ** (attempts - 1))
 
                     # Add jitter: random value between -jitter_factor and +jitter_factor of the base delay
-                    jitter = base_delay * retry.get("jitter_factor", 0.1) * (2 * random.random() - 1)
+                    jitter = (
+                        base_delay
+                        * retry.get("jitter_factor", 0.1)
+                        * (2 * random.random() - 1)
+                    )
                     actual_delay = max(
                         0, base_delay + jitter
                     )  # Ensure non-negative delay
