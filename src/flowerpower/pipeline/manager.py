@@ -145,7 +145,11 @@ class PipelineManager:
                 cache_storage=cache_storage,
             )
         self._fs = fs
-        self._storage_options = storage_options or fs.storage_options if fs.protocol!="dir" else fs.fs.storage_options
+        self._storage_options = (
+            storage_options or fs.storage_options
+            if fs.protocol != "dir"
+            else fs.fs.storage_options
+        )
 
         # Store overrides for ProjectConfig loading
         self._cfg_dir = cfg_dir

@@ -1,7 +1,8 @@
 import importlib
+import os
 import posixpath
 from typing import Any, Generator
-import os
+
 if importlib.util.find_spec("datafusion"):
     import datafusion
 else:
@@ -22,8 +23,9 @@ from sqlalchemy import create_engine, text
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
 from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                   GcsStorageOptions, GitHubStorageOptions,
-                                   GitLabStorageOptions, StorageOptions, BaseStorageOptions)
+                                   BaseStorageOptions, GcsStorageOptions,
+                                   GitHubStorageOptions, GitLabStorageOptions,
+                                   StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
 from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
@@ -75,15 +77,15 @@ class BaseFileIO(msgspec.Struct, gc=False):
     ) = field(default=None)
     fs: AbstractFileSystem | None = field(default=None)
     format: str | None = None
-    #_base_path: str | list[str] | None = field(default=None)
-    #_full_path: str | list[str] | None = field(default=None)
-    #_rel_path: str | list[str] | None = field(default=None)
-    #_glob_path
+    # _base_path: str | list[str] | None = field(default=None)
+    # _full_path: str | list[str] | None = field(default=None)
+    # _rel_path: str | list[str] | None = field(default=None)
+    # _glob_path
     _metadata: dict[str, Any] | None = field(default=None)
 
-    def __post_init__(self): 
-        #self._base_path = self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
-       
+    def __post_init__(self):
+        # self._base_path = self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+
         if self.fs is None:
             self.fs = get_filesystem(
                 path=self._base_path,
@@ -91,35 +93,41 @@ class BaseFileIO(msgspec.Struct, gc=False):
                 fs=self.fs,
                 dirfs=True,
             )
-        self.storage_options = self.storage_options or self.fs.storage_options if self.protocol!="dir" else self.fs.fs.storage_options
+        self.storage_options = (
+            self.storage_options or self.fs.storage_options
+            if self.protocol != "dir"
+            else self.fs.fs.storage_options
+        )
 
-        #self.path = (
+        # self.path = (
         #    self._raw_path.replace(protocol + "://", "")
         #    .replace(f"**/*.{self.format}", "")
         #    .replace("**", "")
         #    .replace("*", "")
         #    .rstrip("/")
-        #)
+        # )
 
     @property
     def protocol(self):
         """Get the protocol of the filesystem."""
-        protocol =  self.fs.protocol if self.fs.protocol != "dir" else self.fs.fs.protocol
+        protocol = (
+            self.fs.protocol if self.fs.protocol != "dir" else self.fs.fs.protocol
+        )
         if isinstance(protocol, list | tuple):
             protocol = protocol[0]
         return protocol
 
-
     @property
-    def _base_path(self)-> str:
+    def _base_path(self) -> str:
         """Get the base path for the filesystem."""
-        
-        path = self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+
+        path = (
+            self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+        )
         return path
-    
 
     @property
-    def _path(self)-> str | list[str]:
+    def _path(self) -> str | list[str]:
         if self.fs.protocol == "dir":
             if isinstance(self.path, list):
                 return [
@@ -131,18 +139,18 @@ class BaseFileIO(msgspec.Struct, gc=False):
         return self.path
 
     @property
-    def _glob_path(self)-> str | list[str]:
+    def _glob_path(self) -> str | list[str]:
         if isinstance(self._path, list):
             return self._path
         return path_to_glob(self._path, self.format)
 
     @property
-    def _root_path(self)-> str:
+    def _root_path(self) -> str:
         if self.fs.protocol == "dir":
             return self._base_path.replace(self.fs.path, "")
         return self._base_path
 
-    def list_files(self)-> list[str]:
+    def list_files(self) -> list[str]:
         if isinstance(self._path, list):
             return self._path
 
