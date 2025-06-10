@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.5] - 2025-06-10
+
+### Changes
+- bump: update version to 0.11.5 in pyproject.toml
+- fix: improve readability by restructuring conditional expressions and organizing imports
+- fix: enhance protocol handling and storage options in filesystem integration
+
+
+
 ## [0.11.4] - 2025-06-06
 
 ### Changes
