@@ -608,8 +608,13 @@ def get_filesystem(
             return DirFileSystem(path=path, fs=fs)
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
-    protocol = pp.get("protocol")
-
+    protocol = (
+        storage_options_kwargs.get("protocol", None)
+        or (storage_options.get("protocol", None)
+        if isinstance(storage_options, dict)
+        else getattr(storage_options, "protocol", None)) or pp.get("protocol", "file")
+    )
+    
     if protocol == "file" or protocol == "local":
         fs = filesystem(protocol)
         fs.is_cache_fs = False
