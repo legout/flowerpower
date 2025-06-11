@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.5.1] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.1 in pyproject.toml
+- fix: improve formatting of DirFileSystem initialization for better readability
+- fix: update filesystem handling and version to 0.11.5, adjust dependencies
+
+
+
 ## [0.11.5] - 2025-06-10
 
 ### Changes
