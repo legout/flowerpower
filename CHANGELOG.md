@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.5.7] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.7 in pyproject.toml and comment out unused parameters in DeltaTableWriter
+- bump: update version to 0.11.5.6 in uv.lock and comment out unused parameters in DeltaTableWriter
+
+
+
 ## [0.11.5.6] - 2025-06-11
 
 ### Changes
