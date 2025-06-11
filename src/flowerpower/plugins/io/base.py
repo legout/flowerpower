@@ -92,7 +92,7 @@ class BaseFileIO(msgspec.Struct, gc=False):
                 fs=self.fs,
                 dirfs=True,
             )
-        
+
         self.storage_options = (
             self.storage_options or self.fs.storage_options
             if self.protocol != "dir"
@@ -120,10 +120,9 @@ class BaseFileIO(msgspec.Struct, gc=False):
     @property
     def _base_path(self) -> str:
         """Get the base path for the filesystem."""
-        return  (
-                self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
-            )
-
+        return (
+            self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+        )
 
     @property
     def _path(self) -> str | list[str]:

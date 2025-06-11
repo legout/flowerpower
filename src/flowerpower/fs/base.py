@@ -600,10 +600,11 @@ def get_filesystem(
         if dirfs:
             base_path = path.split("://")[1]
             if fs.protocol == "dir":
-                
                 if base_path != fs.path:
                     fs = DirFileSystem(
-                        path=posixpath.join(fs.path, base_path.replace(fs.path, "").lstrip("/")),
+                        path=posixpath.join(
+                            fs.path, base_path.replace(fs.path, "").lstrip("/")
+                        ),
                         fs=fs.fs,
                     )
             else:
