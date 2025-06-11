@@ -15,7 +15,6 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
 from fsspec import AbstractFileSystem
-from fsspec.utils import get_protocol
 from msgspec import field
 from pydala.dataset import ParquetDataset
 from sqlalchemy import create_engine, text
@@ -93,6 +92,7 @@ class BaseFileIO(msgspec.Struct, gc=False):
                 fs=self.fs,
                 dirfs=True,
             )
+        
         self.storage_options = (
             self.storage_options or self.fs.storage_options
             if self.protocol != "dir"
@@ -120,11 +120,10 @@ class BaseFileIO(msgspec.Struct, gc=False):
     @property
     def _base_path(self) -> str:
         """Get the base path for the filesystem."""
+        return  (
+                self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+            )
 
-        path = (
-            self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
-        )
-        return path
 
     @property
     def _path(self) -> str | list[str]:
