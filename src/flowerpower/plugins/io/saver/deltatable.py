@@ -134,7 +134,9 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
         if isinstance(data[0], pa.Table):
             data = pa.concat_tables(data, promote_options="permissive")
 
-        metadata = get_dataframe_metadata(data, path=self._base_path, format=self.format)
+        metadata = get_dataframe_metadata(
+            data, path=self._base_path, format=self.format
+        )
 
         writer_properties = WriterProperties(
             data_page_size_limit=data_page_size_limit,
