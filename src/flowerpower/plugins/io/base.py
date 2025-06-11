@@ -99,14 +99,6 @@ class BaseFileIO(msgspec.Struct, gc=False):
             else self.fs.fs.storage_options
         )
 
-        # self.path = (
-        #    self._raw_path.replace(protocol + "://", "")
-        #    .replace(f"**/*.{self.format}", "")
-        #    .replace("**", "")
-        #    .replace("*", "")
-        #    .rstrip("/")
-        # )
-
     @property
     def protocol(self):
         """Get the protocol of the filesystem."""

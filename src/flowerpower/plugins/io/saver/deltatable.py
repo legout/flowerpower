@@ -134,7 +134,7 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
         if isinstance(data[0], pa.Table):
             data = pa.concat_tables(data, promote_options="permissive")
 
-        metadata = get_dataframe_metadata(data, path=self._raw_path, format=self.format)
+        metadata = get_dataframe_metadata(data, path=self._base_path, format=self.format)
 
         writer_properties = WriterProperties(
             data_page_size_limit=data_page_size_limit,
@@ -151,7 +151,7 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
 
         def _write():
             write_deltalake(
-                self._raw_path,
+                self._base_path,
                 data,
                 mode=mode,
                 schema=schema or self.schema_,
@@ -171,7 +171,7 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
 
         if self.with_lock:
             with RedisLock(
-                lock_name=self._raw_path,
+                lock_name=self._base_path,
                 namespace="flowerpower",
                 client=self.redis,
                 expire=10,
