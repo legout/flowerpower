@@ -445,7 +445,7 @@ def partition_by(
         if isinstance(strftime, str):
             strftime = [strftime]
 
-        df = df.with_striftime_columns(
+        df = df.with_strftime_columns(
             timestamp_column=timestamp_column, strftime=strftime
         )
         strftime_columns = [
@@ -554,7 +554,7 @@ pl.DataFrame.opt_dtype = opt_dtype
 pl.DataFrame.with_row_count_ext = with_row_count
 pl.DataFrame.with_datepart_columns = with_datepart_columns
 pl.DataFrame.with_duration_columns = with_truncated_columns
-pl.DataFrame.with_striftime_columns = with_strftime_columns
+pl.DataFrame.with_strftime_columns = with_strftime_columns
 pl.DataFrame.cast_relaxed = cast_relaxed
 pl.DataFrame.delta = delta
 pl.DataFrame.partition_by_ext = partition_by
@@ -566,7 +566,7 @@ pl.LazyFrame.opt_dtype = opt_dtype
 pl.LazyFrame.with_row_count_ext = with_row_count
 pl.LazyFrame.with_datepart_columns = with_datepart_columns
 pl.LazyFrame.with_duration_columns = with_truncated_columns
-pl.LazyFrame.with_striftime_columns = with_strftime_columns
+pl.LazyFrame.with_strftime_columns = with_strftime_columns
 pl.LazyFrame.delta = delta
 pl.LazyFrame.cast_relaxed = cast_relaxed
 pl.LazyFrame.partition_by_ext = partition_by
