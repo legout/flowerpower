@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.5.4] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.4 in pyproject.toml
+- fix: correct base path extraction in get_filesystem function
+
+
+
 ## [0.11.5.3] - 2025-06-11
 
 ### Changes
