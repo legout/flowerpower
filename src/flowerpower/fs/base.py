@@ -598,7 +598,7 @@ def get_filesystem(
     """
     if fs is not None:
         if dirfs:
-            base_path = path.split("://")[1]
+            base_path = path.split("://")[-1]
             if fs.protocol == "dir":
                 if base_path != fs.path:
                     fs = DirFileSystem(
