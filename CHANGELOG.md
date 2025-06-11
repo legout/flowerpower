@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.5.3] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.3 in pyproject.toml
+- fix: improve comment formatting in BaseFileIO
+- refactor: simplify filesystem initialization in BaseFileIO
+
+
+
 ## [0.11.5.2] - 2025-06-11
 
 ### Changes
