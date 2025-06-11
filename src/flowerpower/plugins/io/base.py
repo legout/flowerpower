@@ -85,7 +85,7 @@ class BaseFileIO(msgspec.Struct, gc=False):
     def __post_init__(self):
         # self._base_path = self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
 
-        #if self.fs is None:
+        # if self.fs is None:
         self.fs = get_filesystem(
             path=self._base_path,
             storage_options=self.storage_options,
