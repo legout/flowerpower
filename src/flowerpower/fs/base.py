@@ -597,15 +597,16 @@ def get_filesystem(
         ... )
     """
     if fs is not None:
+        if dirfs:
+            if fs.protocol == "dir":
+                base_path = path.split("://")[1]
+                if base_path != fs.path:
+                    fs = DirFileSystem(path=posixpath.join(fs.path,base_path.replace(fs.path,"")), fs=fs.fs)
         if cached:
             if fs.is_cache_fs:
                 return fs
             return MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
 
-        if dirfs:
-            if fs.protocol == "dir":
-                return fs
-            return DirFileSystem(path=path, fs=fs)
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = (
@@ -630,6 +631,8 @@ def get_filesystem(
     path = pp.get("path", "").lstrip("/")
     if len(host) and host not in path:
         path = posixpath.join(host, path)
+    if "." in path:
+        path = posixpath.dirname(path)
 
     if isinstance(storage_options, dict):
         storage_options = storage_options_from_dict(protocol, storage_options)

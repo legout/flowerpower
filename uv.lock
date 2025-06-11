@@ -943,7 +943,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.10.9.1"
+version = "0.11.5"
 source = { editable = "." }
 dependencies = [
     { name = "dill" },
@@ -974,7 +974,6 @@ apscheduler = [
 io = [
     { name = "adbc-driver-manager" },
     { name = "aiosqlite" },
-    { name = "attrs" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -989,6 +988,7 @@ io = [
 ]
 io-legacy = [
     { name = "adbc-driver-manager" },
+    { name = "aiosqlite" },
     { name = "datafusion" },
     { name = "deltalake" },
     { name = "duckdb" },
@@ -999,6 +999,7 @@ io-legacy = [
     { name = "pydala2" },
     { name = "redis" },
     { name = "sherlock" },
+    { name = "sqlalchemy" },
 ]
 mongodb = [
     { name = "pymongo" },
@@ -1059,9 +1060,9 @@ requires-dist = [
     { name = "adbc-driver-manager", marker = "extra == 'io-legacy'", specifier = ">=1.4.0" },
     { name = "aiosqlite", marker = "extra == 'apscheduler'", specifier = ">=0.21.0" },
     { name = "aiosqlite", marker = "extra == 'io'", specifier = ">=0.21.0" },
+    { name = "aiosqlite", marker = "extra == 'io-legacy'", specifier = ">=0.21.0" },
     { name = "apscheduler", marker = "extra == 'apscheduler'", specifier = "==4.0.0a5" },
     { name = "asyncpg", marker = "extra == 'apscheduler'", specifier = ">=0.29.0" },
-    { name = "attrs", marker = "extra == 'io'", specifier = ">=25.3.0" },
     { name = "cron-descriptor", marker = "extra == 'apscheduler'", specifier = ">=1.4.5" },
     { name = "cron-descriptor", marker = "extra == 'rq'", specifier = ">=1.4.5" },
     { name = "datafusion", marker = "extra == 'io'", specifier = ">=43.1.0" },
@@ -1116,6 +1117,7 @@ requires-dist = [
     { name = "sherlock", marker = "extra == 'io-legacy'", specifier = ">=0.4.1" },
     { name = "sqlalchemy", marker = "extra == 'apscheduler'", specifier = ">=2.0.30" },
     { name = "sqlalchemy", marker = "extra == 'io'", specifier = ">=2.0.30" },
+    { name = "sqlalchemy", marker = "extra == 'io-legacy'", specifier = ">=2.0.30" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.85.2" },
     { name = "typer", specifier = ">=0.12.3" },
 ]
