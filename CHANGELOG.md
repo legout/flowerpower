@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.5.2] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.2 in pyproject.toml
+- fix: improve formatting and readability in get_filesystem and BaseFileIO
+- fix: update filesystem handling in get_filesystem and improve base path retrieval in BaseFileIO bump: version to 0.11.5.1 in uv.lock
+
+
+
 ## [0.11.5.1] - 2025-06-11
 
 ### Changes
