@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.5.5] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.5 in pyproject.toml
+- fix: correct typo in with_strftime_columns method references
+
+
+
 ## [0.11.5.4] - 2025-06-11
 
 ### Changes
