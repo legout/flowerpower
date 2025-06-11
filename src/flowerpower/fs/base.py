@@ -601,12 +601,14 @@ def get_filesystem(
             if fs.protocol == "dir":
                 base_path = path.split("://")[1]
                 if base_path != fs.path:
-                    fs = DirFileSystem(path=posixpath.join(fs.path,base_path.replace(fs.path,"")), fs=fs.fs)
+                    fs = DirFileSystem(
+                        path=posixpath.join(fs.path, base_path.replace(fs.path, "")),
+                        fs=fs.fs,
+                    )
         if cached:
             if fs.is_cache_fs:
                 return fs
             return MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
-
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
     protocol = (
