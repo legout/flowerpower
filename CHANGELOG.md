@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.5.6] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.6 in pyproject.toml refactor: format get_dataframe_metadata call for better readability in DeltaTableWriter
+- refactor: replace _raw_path with _base_path in DeltaTableReader and DeltaTableWriter
+
+
+
 ## [0.11.5.5] - 2025-06-11
 
 ### Changes
