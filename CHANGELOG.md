@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.5.8] - 2025-06-12
+
+### Changes
+- bump: update version to 0.11.5.8 in pyproject.toml and clean up whitespace in metadata.py
+- bump: update version to 0.11.5.7 in uv.lock and fix lazy loading in BaseFileReader and metadata handling in get_dataframe_metadata
+
+
+
 ## [0.11.5.7] - 2025-06-11
 
 ### Changes
