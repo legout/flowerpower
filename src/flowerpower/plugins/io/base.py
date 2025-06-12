@@ -365,7 +365,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             df = [df.lazy() for df in self._to_polars_dataframe()]
 
         else:
-            df = self._to_polars_dataframe.lazy()
+            df = self._to_polars_dataframe().lazy()
         if metadata:
             metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
             return df, metadata
@@ -1391,7 +1391,6 @@ class BaseDatasetWriter(BaseFileWriter, gc=False):
                 mode=mode or self.mode,
                 basename=basename or self.basename,
                 schema=schema or self.schema_,
-                partition_flavor=partitioning_flavor or self.partitioning_flavor,
                 partition_by=partition_by or self.partition_by,
                 compression=compression or self.compression,
                 row_group_size=row_group_size or self.row_group_size,
