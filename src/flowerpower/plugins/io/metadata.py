@@ -1,6 +1,7 @@
 import datetime as dt
 import importlib
 import os
+
 import duckdb
 import pandas as pd
 import polars as pl
@@ -91,7 +92,7 @@ def get_dataframe_metadata(
     else:
         schema = get_serializable_schema(df)
         num_rows = df.shape[0] if hasattr(df, "shape") else None
-    
+
     if path is not None and num_files is None:
         if isinstance(path, list):
             num_files = len(path)
@@ -112,7 +113,6 @@ def get_dataframe_metadata(
         "num_columns": len(schema),
         "num_rows": num_rows,
         "num_files": num_files,
-        
     }
     metadata.update(kwargs)
     return {k: v for k, v in metadata.items() if v is not None}
@@ -160,7 +160,6 @@ def get_duckdb_metadata(
         "num_columns": shape[1] if shape else None,
         "num_rows": shape[0] if shape else None,
         "num_files": len(fs.glob(path)) if include_num_files else None,
-        
     }
     metadata.update(kwargs)
     return {k: v for k, v in metadata.items() if v is not None}
@@ -174,7 +173,7 @@ def get_pyarrow_dataset_metadata(
 ) -> dict:
     schema = get_serializable_schema(ds.schema)
     files = ds.files
-   
+
     metadata = {
         "path": path or os.path.dirname(files[0]),
         "format": format,
