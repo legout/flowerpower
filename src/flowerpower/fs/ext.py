@@ -10,7 +10,7 @@ else:
     raise ImportError("To use this module, please install `flowerpower[io]`.")
 
 import orjson
-import polars as pl
+#import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
 import pyarrow.parquet as pq
@@ -19,6 +19,9 @@ from pydala.dataset import ParquetDataset
 
 from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
                           run_parallel, to_pyarrow_table)
+
+from ..plugins.io.helpers.polars import pl, unify_schemas as unfify_schemas_pl, opt_dtype_pl
+from ..plugins.io.helpers.pyarrow import opt_dtype_pa, unify_schemas as unify_schemas_pa, cast_schema
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:
@@ -172,6 +175,7 @@ def _read_json(
     as_dataframe: bool = True,
     concat: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs,
 ) -> dict | list[dict] | pl.DataFrame | list[pl.DataFrame]:
     """
@@ -236,8 +240,13 @@ def _read_json(
                 ][0]
                 for _data in data
             ]
+        if opt_dtypes:
+            data = [opt_dtype_pl(df, strict=False) for df in data]
         if concat:
-            return pl.concat(data, how="diagonal_relaxed")
+            result = pl.concat(data, how="diagonal_relaxed")
+            if opt_dtypes:
+                result = opt_dtype_pl(result, strict=False)
+            return result
     return data
 
 
@@ -251,6 +260,7 @@ def _read_json_batches(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> Generator[dict | list[dict] | pl.DataFrame | list[pl.DataFrame], None, None]:
     """Process JSON files in batches with optional parallel reading.
@@ -360,6 +370,7 @@ def read_json(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> (
     dict
@@ -439,6 +450,7 @@ def read_json(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     return _read_json(
@@ -450,12 +462,13 @@ def read_json(
         concat=concat,
         use_threads=use_threads,
         verbose=verbose,
+        opt_dtypes=opt_dtypes,
         **kwargs,
     )
 
 
 def _read_csv_file(
-    path: str, self: AbstractFileSystem, include_file_path: bool = False, **kwargs: Any
+    path: str, self: AbstractFileSystem, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs: Any
 ) -> pl.DataFrame:
     """Read a single CSV file from any filesystem.
 
@@ -486,15 +499,17 @@ def _read_csv_file(
     with self.open(path) as f:
         df = pl.read_csv(f, **kwargs)
     if include_file_path:
-        return df.with_columns(pl.lit(path).alias("file_path"))
+        df = df.with_columns(pl.lit(path).alias("file_path"))
+    if opt_dtypes:
+        df = opt_dtype_pl(df, strict=False)
     return df
 
 
 def read_csv_file(
-    self, path: str, include_file_path: bool = False, **kwargs
+    self, path: str, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs
 ) -> pl.DataFrame:
     return _read_csv_file(
-        path=path, self=self, include_file_path=include_file_path, **kwargs
+        path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
     )
 
 
@@ -505,6 +520,7 @@ def _read_csv(
     use_threads: bool = True,
     concat: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs,
 ) -> pl.DataFrame | list[pl.DataFrame]:
     """
@@ -533,21 +549,26 @@ def _read_csv(
                 path,
                 self=self,
                 include_file_path=include_file_path,
+                opt_dtypes=opt_dtypes,
                 n_jobs=-1,
                 backend="threading",
                 verbose=verbose,
                 **kwargs,
             )
-        dfs = [
-            _read_csv_file(p, self=self, include_file_path=include_file_path, **kwargs)
-            for p in path
-        ]
+        else:
+            dfs = [
+                _read_csv_file(p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs)
+                for p in path
+            ]
     else:
         dfs = _read_csv_file(
-            path, self=self, include_file_path=include_file_path, **kwargs
+            path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
         )
     if concat:
-        return pl.concat(dfs, how="diagonal_relaxed")
+        result = pl.concat(dfs, how="diagonal_relaxed")
+        if opt_dtypes:
+            result = opt_dtype_pl(result, strict=False)
+        return result
     return dfs
 
 
@@ -559,6 +580,7 @@ def _read_csv_batches(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> Generator[pl.DataFrame | list[pl.DataFrame], None, None]:
     """Process CSV files in batches with optional parallel reading.
@@ -634,8 +656,14 @@ def _read_csv_batches(
                 for p in batch_paths
             ]
 
+        if opt_dtypes:
+            batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
+
         if concat and len(batch_dfs) > 1:
-            yield pl.concat(batch_dfs, how="diagonal_relaxed")
+            result = pl.concat(batch_dfs, how="diagonal_relaxed")
+            if opt_dtypes:
+                result = opt_dtype_pl(result, strict=False)
+            yield result
         else:
             yield batch_dfs
 
@@ -648,6 +676,7 @@ def read_csv(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> (
     pl.DataFrame
@@ -730,7 +759,7 @@ def read_csv(
 
 
 def _read_parquet_file(
-    path: str, self: AbstractFileSystem, include_file_path: bool = False, **kwargs: Any
+    path: str, self: AbstractFileSystem, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs: Any
 ) -> pa.Table:
     """Read a single Parquet file from any filesystem.
 
@@ -759,15 +788,17 @@ def _read_parquet_file(
     """
     table = pq.read_table(path, filesystem=self, **kwargs)
     if include_file_path:
-        return table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
+        table = table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
+    if opt_dtypes:
+        table = opt_dtype_pa(table, strict=False)
     return table
 
 
 def read_parquet_file(
-    self, path: str, include_file_path: bool = False, **kwargs
+    self, path: str, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs
 ) -> pa.Table:
     return _read_parquet_file(
-        path=path, self=self, include_file_path=include_file_path, **kwargs
+        path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
     )
 
 
@@ -778,6 +809,7 @@ def _read_parquet(
     use_threads: bool = True,
     concat: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs,
 ) -> pa.Table | list[pa.Table]:
     """
@@ -797,7 +829,10 @@ def _read_parquet(
     if not include_file_path and concat:
         if isinstance(path, str):
             path = path.replace("**", "").replace("*.parquet", "")
-        return pq.read_table(path, filesystem=self, **kwargs)
+        table = pq.read_table(path, filesystem=self, **kwargs)
+        if opt_dtypes:
+            table = opt_dtype_pa(table, strict=False)
+        return table
     else:
         if isinstance(path, str):
             path = path_to_glob(path, format="parquet")
@@ -805,30 +840,46 @@ def _read_parquet(
 
         if isinstance(path, list):
             if use_threads:
-                table = run_parallel(
+                tables = run_parallel(
                     _read_parquet_file,
                     path,
                     self=self,
                     include_file_path=include_file_path,
+                    opt_dtypes=opt_dtypes,
                     n_jobs=-1,
                     backend="threading",
                     verbose=verbose,
                     **kwargs,
                 )
             else:
-                table = [
+                tables = [
                     _read_parquet_file(
-                        p, self=self, include_file_path=include_file_path, **kwargs
+                        p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
                     )
                     for p in path
                 ]
         else:
-            table = _read_parquet_file(
-                path=path, self=self, include_file_path=include_file_path, **kwargs
+            tables = _read_parquet_file(
+                path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
             )
     if concat:
-        return pa.concat_tables(table, promote_options="permissive")
-    return table
+        # Unify schemas before concatenation if opt_dtypes or multiple tables
+        if isinstance(tables, list):
+            if len(tables) > 1:
+                schemas = [t.schema for t in tables]
+                unified_schema = unify_schemas_pa(schemas)
+                tables = [cast_schema(t,unified_schema) for t in tables]
+            result = pa.concat_tables(tables, promote_options="permissive")
+            if opt_dtypes:
+                result = opt_dtype_pa(result, strict=False)
+            return result
+        elif isinstance(tables, pa.Table):
+            if opt_dtypes:
+                tables = opt_dtype_pa(tables, strict=False)
+            return tables
+        else:
+            return pa.concat_tables(tables, promote_options="permissive")
+    return tables
 
 
 def _read_parquet_batches(
@@ -839,6 +890,7 @@ def _read_parquet_batches(
     use_threads: bool = True,
     concat: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> Generator[pa.Table | list[pa.Table], None, None]:
     """Process Parquet files in batches with performance optimizations.
@@ -892,7 +944,10 @@ def _read_parquet_batches(
     if not include_file_path and concat and batch_size is None:
         if isinstance(path, str):
             path = path.replace("**", "").replace("*.parquet", "")
-        yield pq.read_table(path, filesystem=self, **kwargs)
+        table = pq.read_table(path, filesystem=self, **kwargs)
+        if opt_dtypes:
+            table = opt_dtype_pa(table, strict=False)
+        yield table
         return
 
     # Resolve path(s) to list
@@ -915,6 +970,7 @@ def _read_parquet_batches(
                 batch_paths,
                 self=self,
                 include_file_path=include_file_path,
+                opt_dtypes=opt_dtypes,
                 n_jobs=-1,
                 backend="threading",
                 verbose=verbose,
@@ -923,14 +979,24 @@ def _read_parquet_batches(
         else:
             batch_tables = [
                 _read_parquet_file(
-                    p, self=self, include_file_path=include_file_path, **kwargs
+                    p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
                 )
                 for p in batch_paths
             ]
 
         if concat and batch_tables:
-            yield pa.concat_tables(batch_tables, promote_options="permissive")
+            # Unify schemas before concatenation
+            if len(batch_tables) > 1:
+                schemas = [t.schema for t in batch_tables]
+                unified_schema = unify_schemas_pa(schemas)
+                batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
+            result = pa.concat_tables(batch_tables, promote_options="permissive")
+            if opt_dtypes:
+                result = opt_dtype_pa(result, strict=False)
+            yield result
         else:
+            if opt_dtypes and isinstance(batch_tables, list):
+                batch_tables = [opt_dtype_pa(t, strict=False) for t in batch_tables]
             yield batch_tables
 
 
@@ -942,6 +1008,7 @@ def read_parquet(
     concat: bool = True,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> pa.Table | list[pa.Table] | Generator[pa.Table | list[pa.Table], None, None]:
     """Read Parquet data with advanced features and optimizations.
@@ -1415,7 +1482,7 @@ def write_parquet(
     data = to_pyarrow_table(data, concat=False, unique=False)
 
     if schema is not None:
-        data = data.cast(schema)
+        data = cast_schema(data, schema)
     metadata = []
     pq.write_table(data, path, filesystem=self, metadata_collector=metadata, **kwargs)
     metadata = metadata[0]
@@ -1469,7 +1536,7 @@ def write_json(
         data = data.collect()
     if isinstance(data, pl.DataFrame):
         data = data.to_arrow()
-        data = data.cast(convert_large_types_to_standard(data.schema)).to_pydict()
+        data = cast_schema(data, convert_large_types_to_standard(data.schema)).to_pydict()
     elif isinstance(data, pd.DataFrame):
         data = pa.Table.from_pandas(data, preserve_index=False).to_pydict()
     elif isinstance(data, pa.Table):

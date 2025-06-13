@@ -22,11 +22,12 @@ from sqlalchemy import create_engine, text
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
 from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                   BaseStorageOptions, GcsStorageOptions,
+                                   GcsStorageOptions,
                                    GitHubStorageOptions, GitLabStorageOptions,
                                    StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
+from .helpers.pyarrow import opt_dtype
 from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
@@ -236,12 +237,18 @@ class BaseFileReader(BaseFileIO, gc=False):
                     df=self._data,
                     path=self.path,
                     format=self.format,
-                    num_files=pl.from_arrow(self._data.select(["file_path"])).select(
-                        pl.n_unique("file_path")
-                    )[0, 0],
+                    # num_files=pl.from_arrow(self._data.select(["file_path"])).select(
+                    #    pl.n_unique("file_path")
+                    # )[0, 0],
                 )
                 if not self.include_file_path:
-                    self._data = self._data.drop("file_path")
+                    if isinstance(self._data, pa.Table):
+                        self._data = self._data.drop("file_path")
+                    elif isinstance(self._data, list | tuple):
+                        self._data = [
+                            df.drop("file_path") if isinstance(df, pa.Table) else df
+                            for df in self._data
+                        ]
             else:
                 self._metadata = {}
 
@@ -1471,13 +1478,15 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all([
-                self.username,
-                self.password,
-                self.server,
-                self.port,
-                self.database,
-            ]):
+            if not all(
+                [
+                    self.username,
+                    self.password,
+                    self.server,
+                    self.port,
+                    self.database,
+                ]
+            ):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."

@@ -1,10 +1,9 @@
-from functools import partial
-
-import pandas as pd
 import polars as pl
 import polars.selectors as cs
 
 from .datetime import get_timedelta_str, get_timestamp_column
+from .opt_dtype import opt_dtype_pl
+opt_dtype = opt_dtype_pl  # noqa: F821
 
 # import string
 
@@ -13,149 +12,47 @@ def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None)
     def _unnest_all(struct_columns):
         if fields is not None:
             return (
-                df.with_columns([
-                    pl.col(col).struct.rename_fields([
-                        f"{col}{seperator}{field_name}"
-                        for field_name in df[col].struct.fields
-                    ])
-                    for col in struct_columns
-                ])
+                df.with_columns(
+                    [
+                        pl.col(col).struct.rename_fields(
+                            [
+                                f"{col}{seperator}{field_name}"
+                                for field_name in df[col].struct.fields
+                            ]
+                        )
+                        for col in struct_columns
+                    ]
+                )
                 .unnest(struct_columns)
                 .select(
                     list(set(df.columns) - set(struct_columns))
-                    + sorted([
-                        f"{col}{seperator}{field_name}"
-                        for field_name in fields
-                        for col in struct_columns
-                    ])
+                    + sorted(
+                        [
+                            f"{col}{seperator}{field_name}"
+                            for field_name in fields
+                            for col in struct_columns
+                        ]
+                    )
                 )
             )
 
-        return df.with_columns([
-            pl.col(col).struct.rename_fields([
-                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
-            ])
-            for col in struct_columns
-        ]).unnest(struct_columns)
+        return df.with_columns(
+            [
+                pl.col(col).struct.rename_fields(
+                    [
+                        f"{col}{seperator}{field_name}"
+                        for field_name in df[col].struct.fields
+                    ]
+                )
+                for col in struct_columns
+            ]
+        ).unnest(struct_columns)
 
     struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
     while len(struct_columns):
         df = _unnest_all(struct_columns=struct_columns)
         struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]
     return df
-
-
-def _opt_dtype(
-    s: pl.Series, strict: bool = True, shrink_dtype: bool = True
-) -> pl.Series:
-    if s.dtype == pl.Utf8():
-        try:
-            s = s.set(s == "-", None).set(s == "", None).set(s == "None", None)
-
-            # cast string numbers to int or float
-            if (
-                s.str.contains(r"^[-+]?[0-9]*[.,]?[0-9]+([eE][-+]?[0-9]+)?$")
-                | s.is_null()
-                | s.str.contains(r"^$")
-            ).all():
-                s = (
-                    s.str.replace_all(",", ".")
-                    # .str.replace_all("^0{1,}$", "+0")
-                    # .str.strip_chars_start("0")
-                    .str.replace_all(r"\.0*$", "")
-                )
-                s = s.set(s == "-", None).set(s == "", None).set(s == "None", None)
-                if s.str.contains(r"\.").any() | s.str.contains("NaN").any():
-                    s = s.cast(pl.Float64(), strict=True)
-                    if shrink_dtype:
-                        try:
-                            if s.min() >= -16777216 and s.max() <= 16777216:
-                                s = s.cast(pl.Float32(), strict=True)
-                        except TypeError:
-                            # if min or max is None, we cannot cast to Float32
-                            pass
-                else:
-                    s = s.cast(pl.Int64(), strict=True)
-                    if shrink_dtype:
-                        s = s.shrink_dtype()
-
-            # cast str to datetime
-
-            elif (
-                s.str.contains(r"^\d{4}-\d{2}-\d{2}$")
-                | s.str.contains(r"^\d{1,2}\/\d{1,2}\/\d{4}$")
-                | s.str.contains(
-                    r"^\d{4}-\d{2}-\d{2}T{0,1}\s{0,1}\d{2}:\d{2}(:\d{2})?.\d{0,}$"
-                )
-                | s.str.contains(
-                    r"^\d{4}-\d{2}-\d{2}T{0,1}\s{0,1}\d{2}:\d{2}(:\d{2})?\.\d{0,}$"
-                )
-                | s.str.contains(
-                    r"^\d{4}-\d{2}-\d{2}T{0,1}\s{0,1}\d{2}:\d{2}(:\d{2})?\.\d{1,}\w{0,1}\+\d{0,2}:\d{0,2}:\d{0,2}$"
-                )
-                | s.is_null()
-                | s.str.contains("^$")
-            ).all():
-                s = pl.Series(
-                    name=s.name, values=pd.to_datetime(s, format="mixed")
-                ).cast(pl.Datetime("us"))
-
-            # cast str to bool
-            elif (
-                s.str.to_lowercase()
-                .str.contains("^(true|false|1|0|wahr|falsch|nein|nok|ok|ja)$")
-                .all()
-            ):
-                s = s.str.to_lowercase().str.contains(
-                    "^(true|1|wahr|ja|ok)$", strict=True
-                )
-
-        except Exception as e:
-            if strict:
-                e.add_note(
-                    "if you were trying to cast Utf8 to temporal dtypes, consider setting `strict=False`"
-                )
-                raise e
-    else:
-        if shrink_dtype:
-            if s.dtype == pl.Float64():
-                try:
-                    if s.min() >= -16777216 and s.max() <= 16777216:
-                        s = s.cast(pl.Float32(), strict=True)
-                except TypeError:
-                    # if min or max is None, we cannot cast to Float32
-                    pass
-
-            else:
-                s = s.shrink_dtype()
-
-    return s
-
-
-def opt_dtype(
-    df: pl.DataFrame,
-    exclude: str | list[str] | None = None,
-    strict: bool = True,
-    include: str | list[str] | None = None,
-    shrink_dtype: bool = True,
-) -> pl.DataFrame:
-    _opt_dtype_strict = partial(_opt_dtype, strict=strict, shrink_dtype=shrink_dtype)
-    _opt_dtype_not_strict = partial(_opt_dtype, strict=False, shrink_dtype=shrink_dtype)
-    if include is not None:
-        if isinstance(include, str):
-            include = [include]
-        exclude = [col for col in df.columns if col not in include]
-    return (
-        df.with_columns(
-            pl.all()
-            .exclude(exclude)
-            .map_batches(_opt_dtype_strict if strict else _opt_dtype_not_strict)
-        )
-        if exclude is not None
-        else df.with_columns(
-            pl.all().map_batches(_opt_dtype_strict if strict else _opt_dtype_not_strict)
-        )
-    )
 
 
 def explode_all(df: pl.DataFrame | pl.LazyFrame):
@@ -191,13 +88,15 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns([
-            pl.col(timestamp_column)
-            .dt.strftime(strftime_)
-            .fill_null(0)
-            .alias(column_name)
-            for strftime_, column_name in zip(strftime, column_names)
-        ]),
+        df.with_columns(
+            [
+                pl.col(timestamp_column)
+                .dt.strftime(strftime_)
+                .fill_null(0)
+                .alias(column_name)
+                for strftime_, column_name in zip(strftime, column_names)
+            ]
+        ),
         include=column_names,
         strict=False,
     )
@@ -232,10 +131,12 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns([
-        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-        for truncate_, column_name in zip(truncate_by, column_names)
-    ])
+    return df.with_columns(
+        [
+            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+            for truncate_, column_name in zip(truncate_by, column_names)
+        ]
+    )
 
 
 def with_datepart_columns(
@@ -363,12 +264,17 @@ def with_row_count(
 #         return df.collect()
 #     return df
 
+def drop_null_columns(df: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
+    """Remove columns with all null values from the DataFrame."""
+    return df.select([col for col in df.columns if df[col].null_count() < df.height])
 
-def unify_schema(dfs: list[pl.DataFrame | pl.LazyFrame]) -> pl.Schema:
-    df = pl.concat(dfs, how="diagonal_relaxed")
+
+def unify_schemas(dfs: list[pl.DataFrame | pl.LazyFrame]) -> pl.Schema:
+    df = pl.concat([df.lazy() for df in dfs], how="diagonal_relaxed")
     if isinstance(df, pl.LazyFrame):
         return df.collect_schema()
     return df.schema
+
 
 
 def cast_relaxed(
@@ -380,9 +286,9 @@ def cast_relaxed(
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
     if len(new_columns):
-        return df.with_columns([
-            pl.lit(None).alias(new_col) for new_col in new_columns
-        ]).cast(schema)
+        return df.with_columns(
+            [pl.lit(None).alias(new_col) for new_col in new_columns]
+        ).cast(schema)
     return df.cast(schema)
 
 
@@ -411,7 +317,7 @@ def delta(
         df1 = df1.lazy()
 
     # cast to equal schema
-    unified_schema = unify_schema([df1.select(subset), df2.select(subset)])
+    unified_schema = unify_schemas([df1.select(subset), df2.select(subset)])
 
     df1 = df1.cast_relaxed(unified_schema)
     df2 = df2.cast_relaxed(unified_schema)
@@ -543,9 +449,6 @@ def partition_by(
 
     return [({}, df)]
 
-
-def drop_null_columns(df: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
-    return df.select([col for col in df.columns if not df[col].is_null().all()])
 
 
 pl.DataFrame.unnest_all = unnest_all
