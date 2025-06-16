@@ -10,18 +10,19 @@ else:
     raise ImportError("To use this module, please install `flowerpower[io]`.")
 
 import orjson
-#import polars as pl
+# import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 from pydala.dataset import ParquetDataset
 
+from ..plugins.io.helpers.polars import opt_dtype as opt_dtype_pl, pl
+#from ..plugins.io.helpers.polars import unify_schemas as unfify_schemas_pl
+from ..plugins.io.helpers.pyarrow import cast_schema, opt_dtype as opt_dtype_pa
+from ..plugins.io.helpers.pyarrow import unify_schemas as unify_schemas_pa
 from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
                           run_parallel, to_pyarrow_table)
-
-from ..plugins.io.helpers.polars import pl, unify_schemas as unfify_schemas_pl, opt_dtype_pl
-from ..plugins.io.helpers.pyarrow import opt_dtype_pa, unify_schemas as unify_schemas_pa, cast_schema
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:
@@ -468,7 +469,11 @@ def read_json(
 
 
 def _read_csv_file(
-    path: str, self: AbstractFileSystem, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs: Any
+    path: str,
+    self: AbstractFileSystem,
+    include_file_path: bool = False,
+    opt_dtypes: bool = False,
+    **kwargs: Any,
 ) -> pl.DataFrame:
     """Read a single CSV file from any filesystem.
 
@@ -509,7 +514,11 @@ def read_csv_file(
     self, path: str, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs
 ) -> pl.DataFrame:
     return _read_csv_file(
-        path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+        path=path,
+        self=self,
+        include_file_path=include_file_path,
+        opt_dtypes=opt_dtypes,
+        **kwargs,
     )
 
 
@@ -557,12 +566,22 @@ def _read_csv(
             )
         else:
             dfs = [
-                _read_csv_file(p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs)
+                _read_csv_file(
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    opt_dtypes=opt_dtypes,
+                    **kwargs,
+                )
                 for p in path
             ]
     else:
         dfs = _read_csv_file(
-            path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+            path,
+            self=self,
+            include_file_path=include_file_path,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
         )
     if concat:
         result = pl.concat(dfs, how="diagonal_relaxed")
@@ -759,7 +778,11 @@ def read_csv(
 
 
 def _read_parquet_file(
-    path: str, self: AbstractFileSystem, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs: Any
+    path: str,
+    self: AbstractFileSystem,
+    include_file_path: bool = False,
+    opt_dtypes: bool = False,
+    **kwargs: Any,
 ) -> pa.Table:
     """Read a single Parquet file from any filesystem.
 
@@ -798,7 +821,11 @@ def read_parquet_file(
     self, path: str, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs
 ) -> pa.Table:
     return _read_parquet_file(
-        path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+        path=path,
+        self=self,
+        include_file_path=include_file_path,
+        opt_dtypes=opt_dtypes,
+        **kwargs,
     )
 
 
@@ -854,13 +881,21 @@ def _read_parquet(
             else:
                 tables = [
                     _read_parquet_file(
-                        p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+                        p,
+                        self=self,
+                        include_file_path=include_file_path,
+                        opt_dtypes=opt_dtypes,
+                        **kwargs,
                     )
                     for p in path
                 ]
         else:
             tables = _read_parquet_file(
-                path=path, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+                path=path,
+                self=self,
+                include_file_path=include_file_path,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
             )
     if concat:
         # Unify schemas before concatenation if opt_dtypes or multiple tables
@@ -868,7 +903,7 @@ def _read_parquet(
             if len(tables) > 1:
                 schemas = [t.schema for t in tables]
                 unified_schema = unify_schemas_pa(schemas)
-                tables = [cast_schema(t,unified_schema) for t in tables]
+                tables = [cast_schema(t, unified_schema) for t in tables]
             result = pa.concat_tables(tables, promote_options="permissive")
             if opt_dtypes:
                 result = opt_dtype_pa(result, strict=False)
@@ -979,7 +1014,11 @@ def _read_parquet_batches(
         else:
             batch_tables = [
                 _read_parquet_file(
-                    p, self=self, include_file_path=include_file_path, opt_dtypes=opt_dtypes, **kwargs
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    opt_dtypes=opt_dtypes,
+                    **kwargs,
                 )
                 for p in batch_paths
             ]
@@ -1536,7 +1575,9 @@ def write_json(
         data = data.collect()
     if isinstance(data, pl.DataFrame):
         data = data.to_arrow()
-        data = cast_schema(data, convert_large_types_to_standard(data.schema)).to_pydict()
+        data = cast_schema(
+            data, convert_large_types_to_standard(data.schema)
+        ).to_pydict()
     elif isinstance(data, pd.DataFrame):
         data = pa.Table.from_pandas(data, preserve_index=False).to_pydict()
     elif isinstance(data, pa.Table):

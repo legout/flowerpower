@@ -1,52 +1,215 @@
 import polars as pl
 import polars.selectors as cs
+import numpy as np
+
+F32_MIN_FINITE = np.finfo(np.float32).min
+F32_MAX_FINITE = np.finfo(np.float32).max
 
 from .datetime import get_timedelta_str, get_timestamp_column
-from .opt_dtype import opt_dtype_pl
-opt_dtype = opt_dtype_pl  # noqa: F821
 
-# import string
+# Pre-compiled regex for performance
+# Handles optional sign, integers, floats (with '.' or ','), and scientific notation.
+NUMERIC_REGEX = r"^[-+]?[0-9]*[.,]?[0-9]+([eE][-+]?[0-9]+)?$"
+# Handles common boolean representations (case-insensitive).
+BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n)$"
+BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j)$"
+# A heuristic to identify columns that are likely dates. Polars' `to_datetime`
+# is flexible, so this check doesn't need to be exhaustive.
+DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}"
 
+
+def opt_dtype(
+    df: pl.DataFrame,
+    include: str | list[str] | None = None,
+    exclude: str | list[str] | None = None,
+    time_zone: str | None = None,
+    shrink_numerics: bool = True,
+) -> pl.DataFrame:
+    """
+    Analyzes and optimizes the data types of a Polars DataFrame for performance
+    and memory efficiency.
+
+    This version includes:
+    - Robust numeric, boolean, and datetime casting from strings.
+    - Handling of whitespace and common null-like string values.
+    - Casting of columns containing only nulls to pl.Int8.
+    - Optional shrinking of numeric columns to the smallest possible type.
+
+    Args:
+        df: The DataFrame to optimize.
+        include: A list of columns to forcefully include in the optimization.
+        exclude: A list of columns to exclude from the optimization.
+        time_zone: Optional time zone for datetime parsing.
+        shrink_numerics: If True, numeric columns (both existing and newly converted from strings)
+            will be downcast to the smallest possible type that can hold their values (e.g., Int64 to Int32, Float64 to Float32),
+            similar to Polars' shrink_dtype() behavior. If False, this shrinking step is skipped.
+
+    Returns:
+        An optimized Polars DataFrame with improved data types.
+    """
+    # Phase 1: Analysis - Determine columns to process and build a list of
+    # transformation expressions without executing them immediately.
+    if isinstance(include, str):
+        include = [include]
+    if isinstance(exclude, str):
+        exclude = [exclude]
+
+    cols_to_process = df.columns
+    if include:
+        cols_to_process = [col for col in include if col in df.columns]
+    if exclude:
+        cols_to_process = [col for col in cols_to_process if col not in exclude]
+
+    expressions = []
+    for col_name in cols_to_process:
+        s = df[col_name]
+
+        # NEW: If a column is entirely null, cast it to Int8 and skip other checks.
+        if s.is_null().all():
+            expressions.append(pl.col(col_name).cast(pl.Int8))
+            continue
+
+        dtype = s.dtype
+
+        # 1. Optimize numeric columns by shrinking their size
+        if dtype.is_numeric():
+            if shrink_numerics:
+                if dtype == pl.Float64:
+                    column_series = df[col_name]
+                    finite_values_series = column_series.filter(column_series.is_finite())
+                    can_shrink = True
+                    if not finite_values_series.is_empty():
+                        min_finite_val = finite_values_series.min()
+                        max_finite_val = finite_values_series.max()
+                        if (min_finite_val < F32_MIN_FINITE) or (max_finite_val > F32_MAX_FINITE):
+                            can_shrink = False
+                    if can_shrink:
+                        expressions.append(pl.col(col_name).shrink_dtype())
+                    else:
+                        expressions.append(pl.col(col_name))
+                else:
+                    expressions.append(pl.col(col_name).shrink_dtype())
+            else:
+                expressions.append(pl.col(col_name))
+            continue
+
+        # 2. Optimize string columns by casting to more specific types
+        if dtype == pl.Utf8:
+            # Create a cleaned column expression that first strips whitespace, then
+            # replaces common null-like strings.
+            cleaned_col = (
+                pl.col(col_name)
+                .str.strip_chars()
+                .replace({"-": None, "": None, "None": None})
+            )
+
+            # Analyze a stripped, non-null version of the series to decide the cast type
+            s_non_null = s.drop_nulls()
+            if len(s_non_null) == 0:
+                # The column only contains nulls or null-like strings.
+                # Cast to Int8 as requested for all-null columns.
+                expressions.append(pl.col(col_name).cast(pl.Int8))
+                continue
+
+            s_stripped_non_null = s_non_null.str.strip_chars()
+
+            # Check for boolean type
+            if (
+                s_stripped_non_null.str.to_lowercase()
+                .str.contains(BOOLEAN_REGEX)
+                .all()
+            ):
+                expr = cleaned_col.str.to_lowercase().str.contains(
+                    BOOLEAN_TRUE_REGEX
+                )
+                expressions.append(expr.alias(col_name))
+                continue
+
+            # Check for numeric type
+            if s_stripped_non_null.str.contains(NUMERIC_REGEX).all():
+                is_float = s_stripped_non_null.str.contains(r"[.,eE]").any()
+                numeric_col = cleaned_col.str.replace_all(",", ".")
+                if is_float:
+                    if shrink_numerics:
+                        temp_float_series = s_stripped_non_null.str.replace_all(",", ".").cast(pl.Float64, strict=False)
+                        finite_values_series = temp_float_series.filter(temp_float_series.is_finite())
+                        can_shrink = True
+                        if not finite_values_series.is_empty():
+                            min_finite_val = finite_values_series.min()
+                            max_finite_val = finite_values_series.max()
+                            if (min_finite_val < F32_MIN_FINITE) or (max_finite_val > F32_MAX_FINITE):
+                                can_shrink = False
+                        base_expr = numeric_col.cast(pl.Float64)
+                        if can_shrink:
+                            expressions.append(
+                                base_expr.shrink_dtype().alias(col_name)
+                            )
+                        else:
+                            expressions.append(
+                                base_expr.alias(col_name)
+                            )
+                    else:
+                        expressions.append(
+                            numeric_col.cast(pl.Float64).alias(col_name)
+                        )
+                else:
+                    if shrink_numerics:
+                        expressions.append(
+                            numeric_col.cast(pl.Int64).shrink_dtype().alias(col_name)
+                        )
+                    else:
+                        expressions.append(
+                            numeric_col.cast(pl.Int64).alias(col_name)
+                        )
+                continue
+
+            # Check for datetime type using a fast heuristic
+            try:
+                if s_stripped_non_null.str.contains(DATETIME_REGEX).all():
+                    expressions.append(
+                        cleaned_col.str.to_datetime(
+                            strict=False, time_unit="us", time_zone=time_zone
+                        ).alias(col_name)
+                    )
+                    continue
+            except pl.exceptions.PolarsError:
+                pass
+
+    # Phase 2: Execution - If any optimizations were identified, apply them
+    # all at once for maximum parallelism and performance.
+    if not expressions:
+        return df
+
+    return df.with_columns(expressions)
 
 def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None):
     def _unnest_all(struct_columns):
         if fields is not None:
             return (
-                df.with_columns(
-                    [
-                        pl.col(col).struct.rename_fields(
-                            [
-                                f"{col}{seperator}{field_name}"
-                                for field_name in df[col].struct.fields
-                            ]
-                        )
-                        for col in struct_columns
-                    ]
-                )
+                df.with_columns([
+                    pl.col(col).struct.rename_fields([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in df[col].struct.fields
+                    ])
+                    for col in struct_columns
+                ])
                 .unnest(struct_columns)
                 .select(
                     list(set(df.columns) - set(struct_columns))
-                    + sorted(
-                        [
-                            f"{col}{seperator}{field_name}"
-                            for field_name in fields
-                            for col in struct_columns
-                        ]
-                    )
+                    + sorted([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in fields
+                        for col in struct_columns
+                    ])
                 )
             )
 
-        return df.with_columns(
-            [
-                pl.col(col).struct.rename_fields(
-                    [
-                        f"{col}{seperator}{field_name}"
-                        for field_name in df[col].struct.fields
-                    ]
-                )
-                for col in struct_columns
-            ]
-        ).unnest(struct_columns)
+        return df.with_columns([
+            pl.col(col).struct.rename_fields([
+                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
+            ])
+            for col in struct_columns
+        ]).unnest(struct_columns)
 
     struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
     while len(struct_columns):
@@ -88,15 +251,13 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns(
-            [
-                pl.col(timestamp_column)
-                .dt.strftime(strftime_)
-                .fill_null(0)
-                .alias(column_name)
-                for strftime_, column_name in zip(strftime, column_names)
-            ]
-        ),
+        df.with_columns([
+            pl.col(timestamp_column)
+            .dt.strftime(strftime_)
+            .fill_null(0)
+            .alias(column_name)
+            for strftime_, column_name in zip(strftime, column_names)
+        ]),
         include=column_names,
         strict=False,
     )
@@ -131,12 +292,10 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns(
-        [
-            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-            for truncate_, column_name in zip(truncate_by, column_names)
-        ]
-    )
+    return df.with_columns([
+        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+        for truncate_, column_name in zip(truncate_by, column_names)
+    ])
 
 
 def with_datepart_columns(
@@ -264,6 +423,7 @@ def with_row_count(
 #         return df.collect()
 #     return df
 
+
 def drop_null_columns(df: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
     """Remove columns with all null values from the DataFrame."""
     return df.select([col for col in df.columns if df[col].null_count() < df.height])
@@ -276,7 +436,6 @@ def unify_schemas(dfs: list[pl.DataFrame | pl.LazyFrame]) -> pl.Schema:
     return df.schema
 
 
-
 def cast_relaxed(
     df: pl.DataFrame | pl.LazyFrame, schema: pl.Schema
 ) -> pl.DataFrame | pl.LazyFrame:
@@ -286,9 +445,9 @@ def cast_relaxed(
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
     if len(new_columns):
-        return df.with_columns(
-            [pl.lit(None).alias(new_col) for new_col in new_columns]
-        ).cast(schema)
+        return df.with_columns([
+            pl.lit(None).alias(new_col) for new_col in new_columns
+        ]).cast(schema)
     return df.cast(schema)
 
 
@@ -448,6 +607,16 @@ def partition_by(
         return partitions
 
     return [({}, df)]
+
+
+
+
+
+
+
+
+
+    
 
 
 
