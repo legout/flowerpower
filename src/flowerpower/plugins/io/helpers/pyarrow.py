@@ -1,18 +1,17 @@
-import polars as pl
-import pyarrow as pa
-import numpy as np
-
-import pyarrow.compute as pc
+import calendar
 import re
 from datetime import datetime, timezone
 
-
 import dateutil.parser
+import numpy as np
+import polars as pl
+import pyarrow as pa
+import pyarrow.compute as pc
 from dateutil import tz
-import calendar
 
 F32_MIN_FINITE = np.finfo(np.float32).min
 F32_MAX_FINITE = np.finfo(np.float32).max
+
 
 def _try_shrink_integer_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     """
@@ -29,8 +28,8 @@ def _try_shrink_integer_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
             return arr
 
     minmax = pc.min_max(arr)
-    min_val = minmax['min'].as_py()
-    max_val = minmax['max'].as_py()
+    min_val = minmax["min"].as_py()
+    max_val = minmax["max"].as_py()
 
     # If all values are null, min_val and max_val will be None
     if min_val is None and max_val is None:
@@ -42,12 +41,16 @@ def _try_shrink_integer_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     candidates = []
     if min_val is not None and min_val >= 0:
         candidates = [
-            pa.uint8(), pa.int8(), pa.uint16(), pa.int16(), pa.uint32(), pa.int32(), pa.int64()
+            pa.uint8(),
+            pa.int8(),
+            pa.uint16(),
+            pa.int16(),
+            pa.uint32(),
+            pa.int32(),
+            pa.int64(),
         ]
     else:
-        candidates = [
-            pa.int8(), pa.int16(), pa.int32(), pa.int64()
-        ]
+        candidates = [pa.int8(), pa.int16(), pa.int32(), pa.int64()]
 
     for typ in candidates:
         try:
@@ -61,6 +64,7 @@ def _try_shrink_integer_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
             continue
     return arr
 
+
 def _try_shrink_float64_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     """
     Downcast a PyArrow float64 array to float32 if possible and shrink_numerics is True.
@@ -72,7 +76,7 @@ def _try_shrink_float64_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     try:
         # Ensure 'arr' is not all nulls before attempting pc.is_finite, which might error on all-null arrays
         if arr.null_count == len(arr):
-             # If all nulls, can attempt to cast to float32 as it doesn't affect nulls
+            # If all nulls, can attempt to cast to float32 as it doesn't affect nulls
             try:
                 return pc.cast(arr, pa.float32())
             except (pa.ArrowInvalid, TypeError):
@@ -83,18 +87,20 @@ def _try_shrink_float64_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     except (pa.ArrowInvalid, pa.ArrowTypeError):
         return arr
 
-    if len(finite_values_arr) == 0: # All values were non-finite, or filter resulted in empty
+    if (
+        len(finite_values_arr) == 0
+    ):  # All values were non-finite, or filter resulted in empty
         try:
             # Attempt to cast original array to float32
             return pc.cast(arr, pa.float32())
         except (pa.ArrowInvalid, TypeError):
-            return arr # Fallback if cast fails
+            return arr  # Fallback if cast fails
 
     min_max_struct = pc.min_max(finite_values_arr)
-    min_val_scalar = min_max_struct['min']
-    max_val_scalar = min_max_struct['max']
+    min_val_scalar = min_max_struct["min"]
+    max_val_scalar = min_max_struct["max"]
 
-    #if pc.is_null(min_val_scalar) or pc.is_null(max_val_scalar): # Should not happen if len(finite_values_arr) > 0 and they are finite
+    # if pc.is_null(min_val_scalar) or pc.is_null(max_val_scalar): # Should not happen if len(finite_values_arr) > 0 and they are finite
     #    try:
     #        return pc.cast(arr, pa.float32())
     #    except (pa.ArrowInvalid, TypeError):
@@ -103,14 +109,16 @@ def _try_shrink_float64_array(arr: pa.Array, shrink_numerics: bool) -> pa.Array:
     min_val = min_val_scalar.as_py()
     max_val = max_val_scalar.as_py()
 
-    if F32_MIN_FINITE <= min_val <= F32_MAX_FINITE and \
-       F32_MIN_FINITE <= max_val <= F32_MAX_FINITE:
+    if (
+        F32_MIN_FINITE <= min_val <= F32_MAX_FINITE
+        and F32_MIN_FINITE <= max_val <= F32_MAX_FINITE
+    ):
         try:
             return pc.cast(arr, pa.float32())
         except (pa.ArrowInvalid, TypeError):
-            return arr # Fallback if cast fails for other reasons
+            return arr  # Fallback if cast fails for other reasons
     else:
-        return arr # Values are out of float32 range
+        return arr  # Values are out of float32 range
 
 
 def unify_schemas(
@@ -252,10 +260,10 @@ def to_datetime(
     def detect_datetime_format(arr):
         """
         Detect the common datetime format for a PyArrow string array.
-        
+
         Args:
             arr: PyArrow string array with datetime-like strings
-            
+
         Returns:
             The detected format string or None if no format could be determined
         """
@@ -267,184 +275,215 @@ def to_datetime(
                 if val and isinstance(val, str):
                     sample = val
                     break
-        
+
         if not sample:
             return None
-        
+
         # Group similar formats into families and order by specificity (most detailed first)
         format_families = {
-            'iso_datetime': [
+            "iso_datetime": [
                 # ISO datetime with timezone
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+[+-]\d{2}:?\d{2}$', '%Y-%m-%dT%H:%M:%S.%f%z'),
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:?\d{2}$', '%Y-%m-%dT%H:%M:%S%z'),
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z$', '%Y-%m-%dT%H:%M:%S.%fZ'),
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', '%Y-%m-%dT%H:%M:%SZ'),
+                (
+                    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+[+-]\d{2}:?\d{2}$",
+                    "%Y-%m-%dT%H:%M:%S.%f%z",
+                ),
+                (
+                    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:?\d{2}$",
+                    "%Y-%m-%dT%H:%M:%S%z",
+                ),
+                (
+                    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z$",
+                    "%Y-%m-%dT%H:%M:%S.%fZ",
+                ),
+                (r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", "%Y-%m-%dT%H:%M:%SZ"),
                 # ISO datetime without timezone
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+$', '%Y-%m-%dT%H:%M:%S.%f'),
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$', '%Y-%m-%dT%H:%M:%S'),
-                (r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$', '%Y-%m-%dT%H:%M'),
+                (r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+$", "%Y-%m-%dT%H:%M:%S.%f"),
+                (r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$", "%Y-%m-%dT%H:%M:%S"),
+                (r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$", "%Y-%m-%dT%H:%M"),
             ],
-            'space_datetime': [
+            "space_datetime": [
                 # Datetime with space separator and timezone
-                (r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+[+-]\d{2}:?\d{2}$', '%Y-%m-%d %H:%M:%S.%f%z'),
-                (r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:?\d{2}$', '%Y-%m-%d %H:%M:%S%z'),
+                (
+                    r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+[+-]\d{2}:?\d{2}$",
+                    "%Y-%m-%d %H:%M:%S.%f%z",
+                ),
+                (
+                    r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:?\d{2}$",
+                    "%Y-%m-%d %H:%M:%S%z",
+                ),
                 # Datetime with space separator without timezone
-                (r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+$', '%Y-%m-%d %H:%M:%S.%f'),
-                (r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', '%Y-%m-%d %H:%M:%S'),
-                (r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', '%Y-%m-%d %H:%M'),
+                (r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+$", "%Y-%m-%d %H:%M:%S.%f"),
+                (r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", "%Y-%m-%d %H:%M:%S"),
+                (r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", "%Y-%m-%d %H:%M"),
             ],
-            'iso_date': [
+            "iso_date": [
                 # ISO date only
-                (r'^\d{4}-\d{2}-\d{2}$', '%Y-%m-%d'),
+                (r"^\d{4}-\d{2}-\d{2}$", "%Y-%m-%d"),
             ],
-            'us_datetime': [
+            "us_datetime": [
                 # US datetime formats
-                (r'^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2}\.\d+ [AP]M$', '%m/%d/%Y %I:%M:%S.%f %p'),
-                (r'^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} [AP]M$', '%m/%d/%Y %I:%M:%S %p'),
-                (r'^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2} [AP]M$', '%m/%d/%Y %I:%M %p'),
-                (r'^\d{1,2}/\d{1,2}/\d{4} \d{2}:\d{2}:\d{2}$', '%m/%d/%Y %H:%M:%S'),
-                (r'^\d{1,2}/\d{1,2}/\d{4} \d{2}:\d{2}$', '%m/%d/%Y %H:%M'),
-                (r'^\d{1,2}/\d{1,2}/\d{4}$', '%m/%d/%Y'),
+                (
+                    r"^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2}\.\d+ [AP]M$",
+                    "%m/%d/%Y %I:%M:%S.%f %p",
+                ),
+                (
+                    r"^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} [AP]M$",
+                    "%m/%d/%Y %I:%M:%S %p",
+                ),
+                (r"^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2} [AP]M$", "%m/%d/%Y %I:%M %p"),
+                (r"^\d{1,2}/\d{1,2}/\d{4} \d{2}:\d{2}:\d{2}$", "%m/%d/%Y %H:%M:%S"),
+                (r"^\d{1,2}/\d{1,2}/\d{4} \d{2}:\d{2}$", "%m/%d/%Y %H:%M"),
+                (r"^\d{1,2}/\d{1,2}/\d{4}$", "%m/%d/%Y"),
             ],
-            'euro_datetime': [
+            "euro_datetime": [
                 # European datetime formats
-                (r'^\d{1,2}\.\d{1,2}\.\d{4} \d{2}:\d{2}:\d{2}$', '%d.%m.%Y %H:%M:%S'),
-                (r'^\d{1,2}\.\d{1,2}\.\d{4} \d{2}:\d{2}$', '%d.%m.%Y %H:%M'),
-                (r'^\d{1,2}\.\d{1,2}\.\d{4}$', '%d.%m.%Y'),
-                (r'^\d{1,2}-\d{1,2}-\d{4} \d{2}:\d{2}:\d{2}$', '%d-%m-%Y %H:%M:%S'),
-                (r'^\d{1,2}-\d{1,2}-\d{4} \d{2}:\d{2}$', '%d-%m-%Y %H:%M'),
-                (r'^\d{1,2}-\d{1,2}-\d{4}$', '%d-%m-%Y'),
+                (r"^\d{1,2}\.\d{1,2}\.\d{4} \d{2}:\d{2}:\d{2}$", "%d.%m.%Y %H:%M:%S"),
+                (r"^\d{1,2}\.\d{1,2}\.\d{4} \d{2}:\d{2}$", "%d.%m.%Y %H:%M"),
+                (r"^\d{1,2}\.\d{1,2}\.\d{4}$", "%d.%m.%Y"),
+                (r"^\d{1,2}-\d{1,2}-\d{4} \d{2}:\d{2}:\d{2}$", "%d-%m-%Y %H:%M:%S"),
+                (r"^\d{1,2}-\d{1,2}-\d{4} \d{2}:\d{2}$", "%d-%m-%Y %H:%M"),
+                (r"^\d{1,2}-\d{1,2}-\d{4}$", "%d-%m-%Y"),
             ],
-            'month_name': [
+            "month_name": [
                 # Month name formats
-                (r'^\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2}$', '%d %b %Y %H:%M:%S'),
-                (r'^\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}$', '%d %b %Y %H:%M'),
-                (r'^\d{1,2} [A-Za-z]{3} \d{4}$', '%d %b %Y'),
-                (r'^[A-Za-z]{3} \d{1,2}, \d{4} \d{2}:\d{2}:\d{2}$', '%b %d, %Y %H:%M:%S'),
-                (r'^[A-Za-z]{3} \d{1,2}, \d{4} \d{2}:\d{2}$', '%b %d, %Y %H:%M'),
-                (r'^[A-Za-z]{3} \d{1,2}, \d{4}$', '%b %d, %Y'),
-                (r'^[A-Za-z]{3,9} \d{1,2}, \d{4} \d{2}:\d{2}:\d{2}$', '%B %d, %Y %H:%M:%S'),
-                (r'^[A-Za-z]{3,9} \d{1,2}, \d{4} \d{2}:\d{2}$', '%B %d, %Y %H:%M'),
-                (r'^[A-Za-z]{3,9} \d{1,2}, \d{4}$', '%B %d, %Y'),
+                (r"^\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2}$", "%d %b %Y %H:%M:%S"),
+                (r"^\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}$", "%d %b %Y %H:%M"),
+                (r"^\d{1,2} [A-Za-z]{3} \d{4}$", "%d %b %Y"),
+                (
+                    r"^[A-Za-z]{3} \d{1,2}, \d{4} \d{2}:\d{2}:\d{2}$",
+                    "%b %d, %Y %H:%M:%S",
+                ),
+                (r"^[A-Za-z]{3} \d{1,2}, \d{4} \d{2}:\d{2}$", "%b %d, %Y %H:%M"),
+                (r"^[A-Za-z]{3} \d{1,2}, \d{4}$", "%b %d, %Y"),
+                (
+                    r"^[A-Za-z]{3,9} \d{1,2}, \d{4} \d{2}:\d{2}:\d{2}$",
+                    "%B %d, %Y %H:%M:%S",
+                ),
+                (r"^[A-Za-z]{3,9} \d{1,2}, \d{4} \d{2}:\d{2}$", "%B %d, %Y %H:%M"),
+                (r"^[A-Za-z]{3,9} \d{1,2}, \d{4}$", "%B %d, %Y"),
             ],
-            'timestamp': [
+            "timestamp": [
                 # Timestamp
-                (r'^\d{10}$', 'epoch'),  # Unix timestamp (seconds)
-                (r'^\d{13}$', 'epoch_ms')  # Unix timestamp (milliseconds)
-            ]
+                (r"^\d{10}$", "epoch"),  # Unix timestamp (seconds)
+                (r"^\d{13}$", "epoch_ms"),  # Unix timestamp (milliseconds)
+            ],
         }
-        
+
         # First, try to match exact patterns
         for family, patterns in format_families.items():
             for pattern, fmt in patterns:
                 if re.match(pattern, sample):
-                    if fmt in ('epoch', 'epoch_ms'):
+                    if fmt in ("epoch", "epoch_ms"):
                         return fmt, family
-                    
+
                     try:
                         datetime.strptime(sample, fmt)
                         return fmt, family
                     except ValueError:
                         continue
-        
+
         # If no exact match, try component analysis
         fmt = _analyze_datetime_components(sample)
         if fmt:
             # Determine family based on format
-            if 'T' in fmt:
-                return fmt, 'iso_datetime'
-            elif '%Y-%m-%d' in fmt and 'T' not in fmt:
-                if '%H' in fmt or '%I' in fmt:
-                    return fmt, 'space_datetime'
+            if "T" in fmt:
+                return fmt, "iso_datetime"
+            elif "%Y-%m-%d" in fmt and "T" not in fmt:
+                if "%H" in fmt or "%I" in fmt:
+                    return fmt, "space_datetime"
                 else:
-                    return fmt, 'iso_date'
-            elif '%m/%d/%Y' in fmt:
-                return fmt, 'us_datetime'
-            elif '%d.%m.%Y' in fmt or '%d-%m-%Y' in fmt:
-                return fmt, 'euro_datetime'
-            elif '%b' in fmt or '%B' in fmt:
-                return fmt, 'month_name'
-            
+                    return fmt, "iso_date"
+            elif "%m/%d/%Y" in fmt:
+                return fmt, "us_datetime"
+            elif "%d.%m.%Y" in fmt or "%d-%m-%Y" in fmt:
+                return fmt, "euro_datetime"
+            elif "%b" in fmt or "%B" in fmt:
+                return fmt, "month_name"
+
         return None, None
 
     def _analyze_datetime_components(sample):
         """Analyze datetime components to build a format string."""
         if not sample:
             return None
-        
+
         # Identify components
-        has_date = bool(re.search(r'\d{1,4}[-/\.]\d{1,2}[-/\.]\d{1,4}', sample) or 
-                    re.search(r'\d{1,2} [A-Za-z]{3,9} \d{2,4}', sample))
-        
-        has_time = bool(re.search(r'\d{1,2}:\d{2}(:\d{2})?(\.\d+)?', sample))
-        
-        has_timezone = bool(re.search(r'[+-]\d{2}:?\d{2}$', sample) or
-                        re.search(r'[A-Z]{3,4}$', sample) or
-                        re.search(r'Z$', sample))
-        
+        has_date = bool(
+            re.search(r"\d{1,4}[-/\.]\d{1,2}[-/\.]\d{1,4}", sample)
+            or re.search(r"\d{1,2} [A-Za-z]{3,9} \d{2,4}", sample)
+        )
+
+        has_time = bool(re.search(r"\d{1,2}:\d{2}(:\d{2})?(\.\d+)?", sample))
+
+        has_timezone = bool(
+            re.search(r"[+-]\d{2}:?\d{2}$", sample)
+            or re.search(r"[A-Z]{3,4}$", sample)
+            or re.search(r"Z$", sample)
+        )
+
         # Build format based on identified components
         format_parts = []
-        
+
         # Date component
         if has_date:
             # Check date separator
-            if '-' in sample:
-                if re.search(r'^\d{4}-', sample):
-                    format_parts.append('%Y-%m-%d')  # ISO format
+            if "-" in sample:
+                if re.search(r"^\d{4}-", sample):
+                    format_parts.append("%Y-%m-%d")  # ISO format
                 else:
-                    format_parts.append('%d-%m-%Y')
-            elif '/' in sample:
-                format_parts.append('%m/%d/%Y')
-            elif '.' in sample:
-                format_parts.append('%d.%m.%Y')
-            elif re.search(r'\d{1,2} [A-Za-z]{3} \d{4}', sample):
-                format_parts.append('%d %b %Y')
-            elif re.search(r'\d{1,2} [A-Za-z]{3,9} \d{4}', sample):
-                format_parts.append('%d %B %Y')
-        
+                    format_parts.append("%d-%m-%Y")
+            elif "/" in sample:
+                format_parts.append("%m/%d/%Y")
+            elif "." in sample:
+                format_parts.append("%d.%m.%Y")
+            elif re.search(r"\d{1,2} [A-Za-z]{3} \d{4}", sample):
+                format_parts.append("%d %b %Y")
+            elif re.search(r"\d{1,2} [A-Za-z]{3,9} \d{4}", sample):
+                format_parts.append("%d %B %Y")
+
         # Time component
         if has_time:
-            time_format = '%H:%M'
-            if re.search(r':\d{2}:', sample):
-                time_format = '%H:%M:%S'
-            if re.search(r'\.\d+', sample):
-                time_format += '.%f'
-            if re.search(r'[AP]M', sample):
-                time_format = time_format.replace('%H', '%I')
-                time_format += ' %p'
-            
+            time_format = "%H:%M"
+            if re.search(r":\d{2}:", sample):
+                time_format = "%H:%M:%S"
+            if re.search(r"\.\d+", sample):
+                time_format += ".%f"
+            if re.search(r"[AP]M", sample):
+                time_format = time_format.replace("%H", "%I")
+                time_format += " %p"
+
             if format_parts:
-                format_parts.append(' ')
+                format_parts.append(" ")
             format_parts.append(time_format)
-        
+
         # Timezone component
         if has_timezone:
-            if re.search(r'[+-]\d{2}:?\d{2}$', sample):
-                format_parts.append('%z')
-            elif re.search(r'Z$', sample):
-                format_parts.append('Z')
-            elif re.search(r'[A-Z]{3,4}$', sample):
-                format_parts.append('%Z')
-        
-        format_string = ''.join(format_parts)
-        
+            if re.search(r"[+-]\d{2}:?\d{2}$", sample):
+                format_parts.append("%z")
+            elif re.search(r"Z$", sample):
+                format_parts.append("Z")
+            elif re.search(r"[A-Z]{3,4}$", sample):
+                format_parts.append("%Z")
+
+        format_string = "".join(format_parts)
+
         # Verify the format works for the sample
         try:
             datetime.strptime(sample, format_string)
             return format_string
         except:
             pass
-        
+
         return None
 
     def try_parse_with_format(date_string, format_string):
         """Try to parse a date string with a given format."""
         try:
-            if format_string == 'epoch':
+            if format_string == "epoch":
                 # Handle Unix timestamp (seconds)
                 timestamp = int(date_string)
                 datetime.fromtimestamp(timestamp)
-            elif format_string == 'epoch_ms':
+            elif format_string == "epoch_ms":
                 # Handle Unix timestamp (milliseconds)
                 timestamp = int(date_string) / 1000
                 datetime.fromtimestamp(timestamp)
@@ -454,59 +493,73 @@ def to_datetime(
         except (ValueError, OverflowError):
             return False
 
-    def _find_inconsistent_format_examples(arr, detected_format, family, max_examples=5):
+    def _find_inconsistent_format_examples(
+        arr, detected_format, family, max_examples=5
+    ):
         """Find examples of strings that don't match the detected format family."""
         inconsistent_examples = []
-        
+
         for i in range(len(arr)):
             if arr[i] is not None:
                 val = arr[i].as_py()
                 if val and isinstance(val, str):
                     # Try to extend the format first
                     extended_val = _try_extend_format(val, detected_format, family)
-                    if extended_val != val:  # If extended, it should work with the format
+                    if (
+                        extended_val != val
+                    ):  # If extended, it should work with the format
                         continue
-                    
+
                     # If no extension was possible, check if it matches as is
                     if not try_parse_with_format(val, detected_format):
                         inconsistent_examples.append((i, val))
                         if len(inconsistent_examples) >= max_examples:
                             break
-        
+
         return inconsistent_examples
 
     def _try_extend_format(val, detected_format, family):
         """
         Try to extend a shorter datetime string to match the detected format.
         E.g., convert '2023-01-15' to '2023-01-15 00:00:00' if the detected format is '%Y-%m-%d %H:%M:%S'
-        
+
         Returns the extended string if possible, otherwise returns the original value.
         """
         # Skip non-string values or special formats
-        if not isinstance(val, str) or detected_format in ('epoch', 'epoch_ms'):
+        if not isinstance(val, str) or detected_format in ("epoch", "epoch_ms"):
             return val
-        
+
         # Match basic datetime components using regex
-        date_match = re.match(r'^(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}-\d{1,2}-\d{4}|\d{1,2} [A-Za-z]{3} \d{4}|[A-Za-z]{3,9} \d{1,2}, \d{4})$', val)
-        datetime_match = re.match(r'^(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}-\d{1,2}-\d{4}|\d{1,2} [A-Za-z]{3} \d{4}|[A-Za-z]{3,9} \d{1,2}, \d{4}) (\d{1,2}:\d{2})$', val)
-        
+        date_match = re.match(
+            r"^(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}-\d{1,2}-\d{4}|\d{1,2} [A-Za-z]{3} \d{4}|[A-Za-z]{3,9} \d{1,2}, \d{4})$",
+            val,
+        )
+        datetime_match = re.match(
+            r"^(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}-\d{1,2}-\d{4}|\d{1,2} [A-Za-z]{3} \d{4}|[A-Za-z]{3,9} \d{1,2}, \d{4}) (\d{1,2}:\d{2})$",
+            val,
+        )
+
         # Determine if extensions are needed based on the detected format and family
-        if family in ['iso_date'] and '%H' in detected_format and date_match:
+        if family in ["iso_date"] and "%H" in detected_format and date_match:
             # Extend date-only to include time
-            if '%S' in detected_format:
+            if "%S" in detected_format:
                 return f"{val} 00:00:00"
             else:
                 return f"{val} 00:00"
-        
-        elif family in ['space_datetime', 'iso_datetime', 'us_datetime', 'euro_datetime'] and datetime_match and '%S' in detected_format:
+
+        elif (
+            family in ["space_datetime", "iso_datetime", "us_datetime", "euro_datetime"]
+            and datetime_match
+            and "%S" in detected_format
+        ):
             # Extend time with no seconds to include seconds
-            if '.%f' in detected_format:
+            if ".%f" in detected_format:
                 return f"{val}:00.000000"
             else:
                 return f"{val}:00"
-        
+
         # Handle other cases here as needed
-        
+
         # No extension possible or needed
         return val
 
@@ -525,13 +578,15 @@ def to_datetime(
                     result.append(val)
             else:
                 result.append(None)
-        
+
         return pa.array(result)
 
-    def _convert_string_array_to_datetime(arr, format=None, strict=True, default_timezone=None):
+    def _convert_string_array_to_datetime(
+        arr, format=None, strict=True, default_timezone=None
+    ):
         """
         Convert a PyArrow string array to datetime.
-        
+
         Args:
             arr: PyArrow string array with datetime-like strings
             format: Optional format string to use (if None, will be auto-detected)
@@ -539,83 +594,99 @@ def to_datetime(
                 If True, will raise an exception if any strings don't match
             default_timezone: Timezone to use if the strings don't contain timezone info
                             or to convert existing timezones to
-            
+
         Returns:
             PyArrow timestamp array
         """
         # Skip empty arrays
         if len(arr) == 0:
             return arr
-        
+
         # Use specified format or detect it
         if format is None:
             detected_format, family = detect_datetime_format(arr)
             if not detected_format:
-                raise ValueError("Could not detect datetime format. The array may be empty or contain invalid datetime strings.")
+                raise ValueError(
+                    "Could not detect datetime format. The array may be empty or contain invalid datetime strings."
+                )
         else:
             detected_format = format
             # Try to determine family from format
-            if 'T' in format:
-                family = 'iso_datetime'
-            elif '%Y-%m-%d' in format and 'T' not in format:
-                if '%H' in format or '%I' in format:
-                    family = 'space_datetime'
+            if "T" in format:
+                family = "iso_datetime"
+            elif "%Y-%m-%d" in format and "T" not in format:
+                if "%H" in format or "%I" in format:
+                    family = "space_datetime"
                 else:
-                    family = 'iso_date'
-            elif '%m/%d/%Y' in format:
-                family = 'us_datetime'
-            elif '%d.%m.%Y' in format or '%d-%m-%Y' in format:
-                family = 'euro_datetime'
-            elif '%b' in format or '%B' in format:
-                family = 'month_name'
+                    family = "iso_date"
+            elif "%m/%d/%Y" in format:
+                family = "us_datetime"
+            elif "%d.%m.%Y" in format or "%d-%m-%Y" in format:
+                family = "euro_datetime"
+            elif "%b" in format or "%B" in format:
+                family = "month_name"
             else:
                 family = None
-        
+
         # Try to expand shorter formats before processing
         expanded_arr = _expand_format(arr, detected_format, family)
-        
+
         try:
             # Handle special formats
-            if detected_format == 'epoch':
+            if detected_format == "epoch":
                 # Convert Unix timestamp (seconds) to datetime
                 int_array = pa.compute.cast(expanded_arr, pa.int64())
-                timestamp_array = pa.compute.multiply(int_array, 1000000).cast(pa.timestamp('us'))
-                
+                timestamp_array = pa.compute.multiply(int_array, 1000000).cast(
+                    pa.timestamp("us")
+                )
+
                 # Apply timezone if requested
                 if default_timezone:
-                    timestamp_array = pa.compute.assume_timezone(timestamp_array, default_timezone)
-                
+                    timestamp_array = pa.compute.assume_timezone(
+                        timestamp_array, default_timezone
+                    )
+
                 return timestamp_array
-            
-            elif detected_format == 'epoch_ms':
+
+            elif detected_format == "epoch_ms":
                 # Convert Unix timestamp (milliseconds) to datetime
                 int_array = pa.compute.cast(expanded_arr, pa.int64())
-                timestamp_array = pa.compute.multiply(int_array, 1000).cast(pa.timestamp('us'))
-                
+                timestamp_array = pa.compute.multiply(int_array, 1000).cast(
+                    pa.timestamp("us")
+                )
+
                 # Apply timezone if requested
                 if default_timezone:
-                    timestamp_array = pa.compute.assume_timezone(timestamp_array, default_timezone)
-                
+                    timestamp_array = pa.compute.assume_timezone(
+                        timestamp_array, default_timezone
+                    )
+
                 return timestamp_array
-            
+
             # For standard formats
             if strict:
                 # In strict mode, use strptime directly and let it raise errors for mismatches
                 try:
-                    timestamp_array = pa.compute.strptime(expanded_arr, format=detected_format, unit='us')
-                    
+                    timestamp_array = pa.compute.strptime(
+                        expanded_arr, format=detected_format, unit="us"
+                    )
+
                     # Check if the format includes timezone information
-                    has_timezone = '%z' in detected_format or '%Z' in detected_format or 'Z' in detected_format
-                    
+                    has_timezone = (
+                        "%z" in detected_format
+                        or "%Z" in detected_format
+                        or "Z" in detected_format
+                    )
+
                     # Handle timezone conversion or addition
                     if default_timezone:
                         if has_timezone:
-                            # If strings have timezone and default_timezone is specified, 
+                            # If strings have timezone and default_timezone is specified,
                             # we need to convert to the default timezone
                             # This requires conversion to Python objects and back
                             py_datetimes = []
                             target_tz = tz.gettz(default_timezone)
-                            
+
                             for i in range(len(timestamp_array)):
                                 if timestamp_array[i] is not None:
                                     dt = timestamp_array[i].as_py()
@@ -625,20 +696,29 @@ def to_datetime(
                                     py_datetimes.append(dt)
                                 else:
                                     py_datetimes.append(None)
-                            
+
                             # Convert back to PyArrow array
-                            timestamp_array = pa.array(py_datetimes, type=pa.timestamp('us', default_timezone))
+                            timestamp_array = pa.array(
+                                py_datetimes, type=pa.timestamp("us", default_timezone)
+                            )
                         else:
                             # If strings don't have timezone, just assume the default
-                            timestamp_array = pa.compute.assume_timezone(timestamp_array, default_timezone)
-                    
+                            timestamp_array = pa.compute.assume_timezone(
+                                timestamp_array, default_timezone
+                            )
+
                     return timestamp_array
                 except Exception as e:
                     # Find examples of inconsistent formats to help the user
-                    inconsistent_examples = _find_inconsistent_format_examples(arr, detected_format, family)
+                    inconsistent_examples = _find_inconsistent_format_examples(
+                        arr, detected_format, family
+                    )
 
                     if inconsistent_examples:
-                        example_str = "\n".join([f"  Index {idx}: '{val}'" for idx, val in inconsistent_examples])
+                        example_str = "\n".join([
+                            f"  Index {idx}: '{val}'"
+                            for idx, val in inconsistent_examples
+                        ])
                         error_msg = (
                             f"Detected format '{detected_format}' doesn't work for all strings. "
                             f"Found inconsistent formats:\n{example_str}\n\n"
@@ -648,86 +728,111 @@ def to_datetime(
                         )
                         raise ValueError(error_msg) from e
                     else:
-                        raise ValueError(f"Format detected as '{detected_format}' but conversion failed: {str(e)}. "
-                                        "Consider using strict=False.") from e
+                        raise ValueError(
+                            f"Format detected as '{detected_format}' but conversion failed: {str(e)}. "
+                            "Consider using strict=False."
+                        ) from e
             else:
                 # In non-strict mode, manually handle each value to convert mismatches to null
                 values = []
                 tzinfo = tz.gettz(default_timezone) if default_timezone else None
-                
+
                 for i in range(len(expanded_arr)):
                     if expanded_arr[i] is not None:
                         val = expanded_arr[i].as_py()
                         if val and isinstance(val, str):
                             try:
-                                if detected_format == 'epoch':
+                                if detected_format == "epoch":
                                     dt = datetime.fromtimestamp(int(val))
                                     if tzinfo:
-                                        dt = dt.replace(tzinfo=timezone.utc).astimezone(tzinfo)
-                                    dt_value = int(calendar.timegm(dt.utctimetuple()) * 1000000 + dt.microsecond)
+                                        dt = dt.replace(tzinfo=timezone.utc).astimezone(
+                                            tzinfo
+                                        )
+                                    dt_value = int(
+                                        calendar.timegm(dt.utctimetuple()) * 1000000
+                                        + dt.microsecond
+                                    )
                                     values.append(dt_value)
-                                elif detected_format == 'epoch_ms':
+                                elif detected_format == "epoch_ms":
                                     dt = datetime.fromtimestamp(int(val) / 1000)
                                     if tzinfo:
-                                        dt = dt.replace(tzinfo=timezone.utc).astimezone(tzinfo)
-                                    dt_value = int(calendar.timegm(dt.utctimetuple()) * 1000000 + dt.microsecond)
+                                        dt = dt.replace(tzinfo=timezone.utc).astimezone(
+                                            tzinfo
+                                        )
+                                    dt_value = int(
+                                        calendar.timegm(dt.utctimetuple()) * 1000000
+                                        + dt.microsecond
+                                    )
                                     values.append(dt_value)
                                 else:
                                     # Try to use dateutil for more flexible parsing with timezone conversion
                                     try:
                                         dt = dateutil.parser.parse(val)
-                                        
+
                                         # If the string has timezone and default_timezone is specified, convert
                                         if dt.tzinfo and tzinfo:
                                             dt = dt.astimezone(tzinfo)
                                         # If the string has no timezone but default_timezone is specified, assume timezone
                                         elif not dt.tzinfo and tzinfo:
                                             dt = dt.replace(tzinfo=tzinfo)
-                                            
+
                                         # Convert to microseconds since epoch
                                         if dt.tzinfo:
-                                            dt_value = int(calendar.timegm(dt.utctimetuple()) * 1000000 + dt.microsecond)
+                                            dt_value = int(
+                                                calendar.timegm(dt.utctimetuple())
+                                                * 1000000
+                                                + dt.microsecond
+                                            )
                                         else:
                                             dt_value = int(dt.timestamp() * 1000000)
                                         values.append(dt_value)
                                     except (ValueError, OverflowError):
                                         # Fall back to strptime
                                         dt = datetime.strptime(val, detected_format)
-                                        
+
                                         # Handle timezone
-                                        if tzinfo and not (('%z' in detected_format) or ('%Z' in detected_format)):
+                                        if tzinfo and not (
+                                            ("%z" in detected_format)
+                                            or ("%Z" in detected_format)
+                                        ):
                                             dt = dt.replace(tzinfo=tzinfo)
-                                            
+
                                         # Convert to microseconds
                                         if dt.tzinfo:
-                                            dt_value = int(calendar.timegm(dt.utctimetuple()) * 1000000 + dt.microsecond)
+                                            dt_value = int(
+                                                calendar.timegm(dt.utctimetuple())
+                                                * 1000000
+                                                + dt.microsecond
+                                            )
                                         else:
                                             dt_value = int(dt.timestamp() * 1000000)
                                         values.append(dt_value)
                             except (ValueError, OverflowError):
-                                values.append(None)  # Convert to null if format doesn't match
+                                values.append(
+                                    None
+                                )  # Convert to null if format doesn't match
                         else:
                             values.append(None)
                     else:
                         values.append(None)
-                
+
                 # Convert to timestamp array
                 if default_timezone:
-                    result = pa.array(values, type=pa.timestamp('us', default_timezone))
+                    result = pa.array(values, type=pa.timestamp("us", default_timezone))
                 else:
-                    result = pa.array(values, type=pa.timestamp('us'))
-                
+                    result = pa.array(values, type=pa.timestamp("us"))
+
                 return result
-                    
+
         except Exception as e:
             if isinstance(e, ValueError) and "Options:" in str(e):
                 # Pass through our custom error message
                 raise
             else:
-                raise ValueError(f"Failed to convert array using format '{detected_format}': {str(e)}. "
-                            "Consider using strict=False.") from e
-
-
+                raise ValueError(
+                    f"Failed to convert array using format '{detected_format}': {str(e)}. "
+                    "Consider using strict=False."
+                ) from e
 
     return _convert_string_array_to_datetime(
         arr, format=format, strict=strict, default_timezone=time_zone
@@ -791,13 +896,19 @@ def opt_dtype(
         # If all nulls, cast to pa.null() or pa.int8()
         if pc.all(pc.is_null(processed_arr)).as_py():
             try:
-                new_columns.append(pa.array([None] * len(processed_arr), type=pa.null()))
+                new_columns.append(
+                    pa.array([None] * len(processed_arr), type=pa.null())
+                )
             except Exception:
-                new_columns.append(pa.array([None] * len(processed_arr), type=pa.int8()))
+                new_columns.append(
+                    pa.array([None] * len(processed_arr), type=pa.int8())
+                )
             continue
 
         # String columns: try to optimize
-        if pa.types.is_string(processed_arr.type) or pa.types.is_large_string(processed_arr.type):
+        if pa.types.is_string(processed_arr.type) or pa.types.is_large_string(
+            processed_arr.type
+        ):
             sample_for_regex = [v for v in processed_arr.to_pylist() if v is not None]
 
             # 1. Datetime detection (existing logic)
@@ -809,11 +920,15 @@ def opt_dtype(
                     pass
 
             # 2. Boolean detection (existing logic)
-            if sample_for_regex and all(BOOLEAN_REGEX.match(str(v)) for v in sample_for_regex):
+            if sample_for_regex and all(
+                BOOLEAN_REGEX.match(str(v)) for v in sample_for_regex
+            ):
+
                 def str_to_bool(x):
                     if x is None:
                         return None
                     return bool(BOOLEAN_TRUE_REGEX.match(str(x)))
+
                 bool_arr = pa.array(
                     [str_to_bool(x) for x in processed_arr.to_pylist()], type=pa.bool_()
                 )
@@ -833,7 +948,9 @@ def opt_dtype(
             if is_potentially_integer:
                 try:
                     converted_int_arr = pc.cast(processed_arr, pa.int64())
-                    shrunk_int_arr = _try_shrink_integer_array(converted_int_arr, shrink_numerics)
+                    shrunk_int_arr = _try_shrink_integer_array(
+                        converted_int_arr, shrink_numerics
+                    )
                     new_columns.append(shrunk_int_arr)
                     continue
                 except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError):
@@ -845,20 +962,26 @@ def opt_dtype(
                 is_potentially_float = False
             else:
                 for s_val_float_check in sample_for_regex:
-                    if not NUMERIC_REGEX.match(str(s_val_float_check).replace(",", ".")):
+                    if not NUMERIC_REGEX.match(
+                        str(s_val_float_check).replace(",", ".")
+                    ):
                         is_potentially_float = False
                         break
 
             if is_potentially_float:
                 arr_dots_for_floats = processed_arr
                 try:
-                    arr_dots_for_floats = pc.replace_substring(processed_arr, pattern=",", replacement=".")
+                    arr_dots_for_floats = pc.replace_substring(
+                        processed_arr, pattern=",", replacement="."
+                    )
                 except Exception:
                     arr_dots_for_floats = processed_arr
 
                 try:
                     converted_float_arr = pc.cast(arr_dots_for_floats, pa.float64())
-                    shrunk_float_arr = _try_shrink_float64_array(converted_float_arr, shrink_numerics)
+                    shrunk_float_arr = _try_shrink_float64_array(
+                        converted_float_arr, shrink_numerics
+                    )
                     new_columns.append(shrunk_float_arr)
                     continue
                 except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError):
@@ -877,8 +1000,12 @@ def opt_dtype(
                                 except ValueError:
                                     py_float_values.append(None)
                         if num_successful_conversions > 0:
-                            converted_float_arr_py = pa.array(py_float_values, type=pa.float64())
-                            shrunk_float_arr_py = _try_shrink_float64_array(converted_float_arr_py, shrink_numerics)
+                            converted_float_arr_py = pa.array(
+                                py_float_values, type=pa.float64()
+                            )
+                            shrunk_float_arr_py = _try_shrink_float64_array(
+                                converted_float_arr_py, shrink_numerics
+                            )
                             new_columns.append(shrunk_float_arr_py)
                             continue
                     except Exception:
@@ -892,8 +1019,12 @@ def opt_dtype(
 
         # Shrink float columns
         elif pa.types.is_floating(processed_arr.type):
-            if pa.types.is_float64(processed_arr.type): # Only attempt to shrink float64
-                processed_arr = _try_shrink_float64_array(processed_arr, shrink_numerics)
+            if pa.types.is_float64(
+                processed_arr.type
+            ):  # Only attempt to shrink float64
+                processed_arr = _try_shrink_float64_array(
+                    processed_arr, shrink_numerics
+                )
             new_columns.append(processed_arr)
             continue
 
@@ -901,4 +1032,3 @@ def opt_dtype(
         new_columns.append(processed_arr)
 
     return pa.table(new_columns, names=table.column_names)
-

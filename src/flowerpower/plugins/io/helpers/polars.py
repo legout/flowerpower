@@ -1,6 +1,6 @@
+import numpy as np
 import polars as pl
 import polars.selectors as cs
-import numpy as np
 
 F32_MIN_FINITE = np.finfo(np.float32).min
 F32_MAX_FINITE = np.finfo(np.float32).max
@@ -76,12 +76,16 @@ def opt_dtype(
             if shrink_numerics:
                 if dtype == pl.Float64:
                     column_series = df[col_name]
-                    finite_values_series = column_series.filter(column_series.is_finite())
+                    finite_values_series = column_series.filter(
+                        column_series.is_finite()
+                    )
                     can_shrink = True
                     if not finite_values_series.is_empty():
                         min_finite_val = finite_values_series.min()
                         max_finite_val = finite_values_series.max()
-                        if (min_finite_val < F32_MIN_FINITE) or (max_finite_val > F32_MAX_FINITE):
+                        if (min_finite_val < F32_MIN_FINITE) or (
+                            max_finite_val > F32_MAX_FINITE
+                        ):
                             can_shrink = False
                     if can_shrink:
                         expressions.append(pl.col(col_name).shrink_dtype())
@@ -114,14 +118,8 @@ def opt_dtype(
             s_stripped_non_null = s_non_null.str.strip_chars()
 
             # Check for boolean type
-            if (
-                s_stripped_non_null.str.to_lowercase()
-                .str.contains(BOOLEAN_REGEX)
-                .all()
-            ):
-                expr = cleaned_col.str.to_lowercase().str.contains(
-                    BOOLEAN_TRUE_REGEX
-                )
+            if s_stripped_non_null.str.to_lowercase().str.contains(BOOLEAN_REGEX).all():
+                expr = cleaned_col.str.to_lowercase().str.contains(BOOLEAN_TRUE_REGEX)
                 expressions.append(expr.alias(col_name))
                 continue
 
@@ -131,36 +129,34 @@ def opt_dtype(
                 numeric_col = cleaned_col.str.replace_all(",", ".")
                 if is_float:
                     if shrink_numerics:
-                        temp_float_series = s_stripped_non_null.str.replace_all(",", ".").cast(pl.Float64, strict=False)
-                        finite_values_series = temp_float_series.filter(temp_float_series.is_finite())
+                        temp_float_series = s_stripped_non_null.str.replace_all(
+                            ",", "."
+                        ).cast(pl.Float64, strict=False)
+                        finite_values_series = temp_float_series.filter(
+                            temp_float_series.is_finite()
+                        )
                         can_shrink = True
                         if not finite_values_series.is_empty():
                             min_finite_val = finite_values_series.min()
                             max_finite_val = finite_values_series.max()
-                            if (min_finite_val < F32_MIN_FINITE) or (max_finite_val > F32_MAX_FINITE):
+                            if (min_finite_val < F32_MIN_FINITE) or (
+                                max_finite_val > F32_MAX_FINITE
+                            ):
                                 can_shrink = False
                         base_expr = numeric_col.cast(pl.Float64)
                         if can_shrink:
-                            expressions.append(
-                                base_expr.shrink_dtype().alias(col_name)
-                            )
+                            expressions.append(base_expr.shrink_dtype().alias(col_name))
                         else:
-                            expressions.append(
-                                base_expr.alias(col_name)
-                            )
+                            expressions.append(base_expr.alias(col_name))
                     else:
-                        expressions.append(
-                            numeric_col.cast(pl.Float64).alias(col_name)
-                        )
+                        expressions.append(numeric_col.cast(pl.Float64).alias(col_name))
                 else:
                     if shrink_numerics:
                         expressions.append(
                             numeric_col.cast(pl.Int64).shrink_dtype().alias(col_name)
                         )
                     else:
-                        expressions.append(
-                            numeric_col.cast(pl.Int64).alias(col_name)
-                        )
+                        expressions.append(numeric_col.cast(pl.Int64).alias(col_name))
                 continue
 
             # Check for datetime type using a fast heuristic
@@ -181,6 +177,7 @@ def opt_dtype(
         return df
 
     return df.with_columns(expressions)
+
 
 def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None):
     def _unnest_all(struct_columns):
@@ -607,17 +604,6 @@ def partition_by(
         return partitions
 
     return [({}, df)]
-
-
-
-
-
-
-
-
-
-    
-
 
 
 pl.DataFrame.unnest_all = unnest_all

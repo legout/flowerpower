@@ -17,9 +17,11 @@ import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 from pydala.dataset import ParquetDataset
 
-from ..plugins.io.helpers.polars import opt_dtype as opt_dtype_pl, pl
-#from ..plugins.io.helpers.polars import unify_schemas as unfify_schemas_pl
-from ..plugins.io.helpers.pyarrow import cast_schema, opt_dtype as opt_dtype_pa
+from ..plugins.io.helpers.polars import opt_dtype as opt_dtype_pl
+from ..plugins.io.helpers.polars import pl
+# from ..plugins.io.helpers.polars import unify_schemas as unfify_schemas_pl
+from ..plugins.io.helpers.pyarrow import cast_schema
+from ..plugins.io.helpers.pyarrow import opt_dtype as opt_dtype_pa
 from ..plugins.io.helpers.pyarrow import unify_schemas as unify_schemas_pa
 from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
                           run_parallel, to_pyarrow_table)
