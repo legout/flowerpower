@@ -42,11 +42,11 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
     def _init_dt(self):
         try:
             self.delta_table = DeltaTable(
-                self._raw_path,
+                self._base_path,
                 storage_options=self.storage_options.to_object_store_kwargs(),
             )
         except TableNotFoundError:
-            logger.warning(f"Table {self._raw_path} not found.")
+            logger.warning(f"Table {self._base_path} not found.")
             self.delta_table = None
 
     @property
@@ -77,7 +77,7 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
             self._dataset = self.delta_table.to_pyarrow_dataset()
         if metadata:
             metadata = get_pyarrow_dataset_metadata(
-                self._dataset, self._raw_path, "parquet"
+                self._dataset, self._base_path, "parquet"
             )
             return self._dataset, metadata
         return self._dataset
@@ -102,7 +102,7 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
         if reload or not hasattr(self, "_data"):
             self._data = self.delta_table.to_pyarrow_table()
         if metadata:
-            metadata = get_dataframe_metadata(table, self._raw_path, "parquet")
+            metadata = get_dataframe_metadata(table, self._base_path, "parquet")
             return self._data, metadata
         return self._data
 
@@ -131,7 +131,7 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
 
         if self.with_lock:
             with RedisLock(
-                lock_name=self._raw_path,
+                lock_name=self._base_path,
                 namespace="flowerpower",
                 client=self.redis,
                 expire=10,
@@ -169,7 +169,7 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
 
         if self.with_lock:
             with RedisLock(
-                lock_name=self._raw_path,
+                lock_name=self._base_path,
                 namespace="flowerpower",
                 client=self.redis,
                 expire=10,
@@ -183,8 +183,8 @@ class DeltaTableReader(BaseDatasetReader, gc=False):
     @property
     def metadata(self) -> dict:
         if not hasattr(self, "_metadata"):
-            self._metadata = get_delta_metadata(self.delta_table, self._raw_path)
+            self._metadata = get_delta_metadata(self.delta_table, self._base_path)
         return self._metadata
         if not hasattr(self, "_metadata"):
-            self._metadata = get_delta_metadata(self.delta_table, self._raw_path)
+            self._metadata = get_delta_metadata(self.delta_table, self._base_path)
         return self._metadata

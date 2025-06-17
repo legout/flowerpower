@@ -60,14 +60,14 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
         )
         | None = None,
         mode: str = "append",  # "overwrite" | "append" | "error | "ignore"
-        schema: pa.Schema | None = None,
+        # schema: pa.Schema | None = None,
         schema_mode: str | None = None,  # "merge" | "overwrite"
         partition_by: list[str] | None = None,
-        partition_filters: list[tuple[str, str, Any]] | None = None,
+        # partition_filters: list[tuple[str, str, Any]] | None = None,
         predicate: str | None = None,
         target_file_size: int | None = None,
-        large_dtypes: bool = False,
-        custom_metadata: dict[str, Any] | None = None,
+        # large_dtypes: bool = False,
+        # custom_metadata: dict[str, Any] | None = None,
         post_commithook_properties: PostCommitHookProperties | None = None,
         commit_properties: CommitProperties | None = None,
         # writerproperties
@@ -134,7 +134,9 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
         if isinstance(data[0], pa.Table):
             data = pa.concat_tables(data, promote_options="permissive")
 
-        metadata = get_dataframe_metadata(data, path=self._raw_path, format=self.format)
+        metadata = get_dataframe_metadata(
+            data, path=self._base_path, format=self.format
+        )
 
         writer_properties = WriterProperties(
             data_page_size_limit=data_page_size_limit,
@@ -151,19 +153,19 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
 
         def _write():
             write_deltalake(
-                self._raw_path,
+                self._base_path,
                 data,
                 mode=mode,
-                schema=schema or self.schema_,
+                # schema=schema or self.schema_,
                 partition_by=partition_by or self.partition_by,
                 storage_options=self.storage_options.to_object_store_kwargs(),
                 description=self.description,
                 schema_mode=schema_mode,
-                partition_filters=partition_filters,
+                # partition_filters=partition_filters,
                 predicate=predicate,
                 target_file_size=target_file_size,
-                large_dtypes=large_dtypes,
-                custom_metadata=custom_metadata,
+                # large_dtypes=large_dtypes,
+                # custom_metadata=custom_metadata,
                 post_commithook_properties=post_commithook_properties,
                 commit_properties=commit_properties,
                 writer_properties=writer_properties,
@@ -171,7 +173,7 @@ class DeltaTableWriter(BaseDatasetWriter, gc=False):
 
         if self.with_lock:
             with RedisLock(
-                lock_name=self._raw_path,
+                lock_name=self._base_path,
                 namespace="flowerpower",
                 client=self.redis,
                 expire=10,

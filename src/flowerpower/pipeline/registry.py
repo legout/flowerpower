@@ -190,7 +190,9 @@ class PipelineRegistry:
             )
 
         # Sync filesystem if needed (using _fs)
-        if hasattr(self._fs, "sync_cache") and callable(getattr(self._fs, "sync_cache")):
+        if hasattr(self._fs, "sync_cache") and callable(
+            getattr(self._fs, "sync_cache")
+        ):
             self._fs.sync_cache()
 
     def _get_files(self) -> list[str]:
@@ -447,14 +449,12 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append(
-                {
-                    "name": name,
-                    "path": path,
-                    "mod_time": mod_time,
-                    "size": size,
-                }
-            )
+            pipeline_info.append({
+                "name": name,
+                "path": path,
+                "mod_time": mod_time,
+                "size": size,
+            })
 
         if show:
             table = Table(title="Available Pipelines")

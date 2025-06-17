@@ -1,4 +1,5 @@
 import importlib
+import os
 import posixpath
 from typing import Any, Generator
 
@@ -14,7 +15,6 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
 from fsspec import AbstractFileSystem
-from fsspec.utils import get_protocol
 from msgspec import field
 from pydala.dataset import ParquetDataset
 from sqlalchemy import create_engine, text
@@ -26,6 +26,7 @@ from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
                                    GitLabStorageOptions, StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
+from .helpers.pyarrow import opt_dtype
 from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
@@ -75,67 +76,71 @@ class BaseFileIO(msgspec.Struct, gc=False):
     ) = field(default=None)
     fs: AbstractFileSystem | None = field(default=None)
     format: str | None = None
-    _raw_path: str | list[str] | None = field(default=None)
+    # _base_path: str | list[str] | None = field(default=None)
+    # _full_path: str | list[str] | None = field(default=None)
+    # _rel_path: str | list[str] | None = field(default=None)
+    # _glob_path
     _metadata: dict[str, Any] | None = field(default=None)
 
     def __post_init__(self):
-        self._raw_path = self.path
-        if isinstance(self.storage_options, dict):
-            if "protocol" not in self.storage_options:
-                self.storage_options["protocol"] = get_protocol(self.path)
-            self.storage_options = StorageOptions(
-                **self.storage_options
-            ).storage_options
-        if isinstance(self.storage_options, StorageOptions):
-            self.storage_options = self.storage_options.storage_options
+        # self._base_path = self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
 
-        if self.fs is None:
-            self.fs = get_filesystem(
-                path=self.path if isinstance(self.path, str) else self.path[0],
-                storage_options=self.storage_options,
-                fs=self.fs,
-                dirfs=True,
-            )
+        # if self.fs is None:
+        self.fs = get_filesystem(
+            path=self._base_path,
+            storage_options=self.storage_options,
+            fs=self.fs,
+            dirfs=True,
+        )
 
-        if hasattr(self.storage_options, "protocol"):
-            protocol = self.storage_options.protocol
-        else:
-            protocol = self.fs.protocol
-            if protocol == "dir":
-                protocol = (
-                    self.fs.fs.protocol
-                    if isinstance(self.fs.fs.protocol, str)
-                    else self.fs.fs.protocol[0]
-                )
-            if isinstance(protocol, list | tuple):
-                protocol = protocol[0]
-
-        if isinstance(self.path, str):
-            self.path = (
-                self.path.replace(protocol + "://", "")
-                .replace(f"**/*.{self.format}", "")
-                .replace("**", "")
-                .replace("*", "")
-                .rstrip("/")
-            )
+        self.storage_options = (
+            self.storage_options or self.fs.storage_options
+            if self.protocol != "dir"
+            else self.fs.fs.storage_options
+        )
 
     @property
-    def _path(self):
+    def protocol(self):
+        """Get the protocol of the filesystem."""
+        protocol = (
+            self.fs.protocol if self.fs.protocol != "dir" else self.fs.fs.protocol
+        )
+        if isinstance(protocol, list | tuple):
+            protocol = protocol[0]
+        return protocol
+
+    @property
+    def _base_path(self) -> str:
+        """Get the base path for the filesystem."""
+        return (
+            self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
+        )
+
+    @property
+    def _path(self) -> str | list[str]:
         if self.fs.protocol == "dir":
             if isinstance(self.path, list):
                 return [
-                    p.replace(self.fs.path.lstrip("/"), "").lstrip("/")
+                    p.replace(self._base_path.lstrip("/"), "").lstrip("/")
                     for p in self.path
                 ]
             else:
-                return self.path.replace(self.fs.path.lstrip("/"), "").lstrip("/")
+                return self.path.replace(self._base_path.lstrip("/"), "").lstrip("/")
         return self.path
 
     @property
-    def _glob_path(self):
+    def _glob_path(self) -> str | list[str]:
+        if isinstance(self._path, list):
+            return self._path
         return path_to_glob(self._path, self.format)
 
-    def list_files(self):
+    @property
+    def _root_path(self) -> str:
+        if self.fs.protocol == "dir":
+            return self._base_path.replace(self.fs.path, "")
+        return self._base_path
+
+    def list_files(self) -> list[str]:
         if isinstance(self._path, list):
             return self._path
 
@@ -231,12 +236,18 @@ class BaseFileReader(BaseFileIO, gc=False):
                     df=self._data,
                     path=self.path,
                     format=self.format,
-                    num_files=pl.from_arrow(self._data.select(["file_path"])).select(
-                        pl.n_unique("file_path")
-                    )[0, 0],
+                    # num_files=pl.from_arrow(self._data.select(["file_path"])).select(
+                    #    pl.n_unique("file_path")
+                    # )[0, 0],
                 )
                 if not self.include_file_path:
-                    self._data = self._data.drop("file_path")
+                    if isinstance(self._data, pa.Table):
+                        self._data = self._data.drop("file_path")
+                    elif isinstance(self._data, list | tuple):
+                        self._data = [
+                            df.drop("file_path") if isinstance(df, pa.Table) else df
+                            for df in self._data
+                        ]
             else:
                 self._metadata = {}
 
@@ -360,7 +371,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             df = [df.lazy() for df in self._to_polars_dataframe()]
 
         else:
-            df = self._to_polars_dataframe.lazy()
+            df = self._to_polars_dataframe().lazy()
         if metadata:
             metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
             return df, metadata
@@ -762,7 +773,7 @@ class BaseDatasetReader(BaseFileReader, gc=False):
         Returns:
             pds.Dataset: PyArrow Dataset.
         """
-        if hasattr(self, "_dataset") and not reload:
+        if self._dataset is not None and not reload:
             if metadata:
                 return self._dataset, self._metadata
             return self._dataset
@@ -779,9 +790,9 @@ class BaseDatasetReader(BaseFileReader, gc=False):
                 self._dataset, path=self.path, format=self.format
             )
         elif self.format == "parquet":
-            if self.fs.exists(posixpath.join(self._path, "_metadata")):
+            if self.fs.exists(posixpath.join(self._root_path, "_metadata")):
                 self._dataset = self.fs.parquet_dataset(
-                    self._path,
+                    posixpath.join(self._root_path, "_metadata"),
                     schema=self.schema_,
                     partitioning=self.partitioning,
                     **kwargs,
@@ -1386,7 +1397,6 @@ class BaseDatasetWriter(BaseFileWriter, gc=False):
                 mode=mode or self.mode,
                 basename=basename or self.basename,
                 schema=schema or self.schema_,
-                partition_flavor=partitioning_flavor or self.partitioning_flavor,
                 partition_by=partition_by or self.partition_by,
                 compression=compression or self.compression,
                 row_group_size=row_group_size or self.row_group_size,

@@ -1,44 +1,89 @@
 # Changelog
 
-## [0.11.4] - 2025-06-09
+## [0.11.6] - 2025-06-17
 
 ### Changes
-- fix: clean up imports and whitespace across multiple files
-
-
-
-## [0.11.4] - 2025-06-09
-
-### Changes
-- feat: Implement Adapter and Pipeline Configuration
-- bump: update version to 0.11.4 in pyproject.toml
-- fix: clean up whitespace in iter_pyarrow_table method in BaseFileReader
-- fix: remove batch_size parameter from iterators in BaseFileReader and set default value
-- bump: update version to 0.11.3 in pyproject.toml
-- fix: handle TypeError in _opt_dtype function when casting to Float32
-- fix: handle TypeError when casting to Float32 in _opt_dtype function
-- refactor: remove unused msgspec import from multiple saver modules
-- bump: update version to 0.11.2 in pyproject.toml
-- refactor: comment out unused import from collections.abc in misc.py
-- refactor: remove unused msgspec imports across various modules
-- refactor: clean up imports in datetime and sql modules
-- refactor: move timestamp_from_string function to datetime module and clean up sql.py
-- bump: update version to 0.11.1
-- refactor: standardize comments for attrs definition across loader and saver modules
-- Refactor data loader and saver classes to use msgspec for field definitions
-- bump: update version to 0.11.0
-- feat: refactor codebase to use attrs for data classes and improve structure
-- refactor: Update import statements for consistency and clarity
-- bump: Update version to 0.10.9.1 in pyproject.toml
-- refactor: Improve code formatting and readability in APScheduler manager and setup modules
-- refactor: Enhance job queue backend setup and logging configuration
-- refactor: Rename job queue backend variable for clarity
-- bump: Update version to 0.10.9 in pyproject.toml
-- refactor: Improve code formatting and readability in job queue and settings modules
-- - Refactor code structure for improved readability and maintainability - Changed job queue default config handling
-- bump: Update version to 0.10.8.1 in pyproject.toml
-- refactor: Improve code formatting and readability across multiple files
+- Bump version to 0.11.6 and clean up regex comments in PyArrow and Polars helpers
+- Refactor and optimize PyArrow helper functions for data type conversion
+- Refactor pyarrow helper functions for improved readability and consistency
+- Enhance PyArrow Helper Functions and Optimize DataFrame Creation
 - Refactor code structure for improved readability and maintainability
+
+
+
+## [0.11.5.8] - 2025-06-12
+
+### Changes
+- bump: update version to 0.11.5.8 in pyproject.toml and clean up whitespace in metadata.py
+- bump: update version to 0.11.5.7 in uv.lock and fix lazy loading in BaseFileReader and metadata handling in get_dataframe_metadata
+
+
+
+## [0.11.5.7] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.7 in pyproject.toml and comment out unused parameters in DeltaTableWriter
+- bump: update version to 0.11.5.6 in uv.lock and comment out unused parameters in DeltaTableWriter
+
+
+
+## [0.11.5.6] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.6 in pyproject.toml refactor: format get_dataframe_metadata call for better readability in DeltaTableWriter
+- refactor: replace _raw_path with _base_path in DeltaTableReader and DeltaTableWriter
+
+
+
+## [0.11.5.5] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.5 in pyproject.toml
+- fix: correct typo in with_strftime_columns method references
+
+
+
+## [0.11.5.4] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.4 in pyproject.toml
+- fix: correct base path extraction in get_filesystem function
+
+
+
+## [0.11.5.3] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.3 in pyproject.toml
+- fix: improve comment formatting in BaseFileIO
+- refactor: simplify filesystem initialization in BaseFileIO
+
+
+
+## [0.11.5.2] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.2 in pyproject.toml
+- fix: improve formatting and readability in get_filesystem and BaseFileIO
+- fix: update filesystem handling in get_filesystem and improve base path retrieval in BaseFileIO bump: version to 0.11.5.1 in uv.lock
+
+
+
+## [0.11.5.1] - 2025-06-11
+
+### Changes
+- bump: update version to 0.11.5.1 in pyproject.toml
+- fix: improve formatting of DirFileSystem initialization for better readability
+- fix: update filesystem handling and version to 0.11.5, adjust dependencies
+
+
+
+## [0.11.5] - 2025-06-10
+
+### Changes
+- bump: update version to 0.11.5 in pyproject.toml
+- fix: improve readability by restructuring conditional expressions and organizing imports
+- fix: enhance protocol handling and storage options in filesystem integration
 
 
 

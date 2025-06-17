@@ -10,7 +10,9 @@
         "stdio",
         "--workspace_id",
         "${workspaceFolder}"
-      ]
+      ],
+      "disabled": false,
+      "alwaysAllow": []
     },
     "context7": {
       "command": "npx",

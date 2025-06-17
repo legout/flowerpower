@@ -1,5 +1,6 @@
 import datetime as dt
 import importlib
+import os
 
 import duckdb
 import pandas as pd
@@ -112,10 +113,8 @@ def get_dataframe_metadata(
         "num_columns": len(schema),
         "num_rows": num_rows,
         "num_files": num_files,
-        "name": kwargs.get("name", None),
-        "description": kwargs.get("description", None),
-        "id": kwargs.get("id", None),
     }
+    metadata.update(kwargs)
     return {k: v for k, v in metadata.items() if v is not None}
 
 
@@ -161,10 +160,8 @@ def get_duckdb_metadata(
         "num_columns": shape[1] if shape else None,
         "num_rows": shape[0] if shape else None,
         "num_files": len(fs.glob(path)) if include_num_files else None,
-        "name": kwargs.get("name", None),
-        "description": kwargs.get("description", None),
-        "id": kwargs.get("id", None),
     }
+    metadata.update(kwargs)
     return {k: v for k, v in metadata.items() if v is not None}
 
 
@@ -175,19 +172,19 @@ def get_pyarrow_dataset_metadata(
     **kwargs,
 ) -> dict:
     schema = get_serializable_schema(ds.schema)
+    files = ds.files
+
     metadata = {
-        "path": path,
+        "path": path or os.path.dirname(files[0]),
         "format": format,
         "timestamp": dt.datetime.now().timestamp(),
         "schema": schema,
         "partition_columns": ds.partitioning.schema.names if ds.partitioning else None,
         "num_columns": len(ds.schema),
         "num_rows": None,
-        "num_files": len(ds.files),
-        "name": kwargs.get("name", None),
-        "description": kwargs.get("description", None),
-        "id": kwargs.get("id", None),
+        "num_files": len(files),
     }
+    metadata.update(kwargs)
     return metadata
 
 

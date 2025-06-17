@@ -597,18 +597,35 @@ def get_filesystem(
         ... )
     """
     if fs is not None:
+        if dirfs:
+            base_path = path.split("://")[-1]
+            if fs.protocol == "dir":
+                if base_path != fs.path:
+                    fs = DirFileSystem(
+                        path=posixpath.join(
+                            fs.path, base_path.replace(fs.path, "").lstrip("/")
+                        ),
+                        fs=fs.fs,
+                    )
+            else:
+                fs = DirFileSystem(path=base_path, fs=fs)
         if cached:
             if fs.is_cache_fs:
                 return fs
-            return MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
+            fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
 
-        if dirfs:
-            if fs.protocol == "dir":
-                return fs
-            return DirFileSystem(path=path, fs=fs)
+        return fs
 
     pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
-    protocol = pp.get("protocol")
+    protocol = (
+        storage_options_kwargs.get("protocol", None)
+        or (
+            storage_options.get("protocol", None)
+            if isinstance(storage_options, dict)
+            else getattr(storage_options, "protocol", None)
+        )
+        or pp.get("protocol", "file")
+    )
 
     if protocol == "file" or protocol == "local":
         fs = filesystem(protocol)
@@ -622,6 +639,8 @@ def get_filesystem(
     path = pp.get("path", "").lstrip("/")
     if len(host) and host not in path:
         path = posixpath.join(host, path)
+    if "." in path:
+        path = posixpath.dirname(path)
 
     if isinstance(storage_options, dict):
         storage_options = storage_options_from_dict(protocol, storage_options)
