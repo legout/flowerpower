@@ -1,21 +1,139 @@
+
 import numpy as np
 import polars as pl
 import polars.selectors as cs
 
-F32_MIN_FINITE = np.finfo(np.float32).min
-F32_MAX_FINITE = np.finfo(np.float32).max
 
 from .datetime import get_timedelta_str, get_timestamp_column
 
-# Pre-compiled regex for performance
-# Handles optional sign, integers, floats (with '.' or ','), and scientific notation.
-NUMERIC_REGEX = r"^[-+]?[0-9]*[.,]?[0-9]+([eE][-+]?[0-9]+)?$"
-# Handles common boolean representations (case-insensitive).
+# Pre-compiled regex patterns (identical to original)
+INTEGER_REGEX = r"^[-+]?\d+$"
+FLOAT_REGEX = r"^[-+]?(?:\d*[.,])?\d+(?:[eE][-+]?\d+)?$"
 BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n)$"
 BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j)$"
-# A heuristic to identify columns that are likely dates. Polars' `to_datetime`
-# is flexible, so this check doesn't need to be exhaustive.
-DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}"
+DATETIME_REGEX = (
+    r"^("
+    r"\d{4}-\d{2}-\d{2}"                # ISO: 2023-12-31
+    r"|"
+    r"\d{2}/\d{2}/\d{4}"                # US: 12/31/2023
+    r"|"
+    r"\d{2}\.\d{2}\.\d{4}"              # German: 31.12.2023
+    r"|"
+    r"\d{8}"                            # Compact: 20231231
+    r")"
+    r"([ T]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?)?"  # Optional time: 23:59[:59[.123456]]
+    r"([+-]\d{2}:?\d{2}|Z)?"            # Optional timezone: +01:00, -0500, Z
+    r"$"
+)
+
+# Float32 range limits
+F32_MIN = float(np.finfo(np.float32).min)
+F32_MAX = float(np.finfo(np.float32).max)
+
+
+
+def _clean_string_expr(col_name: str) -> pl.Expr:
+    """Create expression to clean string values."""
+    return (
+        pl.col(col_name)
+        .str.strip_chars()
+        .replace({"-": None, "": None, "None": None})
+    )
+
+
+def _can_downcast_to_float32(series: pl.Series) -> bool:
+    """Check if float values are within Float32 range."""
+    finite_values = series.filter(series.is_finite())
+    if finite_values.is_empty():
+        return True
+    
+    min_val, max_val = finite_values.min(), finite_values.max()
+    return F32_MIN <= min_val <= max_val <= F32_MAX
+
+
+def _optimize_numeric_column(series: pl.Series, col_name: str, shrink: bool) -> pl.Expr:
+    """Optimize numeric column types."""
+    if not shrink:
+        return pl.col(col_name)
+        
+    if series.dtype == pl.Float64 and not _can_downcast_to_float32(series):
+        return pl.col(col_name)
+        
+    return pl.col(col_name).shrink_dtype()
+
+
+def _optimize_string_column(
+    series: pl.Series, 
+    col_name: str, 
+    shrink_numerics: bool, 
+    time_zone: str | None = None
+) -> pl.Expr:
+    """Convert string column to appropriate type based on content analysis."""
+    # Return early for empty or null-only series
+    cleaned_expr = _clean_string_expr(col_name)
+    non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
+    if len(non_null) == 0:
+        return pl.col(col_name).cast(pl.Int8)
+    
+    stripped = non_null.str.strip_chars()
+    lowercase = stripped.str.to_lowercase()
+    
+    # Check for boolean values
+    if lowercase.str.contains(BOOLEAN_REGEX).all():
+        return cleaned_expr.str.to_lowercase().str.contains(BOOLEAN_TRUE_REGEX).alias(col_name)
+    
+    elif stripped.str.contains(INTEGER_REGEX).all():
+        int_expr = cleaned_expr.cast(pl.Int64)
+        return int_expr.shrink_dtype().alias(col_name) if shrink_numerics else int_expr.alias(col_name)
+    
+    # Check for numeric values
+    elif stripped.str.contains(FLOAT_REGEX).all():
+        float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64)
+
+        
+        if shrink_numerics:
+            # Check if values can fit in Float32
+            temp_floats = stripped.str.replace_all(",", ".").cast(pl.Float64, strict=False)
+            if _can_downcast_to_float32(temp_floats):
+                return float_expr.shrink_dtype().alias(col_name)
+        
+        return float_expr.alias(col_name)
+
+    try:
+        if stripped.str.contains(DATETIME_REGEX).all():
+            return cleaned_expr.str.to_datetime(
+                strict=False, 
+                time_unit="us", 
+                time_zone=time_zone
+            ).alias(col_name)
+    except pl.exceptions.PolarsError:
+        pass
+    
+    # Keep original if no conversion applies
+    return pl.col(col_name)
+
+
+def _get_column_expr(
+    df: pl.DataFrame,
+    col_name: str,
+    shrink_numerics: bool,
+    time_zone: str | None = None
+) -> pl.Expr:
+    """Generate optimization expression for a single column."""
+    series = df[col_name]
+    
+    # Handle all-null columns
+    if series.is_null().all():
+        return pl.col(col_name).cast(pl.Int8)
+    
+    # Process based on current type
+    if series.dtype.is_numeric():
+        return _optimize_numeric_column(series, col_name, shrink_numerics)
+    elif series.dtype == pl.Utf8:
+        return _optimize_string_column(series, col_name, shrink_numerics, time_zone)
+    
+    # Keep original for other types
+    return pl.col(col_name)
 
 
 def opt_dtype(
@@ -26,157 +144,204 @@ def opt_dtype(
     shrink_numerics: bool = True,
 ) -> pl.DataFrame:
     """
-    Analyzes and optimizes the data types of a Polars DataFrame for performance
-    and memory efficiency.
-
-    This version includes:
-    - Robust numeric, boolean, and datetime casting from strings.
-    - Handling of whitespace and common null-like string values.
-    - Casting of columns containing only nulls to pl.Int8.
-    - Optional shrinking of numeric columns to the smallest possible type.
-
+    Optimize data types of a Polars DataFrame for performance and memory efficiency.
+    
+    This function analyzes each column and converts it to the most appropriate
+    data type based on content, handling string-to-type conversions and
+    numeric type downcasting.
+    
     Args:
-        df: The DataFrame to optimize.
-        include: A list of columns to forcefully include in the optimization.
-        exclude: A list of columns to exclude from the optimization.
-        time_zone: Optional time zone for datetime parsing.
-        shrink_numerics: If True, numeric columns (both existing and newly converted from strings)
-            will be downcast to the smallest possible type that can hold their values (e.g., Int64 to Int32, Float64 to Float32),
-            similar to Polars' shrink_dtype() behavior. If False, this shrinking step is skipped.
-
+        df: DataFrame to optimize
+        include: Column(s) to include in optimization (default: all columns)
+        exclude: Column(s) to exclude from optimization
+        time_zone: Optional time zone for datetime parsing
+        shrink_numerics: Whether to downcast numeric types when possible
+        
     Returns:
-        An optimized Polars DataFrame with improved data types.
+        DataFrame with optimized data types
     """
-    # Phase 1: Analysis - Determine columns to process and build a list of
-    # transformation expressions without executing them immediately.
+    # Normalize include/exclude parameters
     if isinstance(include, str):
         include = [include]
     if isinstance(exclude, str):
         exclude = [exclude]
-
+    
+    # Determine columns to process
     cols_to_process = df.columns
     if include:
         cols_to_process = [col for col in include if col in df.columns]
     if exclude:
         cols_to_process = [col for col in cols_to_process if col not in exclude]
+    
+    # Generate optimization expressions for all columns
+    expressions = [
+        _get_column_expr(df, col_name, shrink_numerics, time_zone)
+        for col_name in cols_to_process
+    ]
+    
+    # Apply all transformations at once if any exist
+    return df if not expressions else df.with_columns(expressions)
 
-    expressions = []
-    for col_name in cols_to_process:
-        s = df[col_name]
 
-        # NEW: If a column is entirely null, cast it to Int8 and skip other checks.
-        if s.is_null().all():
-            expressions.append(pl.col(col_name).cast(pl.Int8))
-            continue
+# def opt_dtype(
+#     df: pl.DataFrame,
+#     include: str | list[str] | None = None,
+#     exclude: str | list[str] | None = None,
+#     time_zone: str | None = None,
+#     shrink_numerics: bool = True,
+# ) -> pl.DataFrame:
+#     """
+#     Analyzes and optimizes the data types of a Polars DataFrame for performance
+#     and memory efficiency.
 
-        dtype = s.dtype
+#     This version includes:
+#     - Robust numeric, boolean, and datetime casting from strings.
+#     - Handling of whitespace and common null-like string values.
+#     - Casting of columns containing only nulls to pl.Int8.
+#     - Optional shrinking of numeric columns to the smallest possible type.
 
-        # 1. Optimize numeric columns by shrinking their size
-        if dtype.is_numeric():
-            if shrink_numerics:
-                if dtype == pl.Float64:
-                    column_series = df[col_name]
-                    finite_values_series = column_series.filter(
-                        column_series.is_finite()
-                    )
-                    can_shrink = True
-                    if not finite_values_series.is_empty():
-                        min_finite_val = finite_values_series.min()
-                        max_finite_val = finite_values_series.max()
-                        if (min_finite_val < F32_MIN_FINITE) or (
-                            max_finite_val > F32_MAX_FINITE
-                        ):
-                            can_shrink = False
-                    if can_shrink:
-                        expressions.append(pl.col(col_name).shrink_dtype())
-                    else:
-                        expressions.append(pl.col(col_name))
-                else:
-                    expressions.append(pl.col(col_name).shrink_dtype())
-            else:
-                expressions.append(pl.col(col_name))
-            continue
+#     Args:
+#         df: The DataFrame to optimize.
+#         include: A list of columns to forcefully include in the optimization.
+#         exclude: A list of columns to exclude from the optimization.
+#         time_zone: Optional time zone for datetime parsing.
+#         shrink_numerics: If True, numeric columns (both existing and newly converted from strings)
+#             will be downcast to the smallest possible type that can hold their values (e.g., Int64 to Int32, Float64 to Float32),
+#             similar to Polars' shrink_dtype() behavior. If False, this shrinking step is skipped.
 
-        # 2. Optimize string columns by casting to more specific types
-        if dtype == pl.Utf8:
-            # Create a cleaned column expression that first strips whitespace, then
-            # replaces common null-like strings.
-            cleaned_col = (
-                pl.col(col_name)
-                .str.strip_chars()
-                .replace({"-": None, "": None, "None": None})
-            )
+#     Returns:
+#         An optimized Polars DataFrame with improved data types.
+#     """
+#     # Phase 1: Analysis - Determine columns to process and build a list of
+#     # transformation expressions without executing them immediately.
+#     if isinstance(include, str):
+#         include = [include]
+#     if isinstance(exclude, str):
+#         exclude = [exclude]
 
-            # Analyze a stripped, non-null version of the series to decide the cast type
-            s_non_null = s.drop_nulls()
-            if len(s_non_null) == 0:
-                # The column only contains nulls or null-like strings.
-                # Cast to Int8 as requested for all-null columns.
-                expressions.append(pl.col(col_name).cast(pl.Int8))
-                continue
+#     cols_to_process = df.columns
+#     if include:
+#         cols_to_process = [col for col in include if col in df.columns]
+#     if exclude:
+#         cols_to_process = [col for col in cols_to_process if col not in exclude]
 
-            s_stripped_non_null = s_non_null.str.strip_chars()
+#     expressions = []
+#     for col_name in cols_to_process:
+#         s = df[col_name]
 
-            # Check for boolean type
-            if s_stripped_non_null.str.to_lowercase().str.contains(BOOLEAN_REGEX).all():
-                expr = cleaned_col.str.to_lowercase().str.contains(BOOLEAN_TRUE_REGEX)
-                expressions.append(expr.alias(col_name))
-                continue
+#         # NEW: If a column is entirely null, cast it to Int8 and skip other checks.
+#         if s.is_null().all():
+#             expressions.append(pl.col(col_name).cast(pl.Int8))
+#             continue
 
-            # Check for numeric type
-            if s_stripped_non_null.str.contains(NUMERIC_REGEX).all():
-                is_float = s_stripped_non_null.str.contains(r"[.,eE]").any()
-                numeric_col = cleaned_col.str.replace_all(",", ".")
-                if is_float:
-                    if shrink_numerics:
-                        temp_float_series = s_stripped_non_null.str.replace_all(
-                            ",", "."
-                        ).cast(pl.Float64, strict=False)
-                        finite_values_series = temp_float_series.filter(
-                            temp_float_series.is_finite()
-                        )
-                        can_shrink = True
-                        if not finite_values_series.is_empty():
-                            min_finite_val = finite_values_series.min()
-                            max_finite_val = finite_values_series.max()
-                            if (min_finite_val < F32_MIN_FINITE) or (
-                                max_finite_val > F32_MAX_FINITE
-                            ):
-                                can_shrink = False
-                        base_expr = numeric_col.cast(pl.Float64)
-                        if can_shrink:
-                            expressions.append(base_expr.shrink_dtype().alias(col_name))
-                        else:
-                            expressions.append(base_expr.alias(col_name))
-                    else:
-                        expressions.append(numeric_col.cast(pl.Float64).alias(col_name))
-                else:
-                    if shrink_numerics:
-                        expressions.append(
-                            numeric_col.cast(pl.Int64).shrink_dtype().alias(col_name)
-                        )
-                    else:
-                        expressions.append(numeric_col.cast(pl.Int64).alias(col_name))
-                continue
+#         dtype = s.dtype
 
-            # Check for datetime type using a fast heuristic
-            try:
-                if s_stripped_non_null.str.contains(DATETIME_REGEX).all():
-                    expressions.append(
-                        cleaned_col.str.to_datetime(
-                            strict=False, time_unit="us", time_zone=time_zone
-                        ).alias(col_name)
-                    )
-                    continue
-            except pl.exceptions.PolarsError:
-                pass
+#         # 1. Optimize numeric columns by shrinking their size
+#         if dtype.is_numeric():
+#             if shrink_numerics:
+#                 if dtype == pl.Float64:
+#                     column_series = df[col_name]
+#                     finite_values_series = column_series.filter(
+#                         column_series.is_finite()
+#                     )
+#                     can_shrink = True
+#                     if not finite_values_series.is_empty():
+#                         min_finite_val = finite_values_series.min()
+#                         max_finite_val = finite_values_series.max()
+#                         if (min_finite_val < F32_MIN_FINITE) or (
+#                             max_finite_val > F32_MAX_FINITE
+#                         ):
+#                             can_shrink = False
+#                     if can_shrink:
+#                         expressions.append(pl.col(col_name).shrink_dtype())
+#                     else:
+#                         expressions.append(pl.col(col_name))
+#                 else:
+#                     expressions.append(pl.col(col_name).shrink_dtype())
+#             else:
+#                 expressions.append(pl.col(col_name))
+#             continue
 
-    # Phase 2: Execution - If any optimizations were identified, apply them
-    # all at once for maximum parallelism and performance.
-    if not expressions:
-        return df
+#         # 2. Optimize string columns by casting to more specific types
+#         if dtype == pl.Utf8:
+#             # Create a cleaned column expression that first strips whitespace, then
+#             # replaces common null-like strings.
+#             cleaned_col = (
+#                 pl.col(col_name)
+#                 .str.strip_chars()
+#                 .replace({"-": None, "": None, "None": None})
+#             )
 
-    return df.with_columns(expressions)
+#             # Analyze a stripped, non-null version of the series to decide the cast type
+#             s_non_null = s.drop_nulls()
+#             if len(s_non_null) == 0:
+#                 # The column only contains nulls or null-like strings.
+#                 # Cast to Int8 as requested for all-null columns.
+#                 expressions.append(pl.col(col_name).cast(pl.Int8))
+#                 continue
+
+#             s_stripped_non_null = s_non_null.str.strip_chars()
+
+#             # Check for boolean type
+#             if s_stripped_non_null.str.to_lowercase().str.contains(BOOLEAN_REGEX).all():
+#                 expr = cleaned_col.str.to_lowercase().str.contains(BOOLEAN_TRUE_REGEX)
+#                 expressions.append(expr.alias(col_name))
+#                 continue
+
+#             # Check for numeric type
+#             if s_stripped_non_null.str.contains(NUMERIC_REGEX).all():
+#                 is_float = s_stripped_non_null.str.contains(r"[.,eE]").any()
+#                 numeric_col = cleaned_col.str.replace_all(",", ".")
+#                 if is_float:
+#                     if shrink_numerics:
+#                         temp_float_series = s_stripped_non_null.str.replace_all(
+#                             ",", "."
+#                         ).cast(pl.Float64, strict=False)
+#                         finite_values_series = temp_float_series.filter(
+#                             temp_float_series.is_finite()
+#                         )
+#                         can_shrink = True
+#                         if not finite_values_series.is_empty():
+#                             min_finite_val = finite_values_series.min()
+#                             max_finite_val = finite_values_series.max()
+#                             if (min_finite_val < F32_MIN_FINITE) or (
+#                                 max_finite_val > F32_MAX_FINITE
+#                             ):
+#                                 can_shrink = False
+#                         base_expr = numeric_col.cast(pl.Float64)
+#                         if can_shrink:
+#                             expressions.append(base_expr.shrink_dtype().alias(col_name))
+#                         else:
+#                             expressions.append(base_expr.alias(col_name))
+#                     else:
+#                         expressions.append(numeric_col.cast(pl.Float64).alias(col_name))
+#                 else:
+#                     if shrink_numerics:
+#                         expressions.append(
+#                             numeric_col.cast(pl.Int64).shrink_dtype().alias(col_name)
+#                         )
+#                     else:
+#                         expressions.append(numeric_col.cast(pl.Int64).alias(col_name))
+#                 continue
+
+#             # Check for datetime type using a fast heuristic
+#             try:
+#                 if s_stripped_non_null.str.contains(DATETIME_REGEX).all():
+#                     expressions.append(
+#                         cleaned_col.str.to_datetime(
+#                             strict=False, time_unit="us", time_zone=time_zone
+#                         ).alias(col_name)
+#                     )
+#                     continue
+#             except pl.exceptions.PolarsError:
+#                 pass
+
+#     # Phase 2: Execution - If any optimizations were identified, apply them
+#     # all at once for maximum parallelism and performance.
+#     if not expressions:
+#         return df
+
+#     return df.with_columns(expressions)
 
 
 def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None):
