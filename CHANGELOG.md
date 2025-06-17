@@ -3,6 +3,14 @@
 ## [0.11.6] - 2025-06-17
 
 ### Changes
+- fix: clean up imports and whitespace across multiple files
+- feat: Implement Adapter and Pipeline Configuration
+
+
+
+## [0.11.6] - 2025-06-17
+
+### Changes
 - Bump version to 0.11.6 and clean up regex comments in PyArrow and Polars helpers
 - Refactor and optimize PyArrow helper functions for data type conversion
 - Refactor pyarrow helper functions for improved readability and consistency
