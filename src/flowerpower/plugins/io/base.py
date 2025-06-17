@@ -21,9 +21,14 @@ from sqlalchemy import create_engine, text
 
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
-from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                   GcsStorageOptions, GitHubStorageOptions,
-                                   GitLabStorageOptions, StorageOptions)
+from ...fs.storage_options import (
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+    StorageOptions,
+)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
 from .helpers.pyarrow import opt_dtype
@@ -185,74 +190,134 @@ class BaseFileReader(BaseFileIO, gc=False):
     include_file_path: bool = field(default=False)
     concat: bool = field(default=True)
     batch_size: int | None = field(default=None)
+    opt_dtypes: bool = field(default=True)
+    use_threads: bool = field(default=True)
     conn: duckdb.DuckDBPyConnection | None = field(default=None)
     ctx: datafusion.SessionContext | None = field(default=None)
     jsonlines: bool | None = field(default=None)
     partitioning: str | list[str] | pds.Partitioning | None = field(default=None)
     _data: Any | None = field(default=None)
 
-    def _load(self, reload: bool = False, **kwargs):
-        if "include_file_path" in kwargs:
-            if self.include_file_path != kwargs["include_file_path"]:
+    def _load(
+        self,
+        metadata: bool = False,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
+    ):
+        if batch_size is not None:
+            if self.batch_size != batch_size:
                 reload = True
-                self.include_file_path = kwargs.pop("include_file_path")
-            else:
-                kwargs.pop("include_file_path")
+            self.batch_size = batch_size
 
-        if "concat" in kwargs:
-            if self.concat != kwargs["concat"]:
+        if include_file_path is not None:
+            if self.include_file_path != include_file_path:
                 reload = True
-                self.concat = kwargs.pop("concat")
-            else:
-                kwargs.pop("concat")
+                self.include_file_path = include_file_path
 
-        if "batch_size" in kwargs:
-            if self.batch_size != kwargs["batch_size"]:
+        if concat is not None:
+            if self.concat != concat:
                 reload = True
-                self.batch_size = kwargs.pop("batch_size")
-            else:
-                kwargs.pop("batch_size")
+                self.concat = concat
+
+        if use_threads is not None:
+            if self.use_threads != use_threads:
+                reload = True
+                self.use_threads = use_threads
+
+        if verbose is not None:
+            if self.fs.verbose != verbose:
+                reload = True
+                self.fs.verbose = verbose
+
+        if opt_dtypes is not None:
+            if self.opt_dtypes != opt_dtypes:
+                reload = True
+                self.opt_dtypes = opt_dtypes
 
         if "partitioning" in kwargs:
             if self.partitioning != kwargs["partitioning"]:
                 reload = True
                 self.partitioning = kwargs.pop("partitioning")
-            else:
-                kwargs.pop("partitioning")
 
         if not hasattr(self, "_data") or self._data is None or reload:
             self._data = self.fs.read_files(
                 path=self._glob_path,
                 format=self.format,
-                include_file_path=True,
+                include_file_path=True if metadata or self.include_file_path else False,
                 concat=self.concat,
                 jsonlines=self.jsonlines or None,
                 batch_size=self.batch_size,
                 partitioning=self.partitioning,
+                opt_dtypes=self.opt_dtypes,
+                verbose=self.verbose,
+                use_threads=self.use_threads,
                 **kwargs,
             )
-            if not isinstance(self._data, Generator):
-                self._metadata = get_dataframe_metadata(
-                    df=self._data,
-                    path=self.path,
-                    format=self.format,
-                    # num_files=pl.from_arrow(self._data.select(["file_path"])).select(
-                    #    pl.n_unique("file_path")
-                    # )[0, 0],
-                )
-                if not self.include_file_path:
-                    if isinstance(self._data, pa.Table):
+            if metadata:
+                if isinstance(self._data, tuple | list):
+                    self._metadata = [
+                        get_dataframe_metadata(
+                            df=df,
+                            path=self.path,
+                            format=self.format,
+                            num_files=pl.from_arrow(df.select(["file_path"])).select(
+                                pl.n_unique("file_path")
+                            )[0, 0]
+                            if isinstance(df, pa.Table)
+                            else df.select(pl.n_unique("file_path"))[0, 0],
+                        )
+                        for df in self._data
+                    ]
+                    if not self.include_file_path:
+                        self._data = [df.drop("file_path") for df in self._data]
+
+                elif isinstance(self._data, pa.Table):
+                    self._metadata = get_dataframe_metadata(
+                        df=self._data,
+                        path=self.path,
+                        format=self.format,
+                        num_files=pl.from_arrow(
+                            self._data.select(pl.n_unique("file_path"))
+                        )[0, 0],
+                    )
+                    if not self.include_file_path:
                         self._data = self._data.drop("file_path")
-                    elif isinstance(self._data, list | tuple):
-                        self._data = [
-                            df.drop("file_path") if isinstance(df, pa.Table) else df
-                            for df in self._data
-                        ]
+
+                elif isinstance(self._data, pl.DataFrame | pl.LazyFrame):
+                    self._metadata = get_dataframe_metadata(
+                        df=self._data,
+                        path=self.path,
+                        format=self.format,
+                        num_files=self._data.select(pl.n_unique("file_path"))[0, 0]
+                        if isinstance(self._data, pl.DataFrame)
+                        else self._data.select(pl.n_unique("file_path")).collect()[
+                            0, 0
+                        ],
+                    )
+
+                    if not self.include_file_path:
+                        self._data = self._data.drop("file_path")
+                else:
+                    metadata = {}
             else:
                 self._metadata = {}
 
     def to_pandas(
-        self, metadata: bool = False, reload: bool = False, **kwargs
+        self,
+        metadata: bool = False,
+        reload: bool = False,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> (
         tuple[pd.DataFrame | list[pd.DataFrame], dict[str, Any]]
         | pd.DataFrame
@@ -263,12 +328,28 @@ class BaseFileReader(BaseFileIO, gc=False):
         Args:
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             tuple[pd.DataFrame | list[pd.DataFrame], dict[str, Any]] | pd.DataFrame | list[pd.DataFrame]: Pandas
                 DataFrame or list of DataFrames and optional metadata.
         """
-        self._load(reload=reload, **kwargs)
+        self._load(
+            reload=reload,
+            metadata=metadata,
+            batch_size=None,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list):
             df = [
                 df if isinstance(df, pd.DataFrame) else df.to_pandas()
@@ -282,26 +363,49 @@ class BaseFileReader(BaseFileIO, gc=False):
                 else self._data.to_pandas()
             )
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            # metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
+            return df, self._metadata
         return df
 
     def iter_pandas(
-        self, reload: bool = False, **kwargs
+        self,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> Generator[pd.DataFrame, None, None]:
         """Iterate over Pandas DataFrames.
 
         Args:
             batch_size (int, optional): Batch size for iteration. Default is 1.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             Generator[pd.DataFrame, None, None]: Generator of Pandas DataFrames.
         """
-        if self.batch_size is None and "batch_size" not in kwargs:
-            self.batch_size = 1
+        batch_size = batch_size or self.batch_size or 1
 
-        self._load(reload=reload, **kwargs)
+        self._load(
+            reload=reload,
+            batch_size=batch_size,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
+
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pd.DataFrame) else df.to_pandas()
@@ -313,13 +417,47 @@ class BaseFileReader(BaseFileIO, gc=False):
             )
 
     def _to_polars_dataframe(
-        self, metadata: bool = False, reload: bool = False, **kwargs
+        self,
+        metadata: bool = False,
+        reload: bool = False,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> (
         tuple[pl.DataFrame | list[pl.DataFrame], dict[str, Any]]
         | pl.DataFrame
         | list[pl.DataFrame]
     ):
-        self._load(reload=reload, **kwargs)
+        """Convert data to Polars DataFrame(s).
+
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
+
+        Returns:
+            tuple[pl.DataFrame | list[pl.DataFrame], dict[str, Any]] | pl.DataFrame | list[pl.DataFrame]: Polars
+                DataFrame or list of DataFrames and optional metadata.
+        """
+        self._load(
+            metadata=metadata,
+            reload=reload,
+            batch_size=None,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list):
             df = [
                 df if isinstance(self._data, pl.DataFrame) else pl.from_arrow(df)
@@ -333,22 +471,48 @@ class BaseFileReader(BaseFileIO, gc=False):
                 else pl.from_arrow(self._data)
             )
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            # metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
+            return df, self._metadata
         return df
 
     def _iter_polars_dataframe(
-        self, reload: bool = False, **kwargs
+        self,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> Generator[pl.DataFrame, None, None]:
         """Iterate over Polars DataFrames.
+
+        Args:
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             Generator[pl.DataFrame, None, None]: Generator of Polars DataFrames.
         """
-        if self.batch_size is None and "batch_size" not in kwargs:
-            self.batch_size = 1
+        batch_size = batch_size or self.batch_size or 1
 
-        self._load(reload=reload, **kwargs)
+        self._load(
+            reload=reload,
+            batch_size=batch_size,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df if isinstance(df, pl.DataFrame) else pl.from_arrow(df)
@@ -360,38 +524,95 @@ class BaseFileReader(BaseFileIO, gc=False):
             )
 
     def _to_polars_lazyframe(
-        self, metadata: bool = False, reload: bool = False, **kwargs
+        self,
+        metadata: bool = False,
+        reload: bool = False,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> (
         tuple[pl.LazyFrame | list[pl.LazyFrame], dict[str, Any]]
         | pl.LazyFrame
         | list[pl.LazyFrame]
     ):
-        self._load(reload=reload, **kwargs)
+        """Convert data to Polars LazyFrame(s).
+
+        Args:
+            metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
+
+        Returns:
+            tuple[pl.LazyFrame | list[pl.LazyFrame], dict[str, Any]] | pl.LazyFrame | list[pl.LazyFrame]: Polars
+                LazyFrame or list of LazyFrames and optional metadata.
+        """
+        self._load(
+            metadata=metadata,
+            reload=reload,
+            batch_size=None,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if not self.concat:
             df = [df.lazy() for df in self._to_polars_dataframe()]
 
         else:
             df = self._to_polars_dataframe().lazy()
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            # metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
+            return df, self._metadata
         return df
 
     def _iter_polars_lazyframe(
-        self, reload: bool = False, **kwargs
+        self,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> Generator[pl.LazyFrame, None, None]:
         """Iterate over Polars LazyFrames.
 
         Args:
             batch_size (int, optional): Batch size for iteration. Default is 1.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             Generator[pl.LazyFrame, None, None]: Generator of Polars LazyFrames.
         """
-        if self.batch_size is None and "batch_size" not in kwargs:
-            self.batch_size = 1
-        self._load(reload=reload, **kwargs)
+        batch_size = batch_size or self.batch_size or 1
+
+        self._load(
+            reload=reload,
+            batch_size=batch_size,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield (
@@ -410,6 +631,12 @@ class BaseFileReader(BaseFileIO, gc=False):
         self,
         lazy: bool = False,
         metadata: bool = False,
+        reload: bool = False,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> (
         pl.DataFrame
@@ -426,6 +653,14 @@ class BaseFileReader(BaseFileIO, gc=False):
         Args:
             lazy (bool, optional): Return a LazyFrame if True, else a DataFrame.
             metadata (bool, optional): Include metadata in the output. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             pl.DataFrame | pl.LazyFrame | list[pl.DataFrame] | list[pl.LazyFrame] | tuple[pl.DataFrame | pl.LazyFrame
@@ -433,32 +668,115 @@ class BaseFileReader(BaseFileIO, gc=False):
                 metadata.
         """
         if lazy:
-            return self._to_polars_lazyframe(**kwargs)
-        return self._to_polars_dataframe(**kwargs)
+            return self._to_polars_lazyframe(
+                metadata=metadata,
+                reload=reload,
+                batch_size=None,
+                include_file_path=include_file_path,
+                concat=concat,
+                use_threads=use_threads,
+                verbose=verbose,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
+            )
+        return self._to_polars_dataframe(
+            metadata=metadata,
+            reload=reload,
+            batch_size=None,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
 
     def iter_polars(
         self,
         lazy: bool = False,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> Generator[pl.DataFrame | pl.LazyFrame, None, None]:
+        """Iterate over Polars DataFrames or LazyFrames.
+
+        Args:
+            lazy (bool, optional): Return a LazyFrame if True, else a DataFrame. Default is False.
+            reload (bool, optional): Reload data if True. Default is False.
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single DataFrame. Default is True.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
+
+        Returns:
+            Generator[pl.DataFrame | pl.LazyFrame, None, None]: Generator of Polars DataFrames or LazyFrames.
+        """
         if lazy:
-            yield from self._iter_polars_lazyframe(**kwargs)
-        yield from self._iter_polars_dataframe(**kwargs)
+            yield from self._iter_polars_lazyframe(
+                reload=reload,
+                batch_size=batch_size,
+                include_file_path=include_file_path,
+                concat=concat,
+                use_threads=use_threads,
+                verbose=verbose,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
+            )
+        yield from self._iter_polars_dataframe(
+            reload=reload,
+            batch_size=batch_size,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
 
     def to_pyarrow_table(
-        self, metadata: bool = False, reload: bool = False, **kwargs
+        self,
+        metadata: bool = False,
+        reload: bool = False,
+        include_file_path: bool = False,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, Any]]:
         """Convert data to PyArrow Table(s).
 
         Args:
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, Any]]: PyArrow Table or list of
                 Tables and optional metadata.
         """
-        self._load(reload=reload, **kwargs)
+        self._load(
+            reload=reload,
+            metadata=metadata,
+            batch_size=None,
+            include_file_path=include_file_path,
+            concat=None,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list):
             df = [
                 df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
@@ -472,22 +790,48 @@ class BaseFileReader(BaseFileIO, gc=False):
                 else self._data
             )
         if metadata:
-            metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
-            return df, metadata
+            # metadata = get_dataframe_metadata(df, path=self.path, format=self.format)
+            return df, self._metadata
         return df
 
     def iter_pyarrow_table(
-        self, reload: bool = False, **kwargs
+        self,
+        reload: bool = False,
+        batch_size: int | None = None,
+        include_file_path: bool = False,
+        concat: bool | None = None,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
+        **kwargs,
     ) -> Generator[pa.Table, None, None]:
         """Iterate over PyArrow Tables.
+
+        Args:
+            reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            concat (bool, optional): Concatenate multiple files into a single Table. Default is True.
+            batch_size (int, optional): Batch size for iteration. Default is 1.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             Generator[pa.Table, None, None]: Generator of PyArrow Tables.
         """
-        if self.batch_size is None and "batch_size" not in kwargs:
-            self.batch_size = 1
+        batch_size = batch_size or self.batch_size or 1
 
-        self._load(reload=reload, **kwargs)
+        self._load(
+            reload=reload,
+            batch_size=batch_size,
+            include_file_path=include_file_path,
+            concat=concat,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
         if isinstance(self._data, list | Generator):
             for df in self._data:
                 yield df.to_arrow(**kwargs) if isinstance(df, pl.DataFrame) else df
@@ -503,6 +847,10 @@ class BaseFileReader(BaseFileIO, gc=False):
         conn: duckdb.DuckDBPyConnection | None = None,
         metadata: bool = False,
         reload: bool = False,
+        include_file_path: bool = False,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]:
         """Convert data to DuckDB relation.
@@ -511,6 +859,11 @@ class BaseFileReader(BaseFileIO, gc=False):
             conn (duckdb.DuckDBPyConnection, optional): DuckDB connection instance.
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]: DuckDB relation and optional
@@ -523,10 +876,27 @@ class BaseFileReader(BaseFileIO, gc=False):
 
         if metadata:
             return self._conn.from_arrow(
-                self.to_pyarrow_table(concat=True, reload=reload, **kwargs),
+                self.to_pyarrow_table(
+                    metadata=metadata,
+                    reload=reload,
+                    batch_size=None,
+                    include_file_path=include_file_path,
+                    se_threads=use_threads,
+                    verbose=verbose,
+                    opt_dtypes=opt_dtypes,
+                    **kwargs,
+                ),
             ), self._metadata
         return self._conn.from_arrow(
-            self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
+            self.to_pyarrow_table(
+                reload=reload,
+                batch_size=None,
+                include_file_path=include_file_path,
+                use_threads=use_threads,
+                verbose=verbose,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
+            )
         )
 
     def register_in_duckdb(
@@ -535,6 +905,10 @@ class BaseFileReader(BaseFileIO, gc=False):
         name: str | None = None,
         metadata: bool = False,
         reload: bool = False,
+        include_file_path: bool = False,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, Any]]:
         """Register data in DuckDB.
@@ -544,6 +918,11 @@ class BaseFileReader(BaseFileIO, gc=False):
             name (str, optional): Name for the DuckDB table.
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
+            kwargs: Additional keyword arguments.
 
         Returns:
             duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, Any]]: DuckDB connection instance
@@ -558,7 +937,16 @@ class BaseFileReader(BaseFileIO, gc=False):
             self._conn = conn
 
         self._conn.register(
-            name, self.to_pyarrow_table(concat=True, reload=reload, **kwargs)
+            name,
+            self.to_pyarrow_table(
+                metadata=metadata,
+                reload=reload,
+                include_file_path=include_file_path,
+                use_threads=use_threads,
+                verbose=verbose,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
+            ),
         )
         if metadata:
             return self._conn, self._metadata
@@ -571,6 +959,10 @@ class BaseFileReader(BaseFileIO, gc=False):
         name: str | None = None,
         metadata: bool = False,
         reload: bool = False,
+        include_file_path: bool = False,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> (
         duckdb.DuckDBPyRelation
@@ -586,6 +978,10 @@ class BaseFileReader(BaseFileIO, gc=False):
             name (str, optional): Name for the DuckDB table.
             metadata (bool, optional): Include metadata in the output. Default is False.
             reload (bool, optional): Reload data if True. Default is False.
+            include_file_path (bool, optional): Include file path in the output. Default is False.
+            use_threads (bool, optional): Use threads for reading data. Default is True.
+            verbose (bool, optional): Verbose output. Default is None.
+            opt_dtypes (bool, optional): Optimize data types. Default is True.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -596,10 +992,25 @@ class BaseFileReader(BaseFileIO, gc=False):
         """
         if as_relation:
             return self.to_duckdb_relation(
-                conn=conn, metadata=metadata, reload=reload, **kwargs
+                conn=conn,
+                metadata=metadata,
+                reload=reload,
+                include_file_path=include_file_path,
+                use_threads=use_threads,
+                verbose=verbose,
+                opt_dtypes=opt_dtypes,
+                **kwargs,
             )
         return self.register_in_duckdb(
-            conn=conn, name=name, metadata=metadata, reload=reload, **kwargs
+            conn=conn,
+            name=name,
+            metadata=metadata,
+            reload=reload,
+            include_file_path=include_file_path,
+            use_threads=use_threads,
+            verbose=verbose,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
         )
 
     def register_in_datafusion(
@@ -608,6 +1019,10 @@ class BaseFileReader(BaseFileIO, gc=False):
         name: str | None = None,
         metadata: bool = False,
         reload: bool = False,
+        include_file_path: bool = False,
+        use_threads: bool | None = None,
+        verbose: bool | None = None,
+        opt_dtypes: bool | None = None,
         **kwargs,
     ) -> datafusion.SessionContext | tuple[datafusion.SessionContext, dict[str, Any]]:
         """Register data in DataFusion.
@@ -632,11 +1047,18 @@ class BaseFileReader(BaseFileIO, gc=False):
 
         self._ctx.register_record_batches(
             name,
-            [self.to_pyarrow_table(concat=True, reload=reload, **kwargs).to_batches()],
+            [
+                self.to_pyarrow_table(
+                    reload=reload,
+                    include_file_path=include_file_path,
+                    use_threads=use_threads,
+                    opt_dtypes=opt_dtypes**kwargs,
+                ).to_batches()
+            ],
         )
         if metadata:
             return self._ctx, self._metadata
-        return ctx
+        return self._ctx
 
     def filter(
         self, filter_expr: str | pl.Expr | pa.compute.Expression
@@ -1477,13 +1899,15 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all([
-                self.username,
-                self.password,
-                self.server,
-                self.port,
-                self.database,
-            ]):
+            if not all(
+                [
+                    self.username,
+                    self.password,
+                    self.server,
+                    self.port,
+                    self.database,
+                ]
+            ):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."

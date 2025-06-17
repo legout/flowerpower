@@ -193,6 +193,7 @@ def _read_json(
         as_dataframe: (bool, optional) If True, return a DataFrame. Defaults to True.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
         verbose: (bool, optional) If True, print verbose output. Defaults to False.
+        opt_dtypes: (bool, optional) If True, optimize DataFrame dtypes. Defaults to False.
         **kwargs: Additional keyword arguments.
 
     Returns:
@@ -280,6 +281,7 @@ def _read_json_batches(
         concat: Combine files within each batch
         use_threads: Enable parallel file reading within batches
         verbose: Print progress information
+        opt_dtypes: Optimize DataFrame dtypes
         **kwargs: Additional arguments for DataFrame conversion
 
     Yields:
@@ -354,10 +356,16 @@ def _read_json_batches(
                     ][0]
                     for _data in batch_data
                 ]
+           
 
             if concat and len(batch_dfs) > 1:
-                yield pl.concat(batch_dfs, how="diagonal_relaxed")
+                batch_df =  pl.concat(batch_dfs, how="diagonal_relaxed")
+                if opt_dtypes:
+                    batch_df = opt_dtype_pl(batch_df, strict=False)
+                yield batch_df
             else:
+                if opt_dtypes:
+                    batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
                 yield batch_dfs
         else:
             yield batch_data
@@ -403,6 +411,7 @@ def read_json(
         concat: Combine multiple files/batches into single result
         use_threads: Enable parallel file reading
         verbose: Print progress information
+        opt_dtypes: Optimize DataFrame dtypes for performance
         **kwargs: Additional arguments passed to DataFrame conversion
 
     Returns:
@@ -486,6 +495,7 @@ def _read_csv_file(
         path: Path to CSV file
         self: Filesystem instance to use for reading
         include_file_path: Add source filepath as a column
+        opt_dtypes: Optimize DataFrame dtypes
         **kwargs: Additional arguments passed to pl.read_csv()
 
     Returns:
@@ -544,6 +554,7 @@ def _read_csv(
         use_threads: (bool, optional) If True, read files in parallel. Defaults to True.
         concat: (bool, optional) If True, concatenate the DataFrames. Defaults to True.
         verbose: (bool, optional) If True, print verbose output. Defaults to False.
+        opt_dtypes: (bool, optional) If True, optimize DataFrame dtypes. Defaults to False.
         **kwargs: Additional keyword arguments.
 
     Returns:
@@ -616,6 +627,7 @@ def _read_csv_batches(
         concat: Combine files within each batch
         use_threads: Enable parallel file reading within batches
         verbose: Print progress information
+        opt_dtypes: Optimize DataFrame dtypes
         **kwargs: Additional arguments passed to pl.read_csv()
 
     Yields:
@@ -766,6 +778,7 @@ def read_csv(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     return _read_csv(
@@ -775,6 +788,7 @@ def read_csv(
         concat=concat,
         use_threads=use_threads,
         verbose=verbose,
+        opt_dtypes=opt_dtypes,
         **kwargs,
     )
 
