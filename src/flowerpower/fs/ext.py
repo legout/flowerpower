@@ -356,10 +356,9 @@ def _read_json_batches(
                     ][0]
                     for _data in batch_data
                 ]
-           
 
             if concat and len(batch_dfs) > 1:
-                batch_df =  pl.concat(batch_dfs, how="diagonal_relaxed")
+                batch_df = pl.concat(batch_dfs, how="diagonal_relaxed")
                 if opt_dtypes:
                     batch_df = opt_dtype_pl(batch_df, strict=False)
                 yield batch_df
