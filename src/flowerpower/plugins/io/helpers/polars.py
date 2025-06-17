@@ -1,8 +1,6 @@
-
 import numpy as np
 import polars as pl
 import polars.selectors as cs
-
 
 from .datetime import get_timedelta_str, get_timestamp_column
 
@@ -13,16 +11,16 @@ BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n)$"
 BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j)$"
 DATETIME_REGEX = (
     r"^("
-    r"\d{4}-\d{2}-\d{2}"                # ISO: 2023-12-31
+    r"\d{4}-\d{2}-\d{2}"  # ISO: 2023-12-31
     r"|"
-    r"\d{2}/\d{2}/\d{4}"                # US: 12/31/2023
+    r"\d{2}/\d{2}/\d{4}"  # US: 12/31/2023
     r"|"
-    r"\d{2}\.\d{2}\.\d{4}"              # German: 31.12.2023
+    r"\d{2}\.\d{2}\.\d{4}"  # German: 31.12.2023
     r"|"
-    r"\d{8}"                            # Compact: 20231231
+    r"\d{8}"  # Compact: 20231231
     r")"
     r"([ T]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?)?"  # Optional time: 23:59[:59[.123456]]
-    r"([+-]\d{2}:?\d{2}|Z)?"            # Optional timezone: +01:00, -0500, Z
+    r"([+-]\d{2}:?\d{2}|Z)?"  # Optional timezone: +01:00, -0500, Z
     r"$"
 )
 
@@ -31,13 +29,10 @@ F32_MIN = float(np.finfo(np.float32).min)
 F32_MAX = float(np.finfo(np.float32).max)
 
 
-
 def _clean_string_expr(col_name: str) -> pl.Expr:
     """Create expression to clean string values."""
     return (
-        pl.col(col_name)
-        .str.strip_chars()
-        .replace({"-": None, "": None, "None": None})
+        pl.col(col_name).str.strip_chars().replace({"-": None, "": None, "None": None})
     )
 
 
@@ -46,7 +41,7 @@ def _can_downcast_to_float32(series: pl.Series) -> bool:
     finite_values = series.filter(series.is_finite())
     if finite_values.is_empty():
         return True
-    
+
     min_val, max_val = finite_values.min(), finite_values.max()
     return F32_MIN <= min_val <= max_val <= F32_MAX
 
@@ -55,18 +50,18 @@ def _optimize_numeric_column(series: pl.Series, col_name: str, shrink: bool) -> 
     """Optimize numeric column types."""
     if not shrink:
         return pl.col(col_name)
-        
+
     if series.dtype == pl.Float64 and not _can_downcast_to_float32(series):
         return pl.col(col_name)
-        
+
     return pl.col(col_name).shrink_dtype()
 
 
 def _optimize_string_column(
-    series: pl.Series, 
-    col_name: str, 
-    shrink_numerics: bool, 
-    time_zone: str | None = None
+    series: pl.Series,
+    col_name: str,
+    shrink_numerics: bool,
+    time_zone: str | None = None,
 ) -> pl.Expr:
     """Convert string column to appropriate type based on content analysis."""
     # Return early for empty or null-only series
@@ -74,64 +69,68 @@ def _optimize_string_column(
     non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
     if len(non_null) == 0:
         return pl.col(col_name).cast(pl.Int8)
-    
+
     stripped = non_null.str.strip_chars()
     lowercase = stripped.str.to_lowercase()
-    
+
     # Check for boolean values
     if lowercase.str.contains(BOOLEAN_REGEX).all():
-        return cleaned_expr.str.to_lowercase().str.contains(BOOLEAN_TRUE_REGEX).alias(col_name)
-    
+        return (
+            cleaned_expr.str.to_lowercase()
+            .str.contains(BOOLEAN_TRUE_REGEX)
+            .alias(col_name)
+        )
+
     elif stripped.str.contains(INTEGER_REGEX).all():
         int_expr = cleaned_expr.cast(pl.Int64)
-        return int_expr.shrink_dtype().alias(col_name) if shrink_numerics else int_expr.alias(col_name)
-    
+        return (
+            int_expr.shrink_dtype().alias(col_name)
+            if shrink_numerics
+            else int_expr.alias(col_name)
+        )
+
     # Check for numeric values
     elif stripped.str.contains(FLOAT_REGEX).all():
         float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64)
 
-        
         if shrink_numerics:
             # Check if values can fit in Float32
-            temp_floats = stripped.str.replace_all(",", ".").cast(pl.Float64, strict=False)
+            temp_floats = stripped.str.replace_all(",", ".").cast(
+                pl.Float64, strict=False
+            )
             if _can_downcast_to_float32(temp_floats):
                 return float_expr.shrink_dtype().alias(col_name)
-        
+
         return float_expr.alias(col_name)
 
     try:
         if stripped.str.contains(DATETIME_REGEX).all():
             return cleaned_expr.str.to_datetime(
-                strict=False, 
-                time_unit="us", 
-                time_zone=time_zone
+                strict=False, time_unit="us", time_zone=time_zone
             ).alias(col_name)
     except pl.exceptions.PolarsError:
         pass
-    
+
     # Keep original if no conversion applies
     return pl.col(col_name)
 
 
 def _get_column_expr(
-    df: pl.DataFrame,
-    col_name: str,
-    shrink_numerics: bool,
-    time_zone: str | None = None
+    df: pl.DataFrame, col_name: str, shrink_numerics: bool, time_zone: str | None = None
 ) -> pl.Expr:
     """Generate optimization expression for a single column."""
     series = df[col_name]
-    
+
     # Handle all-null columns
     if series.is_null().all():
         return pl.col(col_name).cast(pl.Int8)
-    
+
     # Process based on current type
     if series.dtype.is_numeric():
         return _optimize_numeric_column(series, col_name, shrink_numerics)
     elif series.dtype == pl.Utf8:
         return _optimize_string_column(series, col_name, shrink_numerics, time_zone)
-    
+
     # Keep original for other types
     return pl.col(col_name)
 
@@ -145,18 +144,18 @@ def opt_dtype(
 ) -> pl.DataFrame:
     """
     Optimize data types of a Polars DataFrame for performance and memory efficiency.
-    
+
     This function analyzes each column and converts it to the most appropriate
     data type based on content, handling string-to-type conversions and
     numeric type downcasting.
-    
+
     Args:
         df: DataFrame to optimize
         include: Column(s) to include in optimization (default: all columns)
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
-        
+
     Returns:
         DataFrame with optimized data types
     """
@@ -165,20 +164,20 @@ def opt_dtype(
         include = [include]
     if isinstance(exclude, str):
         exclude = [exclude]
-    
+
     # Determine columns to process
     cols_to_process = df.columns
     if include:
         cols_to_process = [col for col in include if col in df.columns]
     if exclude:
         cols_to_process = [col for col in cols_to_process if col not in exclude]
-    
+
     # Generate optimization expressions for all columns
     expressions = [
         _get_column_expr(df, col_name, shrink_numerics, time_zone)
         for col_name in cols_to_process
     ]
-    
+
     # Apply all transformations at once if any exist
     return df if not expressions else df.with_columns(expressions)
 
