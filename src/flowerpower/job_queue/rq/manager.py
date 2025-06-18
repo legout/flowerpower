@@ -12,6 +12,7 @@ import time
 import uuid
 from typing import Any, Callable
 
+
 import duration_parser
 from cron_descriptor import get_description
 from humanize import precisedelta
@@ -27,6 +28,8 @@ from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend
+from ...cfg.pipeline.run import RetryConfig
+from ...pipeline.manager import PipelineManager
 
 setup_logging()
 
@@ -72,8 +75,11 @@ class RQManager(BaseJobQueueManager):
         backend: RQBackend | None = None,
         storage_options: dict[str, Any] | None = None,
         fs: AbstractFileSystem | None = None,
+        pipelines_dir: str | None = None,
         log_level: str | None = None,
+
     ):
+        
         """Initialize the RQ scheduler backend.
 
         Args:
@@ -122,6 +128,7 @@ class RQManager(BaseJobQueueManager):
             backend=backend,
             fs=fs,
             storage_options=storage_options,
+            pipelines_dir=pipelines_dir,
         )
 
         if self._backend is None:
@@ -142,6 +149,161 @@ class RQManager(BaseJobQueueManager):
             connection=redis_conn, queue_name=self._backend.queues[-1], interval=60
         )
         self._scheduler.log = logger
+
+    def run_pipeline_sync(
+        self,
+        pipeline_name: str,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        **kwargs,
+    ):
+        """
+        Run a pipeline synchronously and return its result.
+        """
+        run_func = self.pipeline_manager.run
+
+        pipeline_run_args = {
+            "project_cfg": self.cfg or None,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "cache": cache,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
+            "reload": reload,
+            "log_level": log_level,
+            "retry": retry,
+        }
+        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+
+        return self._run_rq_job_sync(
+            func=run_func,
+            func_args=(pipeline_name,),
+            func_kwargs=pipeline_run_args,
+            **kwargs,
+        )
+
+    def enqueue_pipeline(
+        self,
+        pipeline_name: str,
+        inputs: dict | None = None,
+        result_ttl: int | None = 120,
+        run_at: dt.datetime | None = None,
+        run_in: float | dt.timedelta | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        **kwargs,
+    ):
+        """
+        Enqueue a pipeline for execution via the job queue.
+        """
+        run_func = self.pipeline_manager.run
+
+        pipeline_run_args = {
+            "project_cfg": self.cfg or None,
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "cache": cache,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
+            "reload": reload,
+            "log_level": log_level,
+            "retry": retry,
+        }
+        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+
+        return self._enqueue_rq_job(
+            func=run_func,
+            func_args=(pipeline_name,),
+            func_kwargs=pipeline_run_args,
+            result_ttl=result_ttl,
+            run_at=run_at,
+            run_in=run_in,
+            **kwargs,
+        )
+
+    def schedule_pipeline(
+        self,
+        pipeline_name: str,
+        cron: str | None = None,
+        interval: int | None = None,
+        date: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        schedule_id: str | None = None,
+        overwrite: bool = False,
+        **kwargs,
+    ):
+        """
+        Schedule a pipeline for execution using the configured job queue.
+        """
+        run_func = self.pipeline_manager.run
+
+        pipeline_run_args = {
+            "project_cfg": getattr(self, "project_cfg", None),
+            "inputs": inputs,
+            "final_vars": final_vars,
+            "config": config,
+            "cache": cache,
+            "executor_cfg": executor_cfg,
+            "with_adapter_cfg": with_adapter_cfg,
+            "pipeline_adapter_cfg": pipeline_adapter_cfg,
+            "project_adapter_cfg": project_adapter_cfg,
+            "adapter": adapter,
+            "reload": reload,
+            "log_level": log_level,
+            "retry": retry,
+        }
+        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+
+        return self._schedule_rq_job(
+            func=run_func,
+            func_args=(pipeline_name,),
+            func_kwargs=pipeline_run_args,
+            cron=cron,
+            interval=interval,
+            date=date,
+            schedule_id=schedule_id,
+            overwrite=overwrite,
+            **kwargs,
+        )
+
 
     def _setup_backend(self) -> None:
         """Set up the Redis backend for the scheduler.
@@ -543,7 +705,7 @@ class RQManager(BaseJobQueueManager):
 
     ## Jobs ###
 
-    def add_job(
+    def _enqueue_rq_job(
         self,
         func: Callable,
         func_args: tuple | None = None,
@@ -772,7 +934,7 @@ class RQManager(BaseJobQueueManager):
             )
         return job
 
-    def run_job(
+    def _run_rq_job_sync(
         self,
         func: Callable,
         func_args: tuple | None = None,
@@ -1097,7 +1259,7 @@ class RQManager(BaseJobQueueManager):
 
     ### Schedules ###
 
-    def add_schedule(
+    def _schedule_rq_job(
         self,
         func: Callable,
         func_args: tuple | None = None,

@@ -14,14 +14,16 @@
       "disabled": false,
       "alwaysAllow": []
     },
-    "context7": {
-      "command": "npx",
+    "memory": {
+      "command": "docker",
       "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ],
-      "disabled": true,
-      "alwaysAllow": []
+        "run",
+        "-i",
+        "-v",
+        "claude-memory:/app/dist",
+        "--rm",
+        "mcp/memory"
+      ]
     }
   }
 }

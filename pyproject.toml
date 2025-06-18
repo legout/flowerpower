@@ -106,5 +106,6 @@ dev-dependencies = [
   "marimo>=0.10.19",
   "pre-commit>=4.2.0",
   "rq-dashboard>=0.8.2.2",
+  "files-to-prompt>=0.6",
 ]
 package = true

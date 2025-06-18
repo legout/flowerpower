@@ -2,7 +2,7 @@
 Base scheduler interface for FlowerPower.
 
 This module defines the abstract base classes for scheduling operations
-that can be implemented by different backend providers (APScheduler, RQ, etc.).
+that can be implemented by different backend providers (RQ, etc.).
 """
 
 import importlib
@@ -10,21 +10,35 @@ import os
 import posixpath
 import sys
 import urllib.parse
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, TypeVar
 
 if importlib.util.find_spec("sqlalchemy"):
-    from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncEngine
+
 else:
-    create_async_engine = None
     AsyncEngine = TypeVar("AsyncEngine")
 
+
 from ..cfg import ProjectConfig
+from ..cfg.pipeline.run import RetryConfig
 from ..fs import AbstractFileSystem, get_filesystem
+from ..pipeline import PipelineManager
 # from ..utils.misc import update_config_from_dict
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
+
+# class BaseJobQueueManager:
+#     def __init__(
+#         self,
+#         *args,
+#         pipeline_manager: PipelineManager | None = None,
+#         **kwargs,
+#     ):
+#         self.pipeline_manager = pipeline_manager
+#         super().__init__(*args, **kwargs)
 
 
 class BackendType(str, Enum):
@@ -234,9 +248,9 @@ class BaseBackend:
         return cls(**d)
 
 
-class BaseJobQueueManager:
+class BaseJobQueueManager(ABC):
     """
-    Abstract base class for scheduler workers (APScheduler, RQ, etc.).
+    Abstract base class for scheduler workers (RQ, etc.).
     Defines the required interface for all scheduler backends.
 
     Can be used as a context manager:
@@ -271,26 +285,25 @@ class BaseJobQueueManager:
         backend: BaseBackend | None = None,
         storage_options: dict = None,
         fs: AbstractFileSystem | None = None,
-        **kwargs,
     ):
         """
-        Initialize the APScheduler backend.
+        Initialize the BaseBackend.
 
         Args:
-            name: Name of the scheduler
-            base_dir: Base directory for the FlowerPower project
-            backend: APSBackend instance with data store and event broker
-            storage_options: Storage options for filesystem access
-            fs: Filesystem to use
-            cfg_override: Configuration overrides for the worker
+            type (str | None): The type of backend to use (e.g., "redis", "sqlite").
+            name (str | None): The name of the job queue.
+            base_dir (str | None): The base directory for the project.
+            backend (BaseBackend | None): An instance of BaseBackend to use.
+            storage_options (dict): Additional storage options for the filesystem.
+            fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use.
+
         """
         self.name = name or ""
         self._base_dir = base_dir or str(Path.cwd())
-        # self._storage_options = storage_options or {}
         self._backend = backend
         self._type = type
-        self._pipelines_dir = kwargs.get("pipelines_dir", PIPELINES_DIR)
-        self._cfg_dir = CONFIG_DIR
+        self._fs = fs
+        self._storage_options = storage_options or (fs.storage_options if fs else {})
 
         if storage_options is not None:
             cached = True
@@ -308,10 +321,9 @@ class BaseJobQueueManager:
                 cached=cached,
                 cache_storage=cache_storage,
             )
-        self._fs = fs
-        self._storage_options = storage_options or fs.storage_options
+            self._fs = fs
+            self._storage_options = storage_options or fs.storage_options
 
-        self._add_modules_path()
         self._load_config()
 
     def _load_config(self) -> None:
@@ -320,29 +332,99 @@ class BaseJobQueueManager:
         Args:
             cfg_updates: Configuration updates to apply
         """
-        self.cfg = ProjectConfig.load(
+        self._cfg = ProjectConfig.load(
             base_dir=self._base_dir, job_queue_type=self._type, fs=self._fs
         ).job_queue
 
-    def _add_modules_path(self):
-        """
-        Sync the filesystem.
+    def _init_pipeline_manager(self) -> None:
+        """Initialize the pipeline manager."""
+        self._pipeline_manager = PipelineManager(
+            base_dir=self._base_dir,
+            fs=self._fs,
+            storage_options=self._storage_options,
+        )
 
-        Returns:
-            None
-        """
-        if self._fs.is_cache_fs:
-            self._fs.sync_cache()
-            project_path = self._fs._mapper.directory
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
+    @property
+    def project_cfg(self) -> ProjectConfig:
+        """Get the current project configuration."""
+        if not hasattr(self, "_cfg"):
+            self._load_config()
+        return self._cfg
 
-        else:
-            # Use the base directory directly if not using cache
-            project_path = self._fs.path
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
+    @property
+    def pipeline_manager(self) -> PipelineManager:
+        """Get the pipeline manager instance."""
+        if not hasattr(self, "_pipeline_manager"):
+            self._init_pipeline_manager()
+        return self._pipeline_manager
 
-        if project_path not in sys.path:
-            sys.path.insert(0, project_path)
+    @abstractmethod
+    def enqueue_pipeline(
+        self,
+        pipeline_name: str,
+        inputs: dict | None = None,
+        result_ttl: int | None = 120,
+        run_at: Any | None = None,
+        run_in: Any | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        **kwargs,
+    ):
+        """Enqueue a pipeline for execution via the job queue."""
+        pass
 
-        if modules_path not in sys.path:
-            sys.path.insert(0, modules_path)
+    @abstractmethod
+    def run_pipeline_sync(
+        self,
+        pipeline_name: str,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        **kwargs,
+    ):
+        """Run a pipeline synchronously and return its result."""
+        pass
+
+    @abstractmethod
+    def schedule_pipeline(
+        self,
+        pipeline_name: str,
+        cron: str | None = None,
+        interval: int | None = None,
+        date: str | None = None,
+        inputs: dict | None = None,
+        final_vars: list | None = None,
+        config: dict | None = None,
+        cache: bool | dict = False,
+        executor_cfg: str | dict | Any | None = None,
+        with_adapter_cfg: dict | Any | None = None,
+        pipeline_adapter_cfg: dict | Any | None = None,
+        project_adapter_cfg: dict | Any | None = None,
+        adapter: dict[str, Any] | None = None,
+        reload: bool = False,
+        log_level: str | None = None,
+        retry: dict | RetryConfig | None = None,
+        schedule_id: str | None = None,
+        overwrite: bool = False,
+        **kwargs,
+    ):
+        """Schedule a pipeline for execution using the configured job queue."""
+        pass

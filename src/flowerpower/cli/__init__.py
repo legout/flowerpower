@@ -18,14 +18,6 @@ app.add_typer(
     pipeline_app, name="pipeline", help="Manage and execute FlowerPower pipelines"
 )
 
-if importlib.util.find_spec("apscheduler") or importlib.util.find_spec("rq"):
-    from .job_queue import app as job_queue_app
-
-    app.add_typer(
-        job_queue_app,
-        name="job-queue",
-        help="Manage job queue workers and scheduled tasks",
-    )
 
 if importlib.util.find_spec("paho"):
     from .mqtt import app as mqtt_app
@@ -53,7 +45,7 @@ def init(
         "rq",
         "--job-queue-type",
         "-q",
-        help="Job queue backend type to use (rq, apscheduler)",
+        help="Job queue backend type to use (rq)",
     ),
 ):
     """
@@ -69,7 +61,7 @@ def init(
         base_dir: Base directory where the project will be created. If not provided,
                   the current directory's parent will be used
         storage_options: Storage options for filesystem access, as a JSON or dict string
-        job_queue_type: Type of job queue backend to use (rq, apscheduler)
+        job_queue_type: Type of job queue backend to use (rq)
 
     Examples:
         # Create a project in the current directory using its name
@@ -81,8 +73,6 @@ def init(
         # Create a project in a specific location
         $ flowerpower init --name my-project --base-dir /path/to/projects
 
-        # Create a project with APScheduler as the job queue backend
-        $ flowerpower init --job-queue-type apscheduler
     """
     parsed_storage_options = {}
     if storage_options:

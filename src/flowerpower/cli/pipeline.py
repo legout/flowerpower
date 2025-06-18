@@ -229,6 +229,7 @@ def run_job(
 
 @app.command()
 def add_job(
+    ctx: typer.Context,
     name: str = typer.Argument(..., help="Name of the pipeline to add as a job"),
     executor: str | None = typer.Option(
         None, help="Executor to use for running the job"
@@ -318,30 +319,26 @@ def add_job(
     run_at = dt.datetime.fromisoformat(run_at) if run_at else None
     run_in = duration_parser.parse(run_in) if run_in else None
 
-    with PipelineManager(
-        base_dir=base_dir,
-        storage_options=parsed_storage_options or {},
-        log_level=log_level,
-    ) as manager:
-        job_id = manager.add_job(
-            name=name,
-            inputs=parsed_inputs,
-            final_vars=parsed_final_vars,
-            config=parsed_config,
-            cache=parsed_cache,
-            executor_cfg=executor,
-            with_adapter_cfg=parsed_with_adapter,
-            run_at=run_at,
-            run_in=run_in,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-        )
-        logger.info(f"Job {job_id} added for pipeline '{name}'.")
+    job_id = ctx.obj.add_job(
+        name=name,
+        inputs=parsed_inputs,
+        final_vars=parsed_final_vars,
+        config=parsed_config,
+        cache=parsed_cache,
+        executor_cfg=executor,
+        with_adapter_cfg=parsed_with_adapter,
+        run_at=run_at,
+        run_in=run_in,
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        jitter_factor=jitter_factor,
+    )
+    logger.info(f"Job {job_id} added for pipeline '{name}'.")
 
 
 @app.command()
 def schedule(
+    ctx: typer.Context,
     name: str = typer.Argument(..., help="Name of the pipeline to schedule"),
     executor: str | None = typer.Option(
         None, help="Executor to use for running the job"
@@ -447,30 +444,23 @@ def schedule(
     cron = cron if cron else None
     date = dt.datetime.fromisoformat(date) if date else None
 
-    with PipelineManager(
-        base_dir=base_dir,
-        storage_options=parsed_storage_options or {},
-        log_level=log_level,
-    ) as manager:
-        # Combine common schedule kwargs
-
-        id_ = manager.schedule(
-            name=name,
-            inputs=parsed_inputs,
-            final_vars=parsed_final_vars,
-            config=parsed_config,
-            cache=parsed_cache,
-            executor_cfg=executor,
-            with_adapter_cfg=parsed_with_adapter,
-            cron=cron,
-            interval=interval,
-            date=date,
-            overwrite=overwrite,
-            schedule_id=schedule_id,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-        )
+    id_ = ctx.obj.schedule(
+        name=name,
+        inputs=parsed_inputs,
+        final_vars=parsed_final_vars,
+        config=parsed_config,
+        cache=parsed_cache,
+        executor_cfg=executor,
+        with_adapter_cfg=parsed_with_adapter,
+        cron=cron,
+        interval=interval,
+        date=date,
+        overwrite=overwrite,
+        schedule_id=schedule_id,
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        jitter_factor=jitter_factor,
+    )
 
     logger.info(f"Pipeline '{name}' scheduled with ID {id_}.")
 

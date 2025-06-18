@@ -51,12 +51,13 @@ if importlib.util.find_spec("ray"):
 else:
     h_ray = None
 
-from ..cfg import PipelineConfig, ProjectConfig
+from ..cfg import PipelineConfig
+from ..cfg.adapter import AdapterConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..utils.logging import setup_logging
-from .pipeline import load_module
+from .base import load_module
 
 setup_logging(level=settings.LOG_LEVEL)
 
@@ -69,10 +70,26 @@ class PipelineRunner:
 
     def __init__(
         self,
-        project_cfg: ProjectConfig,
+        project_name: str,
         pipeline_cfg: PipelineConfig,
+        adapter_cfg: AdapterConfig | None = None,
+        project_adapter_cfg: ProjectAdapterConfig | None = None,
     ):
-        self.project_cfg = project_cfg
+        self.project_name = project_name
+        if adapter_cfg is None:
+            if project_adapter_cfg is None:
+                project_adapter_cfg = ProjectAdapterConfig()
+
+            self.adapter_cfg = AdapterConfig.from_adapters(
+                project_hamilton_tracker_cfg=project_adapter_cfg.hamilton_tracker,
+                pipeline_hamilton_tracker_cfg=pipeline_cfg.adapter.hamilton_tracker,
+                project_mlflow_cfg=project_adapter_cfg.mlflow,
+                pipeline_mlflow_cfg=pipeline_cfg.adapter.mlflow,
+                ray_cfg=project_adapter_cfg.ray,
+                opentelemetry_cfg=project_adapter_cfg.opentelemetry,
+            )
+        else:
+            self.adapter_cfg = adapter_cfg
         self.pipeline_cfg = pipeline_cfg
         self.name = pipeline_cfg.name
 
@@ -145,10 +162,10 @@ class PipelineRunner:
                 return (
                     h_ray.RayTaskExecutor(
                         num_cpus=executor_cfg.num_cpus,
-                        ray_init_config=self.project_cfg.adapter.ray.ray_init_config,
+                        ray_init_config=self.adapter_cfg.ray.ray_init_config,
                     ),
                     ray.shutdown
-                    if self.project_cfg.adapter.ray.shutdown_ray_on_completion
+                    if self.adapter_cfg.ray.shutdown_ray_on_completion
                     else None,
                 )
             else:
@@ -162,6 +179,9 @@ class PipelineRunner:
             else:
                 logger.warning("Dask is not installed. Using local executor.")
                 return executors.SynchronousLocalTaskExecutor(), None
+        elif executor_cfg.type == "local":
+            logger.debug("Using SynchronousLocalTaskExecutor.")
+            return executors.SynchronousLocalTaskExecutor(), None
         else:
             logger.warning(
                 f"Unknown executor type: {executor_cfg.type}. Using local executor."
@@ -170,70 +190,48 @@ class PipelineRunner:
 
     def _get_adapters(
         self,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
+        with_adapter: dict | WithAdapterConfig | None = None,
+        adapter_cfg: dict | AdapterConfig | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
     ) -> list:
         """
         Set the adapters for the pipeline.
 
         Args:
-            with_adapter_cfg (dict | WithAdapterConfig | None): The adapter configuration.
+            with_adapter (dict | WithAdapterConfig | None): The adapter configuration.
                 Overrides the with_adapter settings in the pipeline config.
-            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): The pipeline adapter configuration.
+            adapter_cfg (dict | AdapterConfig | None): The adapter configuration for the pipeline.
                 Overrides the adapter settings in the pipeline config.
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): The project adapter configuration.
-                Overrides the adapter settings in the project config.
-            adapter (dict[str, Any] | None): Any additional hamilton adapters can be passed here.
+            hamilton_adapters (dict[str, Any] | None): Any additional hamilton adapters can be passed here.
         """
         logger.debug("Setting up adapters...")
-        if with_adapter_cfg:
-            if isinstance(with_adapter_cfg, dict):
-                with_adapter_cfg = WithAdapterConfig.from_dict(with_adapter_cfg)
-            elif not isinstance(with_adapter_cfg, WithAdapterConfig):
+        if with_adapter:
+            if isinstance(with_adapter, dict):
+                with_adapter = WithAdapterConfig.from_dict(with_adapter)
+            elif not isinstance(with_adapter, WithAdapterConfig):
                 raise TypeError(
                     "with_adapter must be a dictionary or WithAdapterConfig instance."
                 )
 
-            with_adapter_cfg = self.pipeline_cfg.run.with_adapter.merge(
-                with_adapter_cfg
-            )
+            with_adapter = self.pipeline_cfg.run.with_adapter.merge(with_adapter)
         else:
-            with_adapter_cfg = self.pipeline_cfg.run.with_adapter
+            with_adapter = self.pipeline_cfg.run.with_adapter
 
-        if pipeline_adapter_cfg:
-            if isinstance(pipeline_adapter_cfg, dict):
-                pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(
-                    pipeline_adapter_cfg
-                )
-            elif not isinstance(pipeline_adapter_cfg, PipelineAdapterConfig):
+        if adapter_cfg:
+            if isinstance(adapter_cfg, dict):
+                adapter_cfg = AdapterConfig.from_dict(adapter_cfg)
+            elif not isinstance(adapter_cfg, AdapterConfig):
                 raise TypeError(
-                    "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
+                    "adapter_cfg must be a dictionary or AdapterConfig instance."
                 )
 
-            pipeline_adapter_cfg = self.pipeline_cfg.adapter.merge(pipeline_adapter_cfg)
+            adapter_cfg = self.adapter_cfg.merge(adapter_cfg)
         else:
-            pipeline_adapter_cfg = self.pipeline_cfg.adapter
-
-        if project_adapter_cfg:
-            if isinstance(project_adapter_cfg, dict):
-                project_adapter_cfg = ProjectAdapterConfig.from_dict(
-                    project_adapter_cfg
-                )
-            elif not isinstance(project_adapter_cfg, ProjectAdapterConfig):
-                raise TypeError(
-                    "project_adapter_cfg must be a dictionary or ProjectAdapterConfig instance."
-                )
-
-            project_adapter_cfg = self.project_cfg.adapter.merge(project_adapter_cfg)
-        else:
-            project_adapter_cfg = self.project_cfg.adapter
+            adapter_cfg = self.adapter_cfg
 
         adapters = []
-        if with_adapter_cfg.hamilton_tracker:
-            tracker_kwargs = project_adapter_cfg.hamilton_tracker.to_dict()
-            tracker_kwargs.update(pipeline_adapter_cfg.hamilton_tracker.to_dict())
+        if with_adapter.hamilton_tracker:
+            tracker_kwargs = adapter_cfg.hamilton_tracker.to_dict()
             tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
             tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
 
@@ -254,56 +252,53 @@ class PipelineRunner:
 
             adapters.append(tracker)
 
-        if with_adapter_cfg.mlflow:
+        if with_adapter.mlflow:
             if h_mlflow is None:
                 logger.warning("MLFlow is not installed. Skipping MLFlow adapter.")
             else:
-                mlflow_kwargs = project_adapter_cfg.mlflow.to_dict()
-                mlflow_kwargs.update(pipeline_adapter_cfg.mlflow.to_dict())
+                mlflow_kwargs = adapter_cfg.mlflow.to_dict()
                 mlflow_adapter = h_mlflow.MLFlowTracker(**mlflow_kwargs)
                 adapters.append(mlflow_adapter)
 
-        if with_adapter_cfg.opentelemetry:
+        if with_adapter.opentelemetry:
             if h_opentelemetry is None:
                 logger.warning(
                     "OpenTelemetry is not installed. Skipping OpenTelemetry adapter."
                 )
             else:
-                otel_kwargs = project_adapter_cfg.opentelemetry.to_dict()
-                otel_kwargs.update(pipeline_adapter_cfg.opentelemetry.to_dict())
-                trace = init_tracer(**otel_kwargs, name=self.project_cfg.name)
+                otel_kwargs = adapter_cfg.opentelemetry.to_dict()
+                trace = init_tracer(**otel_kwargs, name=self.project_name)
                 tracer = trace.get_tracer(self.name)
                 otel_adapter = h_opentelemetry.OpenTelemetryTracer(
-                    tracer_name=f"{self.project_cfg.name}.{self.name}",
+                    tracer_name=f"{self.project_name}.{self.name}",
                     tracer=tracer,
                 )
                 adapters.append(otel_adapter)
 
-        if with_adapter_cfg.progressbar:
+        if with_adapter.progressbar:
             adapters.append(
-                h_rich.RichProgressBar(run_desc=f"{self.project_cfg.name}.{self.name}")
+                h_rich.RichProgressBar(run_desc=f"{self.project_name}.{self.name}")
             )
 
-        if with_adapter_cfg.future:
+        if with_adapter.future:
             adapters.append(FutureAdapter())
 
-        if with_adapter_cfg.ray:
+        if with_adapter.ray:
             if h_ray is None:
                 logger.warning("Ray is not installed. Skipping Ray adapter.")
             else:
-                ray_kwargs = project_adapter_cfg.ray.to_dict()
-                ray_kwargs.update(pipeline_adapter_cfg.ray.to_dict())
+                ray_kwargs = adapter_cfg.ray.to_dict()
                 ray_adapter = h_ray.RayGraphAdapter(**ray_kwargs)
                 adapters.append(ray_adapter)
 
         all_adapters = [
             f"{adp}: ✅" if enabled else f"{adp}: ❌"
-            for adp, enabled in with_adapter_cfg.to_dict().items()
+            for adp, enabled in with_adapter.to_dict().items()
         ]
 
-        if adapter:
-            adapters += list(adapter.values())
-            all_adapters += [f"{adp}: ✅" for adp in adapter.keys()]
+        if hamilton_adapters:
+            adapters += list(hamilton_adapters.values())
+            all_adapters += [f"{adp}: ✅" for adp in hamilton_adapters.keys()]
 
         logger.debug(f"Adapters enabled: {' | '.join(all_adapters)}")
         return adapters
@@ -312,11 +307,10 @@ class PipelineRunner:
         self,
         config: dict | None = None,
         cache: bool | dict = False,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
+        executor: str | dict | ExecutorConfig | None = None,
+        with_adapter: dict | WithAdapterConfig | None = None,
+        adapter_cfg: dict | PipelineAdapterConfig | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         reload: bool = False,
     ) -> tuple[driver.Driver, Callable | None]:
         """
@@ -328,15 +322,13 @@ class PipelineRunner:
                 To fine tune the cache settings, pass a dictionary with the cache settings
                 or adjust the pipeline config.
                 If set to True, the default cache settings will be used.
-            executor_cfg (str | dict | ExecutorConfig | None): The executor to use.
+            executor (str | dict | ExecutorConfig | None): The executor to use.
                 Overrides the executor settings in the pipeline config.
-            with_adapter_cfg (dict | WithAdapterConfig | None): The adapter configuration.
+            with_adapter (dict | WithAdapterConfig | None): The adapter configuration.
                 Overrides the with_adapter settings in the pipeline config.
-            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): The pipeline adapter configuration.
+            adapter_cfg (dict | PipelineAdapterConfig | None): The adapter configuration for the pipeline.
                 Overrides the adapter settings in the pipeline config.
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): The project adapter configuration.
-                Overrides the adapter settings in the project config.
-            adapter (dict[str, Any] | None): Any additional Hamilton adapters can be passed here.
+            hamilton_adapters (dict[str, Any] | None): Any additional Hamilton adapters can be passed here.
             reload (bool): Whether to reload the module.
 
 
@@ -345,12 +337,11 @@ class PipelineRunner:
         """
         logger.debug("Setting up driver...")
         module = load_module(name=self.name, reload=reload)
-        executor, shutdown = self._get_executor(executor_cfg)
+        executor, shutdown = self._get_executor(executor)
         adapters = self._get_adapters(
-            with_adapter_cfg,
-            pipeline_adapter_cfg,
-            project_adapter_cfg,
-            adapter=adapter,
+            with_adapter=with_adapter,
+            adapter_cfg=adapter_cfg,
+            hamilton_adapters=hamilton_adapters,
         )
 
         config = config or self.pipeline_cfg.run.config
@@ -385,12 +376,11 @@ class PipelineRunner:
         final_vars: list[str] | None = None,
         config: dict | None = None,
         cache: dict | None = None,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+        executor: str | dict | ExecutorConfig | None = None,
+        with_adapter: dict | WithAdapterConfig | None = None,
+        adapter_cfg: dict | PipelineAdapterConfig | None = None,
         retry: dict | RetryConfig | None = None,
-        adapter: dict[str, Any] | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
     ) -> dict[str, Any]:
@@ -401,7 +391,7 @@ class PipelineRunner:
             final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
             config (dict | None, optional): The config for the hamilton driver. Defaults to None.
             cache (dict | None, optional): The cache configuration. Defaults to None.
-            executor_cfg (str | dict | ExecutorConfig | None, optional): The executor to use.
+            executor (str | dict | ExecutorConfig | None, optional): The executor to use.
                 Overrides the executor settings in the pipeline config. Defaults to None.
             with_adapter_cfg (dict | WithAdapterConfig | None, optional): The adapter configuration.
                 Overrides the with_adapter settings in the pipeline config. Defaults to None.
@@ -423,11 +413,11 @@ class PipelineRunner:
         if log_level or self.pipeline_cfg.run.log_level:
             setup_logging(level=log_level or self.pipeline_cfg.run.log_level)
 
-        logger.info(f"Starting pipeline {self.project_cfg.name}.{self.name}")
+        logger.info(f"Starting pipeline {self.project_name}.{self.name}")
 
         final_vars = final_vars or self.pipeline_cfg.run.final_vars
         inputs = {
-            **(self.pipeline_cfg.run.inputs.to_ or {}),
+            **(self.pipeline_cfg.run.inputs or {}),
             **(inputs or {}),
         }  # <-- inputs override and/or extend config inputs
 
@@ -450,11 +440,10 @@ class PipelineRunner:
                 dr, shutdown = self._get_driver(
                     config=config,
                     cache=cache,
-                    executor_cfg=executor_cfg,
-                    with_adapter_cfg=with_adapter_cfg,
-                    pipeline_adapter_cfg=pipeline_adapter_cfg,
-                    project_adapter_cfg=project_adapter_cfg,
-                    adapter=adapter,
+                    executor=executor,
+                    with_adapter=with_adapter,
+                    adapter_cfg=adapter_cfg,
+                    hamilton_adapters=hamilton_adapters,
                     reload=reload,
                 )
 
@@ -462,7 +451,7 @@ class PipelineRunner:
                 self.end_time = dt.datetime.now()
                 self.execution_time = self.end_time - self.start_time
                 logger.success(
-                    f"Finished: Pipeline {self.project_cfg.name}.{self.name} executed in {humanize.naturaldelta(self.execution_time)}"
+                    f"Finished: Pipeline {self.project_name}.{self.name} executed in {humanize.naturaldelta(self.execution_time)}"
                 )
 
                 if shutdown is not None:
@@ -479,11 +468,11 @@ class PipelineRunner:
                     or isinstance(e, UnauthorizedException)
                     or isinstance(e, ConnectionError)
                 ):
-                    if with_adapter_cfg["hamilton_tracker"]:
+                    if with_adapter["hamilton_tracker"]:
                         logger.info(
                             "Hamilton Tracker is enabled. Disabling tracker for the next run."
                         )
-                        with_adapter_cfg["hamilton_tracker"] = False
+                        with_adapter["hamilton_tracker"] = False
 
                 attempts += 1
                 last_exception = e
@@ -520,18 +509,17 @@ class PipelineRunner:
 
 
 def run_pipeline(
-    project_cfg: ProjectConfig,
+    project_name: str,
     pipeline_cfg: PipelineConfig,
+    adapter_cfg: dict | AdapterConfig | None = None,
     inputs: dict | None = None,
     final_vars: list[str] | None = None,
     config: dict | None = None,
     cache: dict | None = None,
-    executor_cfg: str | dict | ExecutorConfig | None = None,
-    with_adapter_cfg: dict | WithAdapterConfig | None = None,
-    pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-    project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
+    executor: str | dict | ExecutorConfig | None = None,
+    with_adapter: dict | WithAdapterConfig | None = None,
     retry: dict | RetryConfig | None = None,
-    adapter: dict[str, Any] | None = None,
+    hamilton_adapters: dict[str, Any] | None = None,
     reload: bool = False,
     log_level: str | None = None,
 ) -> dict[str, Any]:
@@ -539,25 +527,24 @@ def run_pipeline(
 
     Args:
 
-        project_cfg (ProjectConfig): The project configuration.
+        project_name (str): The name of the project.
         pipeline_cfg (PipelineConfig): The pipeline configuration.
         inputs (dict | None, optional): The inputs for the pipeline. Defaults to None.
         final_vars (list | None, optional): The final variables for the pipeline. Defaults to None.
         config (dict | None, optional): The config for the hamilton driver. Defaults to None.
         cache (dict | None, optional): The cache configuration. Defaults to None.
-        executor_cfg (str | dict | ExecutorConfig | None, optional): The executor to use.
+        executor (str | dict | ExecutorConfig | None, optional): The executor to use.
             Overrides the executor settings in the pipeline config. Defaults to None.
-        with_adapter_cfg (dict | WithAdapterConfig | None, optional): The adapter configuration.
+        with_adapter (dict | WithAdapterConfig | None, optional): The adapter configuration.
             Overrides the with_adapter settings in the pipeline config. Defaults to None.
-        pipeline_adapter_cfg (dict | PipelineAdapterConfig | None, optional): The pipeline adapter configuration.
+        adapter_cfg (dict | AdapterConfig | None, optional): The adapter configuration for the pipeline.
             Overrides the adapter settings in the pipeline config. Defaults to None.
-        project_adapter_cfg (dict | ProjectAdapterConfig | None, optional): The project adapter configuration.
-            Overrides the adapter settings in the project config. Defaults to None.
-        adapter (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
-        reload (bool, optional): Whether to reload the module. Defaults to False.
-        log_level (str | None, optional): The log level to use. Defaults to None.
         retry (dict | RetryConfig | None, optional): The retry configuration.
             If provided, it overrides the retry settings in the pipeline config.
+        hamilton_adapters (dict[str, Any] | None, optional): Any additional Hamilton adapters can be passed here. Defaults to None.
+        reload (bool, optional): Whether to reload the module. Defaults to False.
+        log_level (str | None, optional): The log level to use. Defaults to None.
+
     Returns:
 
         dict[str, Any]: The result of executing the pipeline.
@@ -566,18 +553,20 @@ def run_pipeline(
         Exception: If the pipeline execution fails after the maximum number of retries.
     """
 
-    with PipelineRunner(project_cfg, pipeline_cfg) as runner:
+    with PipelineRunner(
+        project_name=project_name,
+        adapter_cfg=adapter_cfg,
+        pipeline_cfg=pipeline_cfg,
+    ) as runner:
         return runner.run(
             inputs=inputs,
             final_vars=final_vars,
             config=config,
             cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
+            executor=executor,
+            with_adapter=with_adapter,
             retry=retry,
-            adapter=adapter,
+            hamilton_adapters=hamilton_adapters,
             reload=reload,
             log_level=log_level,
         )

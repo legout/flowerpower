@@ -48,6 +48,29 @@ class FlowerPowerProject:
             else None
         )
 
+    def add_job(self, name: str, inputs: dict | None = None, **kwargs):
+        return self.job_queue_manager.enqueue_pipeline(
+            pipeline_name=name, inputs=inputs, **kwargs
+        )
+
+    def schedule(
+        self,
+        name: str,
+        cron: str | None = None,
+        interval: str | None = None,
+        date: str | None = None,
+        inputs: dict | None = None,
+        **kwargs,
+    ):
+        return self.job_queue_manager.schedule_pipeline(
+            pipeline_name=name,
+            cron=cron,
+            interval=interval,
+            date=date,
+            inputs=inputs,
+            **kwargs,
+        )
+
     @staticmethod
     def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):
         if fs is None:
@@ -138,6 +161,7 @@ class FlowerPowerProject:
                 storage_options=storage_options,
                 fs=fs,
                 log_level=log_level,
+                pipeline_manager=pipeline_manager,
             )
             return cls(
                 pipeline_manager=pipeline_manager,

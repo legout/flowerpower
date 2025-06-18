@@ -26,8 +26,8 @@ from ..utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
 if TYPE_CHECKING:
     # Keep this for type hinting if needed elsewhere, though Config is imported directly now
     pass
-
 from enum import Enum
+from types import TracebackType
 
 
 class HookType(str, Enum):
@@ -52,7 +52,7 @@ class PipelineRegistry:
 
     def __init__(
         self,
-        project_cfg: ProjectConfig,
+        project_name: str,
         fs: AbstractFileSystem,
         cfg_dir: str,
         pipelines_dir: str,
@@ -61,16 +61,46 @@ class PipelineRegistry:
         Initializes the PipelineRegistry.
 
         Args:
-            project_cfg: The project configuration object.
             fs: The filesystem instance.
             cfg_dir: The configuration directory path.
             pipelines_dir: The pipelines directory path.
         """
-        self.project_cfg = project_cfg
+        self._project_name = project_name
         self._fs = fs
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir
         self._console = Console()
+
+    def __enter__(self) -> "PipelineRegistry":
+        """Enter the context manager.
+
+        Enables use of the manager in a with statement for automatic resource cleanup.
+
+        Returns:
+            PipelineRegistry: Self for use in context manager.
+
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit the context manager.
+
+        Handles cleanup of resources when exiting a with statement.
+
+        Args:
+            exc_type: Type of exception that occurred, if any
+            exc_val: Exception instance that occurred, if any
+            exc_tb: Traceback of exception that occurred, if any
+
+
+        """
+        # Add cleanup code if needed
+        pass
 
     # --- Methods moved from PipelineManager ---
     def new(self, name: str, overwrite: bool = False):
@@ -109,7 +139,7 @@ class PipelineRegistry:
                     self._fs.rm(path)
                 else:
                     raise ValueError(
-                        f"Pipeline {self.project_cfg.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
+                        f"Pipeline {self._project_name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
                     )
 
         check_and_handle(pipeline_file)
@@ -133,7 +163,7 @@ class PipelineRegistry:
         new_pipeline_cfg.save(fs=self._fs)  # Save only the pipeline part
 
         rich.print(
-            f"🔧 Created new pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue]"
+            f"🔧 Created new pipeline [bold blue]{self._project_name}.{name}[/bold blue]"
         )
 
     def delete(self, name: str, cfg: bool = True, module: bool = False):
@@ -222,6 +252,7 @@ class PipelineRegistry:
 
     def get_summary(
         self,
+        project_cfg: ProjectConfig | None = None,
         name: str | None = None,
         cfg: bool = True,
         code: bool = True,
@@ -254,6 +285,11 @@ class PipelineRegistry:
 
         if project:
             # Use self.project_cfg directly
+            if project_cfg is None:
+                raise ValueError(
+                    "Project configuration is required to show project summary.",
+                    "Either provide a ProjectConfig instance or set project=False.",
+                )
             summary["project"] = self.project_cfg.to_dict()
 
         for name in pipeline_names:
@@ -284,6 +320,7 @@ class PipelineRegistry:
 
     def show_summary(
         self,
+        project_cfg: ProjectConfig | None = None,
         name: str | None = None,
         cfg: bool = True,
         code: bool = True,
@@ -313,7 +350,9 @@ class PipelineRegistry:
             ```
         """
 
-        summary = self.get_summary(name=name, cfg=cfg, code=code, project=project)
+        summary = self.get_summary(
+            project_cfg=project_cfg, name=name, cfg=cfg, code=code, project=project
+        )
         project_summary = summary.get("project", {})
         pipeline_summary = summary["pipelines"]
 
@@ -449,12 +488,14 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append({
-                "name": name,
-                "path": path,
-                "mod_time": mod_time,
-                "size": size,
-            })
+            pipeline_info.append(
+                {
+                    "name": name,
+                    "path": path,
+                    "mod_time": mod_time,
+                    "size": size,
+                }
+            )
 
         if show:
             table = Table(title="Available Pipelines")

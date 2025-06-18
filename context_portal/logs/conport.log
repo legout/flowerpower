@@ -1,0 +1,111 @@
+2025-06-18 10:54:31,032 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 10:54:31,032 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 10:54:31,032 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 10:54:31,032 - INFO - context_portal_mcp.db.database - Alembic.ini not found. Creating at /Users/z0043ddz/coding/libs/flowerpower/context_portal/alembic.ini
+2025-06-18 10:54:31,033 - INFO - context_portal_mcp.db.database - Alembic env.py not found. Creating at /Users/z0043ddz/coding/libs/flowerpower/context_portal/alembic/env.py
+2025-06-18 10:54:31,033 - INFO - context_portal_mcp.db.database - Initial schema not found. Creating at /Users/z0043ddz/coding/libs/flowerpower/context_portal/alembic/versions/2025_06_17_initial_schema.py
+2025-06-18 10:54:31,033 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 10:54:31,050 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 10:54:31,053 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 10:54:31,060 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 10:54:31,063 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 10:54:31,064 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 10:55:26,216 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 10:55:26,217 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 10:55:26,217 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 10:55:26,217 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 10:55:26,220 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 10:55:26,223 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 10:55:26,229 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 10:55:26,232 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 10:55:26,233 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:09:52,089 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:09:52,089 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:09:52,089 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:09:52,089 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:09:52,092 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:09:52,095 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:09:52,098 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:09:52,100 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:09:52,101 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:10:40,412 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:10:40,412 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:10:40,412 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:10:40,412 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:10:40,414 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:10:40,417 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:10:40,419 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:10:40,421 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:10:40,422 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:10:49,059 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:10:49,059 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:10:49,059 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:10:49,059 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:10:49,062 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:10:49,064 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:10:49,066 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:10:49,067 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:10:49,068 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:17:55,974 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:17:55,974 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:17:55,974 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:17:55,974 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:17:55,977 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:17:55,980 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:17:55,984 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:17:55,999 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:17:56,000 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:30:31,101 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:30:31,101 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:30:31,101 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:30:31,101 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:30:31,104 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:30:31,106 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:30:31,110 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:30:31,112 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:30:31,113 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:40:41,113 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:40:41,113 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:40:41,113 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:40:41,113 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:40:41,115 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:40:41,118 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:40:41,120 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:40:41,122 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:40:41,123 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:41:04,838 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:41:04,839 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:41:04,839 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:41:04,839 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:41:04,841 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:41:04,843 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:41:04,845 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:41:04,847 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:41:04,848 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:41:32,220 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:41:32,220 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:41:32,220 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:41:32,220 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:41:32,223 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:41:32,226 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:41:32,228 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:41:32,229 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:41:32,230 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 12:41:58,540 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 12:41:58,541 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 12:41:58,541 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 12:41:58,541 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 12:41:58,543 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 12:41:58,546 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 12:41:58,816 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 12:41:59,600 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 12:41:59,601 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-18 17:15:03,211 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/flowerpower/context_portal/logs/conport.log
+2025-06-18 17:15:03,211 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/flowerpower', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-18 17:15:03,211 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/flowerpower
+2025-06-18 17:15:03,212 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/flowerpower'. Database directory will be created on first actual DB use.
+2025-06-18 17:15:03,227 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-18 17:15:03,229 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-18 17:15:03,232 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-18 17:15:03,236 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-18 17:15:03,237 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest

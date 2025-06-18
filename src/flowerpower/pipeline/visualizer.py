@@ -1,20 +1,20 @@
 import posixpath
-from typing import Any
 
 from hamilton import driver
 from rich import print
 
 # Import necessary config types and utility functions
-from ..cfg import PipelineConfig, ProjectConfig
+from ..cfg import PipelineConfig
 from ..fs import AbstractFileSystem
 from ..utils.misc import view_img
-from .pipeline import load_module  # Import module loading utility
+from .base import load_module  # Import module loading utility
 
+from types import TracebackType
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
 
-    def __init__(self, project_cfg: ProjectConfig, fs: AbstractFileSystem):
+    def __init__(self, project_name: str, base_dir: str, fs: AbstractFileSystem):
         """
         Initializes the PipelineVisualizer.
 
@@ -22,9 +22,43 @@ class PipelineVisualizer:
             project_cfg: The project configuration object.
             fs: The filesystem instance.
         """
-        self.project_cfg = project_cfg
+        self._project_name = project_name
+        self._base_dir = base_dir
         self._fs = fs
         # Attributes like fs and base_dir are accessed via self.project_cfg
+
+
+    def __enter__(self) -> "PipelineVisualizer":
+        """Enter the context manager.
+
+        Enables use of the manager in a with statement for automatic resource cleanup.
+
+        Returns:
+            PipelineVisualizer: Self for use in context manager.
+
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit the context manager.
+
+        Handles cleanup of resources when exiting a with statement.
+
+        Args:
+            exc_type: Type of exception that occurred, if any
+            exc_val: Exception instance that occurred, if any
+            exc_tb: Traceback of exception that occurred, if any
+
+
+        """
+        # Add cleanup code if needed
+        pass
+
 
     def _display_all_function(self, name: str, reload: bool = False):
         """Internal helper to load module/config and get the Hamilton DAG object.
@@ -82,13 +116,13 @@ class PipelineVisualizer:
 
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
-            >>> visualizer = PipelineVisualizer(project_cfg, fs)
+            >>> visualizer = PipelineVisualizer(name, base_dir, fs)
             >>> visualizer.save_dag(name="example_pipeline", format="png")
         """
         dag = self._display_all_function(name=name, reload=reload)
 
         # Use project_cfg attributes for path and filesystem access
-        graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
+        graph_dir = posixpath.join(self._base_dir, "graphs")
         self._fs.makedirs(graph_dir, exist_ok=True)
 
         output_path = posixpath.join(
@@ -104,7 +138,7 @@ class PipelineVisualizer:
             view=False,
         )
         print(
-            f"📊 Saved graph for [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{output_path_with_ext}[/green]"
+            f"📊 Saved graph for [bold blue]{self._project_name}.{name}[/bold blue] to [green]{output_path_with_ext}[/green]"
         )
 
     def show_dag(
@@ -131,7 +165,7 @@ class PipelineVisualizer:
 
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
-            >>> visualizer = PipelineVisualizer(project_cfg, fs)
+            >>> visualizer = PipelineVisualizer(name, base_dir, fs)
             >>> visualizer.show_dag(name="example_pipeline", format="png")
         """
         dag = self._display_all_function(name=name, reload=reload)

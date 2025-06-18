@@ -6,6 +6,7 @@ Manages the import and export of pipelines.
 """
 
 import posixpath
+from types import TracebackType
 
 from loguru import logger
 from rich.console import Console
@@ -15,7 +16,6 @@ from ..fs.base import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
                        get_filesystem)
 from ..settings import LOG_LEVEL
 from ..utils.logging import setup_logging
-from .registry import PipelineRegistry
 
 console = Console()
 
@@ -27,7 +27,10 @@ class PipelineIOManager:
 
     def __init__(
         self,
-        registry: PipelineRegistry,
+        project_name: str,
+        fs: AbstractFileSystem,
+        cfg_dir: str,
+        pipelines_dir: str,
     ):
         """
         Initializes the PipelineIOManager.
@@ -35,11 +38,40 @@ class PipelineIOManager:
         Args:
             registry: The pipeline registry instance.
         """
-        self.project_cfg = registry.project_cfg
-        self.registry = registry
-        self._fs = registry._fs
-        self._cfg_dir = registry._cfg_dir
-        self._pipelines_dir = registry._pipelines_dir
+        self._project_name = project_name
+        self._fs = fs
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
+
+    def __enter__(self) -> "PipelineIOManager":
+        """Enter the context manager.
+
+        Enables use of the manager in a with statement for automatic resource cleanup.
+
+        Returns:
+            Pipeline: Self for use in context manager.
+
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit the context manager.
+
+        Handles cleanup of resources when exiting a with statement.
+
+        Args:
+            exc_type: Type of exception that occurred, if any
+            exc_val: Exception instance that occurred, if any
+            exc_tb: Traceback of exception that occurred, if any"})
+
+        Raises:
+            RuntimeError: If an error occurs during pipeline execution.
+        """
 
     def _sync_filesystem(
         self,
@@ -86,19 +118,6 @@ class PipelineIOManager:
         logger.debug(f"Source filesystem: {src_fs}")
         dest_fs = _get_filesystem(dest_base_dir, dest_fs, dest_storage_options)
         logger.debug(f"Destination filesystem: {dest_fs}")
-        # try:
-        #     src_mapper = src_fs.get_mapper(check=True, create=True)
-        # except NotImplementedError:
-        # try:
-        #     src_mapper = src_fs.get_mapper(check=True, create=False)
-        # except NotImplementedError:
-        #     src_mapper = src_fs.get_mapper(check=False, create=False)
-        # try:
-        #     dest_mapper = dest_fs.get_mapper(check=True, create=False)
-        # except NotImplementedError:
-        #     raise NotImplementedError(
-        #         f"The destination filesystem {dest_fs }does not support get_mapper."
-        #     )
 
         if files is None:
             files = src_fs.glob("**/*.py")
@@ -171,9 +190,9 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
 
-        # Use project_cfg.name directly
+        # Use self._project_name directly
         console.print(
-            f"✅ Imported pipeline [bold blue]{name}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
+            f"✅ Imported pipeline [bold blue]{name}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self._project_name}[/bold blue]"
         )
 
     def import_many(
@@ -230,7 +249,7 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
         console.print(
-            f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
+            f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self._project_name}[/bold blue]"
         )
 
     def import_all(
@@ -271,7 +290,7 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
         console.print(
-            f"✅ Imported all pipelines from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
+            f"✅ Imported all pipelines from [green]{src_base_dir}[/green] to [bold blue]{self._project_name}[/bold blue]"
         )
 
     def export_pipeline(
@@ -325,7 +344,7 @@ class PipelineIOManager:
         )
 
         console.print(
-            f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{dest_base_dir}[/green]"
+            f"✅ Exported pipeline [bold blue]{self._project_name}.{name}[/bold blue] to [green]{dest_base_dir}[/green]"
         )
 
     def export_many(
@@ -384,7 +403,7 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
         console.print(
-            f"✅ Exported pipelines [bold blue]{', '.join([self.project_cfg.name + '.' + name for name in names])}[/bold blue] to [green]{dest_base_dir}[/green]"
+            f"✅ Exported pipelines [bold blue]{', '.join([self._project_name + '.' + name for name in names])}[/bold blue] to [green]{dest_base_dir}[/green]"
         )
 
     def export_all(
@@ -426,5 +445,5 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
         console.print(
-            f"✅ Exported all pipelines from [bold blue]{self.project_cfg.name}[/bold blue] to [green]{dest_base_dir}[/green]"
+            f"✅ Exported all pipelines from [bold blue]{self._project_name}[/bold blue] to [green]{dest_base_dir}[/green]"
         )

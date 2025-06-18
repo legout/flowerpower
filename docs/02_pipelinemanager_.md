@@ -9,8 +9,6 @@ But knowing *what* pipelines exist is only half the story. How do we actually *r
 Imagine you have your list of pipelines from the librarian (`PipelineRegistry`). Now you want to:
 
 *   Run the `daily_report` pipeline right now.
-*   Run the `data_cleansing` pipeline, but as a background task so you can continue working.
-*   Schedule the `user_signup_processor` to run every hour.
 *   See a visual map of how the `data_cleansing` pipeline works.
 *   Copy a pipeline from another project into this one.
 
@@ -78,31 +76,6 @@ Results: {'report_path': '/path/to/project/data/output/daily_report_2023-10-27.c
 ## Other Things the Manager Can Do
 
 The `PipelineManager` is versatile. Here are other common tasks you'll use it for (we'll explore the components it uses for these in later chapters):
-
-**Running as a Background Job:**
-
-Sometimes pipelines take a long time. You can ask the manager to run it in the background using the [JobQueueManager / PipelineJobQueue](08_jobqueuemanager___pipelinejobqueue_.md).
-
-```python
-# Add the pipeline to the background job queue
-job_id = manager.add_job(name="data_cleansing", inputs={"source": "raw_data.csv"})
-print(f"Data cleansing added to queue with ID: {job_id}")
-# Your script can continue running while the job processes
-```
-
-*Explanation:* `add_job` sends the pipeline task to a separate worker process. The manager relies on the [JobQueueManager / PipelineJobQueue](08_jobqueuemanager___pipelinejobqueue_.md) for this.
-
-**Scheduling a Pipeline:**
-
-Need the report to run every morning at 8 AM?
-
-```python
-# Schedule 'daily_report' using a cron string
-schedule_id = manager.schedule(name="daily_report", cron="0 8 * * *")
-print(f"Daily report scheduled with ID: {schedule_id}")
-```
-
-*Explanation:* `schedule` sets up a recurring task using the [JobQueueManager / PipelineJobQueue](08_jobqueuemanager___pipelinejobqueue_.md).
 
 **Visualizing a Pipeline:**
 
@@ -236,7 +209,6 @@ class PipelineManager:
 You've now met the `PipelineManager`, the central "project manager" for your `flowerpower` pipelines. It's the main component you'll interact with to:
 
 *   Run pipelines immediately (`run`).
-*   Run pipelines in the background or schedule them (`add_job`, `schedule`).
 *   Visualize pipeline structures (`show_dag`, `save_dag`).
 *   Manage the pipeline inventory (using the [PipelineRegistry](01_pipelineregistry_.md)).
 *   Import and export pipelines.

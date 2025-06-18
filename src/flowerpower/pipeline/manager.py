@@ -1,13 +1,10 @@
-import datetime as dt
 import os
 import posixpath
 import sys
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, TypeVar, Union
-from uuid import UUID
 
-import duration_parser
 from loguru import logger
 from munch import Munch
 
@@ -19,15 +16,14 @@ except ImportError:
 from .. import settings
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.callback import run_with_callback
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
-from .job_queue import PipelineJobQueue
+from .pipeline import Pipeline
 from .registry import HookType, PipelineRegistry
-from .runner import run_pipeline
 from .visualizer import PipelineVisualizer
 
 setup_logging(level=settings.LOG_LEVEL)
@@ -42,13 +38,11 @@ class PipelineManager:
     - Configuration management and loading
     - Pipeline creation, deletion, and discovery
     - Pipeline execution via PipelineRunner
-    - Job scheduling via PipelineScheduler
     - Visualization via PipelineVisualizer
     - Import/export operations via PipelineIOManager
 
     Attributes:
         registry (PipelineRegistry): Handles pipeline registration and discovery
-        scheduler (PipelineScheduler): Manages job scheduling and execution
         visualizer (PipelineVisualizer): Handles pipeline visualization
         io (PipelineIOManager): Manages pipeline import/export operations
         project_cfg (ProjectConfig): Current project configuration
@@ -76,9 +70,8 @@ class PipelineManager:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
-        cfg_dir: str | None = settings.CONFIG_DIR,
-        pipelines_dir: str | None = settings.PIPELINES_DIR,
-        job_queue_type: str | None = None,
+        cfg_dir: str | None = None,
+        pipelines_dir: str | None = None,
         log_level: str | None = None,
     ) -> None:
         """Initialize the PipelineManager.
@@ -98,7 +91,7 @@ class PipelineManager:
             pipelines_dir: Override default pipelines directory name ('pipelines').
                 Example: "flows" or "dags".
             job_queue_type: Override worker type from project config/settings.
-                Valid values: "rq", "apscheduler", or "huey".
+                Valid values: "rq".
             log_level: Set logging level for the manager.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
@@ -123,10 +116,9 @@ class PipelineManager:
             ... )
         """
         if log_level:
-            setup_logging(level=log_level)
+            setup_logging(level=log_level or settings.LOG_LEVEL)
 
         self._base_dir = base_dir or str(Path.cwd())
-        # self._storage_options = storage_options
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
@@ -152,13 +144,12 @@ class PipelineManager:
         )
 
         # Store overrides for ProjectConfig loading
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
+        self._cfg_dir = cfg_dir or settings.CONFIG_DIR
+        self._pipelines_dir = pipelines_dir or settings.PIPELINES_DIR
 
         self._load_project_cfg(
-            reload=True, job_queue_type=job_queue_type
+            reload=True,
         )  # Load project config
-        self._job_queue_type = job_queue_type or self.project_cfg.job_queue.type
 
         # Ensure essential directories exist (using paths from loaded project_cfg)
         try:
@@ -168,34 +159,7 @@ class PipelineManager:
             logger.error(f"Error creating essential directories: {e}")
             # Consider raising an error here depending on desired behavior
 
-        # Ensure pipeline modules can be imported
-        self._add_modules_path()
-
-        # Instantiate components using the loaded project config
-        self.registry = PipelineRegistry(
-            project_cfg=self.project_cfg,
-            fs=self._fs,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
-        )
-        pipeline_job_queue = PipelineJobQueue(
-            project_cfg=self.project_cfg,
-            fs=self._fs,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
-        )
-        if pipeline_job_queue.job_queue is None:
-            logger.warning(
-                "Job queue backend is unavailable. Some features may not work."
-            )
-            self.jqm = None
-        else:
-            self.jqm = pipeline_job_queue
-        self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
         self.io = PipelineIOManager(registry=self.registry)
-
-        self._current_pipeline_name: str | None = None
-        self._pipeline_cfg: PipelineConfig | None = None
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -241,85 +205,7 @@ class PipelineManager:
         # Add cleanup code if needed
         pass
 
-    def _get_run_func(
-        self,
-        name: str,
-        reload: bool = False,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-    ) -> Callable:
-        """Create a PipelineRunner instance and return its run method.
-
-        This internal helper method ensures that each job gets a fresh runner
-        with the correct configuration state.
-
-        Args:
-            name: Name of the pipeline to create runner for
-            reload: Whether to reload pipeline configuration
-
-        Returns:
-            Callable: Bound run method from a fresh PipelineRunner instance
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> run_func = manager._get_run_func_for_job("data_pipeline")
-            >>> result = run_func(inputs={"date": "2025-04-28"})
-        """
-        if (
-            name == self._current_pipeline_name and not reload
-            # and hasattr(self, "_runner")
-        ):
-            # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=self._pipeline_cfg)
-            run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
-                run_pipeline
-            )
-            return run_func
-
-        _ = self.load_pipeline(name=name, reload=reload)
-        # run_pipeline_ = partial(run_pipeline, project_cfg=self.project_cfg, pipeline_cfg=pipeline_cfg)
-
-        run_func = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            run_pipeline
-        )
-        return run_func
-
-    def _add_modules_path(self) -> None:
-        """Add pipeline module paths to Python path.
-
-        This internal method ensures that pipeline modules can be imported by:
-        1. Syncing filesystem cache if needed
-        2. Adding project root to Python path
-        3. Adding pipelines directory to Python path
-
-        Raises:
-            RuntimeError: If filesystem sync fails or paths are invalid
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> manager._add_modules_path()
-            >>> import my_pipeline  # Now importable
-        """
-        if self._fs.is_cache_fs:
-            self._fs.sync_cache()
-            project_path = self._fs._mapper.directory
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-        else:
-            # Use the base directory directly if not using cache
-            project_path = self._fs.path
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-        if project_path not in sys.path:
-            sys.path.insert(0, project_path)
-
-        if modules_path not in sys.path:
-            sys.path.insert(0, modules_path)
-
-    def _load_project_cfg(
-        self, reload: bool = False, job_queue_type: str | None = None
-    ) -> ProjectConfig:
+    def _load_project_cfg(self, reload: bool = False) -> ProjectConfig:
         """Load or reload the project configuration.
 
         This internal method handles loading project-wide settings from the config
@@ -351,65 +237,10 @@ class PipelineManager:
         # Pass overrides to ProjectConfig.load
         self._project_cfg = ProjectConfig.load(
             base_dir=self._base_dir,
-            job_queue_type=job_queue_type,
-            fs=self._fs,  # Pass pre-configured fs if provided
-            storage_options=self._storage_options,
+            fs=self._fs,
         )
         # Update internal fs reference in case ProjectConfig loaded/created one
         return self._project_cfg
-
-    def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
-        """Load or reload configuration for a specific pipeline.
-
-        This internal method handles loading pipeline-specific settings from the config
-        directory and maintaining the configuration cache state.
-
-        Args:
-            name: Name of the pipeline whose configuration to load
-            reload: Force reload configuration even if already loaded.
-                When False, returns cached config if available.
-
-        Returns:
-            PipelineConfig: The loaded pipeline configuration object
-
-        Raises:
-            FileNotFoundError: If pipeline configuration file doesn't exist
-            ValueError: If configuration format is invalid
-            RuntimeError: If filesystem operations fail during loading
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> cfg = manager._load_pipeline_cfg("data_pipeline", reload=True)
-            >>> print(cfg.run.executor.type)
-            'async'
-        """
-        if name == self._current_pipeline_name and not reload:
-            return self._pipeline_cfg
-
-        self._current_pipeline_name = name
-        self._pipeline_cfg = PipelineConfig.load(
-            base_dir=self._base_dir,
-            name=name,
-            fs=self._fs,
-            storage_options=self._storage_options,
-        )
-        return self._pipeline_cfg
-
-    @property
-    def current_pipeline_name(self) -> str:
-        """Get the name of the currently loaded pipeline.
-
-        Returns:
-            str: Name of the currently loaded pipeline, or empty string if none loaded.
-
-        Example:
-            >>> manager = PipelineManager()
-            >>> manager._load_pipeline_cfg("example_pipeline")
-            >>> print(manager.current_pipeline_name)
-            'example_pipeline'
-        """
-        return self._current_pipeline_name
 
     @property
     def project_cfg(self) -> ProjectConfig:
@@ -433,50 +264,22 @@ class PipelineManager:
             self._load_project_cfg()
         return self._project_cfg
 
-    @property
-    def pipeline_cfg(self) -> PipelineConfig:
-        """Get the configuration for the currently loaded pipeline.
-
-        Returns:
-            PipelineConfig: Pipeline-specific configuration object.
-
-        Warns:
-            UserWarning: If no pipeline is currently loaded.
-
-        Example:
-            >>> manager = PipelineManager()
-            >>> manager._load_pipeline_cfg("example_pipeline")
-            >>> cfg = manager.pipeline_cfg
-            >>> print(cfg.run.executor)
-            'local'
-        """
-        if not hasattr(self, "_pipeline_cfg"):
-            logger.warning("Pipeline config not loaded.")
-            return
-        return self._pipeline_cfg
-
-    # --- Core Execution Method ---
-
     def run(
         self,
         name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: dict | None = None,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
+        inputs: dict[str, Any] | None = None,
+        final_vars: set[str] | None = None,
+        run_config: dict[str, Any] | None = None,
+        cache: dict[str, Any] | None = None,
+        executor: str | dict[str, Any] | ExecutorConfig | None = None,
+        with_adapter: dict[str, Any] | WithAdapterConfig | None = None,
+        retry: dict[str, Any] | RetryConfig | None = None,
+        adapter_cfg: dict[str, Any] | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         log_level: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple | list | None = None,
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        reload: bool = False,
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -491,25 +294,21 @@ class PipelineManager:
             config (dict | None): Configuration for Hamilton pipeline executor.
                 Example: {"model": "LogisticRegression"}
             cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
-            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
+            executor (str | dict | ExecutorConfig | None): Execution configuration, can be:
                 - str: Executor name, e.g. "threadpool", "local"
                 - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
                 - ExecutorConfig: Structured config object
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
-                Example: {"opentelemetry": True, "tracker": False}
-             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
-                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
-                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
-            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+            with_adapter (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
+                Example: {"opentelemetry": True, "hamilton_tracker": False}
+            adapter_cfg (dict | AdapterConfig | None): Adapter settings.
+                Example: {"hamilton_tracker": {"project_id": "123", "tags": {"env": "prod"}},
+                        "opentelemetry": {"host": "http://localhost:4317"}}
+            hamilton_adapters (dict[str, Any] | None): Custom adapter instance for pipeline
                 Example: {"ray_graph_adapter": RayGraphAdapter()}
             reload (bool): Force reload of pipeline configuration.
             log_level (str | None): Logging level for the execution. Default None uses project config.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-            max_retries (int): Maximum number of retries for execution.
-            retry_delay (float): Delay between retries in seconds.
-            jitter_factor (float): Random jitter factor to add to retry delay
-            retry_exceptions (tuple): Exceptions that trigger a retry.
+            retry (dict | RetryConfig | None): Retry configuration for execution failures.
             on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
             on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
 
@@ -538,37 +337,32 @@ class PipelineManager:
             ...         "model_params": {"n_estimators": 100}
             ...     },
             ...     final_vars=["model", "metrics"],
-            ...     executor_cfg={"type": "threadpool", "max_workers": 4},
-            ...     with_adapter_cfg={"tracker": True},
+            ...     executor={"type": "threadpool", "max_workers": 4},
+            ...     with_adapter={"tracker": True},
             ...     reload=True
             ... )
         """
-        # pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func(
-            name=name, reload=reload, on_success=on_success, on_failure=on_failure
-        )
-
-        res = run_func(
-            project_cfg=self._project_cfg,
-            pipeline_cfg=self._pipeline_cfg,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            # reload=reload,  # Runner handles module reload if needed
+        with Pipeline(
+            name=name,
+            base_dir=self._base_dir,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
             log_level=log_level,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-        )
-
-        return res
+        ) as pipeline:
+            # Load pipeline configuration
+            return pipeline.run(
+                reload=reload,
+                inputs=inputs,
+                final_vars=final_vars,
+                run_config=run_config,
+                cache=cache,
+                executor=executor,
+                with_adapter=with_adapter,
+                retry=retry,
+                adapter_cfg=adapter_cfg,
+                hamilton_adapters=hamilton_adapters,
+            )
 
     # --- Delegated Methods ---
 
@@ -598,7 +392,13 @@ class PipelineManager:
             >>> # Overwrite existing pipeline
             >>> manager.new("data_transformation", overwrite=True)
         """
-        self.registry.new(name=name, overwrite=overwrite)
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            registry.new(name=name, overwrite=overwrite)
 
     def delete(self, name: str, cfg: bool = True, module: bool = False) -> None:
         """
@@ -625,7 +425,13 @@ class PipelineManager:
             >>> # Delete both config and module
             >>> manager.delete("test_pipeline", module=True)
         """
-        self.registry.delete(name=name, cfg=cfg, module=module)
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            registry.delete(name=name, cfg=cfg, module=module)
 
     def get_summary(
         self,
@@ -665,7 +471,20 @@ class PipelineManager:
             ...     project=False
             ... )
         """
-        return self.registry.get_summary(name=name, cfg=cfg, code=code, project=project)
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            # Ensure registry is initialized with current project settings
+            return registry.get_summary(
+                project_cfg=self.project_cfg,
+                name=name,
+                cfg=cfg,
+                code=code,
+                project=project,
+            )
 
     def show_summary(
         self,
@@ -695,14 +514,21 @@ class PipelineManager:
             >>> pm = PipelineManager()
             >>> pm.show_summary()
         """
-        return self.registry.show_summary(
-            name=name,
-            cfg=cfg,
-            code=code,
-            project=project,
-            to_html=to_html,
-            to_svg=to_svg,
-        )
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            return registry.show_summary(
+                project_cfg=self.project_cfg,
+                name=name,
+                cfg=cfg,
+                code=code,
+                project=project,
+                to_html=to_html,
+                to_svg=to_svg,
+            )
 
     def show_pipelines(self) -> None:
         """Display all available pipelines in a formatted table.
@@ -717,7 +543,13 @@ class PipelineManager:
             >>> manager.show_pipelines()
 
         """
-        self.registry.show_pipelines()
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            registry.show_pipelines()
 
     def list_pipelines(self) -> list[str]:
         """Get list of all available pipeline names.
@@ -733,7 +565,13 @@ class PipelineManager:
             >>> print(pipelines)
             ['data_ingestion', 'model_training', 'reporting']
         """
-        return self.registry.list_pipelines()
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            return registry.list_pipelines()
 
     @property
     def pipelines(self) -> list[str]:
@@ -751,7 +589,13 @@ class PipelineManager:
             >>> print(manager.pipelines)
             ['data_ingestion', 'model_training', 'reporting']
         """
-        return self.registry.pipelines
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            return registry.pipelines
 
     @property
     def summary(self) -> dict[str, dict | str]:
@@ -771,7 +615,13 @@ class PipelineManager:
             data_pipeline: batch
             ml_pipeline: streaming
         """
-        return self.registry.summary
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            return registry.summary
 
     def add_hook(
         self,
@@ -805,12 +655,18 @@ class PipelineManager:
             ...     function_name="my_pre_execute_function"
             ... )
         """
-        self.registry.add_hook(
-            name=name,
-            type=type,
-            to=to,
-            function_name=function_name,
-        )
+        with PipelineRegistry(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as registry:
+            registry.add_hook(
+                name=name,
+                type=type,
+                to=to,
+                function_name=function_name,
+            )
 
     # IO Delegations
     def import_pipeline(
@@ -864,13 +720,19 @@ class PipelineManager:
             ...     src_fs=s3
             ... )
         """
-        return self.io.import_pipeline(
-            name=name,
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.import_pipeline(
+                name=name,
+                src_base_dir=src_base_dir,
+                src_fs=src_fs,
+                src_storage_options=src_storage_options,
+                overwrite=overwrite,
+            )
 
     def import_many(
         self,
@@ -916,13 +778,19 @@ class PipelineManager:
             ...     }
             ... )
         """
-        return self.io.import_many(
-            names=names,
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.import_many(
+                names=names,
+                src_base_dir=src_base_dir,
+                src_fs=src_fs,
+                src_storage_options=src_storage_options,
+                overwrite=overwrite,
+            )
 
     def import_all(
         self,
@@ -966,12 +834,18 @@ class PipelineManager:
             ...     }
             ... )
         """
-        return self.io.import_all(
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.import_all(
+                src_base_dir=src_base_dir,
+                src_fs=src_fs,
+                src_storage_options=src_storage_options,
+                overwrite=overwrite,
+            )
 
     def export_pipeline(
         self,
@@ -1024,13 +898,19 @@ class PipelineManager:
             ...     dest_fs=gcs
             ... )
         """
-        return self.io.export_pipeline(
-            name=name,
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.export_pipeline(
+                name=name,
+                dest_base_dir=dest_base_dir,
+                dest_fs=dest_fs,
+                dest_storage_options=dest_storage_options,
+                overwrite=overwrite,
+            )
 
     def export_many(
         self,
@@ -1079,13 +959,19 @@ class PipelineManager:
             ...     }
             ... )
         """
-        return self.io.export_many(
-            names=names,
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.export_many(
+                names=names,
+                dest_base_dir=dest_base_dir,
+                dest_fs=dest_fs,
+                dest_storage_options=dest_storage_options,
+                overwrite=overwrite,
+            )
 
     def export_all(
         self,
@@ -1125,12 +1011,18 @@ class PipelineManager:
             ...     }
             ... )
         """
-        return self.io.export_all(
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
+        with PipelineIOManager(
+            project_name=self.project_cfg.name,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as io:
+            return io.export_all(
+                dest_base_dir=dest_base_dir,
+                dest_fs=dest_fs,
+                dest_storage_options=dest_storage_options,
+                overwrite=overwrite,
+            )
 
     # Visualizer Delegations
     def save_dag(self, name: str, format: str = "png", reload: bool = False) -> None:
@@ -1168,7 +1060,14 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        self.visualizer.save_dag(name=name, format=format, reload=reload)
+        with Pipeline(
+            name=name,
+            base_dir=self._base_dir,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as pipeline:
+            pipeline.save_dag(format=format, reload=reload)
 
     def show_dag(
         self, name: str, format: str = "png", reload: bool = False, raw: bool = False
@@ -1210,574 +1109,11 @@ class PipelineManager:
             >>> # Custom rendering
             >>> graph.render("custom_vis", view=True)
         """
-        return self.visualizer.show_dag(
-            name=name, format=format, reload=reload, raw=raw
-        )
-
-    def run_job(
-        self,
-        name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
-        log_level: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple | list | None = None,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        on_failure_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        **kwargs: Any,
-    ) -> dict[str, Any] | None:
-        """Execute a pipeline job immediately through the job queue.
-
-        Unlike the run() method which executes synchronously, this method runs
-        the pipeline through the configured worker system (RQ, APScheduler, etc.).
-
-        If the job queue is not configured, it logs an error and returns None.
-
-        Args:
-            name (str): Name of the pipeline to run. Must be a valid identifier.
-            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
-            final_vars (list[str] | None): Specify which output variables to return.
-                Example: ["model", "metrics"]
-            config (dict | None): Configuration for Hamilton pipeline executor.
-                Example: {"model": "LogisticRegression"}
-            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
-            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
-                - str: Executor name, e.g. "threadpool", "local"
-                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
-                - ExecutorConfig: Structured config object
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
-                Example: {"opentelemetry": True, "tracker": False}
-             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
-                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
-                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
-            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
-                Example: {"ray_graph_adapter": RayGraphAdapter()}
-            reload (bool): Force reload of pipeline configuration.
-            log_level (str | None): Logging level for the execution. Default None uses project config.
-                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-            max_retries (int): Maximum number of retries for execution.
-            retry_delay (float): Delay between retries in seconds.
-            jitter_factor (float): Random jitter factor to add to retry delay
-            retry_exceptions (tuple): Exceptions that trigger a retry.
-            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful job execution.
-                This runs after the pipeline execution through the job queue was executed successfully.
-            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on job execution failure.
-                This runs if the job creation or the pipeline execution through the job queue fails or raises an exception.
-            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
-                This runs after the pipeline completes successfully.
-            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
-                This runs if the pipeline fails or raises an exception.
-
-            **kwargs: JobQueue-specific arguments
-                For RQ:
-                    - queue_name: Queue to use (str)
-                    - retry: Number of retries (int)
-                    - result_ttl: Time to live for the job result (float or timedelta)
-                    - ttl: Time to live for the job (float or timedelta)
-                    - timeout: Time to wait for the job to complete (float or timedelta)
-                    - repeat: Repeat count (int or dict)
-                    - rq_on_failure: Callback function on failure (callable)
-                    - rq_on_success: Callback function on success (callable)
-                    - rq_on_stopped: Callback function on stop (callable)
-                For APScheduler:
-                    - job_executor: Executor type (str)
-
-        Returns:
-            dict[str, Any] | None: Job execution results if successful, otherwise None.
-
-        Raises:
-            ValueError: If pipeline or configuration is invalid
-            RuntimeError: If job execution fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Simple job execution
-            >>> result = manager.run_job("data_pipeline")
-            >>>
-            >>> # Complex job with retry logic
-            >>> result = manager.run_job(
-            ...     name="ml_training",
-            ...     inputs={"training_date": "2025-04-28"},
-            ...     executor_cfg={"type": "async"},
-            ...     with_adapter_cfg={"enable_tracking": True},
-            ...     retry=3,
-            ...     queue_name="ml_jobs"
-            ... )
-        """
-        if self.jqm is None:
-            logger.error(
-                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
-            )
-            return None
-
-        kwargs["on_success"] = kwargs.get("rq_on_success", None)
-        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
-        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
-
-        run_func = self._get_run_func(
+        with Pipeline(
             name=name,
-            reload=reload,
-            on_success=on_success_pipeline,
-            on_failure=on_failure_pipeline,
-        )
-        # run_func = run_with_callback(on_success=on_success_pipeline, on_failure=on_failure_pipeline)(
-        #    run_func_
-        # )
-        run_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.jqm.run_job
-        )
-
-        return run_job(
-            run_func=run_func,
-            pipeline_cfg=self._pipeline_cfg,
-            name=name,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            log_level=log_level,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-            **kwargs,
-        )
-
-    def add_job(
-        self,
-        name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,  # Reload config/module before creating run_func
-        log_level: str | None = None,
-        result_ttl: int | dt.timedelta = 0,
-        run_at: dt.datetime | str | None = None,
-        run_in: dt.datetime | str | None = None,
-        max_retries: int = 3,
-        retry_delay: float = 1.0,
-        jitter_factor: float = 0.1,
-        retry_exceptions: tuple = (Exception,),
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        on_failure_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        **kwargs,  # JobQueue specific args
-    ) -> str | UUID | None:
-        """Adds a job to the job queue.
-
-        If the job queue is not configured, it logs an error and returns None.
-
-        Args:
-            name (str): Name of the pipeline to run. Must be a valid identifier.
-            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
-            final_vars (list[str] | None): Specify which output variables to return.
-                Example: ["model", "metrics"]
-            config (dict | None): Configuration for Hamilton pipeline executor.
-                Example: {"model": "LogisticRegression"}
-            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
-            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
-                - str: Executor name, e.g. "threadpool", "local"
-                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
-                - ExecutorConfig: Structured config object
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
-                Example: {"opentelemetry": True, "tracker": False}
-             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
-                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
-                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
-            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
-                Example: {"ray_graph_adapter": RayGraphAdapter()}
-            reload (bool): Force reload of pipeline configuration.
-            run_at (dt.datetime | str | None): Future date to run the job.
-                Example: datetime(2025, 4, 28, 12, 0)
-                Example str: "2025-04-28T12:00:00" (ISO format)
-            run_in (dt.datetime | str | None): Time interval to run the job.
-                Example: 3600 (every hour in seconds)
-                Example: datetime.timedelta(days=1)
-                Example str: "1d" (1 day)
-            result_ttl (int | dt.timedelta): Time to live for the job result.
-                Example: 3600 (1 hour in seconds)
-            log_level (str | None): Logging level for the execution. Default None uses project config.
-                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-            max_retries (int): Maximum number of retries for execution.
-            retry_delay (float): Delay between retries in seconds.
-            jitter_factor (float): Random jitter factor to add to retry delay
-            retry_exceptions (tuple): Exceptions that trigger a retry.
-            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful job creation.
-            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on job creation failure.
-            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
-            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
-            **kwargs: Additional keyword arguments passed to the worker's add_job method.
-                For RQ this includes:
-                    - result_ttl: Time to live for the job result (float or timedelta)
-                    - ttl: Time to live for the job (float or timedelta)
-                    - timeout: Time to wait for the job to complete (float or timedelta)
-                    - queue_name: Name of the queue to use (str)
-                    - retry: Number of retries (int)
-                    - repeat: Repeat count (int or dict)
-                    - rq_on_failure: Callback function on failure (callable)
-                    - rq_on_success: Callback function on success (callable)
-                    - rq_on_stopped: Callback function on stop (callable)
-                For APScheduler, this includes:
-                    - job_executor: Job executor to use (str)
-
-        Returns:
-            str | UUID | None: The ID of the job that was added to the job queue, or None if the job queue is not configured.
-
-        Raises:
-            ValueError: If the job ID is not valid or if the job cannot be scheduled.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>> pm = PipelineManager()
-            >>> job_id = pm.add_job("example_pipeline", inputs={"input1": 42})
-
-        """
-        if self.jqm is None:
-            logger.error(
-                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
-            )
-            return None
-
-        kwargs["on_success"] = kwargs.get("rq_on_success", None)
-        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
-        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
-
-        run_func = self._get_run_func(
-            name=name,
-            reload=reload,
-            on_success=on_success_pipeline,
-            on_failure=on_failure_pipeline,
-        )
-
-        run_in = (
-            duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
-        )  # convert to seconds
-        run_at = (
-            dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
-        )
-
-        add_job = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.jqm.add_job
-        )
-        return add_job(
-            run_func=run_func,
-            pipeline_cfg=self._pipeline_cfg,
-            name=name,  # Pass name for logging
-            # Pass run parameters
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            # reload=reload,  # Note: reload already happened
-            log_level=log_level,
-            result_ttl=result_ttl,
-            run_at=run_at,
-            run_in=run_in,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-            **kwargs,  # Pass worker args
-        )
-
-    def schedule(
-        self,
-        name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
-        log_level: str | None = None,
-        cron: str | dict[str, str | int] | None = None,
-        interval: int | str | dict[str, str | int] | None = None,
-        date: dt.datetime | str | None = None,
-        overwrite: bool = False,
-        schedule_id: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple | list | None = None,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_success_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        on_failure_pipeline: Callable
-        | tuple[Callable, tuple | None, dict | None]
-        | None = None,
-        **kwargs: Any,
-    ) -> str | UUID | None:
-        """Schedule a pipeline to run on a recurring or future basis.
-
-        If the job queue is not configured, it logs an error and returns None.
-
-        Args:
-            name (str): The name of the pipeline to run.
-            inputs (dict | None): Inputs for the pipeline run (overrides config).
-            final_vars (list[str] | None): Final variables for the pipeline run (overrides config).
-            config (dict | None): Hamilton driver config (overrides config).
-            cache (bool | dict): Cache settings (overrides config).
-            executor_cfg (str | dict | ExecutorConfig | None): Executor configuration (overrides config).
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter configuration (overrides config).
-            pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline adapter configuration (overrides config).
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project adapter configuration (overrides config).
-            adapter (dict[str, Any] | None): Additional Hamilton adapters (overrides config).
-            reload (bool): Whether to reload module and pipeline config. Defaults to False.
-            log_level (str | None): Log level for the run (overrides config).
-            cron (str | dict[str, str | int] | None): Cron expression or settings
-                Example string: "0 0 * * *" (daily at midnight)
-                Example dict: {"minute": "0", "hour": "*/2"} (every 2 hours)
-            interval (int | str | dict[str, str | int] | None): Time interval for recurring execution
-                Example int: 3600 (every hour in seconds)
-                Example str: "1h" (every hour)
-                Example dict: {"hours": 1, "minutes": 30} (every 90 minutes)
-            date (dt.datetime | str | None): Future date for
-                Example: datetime(2025, 4, 28, 12, 0)
-                Example str: "2025-04-28T12:00:00" (ISO format)
-            overwrite (bool): Whether to overwrite existing schedule with the same ID
-            schedule_id (str | None): Unique identifier for the schedule
-            max_retries (int): Maximum number of retries for execution
-            retry_delay (float): Delay between retries in seconds
-            jitter_factor (float): Random jitter factor to add to retry delay
-            retry_exceptions (tuple): Exceptions that trigger a retry
-            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful schedule creation.
-            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on schedule creation failure.
-            on_success_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
-            on_failure_pipeline (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
-            **kwargs: JobQueue-specific scheduling options
-                For RQ:
-                    - result_ttl: Result lifetime (int seconds)
-                    - ttl: Job lifetime (int seconds)
-                    - timeout: Job execution timeout (int seconds)
-                    - queue_name: Queue to use (str)
-                    - repeat: Repeat count (int or dict)
-                    - rq_on_failure: Callback function on failure (callable)
-                    - rq_on_success: Callback function on success (callable)
-                    - rq_on_stopped: Callback function on stop (callable)
-                For APScheduler:
-                    - misfire_grace_time: Late execution window
-                    - coalesce: Combine missed executions (bool)
-                    - max_running_jobs: Concurrent instances limit (int)
-
-        Returns:
-            str | UUID | None: Unique identifier for the created schedule, or None if scheduling fails.
-
-        Raises:
-            ValueError: If schedule parameters are invalid
-            RuntimeError: If scheduling fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>> from datetime import datetime, timedelta
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Daily schedule with cron
-            >>> schedule_id = manager.schedule(
-            ...     name="daily_metrics",
-            ...     cron="0 0 * * *",
-            ...     inputs={"date": "{{ execution_date }}"}
-            ... )
-            >>>
-            >>> # Interval-based schedule
-            >>> schedule_id = manager.schedule(
-            ...     name="monitoring",
-            ...     interval={"minutes": 15},
-            ...     with_adapter_cfg={"enable_alerts": True}
-            ... )
-            >>>
-            >>> # Future one-time execution
-            >>> future_date = datetime.now() + timedelta(days=1)
-            >>> schedule_id = manager.schedule(
-            ...     name="batch_process",
-            ...     date=future_date,
-            ...     executor_cfg={"type": "async"}
-            ... )
-        """
-        if self.jqm is None:
-            logger.error(
-                "This PipelineManager instance does not have a job queue configured. Skipping job execution."
-            )
-            return None
-
-        kwargs["on_success"] = kwargs.get("rq_on_success", None)
-        kwargs["on_failure"] = kwargs.get("rq_on_failure", None)
-        kwargs["on_stopped"] = kwargs.get("rq_on_stopped", None)
-
-        # pipeline_cfg = self._load_pipeline_cfg(name=name, reload=reload)
-        run_func = self._get_run_func(
-            name=name,
-            reload=reload,
-            on_success=on_success_pipeline,
-            on_failure=on_failure_pipeline,
-        )
-        interval = (
-            duration_parser.parse(interval) if isinstance(interval, str) else interval
-        )
-        date = dt.datetime.fromisoformat(date) if isinstance(date, str) else date
-
-        schedule = run_with_callback(on_success=on_success, on_failure=on_failure)(
-            self.jqm.schedule
-        )
-        return schedule(
-            run_func=run_func,
-            pipeline_cfg=self._pipeline_cfg,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=reload,
-            log_level=log_level,
-            cron=cron,
-            interval=interval,
-            date=date,
-            overwrite=overwrite,
-            schedule_id=schedule_id,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-            **kwargs,
-        )
-
-    def schedule_all(self, **kwargs: Any) -> None:
-        """Schedule all pipelines that are enabled in their configuration.
-
-        For each enabled pipeline, applies its configured schedule settings
-        and any provided overrides.
-
-        Args:
-            **kwargs: Overrides for schedule settings that apply to all pipelines.
-                See schedule() method for supported arguments.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Schedule all with default settings
-            >>> manager.schedule_all()
-            >>>
-            >>> # Schedule all with common overrides
-            >>> manager.schedule_all(
-            ...     max_running_jobs=2,
-            ...     coalesce=True,
-            ...     misfire_grace_time=300
-            ... )
-        """
-        scheduled_ids = []
-        errors = []
-        pipeline_names = self.list_pipelines()
-        if not pipeline_names:
-            logger.warning("No pipelines found to schedule.")
-            return
-
-        logger.info(f"Attempting to schedule {len(pipeline_names)} pipelines...")
-        for name in pipeline_names:
-            try:
-                pipeline_cfg = self.load_pipeline(name=name, reload=True)
-
-                if not pipeline_cfg.schedule.enabled:
-                    logger.info(
-                        f"Skipping scheduling for '{name}': Not enabled in config."
-                    )
-                    continue
-
-                logger.info(f"Scheduling [cyan]{name}[/cyan]...")
-                schedule_id = self.schedule(name=name, reload=False, **kwargs)
-                if schedule_id is None:
-                    logger.info(
-                        f"🟡 Skipping adding schedule for [cyan]{name}[/cyan]: Job queue backend not available or scheduling failed."
-                    )
-                    continue
-                scheduled_ids.append(schedule_id)
-            except Exception as e:
-                logger.error(f"Failed to schedule pipeline '{name}': {e}")
-                errors.append(name)
-
-        if errors:
-            logger.error(f"Finished scheduling with errors for: {', '.join(errors)}")
-        else:
-            logger.info(f"Successfully scheduled {len(scheduled_ids)} pipelines.")
-
-    @property
-    def schedules(self) -> list[Any]:
-        """Get list of current pipeline schedules.
-
-        Retrieves all active schedules from the worker system.
-
-        Returns:
-            list[Any]: List of schedule objects. Exact type depends on worker:
-                - RQ: List[rq.job.Job]
-                - APScheduler: List[apscheduler.schedulers.base.Schedule]
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> for schedule in manager.schedules:
-            ...     print(f"{schedule.id}: Next run at {schedule.next_run_time}")
-        """
-        if self.jqm is None:
-            logger.error(
-                "This PipelineManager instance does not have a job queue configured. Skipping schedule retrieval."
-            )
-            return []
-        try:
-            return self.jqm._get_schedules()
-        except Exception as e:
-            logger.error(f"Failed to retrieve schedules: {e}")
-            return []
+            base_dir=self._base_dir,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        ) as pipeline:
+            return pipeline.show_dag(format=format, reload=reload, raw=raw)

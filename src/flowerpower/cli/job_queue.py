@@ -14,9 +14,7 @@ setup_logging(level=settings.LOG_LEVEL)
 
 @app.command()
 def start_worker(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -47,7 +45,7 @@ def start_worker(
     or can be run in the background.
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         background: Run the worker in the background
@@ -91,9 +89,7 @@ def start_worker(
 
 @app.command()
 def start_scheduler(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -117,11 +113,10 @@ def start_scheduler(
     Start the scheduler process for queued jobs.
 
     This command starts a scheduler that manages queued jobs and scheduled tasks.
-    Note that this is only needed for RQ workers, as APScheduler workers have
-    their own built-in scheduler.
+    Note that this is only needed for RQ workers
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         background: Run the scheduler in the background
@@ -175,7 +170,7 @@ def start_scheduler(
 #     Note: This is different from deleting jobs as it only stops them from running but keeps their history.
 
 #     Args:
-#         type: Type of the job queue (rq, apscheduler)
+#         type: Type of the job queue (rq)
 #         queue_name: Name of the queue (RQ only)
 #         name: Name of the scheduler
 #         base_dir: Base directory for the scheduler
@@ -207,7 +202,7 @@ def start_scheduler(
 #     Note: This is different from deleting schedules as it only stops them from running but keeps their configuration.
 
 #     Args:
-#         type: Type of the job queue (rq, apscheduler)
+#         type: Type of the job queue (rq)
 #         name: Name of the scheduler
 #         base_dir: Base directory for the scheduler
 #         storage_options: Storage options as JSON or key=value pairs
@@ -231,9 +226,7 @@ def cancel_job(
         None,
         help="Name of the queue (RQ only). If provided with --all, cancels all jobs in the queue",
     ),
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -258,7 +251,7 @@ def cancel_job(
         job_id: ID of the job to cancel (ignored if --all is used)
         all: Cancel all jobs instead of a specific one
         queue_name: For RQ only, specifies the queue to cancel jobs from
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         storage_options: Storage options as JSON or key=value pairs
@@ -322,7 +315,7 @@ def cancel_schedule(
     Args:
         schedule_id: ID of the schedule to cancel
         all: If True, cancel all schedules
-        type: Type of the job queue (rq, apscheduler)
+        type: Type of the job queue (rq)
         name: Name of the scheduler
         base_dir: Base directory for the scheduler
         storage_options: Storage options as JSON or key=value pairs
@@ -413,7 +406,7 @@ def delete_job(
         job_id: ID of the job to delete
         all: If True, delete all jobs
         queue_name: Name of the queue (RQ only). If provided and all is True, delete all jobs in the queue
-        type: Type of the job queue (rq, apscheduler)
+        type: Type of the job queue (rq)
         name: Name of the scheduler
         base_dir: Base directory for the scheduler
         storage_options: Storage options as JSON or key=value pairs
@@ -452,7 +445,7 @@ def delete_schedule(
     Args:
         schedule_id: ID of the schedule to delete
         all: If True, delete all schedules
-        type: Type of the job queue (rq, apscheduler)
+        type: Type of the job queue (rq)
         name: Name of the scheduler
         base_dir: Base directory for the scheduler
         storage_options: Storage options as JSON or key=value pairs
@@ -473,145 +466,9 @@ def delete_schedule(
             worker.delete_schedule(schedule_id)
 
 
-# @app.command()
-# def get_job(
-#     job_id: str,
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     Get information about a specific job.
-
-#     Args:
-#         job_id: ID of the job
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         # show_jobs should display the job info
-#         worker.show_jobs(job_id=job_id)
-
-# @app.command()
-# def get_job_result(
-#     job_id: str,
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-#     wait: bool = True,
-# ):
-#     """
-#     Get the result of a specific job.
-
-#     Args:
-#         job_id: ID of the job
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#         wait: Wait for the result if job is still running (APScheduler only)
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         # worker's get_job_result method will handle the result display
-#         worker.get_job_result(job_id, wait=wait if worker.cfg.backend.type == "apscheduler" else False)
-
-# @app.command()
-# def get_jobs(
-#     type: str | None = None,
-#     queue_name: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     List all jobs.
-
-#     Args:
-#         queue_name: Name of the queue (RQ only)
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         worker.show_jobs()
-
-# @app.command()
-# def get_schedule(
-#     schedule_id: str,
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     Get information about a specific schedule.
-
-#     Args:
-#         schedule_id: ID of the schedule
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         # show_schedule should display the schedule info
-#         worker.show_schedules(schedule_id=schedule_id)
-
-# @app.command()
-# def get_schedules(
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     List all schedules.
-
-#     Args:
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         worker.show_schedules()
-
-
 @app.command()
 def show_job_ids(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -632,7 +489,7 @@ def show_job_ids(
     jobs for other operations like getting results, canceling, or deleting jobs.
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         storage_options: Storage options as JSON or key=value pairs
@@ -673,9 +530,7 @@ def show_job_ids(
 
 @app.command()
 def show_schedule_ids(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -696,7 +551,7 @@ def show_schedule_ids(
     identify schedules for other operations like pausing, resuming, or deleting schedules.
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         storage_options: Storage options as JSON or key=value pairs
@@ -707,7 +562,7 @@ def show_schedule_ids(
         $ flowerpower job-queue show-schedule-ids
 
         # Show schedule IDs for a specific queue type
-        $ flowerpower job-queue show-schedule-ids --type apscheduler
+        $ flowerpower job-queue show-schedule-ids --type rq
 
         # Show schedule IDs with a custom scheduler configuration
         $ flowerpower job-queue show-schedule-ids --name my-scheduler
@@ -735,220 +590,9 @@ def show_schedule_ids(
                 print(f"- {schedule_id}")
 
 
-# @app.command()
-# def pause_all_schedules(
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     Pause all schedules.
-
-#     Note: This functionality is only available for APScheduler workers.
-
-#     Args:
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         if worker.cfg.backend.type != "apscheduler":
-#             logger.info(f"Schedule pausing is not supported for {worker.cfg.backend.type} workers.")
-#             return
-#         worker.pause_all_schedules()
-
-
-@app.command()
-def pause_schedule(
-    schedule_id: str = typer.Argument(..., help="ID of the schedule to pause"),
-    all: bool = typer.Option(
-        False, "--all", "-a", help="Pause all schedules instead of a specific one"
-    ),
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
-    name: str | None = typer.Option(
-        None, help="Name of the scheduler configuration to use"
-    ),
-    base_dir: str | None = typer.Option(
-        None, help="Base directory for the scheduler configuration"
-    ),
-    storage_options: str | None = typer.Option(
-        None, help="Storage options as JSON or key=value pairs"
-    ),
-    log_level: str = typer.Option(
-        "info", help="Logging level (debug, info, warning, error, critical)"
-    ),
-):
-    """
-    Pause a schedule or multiple schedules.
-
-    This command temporarily stops a scheduled job from running while maintaining its
-    configuration. Paused schedules can be resumed later. Note that this functionality
-    is only available for APScheduler workers.
-
-    Args:
-        schedule_id: ID of the schedule to pause (ignored if --all is used)
-        all: Pause all schedules instead of a specific one
-        type: Type of job queue backend (rq, apscheduler)
-        name: Name of the scheduler configuration to use
-        base_dir: Base directory for the scheduler configuration
-        storage_options: Storage options as JSON or key=value pairs
-        log_level: Logging level (debug, info, warning, error, critical)
-
-    Examples:
-        # Pause a specific schedule
-        $ flowerpower job-queue pause-schedule schedule-123456
-
-        # Pause all schedules
-        $ flowerpower job-queue pause-schedule --all dummy-id
-
-        # Specify the backend type explicitly
-        $ flowerpower job-queue pause-schedule schedule-123456 --type apscheduler
-    """
-    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-    with JobQueueManager(
-        type=type,
-        name=name,
-        base_dir=base_dir,
-        storage_options=parsed_storage_options,
-        log_level=log_level,
-    ) as worker:
-        if worker.cfg.backend.type != "apscheduler":
-            logger.info(
-                f"Schedule pausing is not supported for {worker.cfg.backend.type} workers."
-            )
-            return
-        if all:
-            count = worker.pause_all_schedules()
-            logger.info(f"Paused {count} schedules")
-        else:
-            success = worker.pause_schedule(schedule_id)
-            if success:
-                logger.info(f"Schedule {schedule_id} paused successfully")
-            else:
-                logger.error(f"Failed to pause schedule {schedule_id}")
-
-
-# @app.command()
-# def resume_all_schedules(
-#     type: str | None = None,
-#     name: str | None = None,
-#     base_dir: str | None = None,
-#     storage_options: str | None = None,
-#     log_level: str = "info",
-# ):
-#     """
-#     Resume all paused schedules.
-
-#     Note: This functionality is only available for APScheduler workers.
-
-#     Args:
-#         name: Name of the scheduler
-#         base_dir: Base directory for the scheduler
-#         storage_options: Storage options as JSON or key=value pairs
-#         log_level: Logging level
-#     """
-#     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-#     with JobQueueManager(
-#         type=type, name=name, base_dir=base_dir, storage_options=parsed_storage_options, log_level=log_level
-#     ) as worker:
-#         if worker.cfg.backend.type != "apscheduler":
-#             logger.info(f"Schedule resuming is not supported for {worker.cfg.backend.type} workers.")
-#             return
-#         worker.resume_all_schedules()
-
-
-@app.command()
-def resume_schedule(
-    schedule_id: str = typer.Argument(..., help="ID of the schedule to resume"),
-    all: bool = typer.Option(
-        False, "--all", "-a", help="Resume all schedules instead of a specific one"
-    ),
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
-    name: str | None = typer.Option(
-        None, help="Name of the scheduler configuration to use"
-    ),
-    base_dir: str | None = typer.Option(
-        None, help="Base directory for the scheduler configuration"
-    ),
-    storage_options: str | None = typer.Option(
-        None, help="Storage options as JSON or key=value pairs"
-    ),
-    log_level: str = typer.Option(
-        "info", help="Logging level (debug, info, warning, error, critical)"
-    ),
-):
-    """
-    Resume a paused schedule or multiple schedules.
-
-    This command restarts previously paused schedules, allowing them to run again according
-    to their original configuration. Note that this functionality is only available for
-    APScheduler workers.
-
-    Args:
-        schedule_id: ID of the schedule to resume (ignored if --all is used)
-        all: Resume all schedules instead of a specific one
-        type: Type of job queue backend (rq, apscheduler)
-        name: Name of the scheduler configuration to use
-        base_dir: Base directory for the scheduler configuration
-        storage_options: Storage options as JSON or key=value pairs
-        log_level: Logging level (debug, info, warning, error, critical)
-
-    Examples:
-        # Resume a specific schedule
-        $ flowerpower job-queue resume-schedule schedule-123456
-
-        # Resume all schedules
-        $ flowerpower job-queue resume-schedule --all dummy-id
-
-        # Specify the backend type explicitly
-        $ flowerpower job-queue resume-schedule schedule-123456 --type apscheduler
-
-        # Set a specific logging level
-        $ flowerpower job-queue resume-schedule schedule-123456 --log-level debug
-    """
-    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
-
-    with JobQueueManager(
-        type=type,
-        name=name,
-        base_dir=base_dir,
-        storage_options=parsed_storage_options,
-        log_level=log_level,
-    ) as worker:
-        if worker.cfg.backend.type != "apscheduler":
-            logger.info(
-                f"Schedule resuming is not supported for {worker.cfg.backend.type} workers."
-            )
-            return
-        if all:
-            count = worker.resume_all_schedules()
-            logger.info(f"Resumed {count} schedules")
-        else:
-            success = worker.resume_schedule(schedule_id)
-            if success:
-                logger.info(f"Schedule {schedule_id} resumed successfully")
-            else:
-                logger.error(f"Failed to resume schedule {schedule_id}")
-
-
 @app.command()
 def show_jobs(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     queue_name: str | None = typer.Option(
         None, help="Name of the queue to show jobs from (RQ only)"
     ),
@@ -973,7 +617,7 @@ def show_jobs(
     creation time, execution time, and other details in a user-friendly format.
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         queue_name: Name of the queue to show jobs from (RQ only)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
@@ -1008,9 +652,7 @@ def show_jobs(
 
 @app.command()
 def show_schedules(
-    type: str | None = typer.Option(
-        None, help="Type of job queue backend (rq, apscheduler)"
-    ),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
     name: str | None = typer.Option(
         None, help="Name of the scheduler configuration to use"
     ),
@@ -1032,7 +674,7 @@ def show_schedules(
     timing configuration, status, and other details in a user-friendly format.
 
     Args:
-        type: Type of job queue backend (rq, apscheduler)
+        type: Type of job queue backend (rq)
         name: Name of the scheduler configuration to use
         base_dir: Base directory for the scheduler configuration
         storage_options: Storage options as JSON or key=value pairs
@@ -1044,7 +686,7 @@ def show_schedules(
         $ flowerpower job-queue show-schedules
 
         # Show schedules for a specific queue type
-        $ flowerpower job-queue show-schedules --type apscheduler
+        $ flowerpower job-queue show-schedules --type rq
 
         # Display schedules in JSON format
         $ flowerpower job-queue show-schedules --format json

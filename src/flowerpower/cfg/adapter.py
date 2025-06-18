@@ -76,18 +76,22 @@ class AdapterConfig(BaseConfig):
         opentelemetry_cfg: OpenTelemetryConfig,
     ) -> "AdapterConfig":
         return cls(
-            hamilton_tracker=HamiltonTrackerConfig.from_dict(**{
-                **project_hamilton_tracker_cfg,
-                **pipeline_hamilton_tracker_cfg,
-            }),
-            mlflow=MLFlowConfig.from_dict(**{
-                **project_mlflow_cfg,
-                **pipeline_mlflow_cfg,
-            }),
+            hamilton_tracker=HamiltonTrackerConfig.from_dict(
+                {
+                    **project_hamilton_tracker_cfg.to_dict(),
+                    **pipeline_hamilton_tracker_cfg.to_dict(),
+                }
+            ),
+            mlflow=MLFlowConfig.from_dict(
+                {
+                    **project_mlflow_cfg.to_dict(),
+                    **pipeline_mlflow_cfg.to_dict(),
+                }
+            ),
             ray=ray_cfg
             if isinstance(ray_cfg, RayConfig)
-            else RayConfig.from_dict(ray_cfg),
+            else RayConfig.from_dict(ray_cfg.to_dict()),
             opentelemetry=opentelemetry_cfg
             if isinstance(opentelemetry_cfg, OpenTelemetryConfig)
-            else OpenTelemetryConfig.from_dict(opentelemetry_cfg),
+            else OpenTelemetryConfig.from_dict(opentelemetry_cfg.to_dict()),
         )
