@@ -1,4 +1,5 @@
 import posixpath
+from types import TracebackType
 
 from hamilton import driver
 from rich import print
@@ -9,7 +10,6 @@ from ..fs import AbstractFileSystem
 from ..utils.misc import view_img
 from .base import load_module  # Import module loading utility
 
-from types import TracebackType
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
@@ -26,7 +26,6 @@ class PipelineVisualizer:
         self._base_dir = base_dir
         self._fs = fs
         # Attributes like fs and base_dir are accessed via self.project_cfg
-
 
     def __enter__(self) -> "PipelineVisualizer":
         """Enter the context manager.
@@ -58,7 +57,6 @@ class PipelineVisualizer:
         """
         # Add cleanup code if needed
         pass
-
 
     def _display_all_function(self, name: str, reload: bool = False):
         """Internal helper to load module/config and get the Hamilton DAG object.

@@ -347,41 +347,30 @@ def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None)
     def _unnest_all(struct_columns):
         if fields is not None:
             return (
-                df.with_columns(
-                    [
-                        pl.col(col).struct.rename_fields(
-                            [
-                                f"{col}{seperator}{field_name}"
-                                for field_name in df[col].struct.fields
-                            ]
-                        )
-                        for col in struct_columns
-                    ]
-                )
+                df.with_columns([
+                    pl.col(col).struct.rename_fields([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in df[col].struct.fields
+                    ])
+                    for col in struct_columns
+                ])
                 .unnest(struct_columns)
                 .select(
                     list(set(df.columns) - set(struct_columns))
-                    + sorted(
-                        [
-                            f"{col}{seperator}{field_name}"
-                            for field_name in fields
-                            for col in struct_columns
-                        ]
-                    )
+                    + sorted([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in fields
+                        for col in struct_columns
+                    ])
                 )
             )
 
-        return df.with_columns(
-            [
-                pl.col(col).struct.rename_fields(
-                    [
-                        f"{col}{seperator}{field_name}"
-                        for field_name in df[col].struct.fields
-                    ]
-                )
-                for col in struct_columns
-            ]
-        ).unnest(struct_columns)
+        return df.with_columns([
+            pl.col(col).struct.rename_fields([
+                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
+            ])
+            for col in struct_columns
+        ]).unnest(struct_columns)
 
     struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
     while len(struct_columns):
@@ -423,15 +412,13 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns(
-            [
-                pl.col(timestamp_column)
-                .dt.strftime(strftime_)
-                .fill_null(0)
-                .alias(column_name)
-                for strftime_, column_name in zip(strftime, column_names)
-            ]
-        ),
+        df.with_columns([
+            pl.col(timestamp_column)
+            .dt.strftime(strftime_)
+            .fill_null(0)
+            .alias(column_name)
+            for strftime_, column_name in zip(strftime, column_names)
+        ]),
         include=column_names,
         strict=False,
     )
@@ -466,12 +453,10 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns(
-        [
-            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-            for truncate_, column_name in zip(truncate_by, column_names)
-        ]
-    )
+    return df.with_columns([
+        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+        for truncate_, column_name in zip(truncate_by, column_names)
+    ])
 
 
 def with_datepart_columns(
@@ -621,9 +606,9 @@ def cast_relaxed(
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
     if len(new_columns):
-        return df.with_columns(
-            [pl.lit(None).alias(new_col) for new_col in new_columns]
-        ).cast(schema)
+        return df.with_columns([
+            pl.lit(None).alias(new_col) for new_col in new_columns
+        ]).cast(schema)
     return df.cast(schema)
 
 

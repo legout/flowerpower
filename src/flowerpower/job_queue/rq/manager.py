@@ -12,7 +12,6 @@ import time
 import uuid
 from typing import Any, Callable
 
-
 import duration_parser
 from cron_descriptor import get_description
 from humanize import precisedelta
@@ -24,12 +23,12 @@ from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
+from ...cfg.pipeline.run import RetryConfig
 from ...fs import AbstractFileSystem
+from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend
-from ...cfg.pipeline.run import RetryConfig
-from ...pipeline.manager import PipelineManager
 
 setup_logging()
 
@@ -77,9 +76,7 @@ class RQManager(BaseJobQueueManager):
         fs: AbstractFileSystem | None = None,
         pipelines_dir: str | None = None,
         log_level: str | None = None,
-
     ):
-        
         """Initialize the RQ scheduler backend.
 
         Args:
@@ -187,7 +184,9 @@ class RQManager(BaseJobQueueManager):
             "log_level": log_level,
             "retry": retry,
         }
-        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
 
         return self._run_rq_job_sync(
             func=run_func,
@@ -236,7 +235,9 @@ class RQManager(BaseJobQueueManager):
             "log_level": log_level,
             "retry": retry,
         }
-        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
 
         return self._enqueue_rq_job(
             func=run_func,
@@ -290,7 +291,9 @@ class RQManager(BaseJobQueueManager):
             "log_level": log_level,
             "retry": retry,
         }
-        pipeline_run_args = {k: v for k, v in pipeline_run_args.items() if v is not None}
+        pipeline_run_args = {
+            k: v for k, v in pipeline_run_args.items() if v is not None
+        }
 
         return self._schedule_rq_job(
             func=run_func,
@@ -303,7 +306,6 @@ class RQManager(BaseJobQueueManager):
             overwrite=overwrite,
             **kwargs,
         )
-
 
     def _setup_backend(self) -> None:
         """Set up the Redis backend for the scheduler.

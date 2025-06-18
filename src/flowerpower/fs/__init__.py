@@ -14,10 +14,10 @@ from .. import settings  # noqa: E402
 from .base import DirFileSystem, get_filesystem  # noqa: E402
 from .storage_options import AwsStorageOptions  # noqa: E402
 from .storage_options import AzureStorageOptions  # noqa: E402
+from .storage_options import BaseStorageOptions  # noqa: E402
 from .storage_options import GcsStorageOptions  # noqa: E402
 from .storage_options import GitHubStorageOptions  # noqa: E402
-from .storage_options import (BaseStorageOptions,  # noqa: E402
-                              GitLabStorageOptions, StorageOptions)
+from .storage_options import GitLabStorageOptions, StorageOptions
 
 
 def get_storage_options_and_fs(

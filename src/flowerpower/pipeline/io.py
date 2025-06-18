@@ -230,12 +230,10 @@ class PipelineIOManager:
         files = ["conf/project.yml"]
 
         for name in names:
-            files.extend(
-                [
-                    f"conf/pipelines/{name}.yml",
-                    f"pipelines/{name}.py",
-                ]
-            )
+            files.extend([
+                f"conf/pipelines/{name}.yml",
+                f"pipelines/{name}.py",
+            ])
 
         # Sync the filesystem
         self._sync_filesystem(
@@ -385,12 +383,10 @@ class PipelineIOManager:
                     f"Pipeline {name} does not exist in the registry. Please check the name."
                 )
             # Add pipeline files to the list
-            files.extend(
-                [
-                    f"conf/pipelines/{name}.yml",
-                    f"pipelines/{name}.py",
-                ]
-            )
+            files.extend([
+                f"conf/pipelines/{name}.yml",
+                f"pipelines/{name}.py",
+            ])
         # Sync the filesystem
         self._sync_filesystem(
             src_base_dir=".",

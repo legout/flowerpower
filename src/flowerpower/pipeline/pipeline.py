@@ -344,7 +344,6 @@ class Pipeline:
             project_name=self._project_name,
             base_dir=self._base_dir,
             fs=self._fs,
-
         ) as visualizer:
             visualizer.save_dag(name=self.name, format=format, reload=reload)
 
@@ -368,7 +367,6 @@ class Pipeline:
             project_name=self._project_name,
             base_dir=self._base_dir,
             fs=self._fs,
-
         ) as visualizer:
             return visualizer.show_dag(
                 name=self.name, format=format, reload=reload, raw=raw
