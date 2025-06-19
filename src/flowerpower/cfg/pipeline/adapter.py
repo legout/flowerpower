@@ -39,7 +39,6 @@ class MLFlowConfig(BaseConfig):
             self.run_tags = munchify(self.run_tags)
 
 
-
 class AdapterConfig(BaseConfig):
     hamilton_tracker: HamiltonTracerConfig = msgspec.field(
         default_factory=HamiltonTracerConfig

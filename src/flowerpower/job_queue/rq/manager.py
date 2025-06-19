@@ -19,18 +19,18 @@ from loguru import logger
 from rq import Queue, Repeat, Retry
 from rq.job import Job
 from rq.results import Result
-from .callbacks import CallbackRegistry
 from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
 from ...cfg.pipeline.run import RetryConfig
 from ...fs import AbstractFileSystem
+from ...pipeline import Pipeline
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
-from .setup import RQBackend
-from ...pipeline import Pipeline
+from .callbacks import CallbackRegistry
 from .runners import run_pipeline_job
+from .setup import RQBackend
 
 setup_logging()
 
@@ -54,7 +54,7 @@ class RQManager(BaseJobQueueManager):
     """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
 
     --- Serialization helpers for RQ job pickling ---
-    
+
 
     This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.
     It supports multiple queues, background workers, and job scheduling capabilities.
@@ -71,6 +71,7 @@ class RQManager(BaseJobQueueManager):
         job_id = worker.add_job(my_job, func_args=(10,))
         ```
     """
+
     def _serialize_fs_config(self) -> dict:
         """Extract picklable fs config (storage_options) for job runner."""
         # Assuming self.fs is an AbstractFileSystem or similar
@@ -91,6 +92,7 @@ class RQManager(BaseJobQueueManager):
             return self.cfg.to_dict()
         # Fallback: load PipelineConfig for the given name (pseudo-code, adapt as needed)
         from ...cfg import PipelineConfig
+
         return PipelineConfig.load_from_name(pipeline_name, self.base_dir).to_dict()
 
     def __init__(

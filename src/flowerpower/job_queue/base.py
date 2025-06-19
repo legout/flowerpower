@@ -31,7 +31,6 @@ from ..pipeline import PipelineManager
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
 
-
 class BackendType(str, Enum):
     POSTGRESQL = "postgresql"
     # MYSQL = "mysql"

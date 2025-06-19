@@ -15,14 +15,13 @@ except ImportError:
 
 from .. import settings
 from ..cfg import ProjectConfig
-
 from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem, get_storage_options_and_fs
+from ..fs import (AbstractFileSystem, BaseStorageOptions, get_filesystem,
+                  get_storage_options_and_fs)
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .pipeline import Pipeline
 from .registry import HookType, PipelineRegistry
-
 
 setup_logging(level=settings.LOG_LEVEL)
 
@@ -117,7 +116,7 @@ class PipelineManager:
             setup_logging(level=log_level or settings.LOG_LEVEL)
 
         self._base_dir = base_dir or str(Path.cwd())
-        
+
         self._fs, self._storage_options = get_storage_options_and_fs(
             base_dir=self._base_dir,
             storage_options=storage_options,
@@ -139,7 +138,6 @@ class PipelineManager:
         except Exception as e:
             logger.error(f"Error creating essential directories: {e}")
             # Consider raising an error here depending on desired behavior
-
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -342,7 +340,7 @@ class PipelineManager:
                 retry=retry,
                 adapter_cfg=adapter_cfg,
                 hamilton_adapters=hamilton_adapters,
-                on_failure= on_failure,
+                on_failure=on_failure,
                 on_success=on_success,
             )
 
