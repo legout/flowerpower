@@ -51,7 +51,7 @@ class RQBackend(BaseBackend):
     """
 
     queues: str | list[str] | None = field(default_factory=lambda: ["default"])
-    num_workers: int = field(default=1)
+    num_workers: int | None = field(default=None)
 
     def __post_init__(self) -> None:
         """Initialize and validate the backend configuration.

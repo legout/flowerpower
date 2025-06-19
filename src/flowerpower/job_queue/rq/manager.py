@@ -17,18 +17,20 @@ from cron_descriptor import get_description
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
-from rq.job import Callback, Job
+from rq.job import Job
 from rq.results import Result
+from .callbacks import CallbackRegistry
 from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
 from ...cfg.pipeline.run import RetryConfig
 from ...fs import AbstractFileSystem
-from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend
+from ...pipeline import Pipeline
+from .runners import run_pipeline_job
 
 setup_logging()
 
@@ -51,6 +53,9 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
 class RQManager(BaseJobQueueManager):
     """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
 
+    --- Serialization helpers for RQ job pickling ---
+    
+
     This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.
     It supports multiple queues, background workers, and job scheduling capabilities.
 
@@ -66,6 +71,27 @@ class RQManager(BaseJobQueueManager):
         job_id = worker.add_job(my_job, func_args=(10,))
         ```
     """
+    def _serialize_fs_config(self) -> dict:
+        """Extract picklable fs config (storage_options) for job runner."""
+        # Assuming self.fs is an AbstractFileSystem or similar
+        # and has a .storage_options attribute or similar config
+        storage_options = getattr(self.fs, "storage_options", None)
+        return {"storage_options": storage_options}
+
+    def _serialize_project_config(self) -> dict:
+        """Serialize project config to dict."""
+        # Assuming self.project_cfg is a ProjectConfig instance
+        return self.project_cfg.to_dict()
+
+    def _serialize_pipeline_config(self, pipeline_name: str) -> dict:
+        """Serialize pipeline config to dict for the given pipeline."""
+        # If self.cfg is a PipelineConfig for the current pipeline, use it
+        # Otherwise, load or retrieve the correct PipelineConfig
+        if hasattr(self, "cfg") and getattr(self.cfg, "name", None) == pipeline_name:
+            return self.cfg.to_dict()
+        # Fallback: load PipelineConfig for the given name (pseudo-code, adapt as needed)
+        from ...cfg import PipelineConfig
+        return PipelineConfig.load_from_name(pipeline_name, self.base_dir).to_dict()
 
     def __init__(
         self,
@@ -167,10 +193,11 @@ class RQManager(BaseJobQueueManager):
         """
         Run a pipeline synchronously and return its result.
         """
-        run_func = self.pipeline_manager.run
+        fs_config = self._serialize_fs_config()
+        project_cfg_dict = self._serialize_project_config()
+        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
 
-        pipeline_run_args = {
-            "project_cfg": self.cfg or None,
+        run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
@@ -184,14 +211,19 @@ class RQManager(BaseJobQueueManager):
             "log_level": log_level,
             "retry": retry,
         }
-        pipeline_run_args = {
-            k: v for k, v in pipeline_run_args.items() if v is not None
-        }
+        run_args = {k: v for k, v in run_args.items() if v is not None}
 
         return self._run_rq_job_sync(
-            func=run_func,
-            func_args=(pipeline_name,),
-            func_kwargs=pipeline_run_args,
+            func=run_pipeline_job,
+            func_args=(),
+            func_kwargs={
+                "pipeline_name": pipeline_name,
+                "base_dir": self._base_dir,
+                "fs_config": fs_config,
+                "project_cfg_dict": project_cfg_dict,
+                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "run_args": run_args,
+            },
             **kwargs,
         )
 
@@ -218,10 +250,11 @@ class RQManager(BaseJobQueueManager):
         """
         Enqueue a pipeline for execution via the job queue.
         """
-        run_func = self.pipeline_manager.run
+        fs_config = self._serialize_fs_config()
+        project_cfg_dict = self._serialize_project_config()
+        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
 
         pipeline_run_args = {
-            "project_cfg": self.cfg or None,
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
@@ -240,9 +273,16 @@ class RQManager(BaseJobQueueManager):
         }
 
         return self._enqueue_rq_job(
-            func=run_func,
-            func_args=(pipeline_name,),
-            func_kwargs=pipeline_run_args,
+            func=run_pipeline_job,
+            func_args=(),
+            func_kwargs={
+                "pipeline_name": pipeline_name,
+                "base_dir": self._base_dir,
+                "fs_config": fs_config,
+                "project_cfg_dict": project_cfg_dict,
+                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "run_args": pipeline_run_args,
+            },
             result_ttl=result_ttl,
             run_at=run_at,
             run_in=run_in,
@@ -274,10 +314,11 @@ class RQManager(BaseJobQueueManager):
         """
         Schedule a pipeline for execution using the configured job queue.
         """
-        run_func = self.pipeline_manager.run
+        fs_config = self._serialize_fs_config()
+        project_cfg_dict = self._serialize_project_config()
+        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
 
         pipeline_run_args = {
-            "project_cfg": getattr(self, "project_cfg", None),
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
@@ -296,9 +337,16 @@ class RQManager(BaseJobQueueManager):
         }
 
         return self._schedule_rq_job(
-            func=run_func,
-            func_args=(pipeline_name,),
-            func_kwargs=pipeline_run_args,
+            func=run_pipeline_job,
+            func_args=(),
+            func_kwargs={
+                "pipeline_name": pipeline_name,
+                "base_dir": self._base_dir,
+                "fs_config": fs_config,
+                "project_cfg_dict": project_cfg_dict,
+                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "run_args": pipeline_run_args,
+            },
             cron=cron,
             interval=interval,
             date=date,
@@ -724,9 +772,9 @@ class RQManager(BaseJobQueueManager):
         meta: dict | None = None,
         failure_ttl: int | dt.timedelta | None = None,
         group_id: str | None = None,
-        on_success: Callback | Callable | str | None = None,
-        on_failure: Callback | Callable | str | None = None,
-        on_stopped: Callback | Callable | str | None = None,
+        on_success: str | Callable | None = None,
+        on_failure: str | Callable | None = None,
+        on_stopped: str | Callable | None = None,
         **job_kwargs,
     ) -> Job:
         """Add a job for immediate or scheduled execution.
@@ -752,12 +800,9 @@ class RQManager(BaseJobQueueManager):
             meta: Additional metadata to store with the job.
             failure_ttl: Time to live for the job failure result, as seconds or timedelta.
             group_id: Optional group ID to associate this job with a group.
-            on_success: Callback to run on job success. Can be a function, string,
-                or RQ Callback instance.
-            on_failure: Callback to run on job failure. Can be a function, string,
-                or RQ Callback instance.
-            on_stopped: Callback to run when the job is stopped. Can be a function,
-                string, or RQ Callback instance.
+            on_success: Callback to run on job success. Can be a function or string identifier.
+            on_failure: Callback to run on job failure. Can be a function or string identifier.
+            on_stopped: Callback to run when the job is stopped. Can be a function or string identifier.
             **job_kwargs: Additional arguments for RQ's Job class.
 
         Returns:
@@ -844,12 +889,9 @@ class RQManager(BaseJobQueueManager):
         if isinstance(failure_ttl, dt.timedelta):
             failure_ttl = failure_ttl.total_seconds()
 
-        if isinstance(on_success, (str, Callable)):
-            on_success = Callback(on_success)
-        if isinstance(on_failure, (str, Callable)):
-            on_failure = Callback(on_failure)
-        if isinstance(on_stopped, (str, Callable)):
-            on_stopped = Callback(on_stopped)
+        on_success = CallbackRegistry.resolve_callback(on_success)
+        on_failure = CallbackRegistry.resolve_callback(on_failure)
+        on_stopped = CallbackRegistry.resolve_callback(on_stopped)
 
         queue = self._queues[queue_name]
         if run_at:
@@ -950,9 +992,9 @@ class RQManager(BaseJobQueueManager):
         meta: dict | None = None,
         failure_ttl: int | dt.timedelta | None = None,
         group_id: str | None = None,
-        on_success: Callback | Callable | str | None = None,
-        on_failure: Callback | Callable | str | None = None,
-        on_stopped: Callback | Callable | str | None = None,
+        on_success: str | Callable | None = None,
+        on_failure: str | Callable | None = None,
+        on_stopped: str | Callable | None = None,
         **job_kwargs,
     ) -> Any:
         """Run a job immediately and return its result.
@@ -973,9 +1015,9 @@ class RQManager(BaseJobQueueManager):
             meta: Additional metadata to store with the job.
             failure_ttl: Time to live for the job failure result.
             group_id: Optional group ID to associate this job with a group.
-            on_success: Callback to run on job success.
-            on_failure: Callback to run on job failure.
-            on_stopped: Callback to run when the job is stopped.
+            on_success: Callback to run on job success. Can be a function or string identifier.
+            on_failure: Callback to run on job failure. Can be a function or string identifier.
+            on_stopped: Callback to run when the job is stopped. Can be a function or string identifier.
             **job_kwargs: Additional arguments for RQ's Job class.
 
         Returns:
@@ -1276,9 +1318,9 @@ class RQManager(BaseJobQueueManager):
         repeat: int | None = None,
         timeout: int | dt.timedelta | None = None,
         meta: dict | None = None,
-        on_success: Callback | Callable | str | None = None,
-        on_failure: Callback | Callable | str | None = None,
-        on_stopped: Callback | Callable | str | None = None,
+        on_success: str | Callable | None = None,
+        on_failure: str | Callable | None = None,
+        on_stopped: str | Callable | None = None,
         **schedule_kwargs,
     ) -> Job:
         """Schedule a job for repeated or one-time execution.
@@ -1297,12 +1339,9 @@ class RQManager(BaseJobQueueManager):
             repeat: Number of repetitions
             timeout: Maximum time the job can run before being killed, as seconds or timedelta.
             meta: Additional metadata to store with the schedule.
-            on_success: Callback to run on schedule success. Can be a function,
-                string, or RQ Callback instance.
-            on_failure: Callback to run on schedule failure. Can be a function,
-                string, or RQ Callback instance.
-            on_stopped: Callback to run when the schedule is stopped. Can be a function,
-                string, or RQ Callback instance.
+            on_success: Callback to run on schedule success. Can be a function or string identifier.
+            on_failure: Callback to run on schedule failure. Can be a function or string identifier.
+            on_stopped: Callback to run when the schedule is stopped. Can be a function or string identifier.
             **schedule_kwargs: Additional scheduling parameters:
                 - repeat: Number of repetitions (int or dict)
                 - result_ttl: Time to live for results (float or timedelta)
@@ -1366,12 +1405,9 @@ class RQManager(BaseJobQueueManager):
         if isinstance(interval, dt.timedelta):
             interval = interval.total_seconds()
 
-        if isinstance(on_failure, (str, Callable)):
-            on_failure = Callback(on_failure)
-        if isinstance(on_success, (str, Callable)):
-            on_success = Callback(on_success)
-        if isinstance(on_stopped, (str, Callable)):
-            on_stopped = Callback(on_stopped)
+        on_success = CallbackRegistry.resolve_callback(on_success)
+        on_failure = CallbackRegistry.resolve_callback(on_failure)
+        on_stopped = CallbackRegistry.resolve_callback(on_stopped)
 
         if cron:
             if meta:

@@ -14,17 +14,15 @@ except ImportError:
     Digraph = Any  # Type alias for when graphviz isn't installed
 
 from .. import settings
-from ..cfg import PipelineConfig, ProjectConfig
-from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+from ..cfg import ProjectConfig
+
 from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from ..utils.callback import run_with_callback
+from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem, get_storage_options_and_fs
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .pipeline import Pipeline
 from .registry import HookType, PipelineRegistry
-from .visualizer import PipelineVisualizer
+
 
 setup_logging(level=settings.LOG_LEVEL)
 
@@ -119,28 +117,11 @@ class PipelineManager:
             setup_logging(level=log_level or settings.LOG_LEVEL)
 
         self._base_dir = base_dir or str(Path.cwd())
-        if storage_options is not None:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(settings.CACHE_DIR),
-                self._base_dir.split("://")[-1],
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-        if not fs:
-            fs = get_filesystem(
-                self._base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-        self._fs = fs
-        self._storage_options = (
-            storage_options or fs.storage_options
-            if fs.protocol != "dir"
-            else fs.fs.storage_options
+        
+        self._fs, self._storage_options = get_storage_options_and_fs(
+            base_dir=self._base_dir,
+            storage_options=storage_options,
+            fs=fs,
         )
 
         # Store overrides for ProjectConfig loading
@@ -159,7 +140,6 @@ class PipelineManager:
             logger.error(f"Error creating essential directories: {e}")
             # Consider raising an error here depending on desired behavior
 
-        self.io = PipelineIOManager(registry=self.registry)
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -362,6 +342,8 @@ class PipelineManager:
                 retry=retry,
                 adapter_cfg=adapter_cfg,
                 hamilton_adapters=hamilton_adapters,
+                on_failure= on_failure,
+                on_success=on_success,
             )
 
     # --- Delegated Methods ---

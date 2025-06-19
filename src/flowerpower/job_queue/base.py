@@ -30,19 +30,10 @@ from ..pipeline import PipelineManager
 # from ..utils.misc import update_config_from_dict
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 
-# class BaseJobQueueManager:
-#     def __init__(
-#         self,
-#         *args,
-#         pipeline_manager: PipelineManager | None = None,
-#         **kwargs,
-#     ):
-#         self.pipeline_manager = pipeline_manager
-#         super().__init__(*args, **kwargs)
 
 
 class BackendType(str, Enum):
-    # POSTGRESQL = "postgresql"
+    POSTGRESQL = "postgresql"
     # MYSQL = "mysql"
     SQLITE = "sqlite"
     REDIS = "redis"

@@ -39,10 +39,6 @@ class MLFlowConfig(BaseConfig):
             self.run_tags = munchify(self.run_tags)
 
 
-# class OpenLineageConfig(BaseConfig):
-#     namespace : str | None = msgspec.field(default=None)
-#     job_name : str | None = msgspec.field(default=None)
-
 
 class AdapterConfig(BaseConfig):
     hamilton_tracker: HamiltonTracerConfig = msgspec.field(

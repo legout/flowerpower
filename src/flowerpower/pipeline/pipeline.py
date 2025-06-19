@@ -30,6 +30,8 @@ class Pipeline:
         cfg_dir: str | None = None,
         pipelines_dir: str | None = None,
         log_level: str | None = None,
+        cfg: PipelineConfig | None = None,
+        project_cfg: ProjectConfig | None = None,
     ):
         """Initialize the Pipeline with configuration parameters.
 
@@ -58,6 +60,10 @@ class Pipeline:
             storage_options=storage_options,
             fs=fs,
         )
+
+        # Store provided configs if given
+        self.cfg = cfg
+        self.project_cfg = project_cfg
         self._cfg, self._adapter_cfg = self._load_config()
         self._add_modules_path()
 
