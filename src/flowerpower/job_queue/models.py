@@ -1,11 +1,12 @@
+import datetime
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Union
-import datetime
 
 
 class JobStatus(Enum):
     """Enumeration of possible job states in the queue."""
+
     PENDING = auto()
     QUEUED = auto()
     RUNNING = auto()
@@ -20,6 +21,7 @@ class JobStatus(Enum):
 @dataclass
 class JobInfo:
     """Backend-agnostic representation of a job in the queue."""
+
     id: str
     status: JobStatus
     name: str
@@ -39,6 +41,7 @@ class JobInfo:
 @dataclass
 class WorkerInfo:
     """Information about a worker process/instance."""
+
     id: str
     name: Optional[str] = None
     status: Optional[str] = None
@@ -51,6 +54,7 @@ class WorkerInfo:
 @dataclass
 class QueueInfo:
     """Information about a job queue."""
+
     name: str
     job_count: int
     jobs: Optional[List[str]] = None
@@ -60,6 +64,7 @@ class QueueInfo:
 @dataclass
 class WorkerStats:
     """Statistics about a worker's activity."""
+
     worker_id: str
     jobs_processed: int = 0
     jobs_failed: int = 0
@@ -71,6 +76,7 @@ class WorkerStats:
 @dataclass
 class BackendCapabilities:
     """Describes the features supported by a job queue backend."""
+
     supports_scheduling: bool = False
     supports_priorities: bool = False
     supports_worker_control: bool = False

@@ -1120,8 +1120,17 @@ class StorageOptions(msgspec.Struct):
         >>> s3_opts = AwsStorageOptions(access_key_id="KEY")
         >>> options = StorageOptions(storage_options=s3_opts)
     """
+
     valid_protocols = [
-        "s3", "github", "gitlab", "az", "abfs", "adl", "gs", "gcs", "file"
+        "s3",
+        "github",
+        "gitlab",
+        "az",
+        "abfs",
+        "adl",
+        "gs",
+        "gcs",
+        "file",
     ]
     storage_options: BaseStorageOptions
 

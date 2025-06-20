@@ -12,7 +12,6 @@ def run_pipeline_job(
     pipeline_name: str,
     base_dir: str,
     storage_options: dict,
-
     run_args: dict,
 ) -> Any:
     """

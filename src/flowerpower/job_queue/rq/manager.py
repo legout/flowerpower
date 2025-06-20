@@ -23,20 +23,17 @@ from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
-from ...cfg.pipeline.run import RetryConfig
 from ...cfg.adapter import AdapterConfig
+from ...cfg.pipeline.run import RetryConfig
 from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
-from ..models import JobInfo, JobStatus, WorkerInfo, BackendCapabilities
+from ..models import BackendCapabilities, JobInfo, JobStatus, WorkerInfo
 from .callbacks import CallbackRegistry
 from .runners import run_pipeline_job
 from .setup import RQBackend
-from .utils import (
-    _rq_status_to_job_status,
-    _rq_job_to_job_info,
-    _rq_worker_to_worker_info,
-)
+from .utils import (_rq_job_to_job_info, _rq_status_to_job_status,
+                    _rq_worker_to_worker_info)
 
 setup_logging()
 
@@ -282,6 +279,7 @@ class RQManager(BaseJobQueueManager):
             },
             **kwargs,
         )
+
     def enqueue_pipeline(
         self,
         pipeline_name: str,

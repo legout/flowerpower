@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING
 
-from ..models import JobStatus, JobInfo, WorkerInfo
+from ..models import JobInfo, JobStatus, WorkerInfo
 
 if TYPE_CHECKING:
     import rq
+
 
 def _rq_status_to_job_status(rq_status: str) -> JobStatus:
     mapping = {
@@ -19,6 +20,7 @@ def _rq_status_to_job_status(rq_status: str) -> JobStatus:
         "retry": JobStatus.RETRY,
     }
     return mapping.get(rq_status, JobStatus.UNKNOWN)
+
 
 def _rq_job_to_job_info(rq_job: "rq.Job") -> JobInfo:
     return JobInfo(
@@ -36,12 +38,15 @@ def _rq_job_to_job_info(rq_job: "rq.Job") -> JobInfo:
         kwargs=getattr(rq_job, "kwargs", None),
     )
 
+
 def _rq_worker_to_worker_info(rq_worker: "rq.Worker") -> WorkerInfo:
     return WorkerInfo(
         name=rq_worker.name,
         state=getattr(rq_worker, "state", None),
         queues=[q.name for q in rq_worker.queues],
-        current_job_id=str(rq_worker.get_current_job_id()) if rq_worker.get_current_job_id() else None,
+        current_job_id=str(rq_worker.get_current_job_id())
+        if rq_worker.get_current_job_id()
+        else None,
         hostname=getattr(rq_worker, "hostname", None),
         pid=getattr(rq_worker, "pid", None),
         last_heartbeat=getattr(rq_worker, "last_heartbeat", None),

@@ -99,7 +99,6 @@ class PipelineIOManager:
             tuple: A tuple containing the source and destination filesystems.
         """
 
-
         src_fs = get_filesystem(src_base_dir, src_fs, src_storage_options)
         logger.debug(f"Source filesystem: {src_fs}")
         dest_fs = get_filesystem(dest_base_dir, dest_fs, dest_storage_options)

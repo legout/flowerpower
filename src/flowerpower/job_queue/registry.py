@@ -1,5 +1,7 @@
-from typing import Type, Dict, List
+from typing import Dict, List, Type
+
 from .base import BaseJobQueueManager
+
 
 class JobQueueBackendRegistry:
     _backends: Dict[str, Type[BaseJobQueueManager]] = {}
@@ -13,7 +15,9 @@ class JobQueueBackendRegistry:
     @classmethod
     def create(cls, backend_type: str, **config) -> BaseJobQueueManager:
         if backend_type not in cls._backends:
-            raise ValueError(f"Backend '{backend_type}' is not registered. Available: {list(cls._backends.keys())}")
+            raise ValueError(
+                f"Backend '{backend_type}' is not registered. Available: {list(cls._backends.keys())}"
+            )
         return cls._backends[backend_type](**config)
 
     @classmethod

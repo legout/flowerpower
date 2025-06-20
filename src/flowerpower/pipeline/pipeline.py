@@ -4,13 +4,12 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable
 
-
 from .. import settings
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.adapter import AdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from ..fs import (AbstractFileSystem, BaseStorageOptions,
-                  get_storage_options_and_fs, get_protocol)
+from ..fs import (AbstractFileSystem, BaseStorageOptions, get_protocol,
+                  get_storage_options_and_fs)
 from ..utils.callback import run_with_callback
 from ..utils.logging import setup_logging
 from .registry import PipelineRegistry
@@ -31,8 +30,8 @@ class Pipeline:
         cfg_dir: str | None = None,
         pipelines_dir: str | None = None,
         log_level: str | None = None,
-        #cfg: PipelineConfig | None = None,
-        #project_cfg: ProjectConfig | None = None,
+        # cfg: PipelineConfig | None = None,
+        # project_cfg: ProjectConfig | None = None,
     ):
         """Initialize the Pipeline with configuration parameters.
 
@@ -55,17 +54,21 @@ class Pipeline:
         self._run_func = None
         self._on_success = None
         self._on_failure = None
-        cached = True if storage_options is not None or get_protocol(self._base_dir) != "file" else False
+        cached = (
+            True
+            if storage_options is not None or get_protocol(self._base_dir) != "file"
+            else False
+        )
         self._fs, _ = get_storage_options_and_fs(
             base_dir=self._base_dir,
             storage_options=storage_options,
             fs=fs,
-            cached=cached
+            cached=cached,
         )
 
         # Store provided configs if given
-        #self.cfg = cfg
-        #self.project_cfg = project_cfg
+        # self.cfg = cfg
+        # self.project_cfg = project_cfg
         self._cfg, self._adapter_cfg = self._load_config()
         self._add_modules_path()
 

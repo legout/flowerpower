@@ -23,8 +23,8 @@ if has_orjson and has_polars:
 else:
     from fsspec import AbstractFileSystem
 
-from .storage_options import BaseStorageOptions, StorageOptions
 from ..settings import CACHE_DIR
+from .storage_options import BaseStorageOptions, StorageOptions
 
 setup_logging()
 

@@ -6,11 +6,10 @@ from pathlib import Path
 import rich
 from loguru import logger
 
-
 from . import settings
 from .cfg import ProjectConfig
 from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-                 get_filesystem, get_storage_options_and_fs, get_protocol)
+                 get_filesystem, get_protocol, get_storage_options_and_fs)
 from .job_queue import RQManager as JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
@@ -131,12 +130,13 @@ class FlowerPowerProject:
             setup_logging(level=log_level)
 
         base_dir = base_dir or str(Path.cwd())
-        cached = True if storage_options is not None or get_protocol(base_dir) != "file" else False
+        cached = (
+            True
+            if storage_options is not None or get_protocol(base_dir) != "file"
+            else False
+        )
         storage_options, fs = get_storage_options_and_fs(
-            base_dir=base_dir,
-            storage_options=storage_options,
-            fs=fs,
-            cached=cached
+            base_dir=base_dir, storage_options=storage_options, fs=fs, cached=cached
         )
 
         if cls._check_project_exists(base_dir, fs):

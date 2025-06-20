@@ -14,27 +14,23 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, TypeVar, Optional, List, Dict, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 if importlib.util.find_spec("sqlalchemy"):
     from sqlalchemy.ext.asyncio import AsyncEngine
 else:
     AsyncEngine = TypeVar("AsyncEngine")
 
+# Import unified job queue models
+from src.flowerpower.job_queue.models import (BackendCapabilities, JobInfo,
+                                              JobStatus, QueueInfo, WorkerInfo,
+                                              WorkerStats)
+
 from ..cfg import ProjectConfig
 from ..cfg.pipeline.run import RetryConfig
-from ..fs import AbstractFileSystem, get_filesystem, get_storage_options_and_fs, get_protocol
+from ..fs import (AbstractFileSystem, get_filesystem, get_protocol,
+                  get_storage_options_and_fs)
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
-
-# Import unified job queue models
-from src.flowerpower.job_queue.models import (
-    JobStatus,
-    JobInfo,
-    WorkerInfo,
-    QueueInfo,
-    WorkerStats,
-    BackendCapabilities,
-)
 
 
 class BackendType(str, Enum):
@@ -279,12 +275,16 @@ class BaseJobQueueManager(ABC):
         self._base_dir = base_dir or str(Path.cwd())
         self._backend = backend
         self._type = type
-        cached = True if storage_options is not None or get_protocol(self._base_dir)!= "file" else False
+        cached = (
+            True
+            if storage_options is not None or get_protocol(self._base_dir) != "file"
+            else False
+        )
         self._storage_options, self._fs = get_storage_options_and_fs(
             base_dir=self._base_dir,
             storage_options=storage_options,
             fs=fs,
-            cached=cached
+            cached=cached,
         )
 
         self._load_config()
@@ -299,15 +299,12 @@ class BaseJobQueueManager(ABC):
             base_dir=self._base_dir, job_queue_type=self._type, fs=self._fs
         ).job_queue
 
-
-
     @property
     def cfg(self) -> ProjectConfig:
         """Get the current project configuration."""
         if not hasattr(self, "_cfg"):
             self._load_config()
         return self._cfg
-
 
     def __enter__(self):
         """Context manager entry - returns self for use in with statement."""
