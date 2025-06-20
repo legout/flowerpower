@@ -1,10 +1,4 @@
 from .manager import RQManager
-from .setup import RQBackend
-from .utils import show_jobs, show_schedules
+from ..registry import JobQueueBackendRegistry
 
-__all__ = [
-    "RQManager",
-    "RQBackend",
-    "show_jobs",
-    "show_schedules",
-]
+JobQueueBackendRegistry.register("rq", RQManager)

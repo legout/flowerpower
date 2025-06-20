@@ -13,7 +13,6 @@ from fsspec.implementations.cache_mapper import AbstractCacheMapper
 from fsspec.implementations.cached import SimpleCacheFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.memory import MemoryFile
-from fsspec.utils import infer_storage_options
 from loguru import logger
 
 from ..utils.logging import setup_logging
@@ -24,8 +23,8 @@ if has_orjson and has_polars:
 else:
     from fsspec import AbstractFileSystem
 
-from .storage_options import BaseStorageOptions
-from .storage_options import from_dict as storage_options_from_dict
+from .storage_options import BaseStorageOptions, StorageOptions
+from ..settings import CACHE_DIR
 
 setup_logging()
 
@@ -137,7 +136,8 @@ class MonitoredSimpleCacheFileSystem(SimpleCacheFileSystem):
         """
         self._verbose = kwargs.get("verbose", False)
         super().__init__(**kwargs)
-        self._mapper = FileNameCacheMapper(kwargs.get("cache_storage"))
+        cache_storage = kwargs.get("cache_storage")
+        self._mapper = FileNameCacheMapper(cache_storage)
 
     def _check_file(self, path: str) -> str | None:
         """Check if file exists in cache and download if needed.
@@ -515,6 +515,115 @@ DirFileSystem.ls = dir_ls_p
 MonitoredSimpleCacheFileSystem.ls = mscf_ls_p
 
 
+def get_protocol(
+    path: str | None = None,
+    fs: AbstractFileSystem | None = None,
+    storage_options: BaseStorageOptions | dict | None = None,
+) -> str:
+    """Get the protocol of a filesystem instance or string.
+
+    Args:
+        fs: Filesystem instance or protocol string
+
+    Returns:
+        str: The protocol of the filesystem
+    """
+    if fs:
+        if fs.protocol == "dir":
+            return fs.fs.protocol
+        return fs.protocol
+    if storage_options:
+        if isinstance(storage_options, BaseStorageOptions):
+            return storage_options.protocol or "file"
+        elif isinstance(storage_options, dict):
+            return storage_options.get("protocol", "file")
+
+    if path:
+        if isinstance(path, Path):
+            path = str(path)
+        if "://" in path:
+            return path.split("://")[0]
+        return "file"
+
+    raise ValueError("Invalid filesystem instance or protocol string")
+
+
+def get_fs_from_storage_options(
+    path: str | None = None,
+    storage_options: BaseStorageOptions | dict | None = None,
+    dirfs: bool = True,
+    cached: bool = False,
+    cache_storage: str | None = None,
+    **storage_options_kwargs,
+) -> AbstractFileSystem:
+    """Get filesystem instance from storage options or path.
+
+    Args:
+        path: URI or path to the filesystem location.
+        storage_options: Storage options for the filesystem.
+            Can be BaseStorageOptions object or dictionary with configuration.
+        dirfs: Whether to wrap filesystem in DirFileSystem for path-based operations.
+            Set to False when you need direct protocol-specific features.
+        cached: Whether to enable local caching of remote files.
+            Useful for frequently accessed remote files.
+        cache_storage: Directory path for cached files. Defaults to path-based location
+            in current directory if not specified.
+        **storage_options_kwargs: Additional keyword arguments for storage options.
+
+    Returns:
+        AbstractFileSystem: Configured filesystem instance.
+    """
+    if isinstance(storage_options, BaseStorageOptions):
+        fs = storage_options.to_filesystem()
+    elif isinstance(storage_options, dict):
+        protocol = get_protocol(path=path, storage_options=storage_options)
+        fs = StorageOptions.create(protocol=protocol, **storage_options).to_filesystem()
+    elif not storage_options and storage_options_kwargs:
+        protocol = get_protocol(path=path, storage_options=storage_options_kwargs)
+        fs = StorageOptions.create(
+            protocol=protocol, **storage_options_kwargs
+        ).to_filesystem()
+    else:
+        protocol = get_protocol(path=path, storage_options=storage_options)
+        fs = filesystem(protocol)
+
+    if dirfs:
+        base_path = path.split("://")[-1] if path else ""
+        fs = DirFileSystem(
+            path=base_path,
+            fs=fs,
+        )
+    if cached:
+        if fs.is_cache_fs:
+            return fs
+        cache_storage = cache_storage or posixpath.join(
+            posixpath.expanduser(CACHE_DIR), path.split("://")[-1]
+        )
+        fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
+    fs.is_cache_fs = False
+    return fs
+
+
+def get_storage_options_from_fs(
+    fs: AbstractFileSystem | None = None,
+) -> BaseStorageOptions:
+    """Get storage options and filesystem instance."""
+    if fs:
+        if fs.protocol == "dir":
+            return StorageOptions.create(
+                protocol=fs.fs.protocol,
+                **fs.fs.storage_options,
+            ).storage_options
+        return StorageOptions.create(
+            protocol=fs.protocol,
+            **fs.storage_options,
+        ).storage_options
+    else:
+        return StorageOptions.create(
+            protocol="file",
+        ).storage_options
+
+
 def get_filesystem(
     path: str | Path | None = None,
     storage_options: BaseStorageOptions | dict[str, str] | None = None,
@@ -596,7 +705,7 @@ def get_filesystem(
         ...     cached=True
         ... )
     """
-    if fs is not None:
+    if fs:
         if dirfs:
             base_path = path.split("://")[-1]
             if fs.protocol == "dir":
@@ -612,51 +721,75 @@ def get_filesystem(
         if cached:
             if fs.is_cache_fs:
                 return fs
+            cache_storage = cache_storage or posixpath.join(
+                posixpath.expanduser(CACHE_DIR), path.split("://")[-1]
+            )
             fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
 
         return fs
 
-    pp = infer_storage_options(str(path) if isinstance(path, Path) else path)
-    protocol = (
-        storage_options_kwargs.get("protocol", None)
-        or (
-            storage_options.get("protocol", None)
-            if isinstance(storage_options, dict)
-            else getattr(storage_options, "protocol", None)
+    if storage_options or storage_options_kwargs:
+        fs = get_fs_from_storage_options(
+            path=path,
+            storage_options=storage_options,
+            dirfs=dirfs,
+            cached=cached,
+            cache_storage=cache_storage,
+            **storage_options_kwargs,
         )
-        or pp.get("protocol", "file")
-    )
-
-    if protocol == "file" or protocol == "local":
-        fs = filesystem(protocol)
-        fs.is_cache_fs = False
-        if dirfs:
-            fs = DirFileSystem(path=path, fs=fs)
-            fs.is_cache_fs = False
-        return fs
-
-    host = pp.get("host", "")
-    path = pp.get("path", "").lstrip("/")
-    if len(host) and host not in path:
-        path = posixpath.join(host, path)
-    if "." in path:
-        path = posixpath.dirname(path)
-
-    if isinstance(storage_options, dict):
-        storage_options = storage_options_from_dict(protocol, storage_options)
-
-    if storage_options is None:
-        storage_options = storage_options_from_dict(protocol, storage_options_kwargs)
-
-    fs = storage_options.to_filesystem()
-    fs.is_cache_fs = False
-    if dirfs and len(path):
-        fs = DirFileSystem(path=path, fs=fs)
-        fs.is_cache_fs = False
-    if cached:
-        if cache_storage is None:
-            cache_storage = (Path.cwd() / path).as_posix()
-        fs = MonitoredSimpleCacheFileSystem(fs=fs, cache_storage=cache_storage)
-        fs.is_cache_fs = True
 
     return fs
+
+
+def get_storage_options_and_fs(
+    path: str | Path | None = None,
+    storage_options: BaseStorageOptions | dict | None = None,
+    fs: AbstractFileSystem | None = None,
+    dirfs: bool = True,
+    cached: bool = False,
+    cache_storage: str | None = None,
+) -> tuple[BaseStorageOptions | dict | None, AbstractFileSystem | None]:
+    """Get storage options and filesystem instance.
+
+    This function retrieves the storage options and filesystem instance based on the provided
+    parameters. It can handle both direct filesystem instances and configuration dictionaries.
+
+    Args:
+        path: Path to the data directory or file.
+        storage_options: Storage options for the filesystem.
+            Can be BaseStorageOptions object or dictionary with configuration.
+        fs: Existing filesystem instance to use.
+            If provided, overrides path and storage_options.
+        dirfs: Whether to wrap filesystem in DirFileSystem for path-based operations.
+            Set to False when you need direct protocol-specific features.
+        cached: Whether to enable local caching of remote files.
+            Useful for frequently accessed remote files.
+        cache_storage: Directory path for cached files. Defaults to path-based location
+            in current directory if not specified.
+
+    Returns:
+        tuple[BaseStorageOptions | dict | None, AbstractFileSystem | None]:
+            - Storage options as BaseStorageOptions or dictionary
+            - Filesystem instance or None if not created
+    """
+    if storage_options is None and fs is None:
+        storage_options = StorageOptions.create(protocol="file").storage_options
+    if storage_options:
+        fs = get_filesystem(
+            path=path,
+            storage_options=storage_options,
+            dirfs=dirfs,
+            cached=cached,
+            cache_storage=cache_storage,
+        )
+
+    elif fs:
+        storage_options = get_storage_options_from_fs(fs=fs)
+        fs = get_filesystem(
+            path=path,
+            fs=fs,
+            dirfs=dirfs,
+            cached=cached,
+            cache_storage=cache_storage,
+        )
+    return storage_options, fs

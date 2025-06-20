@@ -1,69 +1,48 @@
-from rich.console import Console
-from rich.table import Table
-from rq import Queue
-from rq_scheduler import Scheduler
+from typing import TYPE_CHECKING
 
+from ..models import JobStatus, JobInfo, WorkerInfo
 
-def show_schedules(scheduler: Scheduler) -> None:
-    """
-    Display the schedules in a user-friendly format.
+if TYPE_CHECKING:
+    import rq
 
-    Args:
-        scheduler (Scheduler): An instance of rq_scheduler.Scheduler.
-    """
-    console = Console()
-    table = Table(title="Scheduled Jobs")
+def _rq_status_to_job_status(rq_status: str) -> JobStatus:
+    mapping = {
+        "queued": JobStatus.QUEUED,
+        "started": JobStatus.RUNNING,
+        "finished": JobStatus.SUCCEEDED,
+        "failed": JobStatus.FAILED,
+        "deferred": JobStatus.QUEUED,
+        "scheduled": JobStatus.QUEUED,
+        "canceled": JobStatus.CANCELLED,
+        "stopped": JobStatus.CANCELLED,
+        "stopping": JobStatus.CANCELLED,
+        "retry": JobStatus.RETRY,
+    }
+    return mapping.get(rq_status, JobStatus.UNKNOWN)
 
-    table.add_column("ID", style="cyan")
-    table.add_column("Function", style="green")
-    table.add_column("Schedule", style="yellow")
-    table.add_column("Next Run", style="magenta")
+def _rq_job_to_job_info(rq_job: "rq.Job") -> JobInfo:
+    return JobInfo(
+        id=str(rq_job.id),
+        status=_rq_status_to_job_status(rq_job.get_status()),
+        enqueued_at=rq_job.enqueued_at,
+        started_at=getattr(rq_job, "started_at", None),
+        ended_at=getattr(rq_job, "ended_at", None),
+        result=getattr(rq_job, "result", None),
+        exc_info=getattr(rq_job, "exc_info", None),
+        meta=dict(rq_job.meta) if hasattr(rq_job, "meta") else {},
+        description=getattr(rq_job, "description", None),
+        func_name=getattr(rq_job, "func_name", None),
+        args=getattr(rq_job, "args", None),
+        kwargs=getattr(rq_job, "kwargs", None),
+    )
 
-    for job in scheduler.get_jobs():
-        # Determine schedule type and format
-        schedule_type = "Unknown"
-        if hasattr(job, "meta"):
-            if job.meta.get("cron"):
-                schedule_type = f"Cron: {job.meta['cron']}"
-            elif job.meta.get("interval"):
-                schedule_type = f"Interval: {job.meta['interval']}s"
-
-        next_run = (
-            job.scheduled_at.strftime("%Y-%m-%d %H:%M:%S")
-            if hasattr(job, "scheduled_at") and job.scheduled_at
-            else "Unknown"
-        )
-
-        table.add_row(job.id, job.func_name, schedule_type, next_run)
-
-    console.print(table)
-
-
-def show_jobs(queue: Queue) -> None:
-    """
-    Display the jobs in a user-friendly format.
-
-    Args:
-        queue (Queue): An instance of rq.Queue.
-    """
-    console = Console()
-    table = Table(title="Jobs")
-
-    table.add_column("ID", style="cyan")
-    table.add_column("Function", style="green")
-    table.add_column("Status", style="yellow")
-    table.add_column("Enqueued At", style="magenta")
-    table.add_column("Result", style="blue")
-
-    for job in queue.get_jobs():
-        table.add_row(
-            job.id,
-            job.func_name,
-            job.get_status(),
-            job.enqueued_at.strftime("%Y-%m-%d %H:%M:%S")
-            if job.enqueued_at
-            else "Unknown",
-            str(job.result) if job.result else "None",
-        )
-
-    console.print(table)
+def _rq_worker_to_worker_info(rq_worker: "rq.Worker") -> WorkerInfo:
+    return WorkerInfo(
+        name=rq_worker.name,
+        state=getattr(rq_worker, "state", None),
+        queues=[q.name for q in rq_worker.queues],
+        current_job_id=str(rq_worker.get_current_job_id()) if rq_worker.get_current_job_id() else None,
+        hostname=getattr(rq_worker, "hostname", None),
+        pid=getattr(rq_worker, "pid", None),
+        last_heartbeat=getattr(rq_worker, "last_heartbeat", None),
+    )

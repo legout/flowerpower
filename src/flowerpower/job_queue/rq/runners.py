@@ -11,9 +11,8 @@ logger = logging.getLogger(__name__)
 def run_pipeline_job(
     pipeline_name: str,
     base_dir: str,
-    fs_config: dict,
-    project_cfg_dict: dict,
-    pipeline_cfg_dict: dict,
+    storage_options: dict,
+
     run_args: dict,
 ) -> Any:
     """
@@ -24,24 +23,22 @@ def run_pipeline_job(
 
     try:
         # Reconstruct filesystem object from serializable config
-        fs, _ = get_storage_options_and_fs(
-            base_dir=base_dir,
-            storage_options=fs_config.get("storage_options"),
-            fs=None,  # Let get_storage_options_and_fs create the fs object
-        )
+        # fs, _ = get_storage_options_and_fs(
+        #     base_dir=base_dir,
+        #     storage_options=fs_config.get("storage_options"),
+        #     fs=None,  # Let get_storage_options_and_fs create the fs object
+        # )
 
-        # Reconstruct configuration objects
-        project_cfg = ProjectConfig.from_dict(project_cfg_dict)
-        pipeline_cfg = PipelineConfig.from_dict(pipeline_cfg_dict)
+        # # Reconstruct configuration objects
+        # project_cfg = ProjectConfig.from_dict(project_cfg_dict)
+        # pipeline_cfg = PipelineConfig.from_dict(pipeline_cfg_dict)
 
         # Initialize Pipeline instance within the worker process
         # Pass the reconstructed fs and cfg objects
         pipeline_instance = Pipeline(
             name=pipeline_name,
             base_dir=base_dir,
-            fs=fs,
-            cfg=pipeline_cfg,  # Pass the loaded pipeline_cfg
-            project_cfg=project_cfg,  # Pass the loaded project_cfg
+            storage_options=storage_options,
         )
 
         # Execute the pipeline's run method with the provided arguments

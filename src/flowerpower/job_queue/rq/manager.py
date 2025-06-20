@@ -24,13 +24,19 @@ from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
 from ...cfg.pipeline.run import RetryConfig
+from ...cfg.adapter import AdapterConfig
 from ...fs import AbstractFileSystem
-from ...pipeline import Pipeline
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
+from ..models import JobInfo, JobStatus, WorkerInfo, BackendCapabilities
 from .callbacks import CallbackRegistry
 from .runners import run_pipeline_job
 from .setup import RQBackend
+from .utils import (
+    _rq_status_to_job_status,
+    _rq_job_to_job_info,
+    _rq_worker_to_worker_info,
+)
 
 setup_logging()
 
@@ -51,49 +57,41 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
 
 
 class RQManager(BaseJobQueueManager):
-    """Implementation of BaseScheduler using Redis Queue (RQ) and rq-scheduler.
+    """Concrete implementation of BaseJobQueueManager using Redis Queue (RQ) and rq-scheduler."""
 
-    --- Serialization helpers for RQ job pickling ---
+    @property
+    def capabilities(self) -> BackendCapabilities:
+        return BackendCapabilities(
+            supports_scheduling=True,
+            supports_delayed_jobs=True,
+            supports_worker_management=True,
+            supports_queue_management=True,
+            supports_job_cancellation=True,
+            supports_job_retry=True,
+            supports_job_result=True,
+            supports_job_metadata=True,
+        )
 
+    # def _serialize_fs_config(self) -> dict:
+    #     """Extract picklable fs config (storage_options) for job runner."""
+    #     storage_options = getattr(self.fs, "storage_options", None)
+    #     return {"storage_options": storage_options}
 
-    This worker class uses RQ and rq-scheduler as the backend to manage jobs and schedules.
-    It supports multiple queues, background workers, and job scheduling capabilities.
+    # def _serialize_project_config(self) -> dict:
+    #     """Serialize project config to dict."""
+    #     # Assuming self.project_cfg is a ProjectConfig instance
+    #     return self.project_cfg.to_dict()
 
-    Typical usage:
-        ```python
-        worker = RQManager(name="my_rq_worker")
-        worker.start_worker(background=True)
+    # def _serialize_pipeline_config(self, pipeline_name: str) -> dict:
+    #     """Serialize pipeline config to dict for the given pipeline."""
+    #     # If self.cfg is a PipelineConfig for the current pipeline, use it
+    #     # Otherwise, load or retrieve the correct PipelineConfig
+    #     if hasattr(self, "cfg") and getattr(self.cfg, "name", None) == pipeline_name:
+    #         return self.cfg.to_dict()
+    #     # Fallback: load PipelineConfig for the given name (pseudo-code, adapt as needed)
+    #     from ...cfg import PipelineConfig
 
-        # Add a job
-        def my_job(x: int) -> int:
-            return x * 2
-
-        job_id = worker.add_job(my_job, func_args=(10,))
-        ```
-    """
-
-    def _serialize_fs_config(self) -> dict:
-        """Extract picklable fs config (storage_options) for job runner."""
-        # Assuming self.fs is an AbstractFileSystem or similar
-        # and has a .storage_options attribute or similar config
-        storage_options = getattr(self.fs, "storage_options", None)
-        return {"storage_options": storage_options}
-
-    def _serialize_project_config(self) -> dict:
-        """Serialize project config to dict."""
-        # Assuming self.project_cfg is a ProjectConfig instance
-        return self.project_cfg.to_dict()
-
-    def _serialize_pipeline_config(self, pipeline_name: str) -> dict:
-        """Serialize pipeline config to dict for the given pipeline."""
-        # If self.cfg is a PipelineConfig for the current pipeline, use it
-        # Otherwise, load or retrieve the correct PipelineConfig
-        if hasattr(self, "cfg") and getattr(self.cfg, "name", None) == pipeline_name:
-            return self.cfg.to_dict()
-        # Fallback: load PipelineConfig for the given name (pseudo-code, adapt as needed)
-        from ...cfg import PipelineConfig
-
-        return PipelineConfig.load_from_name(pipeline_name, self.base_dir).to_dict()
+    #     return PipelineConfig.load_from_name(pipeline_name, self.base_dir).to_dict()
 
     def __init__(
         self,
@@ -102,7 +100,6 @@ class RQManager(BaseJobQueueManager):
         backend: RQBackend | None = None,
         storage_options: dict[str, Any] | None = None,
         fs: AbstractFileSystem | None = None,
-        pipelines_dir: str | None = None,
         log_level: str | None = None,
     ):
         """Initialize the RQ scheduler backend.
@@ -153,7 +150,6 @@ class RQManager(BaseJobQueueManager):
             backend=backend,
             fs=fs,
             storage_options=storage_options,
-            pipelines_dir=pipelines_dir,
         )
 
         if self._backend is None:
@@ -175,40 +171,100 @@ class RQManager(BaseJobQueueManager):
         )
         self._scheduler.log = logger
 
+    # --- Abstract method implementations ---
+
+    def list_queues(self) -> list[str]:
+        """List all queue names managed by this backend."""
+        return list(self._queues.keys())
+
+    def get_queue(self, queue_name: str) -> dict:
+        """Get info about a specific queue."""
+        queue = self._queues.get(queue_name)
+        if not queue:
+            raise ValueError(f"Queue '{queue_name}' not found.")
+        return {
+            "name": queue.name,
+            "count": len(queue),
+            "jobs": [job.id for job in queue.jobs],
+        }
+
+    def list_workers(self) -> list[WorkerInfo]:
+        """List all workers."""
+        workers = Worker.all(connection=self._backend.client)
+        return [_rq_worker_to_worker_info(w) for w in workers]
+
+    def get_worker(self, worker_name: str) -> WorkerInfo:
+        """Get info about a specific worker."""
+        workers = Worker.all(connection=self._backend.client)
+        for w in workers:
+            if w.name == worker_name:
+                return _rq_worker_to_worker_info(w)
+        raise ValueError(f"Worker '{worker_name}' not found.")
+
+    def list_jobs(self, queue_name: str = "default") -> list[JobInfo]:
+        """List all jobs in a queue."""
+        queue = self._queues.get(queue_name)
+        if not queue:
+            raise ValueError(f"Queue '{queue_name}' not found.")
+        return [_rq_job_to_job_info(job) for job in queue.jobs]
+
+    def get_job(self, job_id: str) -> JobInfo:
+        """Get info about a specific job."""
+        job = Job.fetch(job_id, connection=self._backend.client)
+        return _rq_job_to_job_info(job)
+
+    def cancel_job(self, job_id: str) -> bool:
+        """Cancel a job by ID."""
+        job = Job.fetch(job_id, connection=self._backend.client)
+        job.cancel()
+        return True
+
+    def requeue_job(self, job_id: str) -> bool:
+        """Requeue a failed job by ID."""
+        job = Job.fetch(job_id, connection=self._backend.client)
+        job.requeue()
+        return True
+
+    def get_job_status(self, job_id: str) -> JobStatus:
+        """Get the status of a job."""
+        job = Job.fetch(job_id, connection=self._backend.client)
+        return _rq_status_to_job_status(job.get_status())
+
+    def get_job_result(self, job_id: str) -> Any:
+        """Get the result of a finished job."""
+        job = Job.fetch(job_id, connection=self._backend.client)
+        return job.result
+
+    # --- Existing methods for pipeline enqueue/run remain unchanged ---
     def run_pipeline_sync(
         self,
         pipeline_name: str,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        inputs: dict[str, Any] | None = None,
+        final_vars: list[str] | None = None,
+        config: dict[str, Any] | None = None,
+        cache: bool | dict[str, Any] = False,
+        executor: str | dict[str, str] | None = None,
+        with_adapter: dict[str, bool] | AdapterConfig | None = None,
+        adapter_cfg: dict[str, Any] | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
-        retry: dict | RetryConfig | None = None,
+        retry: dict[str, Any] | RetryConfig | None = None,
         **kwargs,
     ):
         """
         Run a pipeline synchronously and return its result.
         """
-        fs_config = self._serialize_fs_config()
-        project_cfg_dict = self._serialize_project_config()
-        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
 
         run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
             "cache": cache,
-            "executor_cfg": executor_cfg,
-            "with_adapter_cfg": with_adapter_cfg,
-            "pipeline_adapter_cfg": pipeline_adapter_cfg,
-            "project_adapter_cfg": project_adapter_cfg,
-            "adapter": adapter,
+            "executor": executor,
+            "with_adapter": with_adapter,
+            "adapter_cfg": adapter_cfg,
+            "hamilton_adapters": hamilton_adapters,
             "reload": reload,
             "log_level": log_level,
             "retry": retry,
@@ -221,51 +277,42 @@ class RQManager(BaseJobQueueManager):
             func_kwargs={
                 "pipeline_name": pipeline_name,
                 "base_dir": self._base_dir,
-                "fs_config": fs_config,
-                "project_cfg_dict": project_cfg_dict,
-                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "storage_options": self._storage_options,
                 "run_args": run_args,
             },
             **kwargs,
         )
-
     def enqueue_pipeline(
         self,
         pipeline_name: str,
-        inputs: dict | None = None,
+        inputs: dict[str, Any] | None = None,
         result_ttl: int | None = 120,
         run_at: dt.datetime | None = None,
         run_in: float | dt.timedelta | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        final_vars: list[str] | None = None,
+        config: dict[str, Any] | None = None,
+        cache: bool | dict[str, Any] = False,
+        executor: str | dict[str, str] | None = None,
+        with_adapter: dict[str, bool] | AdapterConfig | None = None,
+        adapter_cfg: dict[str, Any] | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
-        retry: dict | RetryConfig | None = None,
+        retry: dict[str, Any] | RetryConfig | None = None,
         **kwargs,
     ):
         """
         Enqueue a pipeline for execution via the job queue.
         """
-        fs_config = self._serialize_fs_config()
-        project_cfg_dict = self._serialize_project_config()
-        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
-
         pipeline_run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
             "cache": cache,
-            "executor_cfg": executor_cfg,
-            "with_adapter_cfg": with_adapter_cfg,
-            "pipeline_adapter_cfg": pipeline_adapter_cfg,
-            "project_adapter_cfg": project_adapter_cfg,
-            "adapter": adapter,
+            "executor": executor,
+            "with_adapter": with_adapter,
+            "adapter_cfg": adapter_cfg,
+            "hamilton_adapters": hamilton_adapters,
             "reload": reload,
             "log_level": log_level,
             "retry": retry,
@@ -274,15 +321,13 @@ class RQManager(BaseJobQueueManager):
             k: v for k, v in pipeline_run_args.items() if v is not None
         }
 
-        return self._enqueue_rq_job(
+        return self.enqueue_job(
             func=run_pipeline_job,
             func_args=(),
             func_kwargs={
                 "pipeline_name": pipeline_name,
                 "base_dir": self._base_dir,
-                "fs_config": fs_config,
-                "project_cfg_dict": project_cfg_dict,
-                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "storage_options": self._storage_options,
                 "run_args": pipeline_run_args,
             },
             result_ttl=result_ttl,
@@ -297,18 +342,17 @@ class RQManager(BaseJobQueueManager):
         cron: str | None = None,
         interval: int | None = None,
         date: str | None = None,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
+        inputs: dict[str, Any] | None = None,
+        final_vars: list[str] | None = None,
+        config: dict[str, Any] | None = None,
         cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        executor: str | dict[str, str] | None = None,
+        with_adapter: dict[str, bool] | AdapterConfig | None = None,
+        adapter_cfg: dict[str, Any] | AdapterConfig | None = None,
+        hamilton_adapters: dict[str, Any] | None = None,
         reload: bool = False,
         log_level: str | None = None,
-        retry: dict | RetryConfig | None = None,
+        retry: dict[str] | RetryConfig | None = None,
         schedule_id: str | None = None,
         overwrite: bool = False,
         **kwargs,
@@ -316,20 +360,16 @@ class RQManager(BaseJobQueueManager):
         """
         Schedule a pipeline for execution using the configured job queue.
         """
-        fs_config = self._serialize_fs_config()
-        project_cfg_dict = self._serialize_project_config()
-        pipeline_cfg_dict = self._serialize_pipeline_config(pipeline_name)
 
         pipeline_run_args = {
             "inputs": inputs,
             "final_vars": final_vars,
             "config": config,
             "cache": cache,
-            "executor_cfg": executor_cfg,
-            "with_adapter_cfg": with_adapter_cfg,
-            "pipeline_adapter_cfg": pipeline_adapter_cfg,
-            "project_adapter_cfg": project_adapter_cfg,
-            "adapter": adapter,
+            "executor": executor,
+            "with_adapter": with_adapter,
+            "adapter_cfg": adapter_cfg,
+            "hamilton_adapters": hamilton_adapters,
             "reload": reload,
             "log_level": log_level,
             "retry": retry,
@@ -338,15 +378,13 @@ class RQManager(BaseJobQueueManager):
             k: v for k, v in pipeline_run_args.items() if v is not None
         }
 
-        return self._schedule_rq_job(
+        return self.schedule_job(
             func=run_pipeline_job,
             func_args=(),
             func_kwargs={
                 "pipeline_name": pipeline_name,
                 "base_dir": self._base_dir,
-                "fs_config": fs_config,
-                "project_cfg_dict": project_cfg_dict,
-                "pipeline_cfg_dict": pipeline_cfg_dict,
+                "storage_options": self._storage_options,
                 "run_args": pipeline_run_args,
             },
             cron=cron,
@@ -757,7 +795,7 @@ class RQManager(BaseJobQueueManager):
 
     ## Jobs ###
 
-    def _enqueue_rq_job(
+    def enqueue_job(
         self,
         func: Callable,
         func_args: tuple | None = None,
@@ -1043,7 +1081,7 @@ class RQManager(BaseJobQueueManager):
             assert result == 3
             ```
         """
-        job = self.add_job(
+        job = self.enqueue_job(
             func=func,
             func_args=func_args,
             func_kwargs=func_kwargs,
@@ -1305,7 +1343,7 @@ class RQManager(BaseJobQueueManager):
 
     ### Schedules ###
 
-    def _schedule_rq_job(
+    def schedule_job(
         self,
         func: Callable,
         func_args: tuple | None = None,

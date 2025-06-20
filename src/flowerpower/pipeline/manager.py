@@ -1,4 +1,4 @@
-import os
+# Add this import at the top with the others
 import posixpath
 import sys
 from pathlib import Path
@@ -16,7 +16,7 @@ except ImportError:
 from .. import settings
 from ..cfg import ProjectConfig
 from ..cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from ..fs import (AbstractFileSystem, BaseStorageOptions, get_filesystem,
+from ..fs import (AbstractFileSystem, BaseStorageOptions, get_protocol,
                   get_storage_options_and_fs)
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
@@ -116,11 +116,12 @@ class PipelineManager:
             setup_logging(level=log_level or settings.LOG_LEVEL)
 
         self._base_dir = base_dir or str(Path.cwd())
-
+        cached = True if storage_options is not None or get_protocol(self._base_dir) != "file" else False
         self._fs, self._storage_options = get_storage_options_and_fs(
             base_dir=self._base_dir,
             storage_options=storage_options,
             fs=fs,
+            cached=cached
         )
 
         # Store overrides for ProjectConfig loading

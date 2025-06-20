@@ -99,24 +99,10 @@ class PipelineIOManager:
             tuple: A tuple containing the source and destination filesystems.
         """
 
-        def _get_filesystem(base_dir, fs, storage_options):
-            if fs is None:
-                fs = get_filesystem(base_dir, storage_options=storage_options)
-            else:
-                if not isinstance(fs, AbstractFileSystem):
-                    raise ValueError(
-                        f"Invalid filesystem type: {type(fs)}. Expected AbstractFileSystem."
-                    )
-                if isinstance(fs, DirFileSystem):
-                    if not fs.path == base_dir:
-                        fs = DirFileSystem(base_dir, fs=fs)
-                else:
-                    fs = DirFileSystem(base_dir, fs=fs)
-            return fs
 
-        src_fs = _get_filesystem(src_base_dir, src_fs, src_storage_options)
+        src_fs = get_filesystem(src_base_dir, src_fs, src_storage_options)
         logger.debug(f"Source filesystem: {src_fs}")
-        dest_fs = _get_filesystem(dest_base_dir, dest_fs, dest_storage_options)
+        dest_fs = get_filesystem(dest_base_dir, dest_fs, dest_storage_options)
         logger.debug(f"Destination filesystem: {dest_fs}")
 
         if files is None:

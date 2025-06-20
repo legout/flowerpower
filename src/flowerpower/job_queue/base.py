@@ -14,21 +14,27 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Optional, List, Dict, Union
 
 if importlib.util.find_spec("sqlalchemy"):
     from sqlalchemy.ext.asyncio import AsyncEngine
-
 else:
     AsyncEngine = TypeVar("AsyncEngine")
 
-
 from ..cfg import ProjectConfig
 from ..cfg.pipeline.run import RetryConfig
-from ..fs import AbstractFileSystem, get_filesystem
-from ..pipeline import PipelineManager
-# from ..utils.misc import update_config_from_dict
+from ..fs import AbstractFileSystem, get_filesystem, get_storage_options_and_fs, get_protocol
 from ..settings import BACKEND_PROPERTIES, CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
+
+# Import unified job queue models
+from src.flowerpower.job_queue.models import (
+    JobStatus,
+    JobInfo,
+    WorkerInfo,
+    QueueInfo,
+    WorkerStats,
+    BackendCapabilities,
+)
 
 
 class BackendType(str, Enum):
@@ -240,32 +246,13 @@ class BaseBackend:
 
 class BaseJobQueueManager(ABC):
     """
-    Abstract base class for scheduler workers (RQ, etc.).
-    Defines the required interface for all scheduler backends.
+    Abstract base class for pluggable job queue managers.
+    Defines the required interface for all job queue backends.
 
-    Can be used as a context manager:
+    Can be used as a context manager.
 
-    ```python
-    with RQManager(name="test") as manager:
-        manager.add_job(job1)
-    ```
+    All methods must be implemented by concrete backends.
     """
-
-    def __enter__(self):
-        """Context manager entry - returns self for use in with statement."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - ensures workers are stopped."""
-        if hasattr(self, "_worker_process") and self._worker_process is not None:
-            self.stop_worker()
-        if hasattr(self, "_worker_pool") and self._worker_pool is not None:
-            self.stop_worker_pool()
-        if hasattr(self, "_worker") and self._worker is not None:
-            self.stop_worker()
-        if hasattr(self, "_scheduler") and self._scheduler is not None:
-            self.stop_scheduler()
-        return False  # Don't suppress exceptions
 
     def __init__(
         self,
@@ -292,27 +279,13 @@ class BaseJobQueueManager(ABC):
         self._base_dir = base_dir or str(Path.cwd())
         self._backend = backend
         self._type = type
-        self._fs = fs
-        self._storage_options = storage_options or (fs.storage_options if fs else {})
-
-        if storage_options is not None:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1]
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-        if not fs:
-            fs = get_filesystem(
-                self._base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-            self._fs = fs
-            self._storage_options = storage_options or fs.storage_options
+        cached = True if storage_options is not None or get_protocol(self._base_dir)!= "file" else False
+        self._storage_options, self._fs = get_storage_options_and_fs(
+            base_dir=self._base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            cached=cached
+        )
 
         self._load_config()
 
@@ -326,89 +299,248 @@ class BaseJobQueueManager(ABC):
             base_dir=self._base_dir, job_queue_type=self._type, fs=self._fs
         ).job_queue
 
-    def _init_pipeline_manager(self) -> None:
-        """Initialize the pipeline manager."""
-        self._pipeline_manager = PipelineManager(
-            base_dir=self._base_dir,
-            fs=self._fs,
-            storage_options=self._storage_options,
-        )
+
 
     @property
-    def project_cfg(self) -> ProjectConfig:
+    def cfg(self) -> ProjectConfig:
         """Get the current project configuration."""
         if not hasattr(self, "_cfg"):
             self._load_config()
         return self._cfg
 
+
+    def __enter__(self):
+        """Context manager entry - returns self for use in with statement."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures workers are stopped."""
+        if hasattr(self, "_worker_process") and self._worker_process is not None:
+            self.stop_worker()
+        if hasattr(self, "_worker_pool") and self._worker_pool is not None:
+            self.stop_worker_pool()
+        if hasattr(self, "_worker") and self._worker is not None:
+            self.stop_worker()
+        if hasattr(self, "_scheduler") and self._scheduler is not None:
+            self.stop_scheduler()
+        return False  # Don't suppress exceptions
+
     @property
-    def pipeline_manager(self) -> PipelineManager:
-        """Get the pipeline manager instance."""
-        if not hasattr(self, "_pipeline_manager"):
-            self._init_pipeline_manager()
-        return self._pipeline_manager
+    @abstractmethod
+    def capabilities(self) -> BackendCapabilities:
+        """
+        Returns the capabilities of this backend.
+        """
+        pass
+
+    # --- Job Management ---
+
+    @abstractmethod
+    def enqueue_job(self, job: JobInfo) -> str:
+        """
+        Enqueue a job for execution.
+
+        Args:
+            job (JobInfo): The job to enqueue.
+
+        Returns:
+            str: The job ID assigned by the backend.
+        """
+        pass
+
+    @abstractmethod
+    def get_job(self, job_id: str) -> Optional[JobInfo]:
+        """
+        Retrieve information about a job by its ID.
+
+        Args:
+            job_id (str): The job ID.
+
+        Returns:
+            Optional[JobInfo]: The job information, or None if not found.
+        """
+        pass
+
+    @abstractmethod
+    def list_jobs(
+        self, status: Optional[JobStatus] = None, queue: Optional[str] = None
+    ) -> List[JobInfo]:
+        """
+        List jobs, optionally filtered by status or queue.
+
+        Args:
+            status (Optional[JobStatus]): Filter by job status.
+            queue (Optional[str]): Filter by queue name.
+
+        Returns:
+            List[JobInfo]: List of jobs.
+        """
+        pass
+
+    @abstractmethod
+    def cancel_job(self, job_id: str) -> bool:
+        """
+        Cancel a job if it is running or queued.
+
+        Args:
+            job_id (str): The job ID.
+
+        Returns:
+            bool: True if the job was cancelled, False otherwise.
+        """
+        pass
+
+    # @abstractmethod
+    # def retry_job(self, job_id: str) -> bool:
+    #     """
+    #     Retry a failed job.
+
+    #     Args:
+    #         job_id (str): The job ID.
+
+    #     Returns:
+    #         bool: True if the retry was scheduled, False otherwise.
+    #     """
+    #     pass
+
+    # --- Worker Management ---
+
+    @abstractmethod
+    def list_workers(self) -> List[WorkerInfo]:
+        """
+        List all workers known to the backend.
+
+        Returns:
+            List[WorkerInfo]: List of worker information.
+        """
+        pass
+
+    @abstractmethod
+    def get_worker(self, worker_id: str) -> Optional[WorkerInfo]:
+        """
+        Retrieve information about a worker.
+
+        Args:
+            worker_id (str): The worker ID.
+
+        Returns:
+            Optional[WorkerInfo]: The worker information, or None if not found.
+        """
+        pass
+
+    # @abstractmethod
+    # def get_worker_stats(self, worker_id: str) -> Optional[WorkerStats]:
+    #     """
+    #     Retrieve statistics for a worker.
+
+    #     Args:
+    #         worker_id (str): The worker ID.
+
+    #     Returns:
+    #         Optional[WorkerStats]: The worker statistics, or None if not available.
+    #     """
+    #     pass
+
+    @abstractmethod
+    def stop_worker(self, worker_id: Optional[str] = None) -> None:
+        """
+        Stop a worker or all workers.
+
+        Args:
+            worker_id (Optional[str]): The worker ID to stop, or None to stop all.
+        """
+        pass
+
+    # --- Queue Management ---
+
+    @abstractmethod
+    def list_queues(self) -> List[QueueInfo]:
+        """
+        List all queues managed by the backend.
+
+        Returns:
+            List[QueueInfo]: List of queue information.
+        """
+        pass
+
+    @abstractmethod
+    def get_queue(self, queue_name: str) -> Optional[QueueInfo]:
+        """
+        Retrieve information about a queue.
+
+        Args:
+            queue_name (str): The queue name.
+
+        Returns:
+            Optional[QueueInfo]: The queue information, or None if not found.
+        """
+        pass
+
+    # --- Pipeline/Legacy Methods (for compatibility) ---
 
     @abstractmethod
     def enqueue_pipeline(
         self,
         pipeline_name: str,
-        inputs: dict | None = None,
-        result_ttl: int | None = 120,
-        run_at: Any | None = None,
-        run_in: Any | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        inputs: Optional[Dict[str, Any]] = None,
+        result_ttl: Optional[int] = 120,
+        run_at: Any = None,
+        run_in: Any = None,
+        final_vars: Optional[List[str]] = None,
+        config: Optional[Dict[str, Any]] = None,
+        cache: Union[bool, Dict] = False,
+        executor: Union[str, Dict, Any, None] = None,
+        with_adapter: Union[Dict, Any, None] = None,
+        adapter_cfg: Union[Dict, Any, None] = None,
+        hamilton_adapters: Optional[Dict[str, Any]] = None,
         reload: bool = False,
-        log_level: str | None = None,
-        retry: dict | RetryConfig | None = None,
+        log_level: Optional[str] = None,
+        retry: Union[Dict, RetryConfig, None] = None,
         **kwargs,
-    ):
-        """Enqueue a pipeline for execution via the job queue."""
+    ) -> str:
+        """
+        Enqueue a pipeline for execution via the job queue.
+        Returns the job ID.
+        """
         pass
 
     @abstractmethod
     def run_pipeline_sync(
         self,
         pipeline_name: str,
-        inputs: dict | None = None,
-        final_vars: list | None = None,
-        config: dict | None = None,
-        cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        inputs: Optional[Dict[str, Any]] = None,
+        final_vars: Optional[List[str]] = None,
+        config: Optional[Dict[str, Any]] = None,
+        cache: Union[bool, Dict] = False,
+        executor: Union[str, Dict, Any, None] = None,
+        with_adapter: Union[Dict, Any, None] = None,
+        adapter_cfg: Union[Dict, Any, None] = None,
+        hamilton_adapters: Optional[Dict[str, Any]] = None,
         reload: bool = False,
-        log_level: str | None = None,
-        retry: dict | RetryConfig | None = None,
+        log_level: Optional[str] = None,
+        retry: Union[Dict, RetryConfig, None] = None,
         **kwargs,
-    ):
-        """Run a pipeline synchronously and return its result."""
+    ) -> Any:
+        """
+        Run a pipeline synchronously and return its result.
+        """
         pass
 
     @abstractmethod
     def schedule_pipeline(
         self,
         pipeline_name: str,
-        cron: str | None = None,
+        cron: Optional[str] = None,
         interval: int | None = None,
         date: str | None = None,
         inputs: dict | None = None,
         final_vars: list | None = None,
         config: dict | None = None,
         cache: bool | dict = False,
-        executor_cfg: str | dict | Any | None = None,
-        with_adapter_cfg: dict | Any | None = None,
-        pipeline_adapter_cfg: dict | Any | None = None,
-        project_adapter_cfg: dict | Any | None = None,
-        adapter: dict[str, Any] | None = None,
+        executor: Union[str, Dict, Any, None] = None,
+        with_adapter: Union[Dict, Any, None] = None,
+        adapter_cfg: Union[Dict, Any, None] = None,
+        hamilton_adapters: Optional[Dict[str, Any]] = None,
         reload: bool = False,
         log_level: str | None = None,
         retry: dict | RetryConfig | None = None,

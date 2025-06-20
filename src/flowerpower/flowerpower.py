@@ -6,11 +6,12 @@ from pathlib import Path
 import rich
 from loguru import logger
 
+
 from . import settings
 from .cfg import ProjectConfig
 from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-                 get_filesystem)
-from .job_queue import JobQueueManager
+                 get_filesystem, get_storage_options_and_fs, get_protocol)
+from .job_queue import RQManager as JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
 
@@ -130,23 +131,13 @@ class FlowerPowerProject:
             setup_logging(level=log_level)
 
         base_dir = base_dir or str(Path.cwd())
-
-        if storage_options is not None:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(settings.CACHE_DIR), base_dir.split("://")[-1]
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-        if not fs:
-            fs = get_filesystem(
-                base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
+        cached = True if storage_options is not None or get_protocol(base_dir) != "file" else False
+        storage_options, fs = get_storage_options_and_fs(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            cached=cached
+        )
 
         if cls._check_project_exists(base_dir, fs):
             logger.info(f"Loading FlowerPower project from {base_dir}")
@@ -216,6 +207,7 @@ class FlowerPowerProject:
         if fs is None:
             fs = get_filesystem(
                 path=base_dir,
+                fs=fs,
                 dirfs=True,
                 storage_options=storage_options,
             )

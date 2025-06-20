@@ -1120,7 +1120,9 @@ class StorageOptions(msgspec.Struct):
         >>> s3_opts = AwsStorageOptions(access_key_id="KEY")
         >>> options = StorageOptions(storage_options=s3_opts)
     """
-
+    valid_protocols = [
+        "s3", "github", "gitlab", "az", "abfs", "adl", "gs", "gcs", "file"
+    ]
     storage_options: BaseStorageOptions
 
     @classmethod
@@ -1146,6 +1148,8 @@ class StorageOptions(msgspec.Struct):
             ... )
         """
         protocol = data.get("protocol")
+        if protocol not in cls.valid_protocols:
+            raise ValueError(f"Invalid protocol: {protocol}")
         if protocol is None and "storage_options" not in data:
             raise ValueError("protocol must be specified")
 
@@ -1215,6 +1219,10 @@ class StorageOptions(msgspec.Struct):
             return cls(storage_options=GitLabStorageOptions.from_env())
         elif protocol == "file":
             return cls(storage_options=LocalStorageOptions())
+        elif protocol in ["az", "abfs", "adl"]:
+            return cls(storage_options=AzureStorageOptions.from_env())
+        elif protocol in ["gs", "gcs"]:
+            return cls(storage_options=GcsStorageOptions.from_env())
         else:
             raise ValueError(f"Unsupported protocol: {protocol}")
 
