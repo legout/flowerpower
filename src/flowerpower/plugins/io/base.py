@@ -191,6 +191,7 @@ class BaseFileReader(BaseFileIO, gc=False):
     ctx: datafusion.SessionContext | None = field(default=None)
     jsonlines: bool | None = field(default=None)
     partitioning: str | list[str] | pds.Partitioning | None = field(default=None)
+    verbose: bool | None = field(default=None)
     _data: Any | None = field(default=None)
 
     def _load(
@@ -226,9 +227,9 @@ class BaseFileReader(BaseFileIO, gc=False):
                 self.use_threads = use_threads
 
         if verbose is not None:
-            if self.fs.verbose != verbose:
+            if self.verbose != verbose:
                 reload = True
-                self.fs.verbose = verbose
+                self.verbose = verbose
 
         if opt_dtypes is not None:
             if self.opt_dtypes != opt_dtypes:
