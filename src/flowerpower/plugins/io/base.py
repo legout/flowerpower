@@ -21,14 +21,9 @@ from sqlalchemy import create_engine, text
 
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
-from ...fs.storage_options import (
-    AwsStorageOptions,
-    AzureStorageOptions,
-    GcsStorageOptions,
-    GitHubStorageOptions,
-    GitLabStorageOptions,
-    StorageOptions,
-)
+from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
+                                   GcsStorageOptions, GitHubStorageOptions,
+                                   GitLabStorageOptions, StorageOptions)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
 from .helpers.pyarrow import opt_dtype
@@ -1913,15 +1908,13 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all(
-                [
-                    self.username,
-                    self.password,
-                    self.server,
-                    self.port,
-                    self.database,
-                ]
-            ):
+            if not all([
+                self.username,
+                self.password,
+                self.server,
+                self.port,
+                self.database,
+            ]):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."
