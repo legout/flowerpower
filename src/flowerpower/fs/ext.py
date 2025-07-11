@@ -10,6 +10,7 @@ else:
     raise ImportError("To use this module, please install `flowerpower[io]`.")
 
 import orjson
+
 # import polars as pl
 import pyarrow as pa
 import pyarrow.dataset as pds
@@ -19,12 +20,17 @@ from pydala.dataset import ParquetDataset
 
 from ..plugins.io.helpers.polars import opt_dtype as opt_dtype_pl
 from ..plugins.io.helpers.polars import pl
+
 # from ..plugins.io.helpers.polars import unify_schemas as unfify_schemas_pl
 from ..plugins.io.helpers.pyarrow import cast_schema
 from ..plugins.io.helpers.pyarrow import opt_dtype as opt_dtype_pa
 from ..plugins.io.helpers.pyarrow import unify_schemas as unify_schemas_pa
-from ..utils.misc import (_dict_to_dataframe, convert_large_types_to_standard,
-                          run_parallel, to_pyarrow_table)
+from ..utils.misc import (
+    _dict_to_dataframe,
+    convert_large_types_to_standard,
+    run_parallel,
+    to_pyarrow_table,
+)
 
 
 def path_to_glob(path: str, format: str | None = None) -> str:
@@ -248,8 +254,8 @@ def _read_json(
             data = [opt_dtype_pl(df, strict=False) for df in data]
         if concat:
             result = pl.concat(data, how="diagonal_relaxed")
-            if opt_dtypes:
-                result = opt_dtype_pl(result, strict=False)
+            # if opt_dtypes:
+            #   result = opt_dtype_pl(result, strict=False)
             return result
     return data
 
@@ -356,15 +362,16 @@ def _read_json_batches(
                     ][0]
                     for _data in batch_data
                 ]
-
+            if opt_dtypes:
+                batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
             if concat and len(batch_dfs) > 1:
                 batch_df = pl.concat(batch_dfs, how="diagonal_relaxed")
-                if opt_dtypes:
-                    batch_df = opt_dtype_pl(batch_df, strict=False)
+                # if opt_dtypes:
+                #    batch_df = opt_dtype_pl(batch_df, strict=False)
                 yield batch_df
             else:
-                if opt_dtypes:
-                    batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
+                # if opt_dtypes:
+                #    batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
                 yield batch_dfs
         else:
             yield batch_data
@@ -597,8 +604,8 @@ def _read_csv(
         )
     if concat:
         result = pl.concat(dfs, how="diagonal_relaxed")
-        if opt_dtypes:
-            result = opt_dtype_pl(result, strict=False)
+        # if opt_dtypes:
+        #    result = opt_dtype_pl(result, strict=False)
         return result
     return dfs
 
@@ -678,23 +685,28 @@ def _read_csv_batches(
                 n_jobs=-1,
                 backend="threading",
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         else:
             batch_dfs = [
                 _read_csv_file(
-                    p, self=self, include_file_path=include_file_path, **kwargs
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    opt_dtypes=opt_dtypes,
+                    **kwargs,
                 )
                 for p in batch_paths
             ]
 
-        if opt_dtypes:
-            batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
+        # if opt_dtypes:
+        #    batch_dfs = [opt_dtype_pl(df, strict=False) for df in batch_dfs]
 
         if concat and len(batch_dfs) > 1:
             result = pl.concat(batch_dfs, how="diagonal_relaxed")
-            if opt_dtypes:
-                result = opt_dtype_pl(result, strict=False)
+            # if opt_dtypes:
+            #    result = opt_dtype_pl(result, strict=False)
             yield result
         else:
             yield batch_dfs
@@ -871,9 +883,7 @@ def _read_parquet(
     if not include_file_path and concat:
         if isinstance(path, str):
             path = path.replace("**", "").replace("*.parquet", "")
-        table = pq.read_table(path, filesystem=self, **kwargs)
-        if opt_dtypes:
-            table = opt_dtype_pa(table, strict=False)
+        table = _read_parquet_file(path, self=self, opt_dtypes=opt_dtypes, **kwargs)
         return table
     else:
         if isinstance(path, str):
@@ -920,12 +930,12 @@ def _read_parquet(
                 unified_schema = unify_schemas_pa(schemas)
                 tables = [cast_schema(t, unified_schema) for t in tables]
             result = pa.concat_tables(tables, promote_options="permissive")
-            if opt_dtypes:
-                result = opt_dtype_pa(result, strict=False)
+            # if opt_dtypes:
+            #    result = opt_dtype_pa(result, strict=False)
             return result
         elif isinstance(tables, pa.Table):
-            if opt_dtypes:
-                tables = opt_dtype_pa(tables, strict=False)
+            # if opt_dtypes:
+            #    tables = opt_dtype_pa(tables, strict=False)
             return tables
         else:
             return pa.concat_tables(tables, promote_options="permissive")
@@ -994,9 +1004,9 @@ def _read_parquet_batches(
     if not include_file_path and concat and batch_size is None:
         if isinstance(path, str):
             path = path.replace("**", "").replace("*.parquet", "")
-        table = pq.read_table(path, filesystem=self, **kwargs)
-        if opt_dtypes:
-            table = opt_dtype_pa(table, strict=False)
+        table = _read_parquet_file(
+            path=path, self=self, opt_dtypes=opt_dtypes, **kwargs
+        )
         yield table
         return
 
@@ -1007,7 +1017,11 @@ def _read_parquet_batches(
 
     if not isinstance(path, list):
         yield _read_parquet_file(
-            path=path, self=self, include_file_path=include_file_path, **kwargs
+            path=path,
+            self=self,
+            include_file_path=include_file_path,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
         )
         return
 
@@ -1045,12 +1059,12 @@ def _read_parquet_batches(
                 unified_schema = unify_schemas_pa(schemas)
                 batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
             result = pa.concat_tables(batch_tables, promote_options="permissive")
-            if opt_dtypes:
-                result = opt_dtype_pa(result, strict=False)
+            # if opt_dtypes:
+            #    result = opt_dtype_pa(result, strict=False)
             yield result
         else:
-            if opt_dtypes and isinstance(batch_tables, list):
-                batch_tables = [opt_dtype_pa(t, strict=False) for t in batch_tables]
+            # if opt_dtypes and isinstance(batch_tables, list):
+            #    batch_tables = [opt_dtype_pa(t, strict=False) for t in batch_tables]
             yield batch_tables
 
 
@@ -1090,6 +1104,7 @@ def read_parquet(
         concat: Combine multiple files/batches into single Table
         use_threads: Enable parallel file reading
         verbose: Print progress information
+        opt_dtypes: Optimize Table dtypes for performance
         **kwargs: Additional arguments passed to pq.read_table()
 
     Returns:
@@ -1132,6 +1147,7 @@ def read_parquet(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     return _read_parquet(
@@ -1141,6 +1157,7 @@ def read_parquet(
         use_threads=use_threads,
         concat=concat,
         verbose=verbose,
+        opt_dtypes=opt_dtypes,
         **kwargs,
     )
 
@@ -1155,6 +1172,7 @@ def read_files(
     jsonlines: bool = False,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> (
     pl.DataFrame
@@ -1188,6 +1206,7 @@ def read_files(
         jsonlines: For JSON format, whether to read as JSON Lines
         use_threads: Enable parallel file reading
         verbose: Print progress information
+        opt_dtypes: Optimize DataFrame/Arrow Table dtypes for performance
         **kwargs: Additional format-specific arguments
 
     Returns:
@@ -1237,6 +1256,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_json(
@@ -1247,6 +1267,7 @@ def read_files(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     elif format == "csv":
@@ -1259,6 +1280,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_csv(
@@ -1268,6 +1290,7 @@ def read_files(
             use_threads=use_threads,
             concat=concat,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     elif format == "parquet":
@@ -1280,6 +1303,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_parquet(
@@ -1289,6 +1313,7 @@ def read_files(
             use_threads=use_threads,
             concat=concat,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
 

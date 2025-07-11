@@ -1,27 +1,18 @@
-{
-  "mcpServers": {
-    "conport": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "context-portal-mcp",
-        "conport-mcp",
-        "--mode",
-        "stdio",
-        "--workspace_id",
-        "${workspaceFolder}"
-      ],
-      "disabled": false,
-      "alwaysAllow": []
-    },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ],
-      "disabled": true,
-      "alwaysAllow": []
-    }
-  }
-}
+// {
+//   "mcpServers": {
+//     "conport": {
+//       "command": "uvx",
+//       "args": [
+//         "--from",
+//         "context-portal-mcp",
+//         "conport-mcp",
+//         "--mode",
+//         "stdio",
+//         "--workspace_id",
+//         "${workspaceFolder}"
+//       ],
+//       "disabled": true,
+//       "alwaysAllow": []
+//     }
+//   }
+// }
