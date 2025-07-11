@@ -221,10 +221,6 @@ class BaseFileReader(BaseFileIO, gc=False):
                 reload = True
                 self.use_threads = use_threads
 
-        if verbose is not None:
-            if self.fs.verbose != verbose:
-                reload = True
-                self.fs.verbose = verbose
 
         if opt_dtypes is not None:
             if self.opt_dtypes != opt_dtypes:
@@ -246,7 +242,7 @@ class BaseFileReader(BaseFileIO, gc=False):
                 batch_size=self.batch_size,
                 partitioning=self.partitioning,
                 opt_dtypes=self.opt_dtypes,
-                verbose=self.verbose,
+                verbose=verbose,
                 use_threads=self.use_threads,
                 **kwargs,
             )

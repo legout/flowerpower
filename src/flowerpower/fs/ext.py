@@ -920,15 +920,15 @@ def _read_parquet(
                 unified_schema = unify_schemas_pa(schemas)
                 tables = [cast_schema(t, unified_schema) for t in tables]
             result = pa.concat_tables(tables, promote_options="permissive")
-            if opt_dtypes:
-                result = opt_dtype_pa(result, strict=False)
+            #if opt_dtypes:
+            #    result = opt_dtype_pa(result, strict=False)
             return result
         elif isinstance(tables, pa.Table):
-            if opt_dtypes:
-                tables = opt_dtype_pa(tables, strict=False)
+            #if opt_dtypes:
+            #    tables = opt_dtype_pa(tables, strict=False)
             return tables
-        else:
-            return pa.concat_tables(tables, promote_options="permissive")
+        #else:
+        #    return pa.concat_tables(tables, promote_options="permissive")
     return tables
 
 
@@ -1045,8 +1045,8 @@ def _read_parquet_batches(
                 unified_schema = unify_schemas_pa(schemas)
                 batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
             result = pa.concat_tables(batch_tables, promote_options="permissive")
-            if opt_dtypes:
-                result = opt_dtype_pa(result, strict=False)
+            #if opt_dtypes:
+            #    result = opt_dtype_pa(result, strict=False)
             yield result
         else:
             if opt_dtypes and isinstance(batch_tables, list):
@@ -1132,6 +1132,7 @@ def read_parquet(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     return _read_parquet(
@@ -1141,6 +1142,7 @@ def read_parquet(
         use_threads=use_threads,
         concat=concat,
         verbose=verbose,
+        opt_dtypes=opt_dtypes,
         **kwargs,
     )
 
@@ -1155,6 +1157,7 @@ def read_files(
     jsonlines: bool = False,
     use_threads: bool = True,
     verbose: bool = False,
+    opt_dtypes: bool = False,
     **kwargs: Any,
 ) -> (
     pl.DataFrame
@@ -1237,6 +1240,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_json(
@@ -1247,6 +1251,7 @@ def read_files(
             concat=concat,
             use_threads=use_threads,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     elif format == "csv":
@@ -1259,6 +1264,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_csv(
@@ -1268,6 +1274,7 @@ def read_files(
             use_threads=use_threads,
             concat=concat,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
     elif format == "parquet":
@@ -1280,6 +1287,7 @@ def read_files(
                 concat=concat,
                 use_threads=use_threads,
                 verbose=verbose,
+                opt_dtypes=opt_dtypes,
                 **kwargs,
             )
         return read_parquet(
@@ -1289,6 +1297,7 @@ def read_files(
             use_threads=use_threads,
             concat=concat,
             verbose=verbose,
+            opt_dtypes=opt_dtypes,
             **kwargs,
         )
 
