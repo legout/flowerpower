@@ -221,7 +221,6 @@ class BaseFileReader(BaseFileIO, gc=False):
                 reload = True
                 self.use_threads = use_threads
 
-
         if opt_dtypes is not None:
             if self.opt_dtypes != opt_dtypes:
                 reload = True
