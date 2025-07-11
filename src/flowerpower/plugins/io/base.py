@@ -21,9 +21,14 @@ from sqlalchemy import create_engine, text
 
 from ...fs import get_filesystem
 from ...fs.ext import _dict_to_dataframe, path_to_glob
-from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                   GcsStorageOptions, GitHubStorageOptions,
-                                   GitLabStorageOptions, StorageOptions)
+from ...fs.storage_options import (
+    AwsStorageOptions,
+    AzureStorageOptions,
+    GcsStorageOptions,
+    GitHubStorageOptions,
+    GitLabStorageOptions,
+    StorageOptions,
+)
 from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 from .helpers.polars import pl
 from .helpers.pyarrow import opt_dtype
@@ -335,6 +340,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             tuple[pd.DataFrame | list[pd.DataFrame], dict[str, Any]] | pd.DataFrame | list[pd.DataFrame]: Pandas
                 DataFrame or list of DataFrames and optional metadata.
         """
+        kwargs.pop("batch_size", None)
         self._load(
             reload=reload,
             metadata=metadata,
@@ -443,6 +449,8 @@ class BaseFileReader(BaseFileIO, gc=False):
             tuple[pl.DataFrame | list[pl.DataFrame], dict[str, Any]] | pl.DataFrame | list[pl.DataFrame]: Polars
                 DataFrame or list of DataFrames and optional metadata.
         """
+        kwargs.pop("batch_size", None)
+
         self._load(
             metadata=metadata,
             reload=reload,
@@ -550,6 +558,8 @@ class BaseFileReader(BaseFileIO, gc=False):
             tuple[pl.LazyFrame | list[pl.LazyFrame], dict[str, Any]] | pl.LazyFrame | list[pl.LazyFrame]: Polars
                 LazyFrame or list of LazyFrames and optional metadata.
         """
+        kwargs.pop("batch_size", None)
+
         self._load(
             metadata=metadata,
             reload=reload,
@@ -663,6 +673,7 @@ class BaseFileReader(BaseFileIO, gc=False):
                 | list[pl.DataFrame] | list[pl.LazyFrame], dict[str, Any]]: Polars DataFrame or LazyFrame and optional
                 metadata.
         """
+        kwargs.pop("batch_size", None)
         if lazy:
             return self._to_polars_lazyframe(
                 metadata=metadata,
@@ -762,6 +773,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             pa.Table | list[pa.Table] | tuple[pa.Table | list[pa.Table], dict[str, Any]]: PyArrow Table or list of
                 Tables and optional metadata.
         """
+        kwargs.pop("batch_size", None)
         self._load(
             reload=reload,
             metadata=metadata,
@@ -865,6 +877,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             duckdb.DuckDBPyRelation | tuple[duckdb.DuckDBPyRelation, dict[str, Any]]: DuckDB relation and optional
                 metadata.
         """
+        kwargs.pop("batch_size", None)
         if self._conn is None:
             if conn is None:
                 conn = duckdb.connect()
@@ -924,6 +937,7 @@ class BaseFileReader(BaseFileIO, gc=False):
             duckdb.DuckDBPyConnection | tuple[duckdb.DuckDBPyConnection, dict[str, Any]]: DuckDB connection instance
                 or DuckDB connection instance and optional metadata.
         """
+        kwargs.pop("batch_size", None)
         if name is None:
             name = f"{self.format}:{self.path}"
 
@@ -986,6 +1000,7 @@ class BaseFileReader(BaseFileIO, gc=False):
                 or DuckDB relation or connection instance and optional metadata.
 
         """
+        kwargs.pop("batch_size", None)
         if as_relation:
             return self.to_duckdb_relation(
                 conn=conn,
@@ -1033,6 +1048,7 @@ class BaseFileReader(BaseFileIO, gc=False):
         Returns:
             None
         """
+        kwargs.pop("batch_size", None)
         if name is None:
             name = f"{self.format}:{self.path}"
 
@@ -1048,7 +1064,9 @@ class BaseFileReader(BaseFileIO, gc=False):
                     reload=reload,
                     include_file_path=include_file_path,
                     use_threads=use_threads,
-                    opt_dtypes=opt_dtypes**kwargs,
+                    opt_dtypes=opt_dtypes,
+                    verbose=verbose,
+                    **kwargs,
                 ).to_batches()
             ],
         )
@@ -1895,13 +1913,15 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all([
-                self.username,
-                self.password,
-                self.server,
-                self.port,
-                self.database,
-            ]):
+            if not all(
+                [
+                    self.username,
+                    self.password,
+                    self.server,
+                    self.port,
+                    self.database,
+                ]
+            ):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."
