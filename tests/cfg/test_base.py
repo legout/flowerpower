@@ -1,7 +1,8 @@
-import pytest
-import msgspec
-import yaml  # For creating test YAML content easily
 from unittest.mock import MagicMock, mock_open
+
+import msgspec
+import pytest
+import yaml  # For creating test YAML content easily
 from fsspec.implementations.memory import MemoryFileSystem
 
 from flowerpower.cfg.base import BaseConfig

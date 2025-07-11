@@ -2,15 +2,11 @@
 import unittest
 from unittest.mock import MagicMock
 
-from flowerpower.pipeline.runner import PipelineRunner, run_pipeline
-from flowerpower.cfg import ProjectConfig, PipelineConfig
-from flowerpower.cfg.pipeline import (
-    PipelineRunConfig,
-    PipelineAdapterConfig,
-    ExecutorConfig,
-    WithAdapterConfig,
-)
+from flowerpower.cfg import PipelineConfig, ProjectConfig
+from flowerpower.cfg.pipeline import (ExecutorConfig, PipelineAdapterConfig,
+                                      PipelineRunConfig, WithAdapterConfig)
 from flowerpower.cfg.project import ProjectAdapterConfig
+from flowerpower.pipeline.runner import PipelineRunner, run_pipeline
 from tests.pipelines.test_pipeline_module import reset_flaky_attempts
 
 # It's good practice to place test modules in a way that mimics the main structure if possible,

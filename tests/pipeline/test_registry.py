@@ -1,16 +1,16 @@
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open, call
 import datetime as dt
 import posixpath  # Important for consistent path joining as used in registry.py
+from pathlib import Path
+from unittest.mock import MagicMock, call, mock_open, patch
 
-from flowerpower.pipeline.registry import PipelineRegistry, HookType
-from flowerpower.cfg import ProjectConfig, PipelineConfig  # Actual config classes
+import pytest
+
+from flowerpower.cfg import (PipelineConfig,  # Actual config classes
+                             ProjectConfig)
 from flowerpower.fs import AbstractFileSystem  # For type hinting mocks
-from flowerpower.utils.templates import (
-    PIPELINE_PY_TEMPLATE,
-    HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
-)
+from flowerpower.pipeline.registry import HookType, PipelineRegistry
+from flowerpower.utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
+                                         PIPELINE_PY_TEMPLATE)
 
 # --- Fixtures ---
 
@@ -131,9 +131,9 @@ class TestPipelineRegistry:
 
         # Check PipelineConfig instantiation and save
         # PipelineConfig(name=pipeline_name) is called, then new_pipeline_cfg.save(fs=mock_fs)
-        from flowerpower.pipeline.registry import (
-            PipelineConfig as ActualPipelineConfig,
-        )  # get the class for constructor check
+        from flowerpower.pipeline.registry import \
+            PipelineConfig as \
+            ActualPipelineConfig  # get the class for constructor check
 
         ActualPipelineConfig.assert_called_once_with(name=pipeline_name)
         mock_pipeline_cfg_instance.save.assert_called_once_with(fs=mock_fs)
