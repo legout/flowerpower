@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.6.4] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.4 in pyproject.toml and clean up import formatting in base.py
+
+
+
 ## [0.11.6.3] - 2025-07-11
 
 ### Changes
