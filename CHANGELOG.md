@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.6.3] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.3 in pyproject.toml
+- Add strict mode to opt_dtype for enhanced error handling
+- Add a blank line for improved readability in pyproject.toml
+
+
+
 ## [0.11.6.2] - 2025-07-11
 
 ### Changes
