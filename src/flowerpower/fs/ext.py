@@ -923,7 +923,7 @@ def _read_parquet(
                 schemas = [t.schema for t in tables]
                 unified_schema = unify_schemas_pa(schemas)
                 tables = [cast_schema(t, unified_schema) for t in tables]
-            result = pa.concat_tables(tables, promote_options="permissive")
+            result = pa.concat_tables([table for table in tables if table.num_rows > 0], promote_options="permissive")
             # if opt_dtypes:
             #    result = opt_dtype_pa(result, strict=False)
             return result
@@ -932,7 +932,7 @@ def _read_parquet(
             #    tables = opt_dtype_pa(tables, strict=False)
             return tables
         else:
-            return pa.concat_tables(tables, promote_options="permissive")
+            return pa.concat_tables([table for table in tables if table.num_rows > 0], promote_options="permissive")
     return tables
 
 
@@ -1052,7 +1052,7 @@ def _read_parquet_batches(
                 schemas = [t.schema for t in batch_tables]
                 unified_schema = unify_schemas_pa(schemas)
                 batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
-            result = pa.concat_tables(batch_tables, promote_options="permissive")
+            result = pa.concat_tables([table for table in batch_tables if table.num_rows > 0], promote_options="permissive")
             # if opt_dtypes:
             #    result = opt_dtype_pa(result, strict=False)
             yield result
