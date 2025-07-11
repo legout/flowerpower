@@ -3,6 +3,13 @@
 ## [0.11.6.5] - 2025-07-11
 
 ### Changes
+- Refactor code for improved readability and consistency in various modules
+
+
+
+## [0.11.6.5] - 2025-07-11
+
+### Changes
 - Refactor tests for CLI and pipeline modules
 - Bump version to 0.11.6.5 in pyproject.toml and update parquet reading logic to exclude empty tables
 - Refactor import formatting and improve readability in base.py
