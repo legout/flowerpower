@@ -141,6 +141,7 @@ def opt_dtype(
     exclude: str | list[str] | None = None,
     time_zone: str | None = None,
     shrink_numerics: bool = True,
+    strict: bool = False,
 ) -> pl.DataFrame:
     """
     Optimize data types of a Polars DataFrame for performance and memory efficiency.
@@ -155,6 +156,7 @@ def opt_dtype(
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
+        strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
         DataFrame with optimized data types
@@ -173,10 +175,17 @@ def opt_dtype(
         cols_to_process = [col for col in cols_to_process if col not in exclude]
 
     # Generate optimization expressions for all columns
-    expressions = [
-        _get_column_expr(df, col_name, shrink_numerics, time_zone)
-        for col_name in cols_to_process
-    ]
+    expressions = []
+    for col_name in cols_to_process:
+        try:
+            expressions.append(
+                _get_column_expr(df, col_name, shrink_numerics, time_zone)
+            )
+        except Exception as e:
+            if strict:
+                raise e
+            # If strict mode is off, just keep the original column
+            continue
 
     # Apply all transformations at once if any exist
     return df if not expressions else df.with_columns(expressions)

@@ -360,6 +360,7 @@ def opt_dtype(
     exclude: str | list[str] | None = None,
     time_zone: str | None = None,
     shrink_numerics: bool = True,
+    strict: bool = False,
 ) -> pa.Table:
     """
     Optimize data types of a PyArrow Table for performance and memory efficiency.
@@ -375,6 +376,7 @@ def opt_dtype(
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
+        strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
         PyArrow Table with optimized data types
@@ -396,9 +398,15 @@ def opt_dtype(
     new_columns = []
     for col_name in table.column_names:
         if col_name in cols_to_process:
-            new_columns.append(
-                _process_column(table, col_name, shrink_numerics, time_zone)
-            )
+            try:
+                # Process column for optimization
+                new_columns.append(
+                    _process_column(table, col_name, shrink_numerics, time_zone)
+                )
+            except Exception as e:
+                if strict:
+                    raise e
+                new_columns.append(table[col_name])
         else:
             new_columns.append(table[col_name])
 
