@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.6] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.6 and update casting logic in polars and pyarrow helpers
+- Refactor code for improved readability and consistency in various modules
+
+
+
 ## [0.11.6.5] - 2025-07-11
 
 ### Changes
