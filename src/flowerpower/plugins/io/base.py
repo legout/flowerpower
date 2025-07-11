@@ -1908,13 +1908,15 @@ class BaseDatabaseIO(msgspec.Struct, gc=False):
             db in ["postgres", "mysql", "mssql", "oracle"]
             and not self.connection_string
         ):
-            if not all([
-                self.username,
-                self.password,
-                self.server,
-                self.port,
-                self.database,
-            ]):
+            if not all(
+                [
+                    self.username,
+                    self.password,
+                    self.server,
+                    self.port,
+                    self.database,
+                ]
+            ):
                 raise ValueError(
                     f"{self.type_} requires connection_string or username, password, server, port, and table_name "
                     "to build it."
