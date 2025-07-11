@@ -68,20 +68,20 @@ def _optimize_string_column(
     cleaned_expr = _clean_string_expr(col_name)
     non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
     if len(non_null) == 0:
-        return pl.col(col_name).cast(pl.Int8)
+        return pl.col(col_name).cast(series.dtype)
 
     stripped = non_null.str.strip_chars()
     lowercase = stripped.str.to_lowercase()
 
     # Check for boolean values
-    if lowercase.str.contains(BOOLEAN_REGEX).all():
+    if lowercase.str.contains(BOOLEAN_REGEX).all(ignore_nulls=False):
         return (
             cleaned_expr.str.to_lowercase()
             .str.contains(BOOLEAN_TRUE_REGEX)
             .alias(col_name)
         )
 
-    elif stripped.str.contains(INTEGER_REGEX).all():
+    elif stripped.str.contains(INTEGER_REGEX).all(ignore_nulls=False):
         int_expr = cleaned_expr.cast(pl.Int64)
         return (
             int_expr.shrink_dtype().alias(col_name)
@@ -90,7 +90,7 @@ def _optimize_string_column(
         )
 
     # Check for numeric values
-    elif stripped.str.contains(FLOAT_REGEX).all():
+    elif stripped.str.contains(FLOAT_REGEX).all(ignore_nulls=False):
         float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64)
 
         if shrink_numerics:
@@ -104,7 +104,7 @@ def _optimize_string_column(
         return float_expr.alias(col_name)
 
     try:
-        if stripped.str.contains(DATETIME_REGEX).all():
+        if stripped.str.contains(DATETIME_REGEX).all(ignore_nulls=False):
             return cleaned_expr.str.to_datetime(
                 strict=False, time_unit="us", time_zone=time_zone
             ).alias(col_name)
@@ -123,7 +123,7 @@ def _get_column_expr(
 
     # Handle all-null columns
     if series.is_null().all():
-        return pl.col(col_name).cast(pl.Int8)
+        return pl.col(col_name).cast(series.dtype)
 
     # Process based on current type
     if series.dtype.is_numeric():

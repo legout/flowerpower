@@ -255,7 +255,7 @@ def _all_match_regex(array: pa.Array, pattern: str) -> bool:
     Uses pyarrow.compute.match_substring_regex for vectorized evaluation.
     """
     if len(array) == 0 or array.null_count == len(array):
-        return True
+        return False
 
     # Check if al values match the pattern
     return pc.all(pc.match_substring_regex(array, pattern, ignore_case=True)).as_py()
@@ -272,7 +272,7 @@ def _optimize_string_array(
     if len(array) == 0:
         return pa.array([], type=pa.int8())
     if array.null_count == len(array):
-        return pa.array([None] * len(array), type=pa.int8())
+        return pa.array([None] * len(array), type=array.type)
 
     # Clean string values
     cleaned_array = _clean_string_array(array)
@@ -342,7 +342,7 @@ def _process_column(
 
     # Handle all-null columns
     if array.null_count == len(array):
-        return pa.array([None] * len(array), type=pa.int8())
+        return pa.array([None] * len(array), type=array.type)
 
     # Process based on current type
     if pa.types.is_floating(array.type) or pa.types.is_integer(array.type):

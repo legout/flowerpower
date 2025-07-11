@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
 
-from flowerpower.cfg import (PipelineConfig,  # Actual config classes
-                             ProjectConfig)
+from flowerpower.cfg import PipelineConfig  # Actual config classes
+from flowerpower.cfg import ProjectConfig
 from flowerpower.fs import AbstractFileSystem  # For type hinting mocks
 from flowerpower.pipeline.registry import HookType, PipelineRegistry
 from flowerpower.utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
