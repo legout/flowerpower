@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.6.2] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.2 in pyproject.toml
+- Add verbose option to BaseFileReader for improved logging control
+- Refactor import statements for improved organization and readability
+
+
+
 ## [0.11.6.1] - 2025-07-11
 
 ### Changes
