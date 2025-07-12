@@ -957,7 +957,7 @@ def _read_parquet(
             tables = [table for table in tables if table.num_rows > 0]
             if not tables:
                 return unified_schema.empty_table()
-            
+
             result = pa.concat_tables(
                 tables,
                 promote_options="permissive",
@@ -973,7 +973,7 @@ def _read_parquet(
             tables = [table for table in tables if table.num_rows > 0]
             if not tables:
                 return unified_schema.empty_table()
-            
+
             result = pa.concat_tables(
                 tables,
                 promote_options="permissive",
