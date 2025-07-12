@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.11] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.11 in pyproject.toml and fix null type casting in polars.py and pyarrow.py
+- Fix indentation in _read_parquet function for schema unification logic
+
+
+
 ## [0.11.6.10] - 2025-07-12
 
 ### Changes
