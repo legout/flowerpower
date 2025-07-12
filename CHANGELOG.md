@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.10] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.10 in pyproject.toml and refactor schema unification logic in _read_parquet function
+- Refactor commented code for clarity in _read_parquet function
+
+
+
 ## [0.11.6.9] - 2025-07-12
 
 ### Changes
