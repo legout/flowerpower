@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.9] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.9 in pyproject.toml and set opt_dtypes to False in BaseFileReader
+- Refactor import statement formatting and improve readability in run_parallel function
+
+
+
 ## [0.11.6.8] - 2025-07-12
 
 ### Changes
