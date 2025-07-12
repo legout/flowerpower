@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.6.12] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.12 in pyproject.toml and enhance _read_parquet function to handle empty tables
+
+
+
 ## [0.11.6.11] - 2025-07-12
 
 ### Changes
