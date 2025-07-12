@@ -266,6 +266,8 @@ else:
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
+    from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
+
 
     def run_parallel(
         func: callable,
@@ -299,19 +301,15 @@ if importlib.util.find_spec("joblib"):
             >>> # Only kwargs iterables
             >>> run_parallel(func, x=[1,2,3], y=[4,5,6], fixed=42)
         """
-        # Special kwargs for run_parallel itself
         parallel_kwargs = {"n_jobs": n_jobs, "backend": backend, "verbose": 0}
 
-        # Process args and kwargs to separate iterables and fixed values
         iterables = []
         fixed_args = []
         iterable_kwargs = {}
         fixed_kwargs = {}
 
-        # Get the length of the first iterable to determine number of iterations
         first_iterable_len = None
 
-        # Process args
         for arg in args:
             if isinstance(arg, (list, tuple)) and not isinstance(arg[0], (list, tuple)):
                 iterables.append(arg)
@@ -324,7 +322,6 @@ if importlib.util.find_spec("joblib"):
             else:
                 fixed_args.append(arg)
 
-        # Process kwargs
         for key, value in kwargs.items():
             if isinstance(value, (list, tuple)) and not isinstance(
                 value[0], (list, tuple)
@@ -342,26 +339,55 @@ if importlib.util.find_spec("joblib"):
         if first_iterable_len is None:
             raise ValueError("At least one iterable argument is required")
 
-        # Create parameter combinations
         all_iterables = iterables + list(iterable_kwargs.values())
-        param_combinations = list(zip(*all_iterables))  # Convert to list for tqdm
+        param_combinations = list(zip(*all_iterables))
 
-        # if verbose:
-        #    param_combinations = tqdm.tqdm(param_combinations)
-
-        return Parallel(**parallel_kwargs)(
-            delayed(func)(
-                *(list(param_tuple[: len(iterables)]) + fixed_args),
-                **{
-                    k: v
-                    for k, v in zip(
-                        iterable_kwargs.keys(), param_tuple[len(iterables) :]
-                    )
-                },
-                **fixed_kwargs,
+        if not verbose:
+            return Parallel(**parallel_kwargs)(
+                delayed(func)(
+                    *(list(param_tuple[: len(iterables)]) + fixed_args),
+                    **{
+                        k: v
+                        for k, v in zip(
+                            iterable_kwargs.keys(), param_tuple[len(iterables) :]
+                        )
+                    },
+                    **fixed_kwargs,
+                )
+                for param_tuple in param_combinations
             )
-            for param_tuple in param_combinations
-        )
+        else:
+            results = [None] * len(param_combinations)
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                "[progress.percentage]{task.percentage:>3.0f}%",
+                TimeElapsedColumn(),
+                transient=True,
+            ) as progress:
+                task = progress.add_task("Running in parallel...", total=len(param_combinations))
+
+                def wrapper(idx, param_tuple):
+                    res = func(
+                        *(list(param_tuple[: len(iterables)]) + fixed_args),
+                        **{
+                            k: v
+                            for k, v in zip(
+                                iterable_kwargs.keys(), param_tuple[len(iterables) :]
+                            )
+                        },
+                        **fixed_kwargs,
+                    )
+                    progress.update(task, advance=1)
+                    return idx, res
+
+
+                for idx, result in Parallel(**parallel_kwargs)(
+                    delayed(wrapper)(i, param_tuple)
+                    for i, param_tuple in enumerate(param_combinations)
+                ):
+                    results[idx] = result
+            return results
 
 else:
 
