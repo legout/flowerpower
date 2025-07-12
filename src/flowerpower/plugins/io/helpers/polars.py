@@ -68,7 +68,7 @@ def _optimize_string_column(
     cleaned_expr = _clean_string_expr(col_name)
     non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
     if len(non_null) == 0:
-        return pl.col(col_name).cast(series.dtype)
+        return pl.col(col_name).cast(pl.Null())  # Fix: Cast to Null type
 
     stripped = non_null.str.strip_chars()
     lowercase = stripped.str.to_lowercase()
@@ -123,7 +123,7 @@ def _get_column_expr(
 
     # Handle all-null columns
     if series.is_null().all():
-        return pl.col(col_name).cast(series.dtype)
+        return pl.col(col_name).cast(pl.Null())
 
     # Process based on current type
     if series.dtype.is_numeric():
