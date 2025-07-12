@@ -266,8 +266,8 @@ else:
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
-    from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
-
+    from rich.progress import (BarColumn, Progress, TextColumn,
+                               TimeElapsedColumn)
 
     def run_parallel(
         func: callable,
@@ -365,7 +365,9 @@ if importlib.util.find_spec("joblib"):
                 TimeElapsedColumn(),
                 transient=True,
             ) as progress:
-                task = progress.add_task("Running in parallel...", total=len(param_combinations))
+                task = progress.add_task(
+                    "Running in parallel...", total=len(param_combinations)
+                )
 
                 def wrapper(idx, param_tuple):
                     res = func(
@@ -380,7 +382,6 @@ if importlib.util.find_spec("joblib"):
                     )
                     progress.update(task, advance=1)
                     return idx, res
-
 
                 for idx, result in Parallel(**parallel_kwargs)(
                     delayed(wrapper)(i, param_tuple)
