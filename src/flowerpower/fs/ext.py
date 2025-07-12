@@ -814,6 +814,7 @@ def _read_parquet_file(
         path: Path to Parquet file
         self: Filesystem instance to use for reading
         include_file_path: Add source filepath as a column
+        opt_dtypes: Optimize DataFrame dtypes
         **kwargs: Additional arguments passed to pq.read_table()
 
     Returns:
@@ -830,6 +831,11 @@ def _read_parquet_file(
         >>> print("file_path" in table.column_names)
         True
     """
+    if not path.endswith(".parquet"):
+        raise ValueError(
+            f"Path '{path}' does not point to a Parquet file. "
+            "Ensure the path ends with '.parquet'."
+        )
     table = pq.read_table(path, filesystem=self, **kwargs)
     if include_file_path:
         table = table.add_column(0, "file_path", pl.Series([path] * table.num_rows))
@@ -841,6 +847,30 @@ def _read_parquet_file(
 def read_parquet_file(
     self, path: str, include_file_path: bool = False, opt_dtypes: bool = False, **kwargs
 ) -> pa.Table:
+    """Read a single Parquet file from any filesystem.
+
+    Internal function that handles reading individual Parquet files and
+    optionally adds the source filepath as a column.
+
+    Args:
+        path: Path to Parquet file
+        include_file_path: Add source filepath as a column
+        opt_dtypes: Optimize DataFrame dtypes
+        **kwargs: Additional arguments passed to pq.read_table()
+
+    Returns:
+        pa.Table: PyArrow Table containing Parquet data
+
+    Example:
+        >>> fs = LocalFileSystem()
+        >>> table = fs.read_parquet_file(
+        ...     "data.parquet",
+        ...     include_file_path=True,
+        ...     use_threads=True
+        ... )
+        >>> print("file_path" in table.column_names)
+        True
+    """
     return _read_parquet_file(
         path=path,
         self=self,
@@ -852,7 +882,7 @@ def read_parquet_file(
 
 def _read_parquet(
     self,
-    path,
+    path: str | list[str],
     include_file_path: bool = False,
     use_threads: bool = True,
     concat: bool = True,
@@ -874,48 +904,48 @@ def _read_parquet(
     Returns:
         (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
     """
-    if not include_file_path and concat:
-        if isinstance(path, str):
-            path = path.replace("**", "").replace("*.parquet", "")
-        table = _read_parquet_file(path, self=self, opt_dtypes=opt_dtypes, **kwargs)
-        return table
-    else:
-        if isinstance(path, str):
-            path = path_to_glob(path, format="parquet")
-            path = self.glob(path)
+    #if not include_file_path and concat:
+    #    if isinstance(path, str):
+    #        path = path.replace("**", "").replace("*.parquet", "")
+    #    table = _read_parquet_file(path, self=self, opt_dtypes=opt_dtypes, **kwargs)
+    #    return table
+    #else:
+    if isinstance(path, str):
+        path = path_to_glob(path, format="parquet")
+        path = self.glob(path)
 
-        if isinstance(path, list):
-            if use_threads:
-                tables = run_parallel(
-                    _read_parquet_file,
-                    path,
-                    self=self,
-                    include_file_path=include_file_path,
-                    opt_dtypes=opt_dtypes,
-                    n_jobs=-1,
-                    backend="threading",
-                    verbose=verbose,
-                    **kwargs,
-                )
-            else:
-                tables = [
-                    _read_parquet_file(
-                        p,
-                        self=self,
-                        include_file_path=include_file_path,
-                        opt_dtypes=opt_dtypes,
-                        **kwargs,
-                    )
-                    for p in path
-                ]
-        else:
-            tables = _read_parquet_file(
-                path=path,
+    if isinstance(path, list):
+        if use_threads:
+            tables = run_parallel(
+                _read_parquet_file,
+                path,
                 self=self,
                 include_file_path=include_file_path,
                 opt_dtypes=opt_dtypes,
+                n_jobs=-1,
+                backend="threading",
+                verbose=verbose,
                 **kwargs,
             )
+        else:
+            tables = [
+                _read_parquet_file(
+                    p,
+                    self=self,
+                    include_file_path=include_file_path,
+                    opt_dtypes=opt_dtypes,
+                    **kwargs,
+                )
+                for p in path
+            ]
+    else:
+        tables = _read_parquet_file(
+            path=path,
+            self=self,
+            include_file_path=include_file_path,
+            opt_dtypes=opt_dtypes,
+            **kwargs,
+        )
     if concat:
         # Unify schemas before concatenation if opt_dtypes or multiple tables
         if isinstance(tables, list):
@@ -1001,14 +1031,14 @@ def _read_parquet_batches(
         ...     print(f"Batch schema: {batch.schema}")
     """
     # Fast path for simple cases
-    if not include_file_path and concat and batch_size is None:
-        if isinstance(path, str):
-            path = path.replace("**", "").replace("*.parquet", "")
-        table = _read_parquet_file(
-            path=path, self=self, opt_dtypes=opt_dtypes, **kwargs
-        )
-        yield table
-        return
+    #if not include_file_path and concat and batch_size is None:
+    #    if isinstance(path, str):
+    #        path = path.replace("**", "").replace("*.parquet", "")
+    #    table = _read_parquet_file(
+    #        path=path, self=self, opt_dtypes=opt_dtypes, **kwargs
+    #    )
+    #    yield table
+    #    return
 
     # Resolve path(s) to list
     if isinstance(path, str):
@@ -1058,13 +1088,13 @@ def _read_parquet_batches(
                 schemas = [t.schema for t in batch_tables]
                 unified_schema = unify_schemas_pa(schemas)
                 batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
-            result = pa.concat_tables(
+            batch_table = pa.concat_tables(
                 [table for table in batch_tables if table.num_rows > 0],
                 promote_options="permissive",
             )
             # if opt_dtypes:
             #    result = opt_dtype_pa(result, strict=False)
-            yield result
+            yield batch_table
         else:
             # if opt_dtypes and isinstance(batch_tables, list):
             #    batch_tables = [opt_dtype_pa(t, strict=False) for t in batch_tables]
