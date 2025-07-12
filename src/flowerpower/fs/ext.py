@@ -904,12 +904,12 @@ def _read_parquet(
     Returns:
         (pa.Table | list[pa.Table]): Pyarrow Table or list of Pyarrow Tables.
     """
-    #if not include_file_path and concat:
+    # if not include_file_path and concat:
     #    if isinstance(path, str):
     #        path = path.replace("**", "").replace("*.parquet", "")
     #    table = _read_parquet_file(path, self=self, opt_dtypes=opt_dtypes, **kwargs)
     #    return table
-    #else:
+    # else:
     if isinstance(path, str):
         path = path_to_glob(path, format="parquet")
         path = self.glob(path)
@@ -1031,7 +1031,7 @@ def _read_parquet_batches(
         ...     print(f"Batch schema: {batch.schema}")
     """
     # Fast path for simple cases
-    #if not include_file_path and concat and batch_size is None:
+    # if not include_file_path and concat and batch_size is None:
     #    if isinstance(path, str):
     #        path = path.replace("**", "").replace("*.parquet", "")
     #    table = _read_parquet_file(
