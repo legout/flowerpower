@@ -185,7 +185,7 @@ class BaseFileReader(BaseFileIO, gc=False):
     include_file_path: bool = field(default=False)
     concat: bool = field(default=True)
     batch_size: int | None = field(default=None)
-    opt_dtypes: bool = field(default=True)
+    opt_dtypes: bool = field(default=False)
     use_threads: bool = field(default=True)
     conn: duckdb.DuckDBPyConnection | None = field(default=None)
     ctx: datafusion.SessionContext | None = field(default=None)
