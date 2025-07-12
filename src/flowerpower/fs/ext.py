@@ -950,9 +950,9 @@ def _read_parquet(
         # Unify schemas before concatenation if opt_dtypes or multiple tables
         if isinstance(tables, list):
             if len(tables) > 1:
-               schemas = [t.schema for t in tables]
-               unified_schema = unify_schemas_pa(schemas)
-               tables = [cast_schema(t, unified_schema) for t in tables]
+                schemas = [t.schema for t in tables]
+                unified_schema = unify_schemas_pa(schemas)
+                tables = [cast_schema(t, unified_schema) for t in tables]
             result = pa.concat_tables(
                 [table for table in tables if table.num_rows > 0],
                 promote_options="permissive",
