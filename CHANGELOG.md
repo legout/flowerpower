@@ -3,6 +3,13 @@
 ## [0.11.6.7] - 2025-07-12
 
 ### Changes
+- Refactor comments for clarity in parquet reading functions
+
+
+
+## [0.11.6.7] - 2025-07-12
+
+### Changes
 - Bump version to 0.11.6.7 in pyproject.toml and update version to 0.11.6.6 in uv.lock
 
 
