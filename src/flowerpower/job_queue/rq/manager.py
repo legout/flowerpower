@@ -121,15 +121,18 @@ class RQManager(BaseJobQueueManager):
 
         Example:
             ```python
+            from flowerpower.job_queue.factory import JobQueueManagerFactory
+            from flowerpower.job_queue.rq.manager import RQBackend
+
             # Basic initialization
-            worker = RQManager(name="my_worker")
+            worker = JobQueueManagerFactory.get_manager(name="my_worker")
 
             # With custom backend and logging
             backend = RQBackend(
                 uri="redis://localhost:6379/0",
                 queues=["high", "default", "low"]
             )
-            worker = RQManager(
+            worker = JobQueueManagerFactory.get_manager(
                 name="custom_worker",
                 backend=backend,
                 log_level="DEBUG"

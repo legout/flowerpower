@@ -9,8 +9,8 @@ else:
     from fsspec import AbstractFileSystem
 
 # from .. import settings  # noqa: E402
-from .base import (DirFileSystem, get_filesystem, get_protocol,  # noqa: E402
-                   get_storage_options_and_fs)
+from .base import get_protocol  # noqa: E402
+from .base import DirFileSystem, get_filesystem, get_storage_options_and_fs
 from .storage_options import AwsStorageOptions  # noqa: E402
 from .storage_options import AzureStorageOptions  # noqa: E402
 from .storage_options import BaseStorageOptions  # noqa: E402
