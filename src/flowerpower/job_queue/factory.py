@@ -2,8 +2,9 @@
 
 from typing import Any, Optional
 
-from .rq.manager import RQManager, RQBackend
 from ..fs import AbstractFileSystem
+from .rq.manager import RQBackend, RQManager
+
 
 class JobQueueManagerFactory:
     """Factory for creating job queue manager instances."""

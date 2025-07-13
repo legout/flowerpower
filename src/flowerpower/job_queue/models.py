@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from flowerpower.cfg.project.adapter import ProjectConfigAdapter
 from flowerpower.fs.storage_options import resolve_filesystem
 
+
 class JobStatus(Enum):
     """Enumeration of possible job states in the queue."""
 
@@ -88,7 +89,9 @@ class Factor:
     ):
         # Conflicting parameter check
         if (type or backend) and base_dir:
-            raise ValueError("Conflicting initialization: provide either (type and backend) or base_dir, not both.")
+            raise ValueError(
+                "Conflicting initialization: provide either (type and backend) or base_dir, not both."
+            )
 
         if (type is not None) ^ (backend is not None):
             raise ValueError("Both 'type' and 'backend' must be provided together.")
@@ -103,20 +106,34 @@ class Factor:
 
             conf_path = os.path.join(base_dir, "conf", "project.yml")
             if not os.path.exists(conf_path):
-                raise FileNotFoundError(f"Project configuration file not found: {conf_path}")
+                raise FileNotFoundError(
+                    f"Project configuration file not found: {conf_path}"
+                )
 
             # Use ProjectConfigAdapter to load config
-            adapter = ProjectConfigAdapter(conf_path, fs=fs or (resolve_filesystem(storage_options) if storage_options else None))
+            adapter = ProjectConfigAdapter(
+                conf_path,
+                fs=fs
+                or (resolve_filesystem(storage_options) if storage_options else None),
+            )
             config = adapter.load()
             job_queue_config = config.get("job_queue")
-            if not job_queue_config or "type" not in job_queue_config or "backend" not in job_queue_config:
-                raise ValueError("Invalid or missing job_queue configuration in project.yml")
+            if (
+                not job_queue_config
+                or "type" not in job_queue_config
+                or "backend" not in job_queue_config
+            ):
+                raise ValueError(
+                    "Invalid or missing job_queue configuration in project.yml"
+                )
 
             self.type = job_queue_config["type"]
             self.backend = job_queue_config["backend"]
             return
 
-        raise ValueError("Insufficient initialization parameters: provide either (type and backend) or base_dir.")
+        raise ValueError(
+            "Insufficient initialization parameters: provide either (type and backend) or base_dir."
+        )
 
     meta: Dict[str, Any] = field(default_factory=dict)
 
