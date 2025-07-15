@@ -27,19 +27,122 @@ DATETIME_REGEX = (
 F32_MIN = float(np.finfo(np.float32).min)
 F32_MAX = float(np.finfo(np.float32).max)
 
+def dominant_timezone_per_column(schemas: list[pa.Schema]) -> dict[str, tuple[str | None, str | None]]:
+    """
+    For each timestamp column (by name) across all schemas, detect the most frequent timezone (including None).
+    If None and a timezone are tied, prefer the timezone.
+    Returns a dict: {column_name: dominant_timezone}
+    """
+    from collections import Counter, defaultdict
+
+    tz_counts = defaultdict(Counter)
+    units = {}
+
+    for schema in schemas:
+        for field in schema:
+            if pa.types.is_timestamp(field.type):
+                tz = field.type.tz
+                name = field.name
+                tz_counts[name][tz] += 1
+                # Track unit for each column (assume consistent)
+                if name not in units:
+                    units[name] = field.type.unit
+
+    dominant = {}
+    for name, counter in tz_counts.items():
+        most_common = counter.most_common()
+        if not most_common:
+            continue
+        top_count = most_common[0][1]
+        # Find all with top_count
+        top_tzs = [tz for tz, cnt in most_common if cnt == top_count]
+        # If tie and one is not None, prefer not-None
+        if len(top_tzs) > 1 and any(tz is not None for tz in top_tzs):
+            tz = next(tz for tz in top_tzs if tz is not None)
+        else:
+            tz = most_common[0][0]
+        dominant[name] = (units[name], tz)
+    return dominant
+
+def standardize_schema_timezones_by_majority(schemas:list[pa.Schema]) -> list[pa.Schema]:
+    """
+    For each timestamp column (by name) across all schemas, set the timezone to the most frequent (with tie-breaking).
+    Returns a new list of schemas with updated timestamp timezones.
+    """
+    dom = dominant_timezone_per_column(schemas)
+    new_schemas = []
+    for schema in schemas:
+        fields = []
+        for field in schema:
+            if pa.types.is_timestamp(field.type) and field.name in dom:
+                unit, tz = dom[field.name]
+                fields.append(
+                    pa.field(
+                        field.name,
+                        pa.timestamp(unit, tz),
+                        field.nullable,
+                        field.metadata,
+                    )
+                )
+            else:
+                fields.append(field)
+        new_schemas.append(pa.schema(fields, schema.metadata))
+    return new_schemas
+
+def standardize_schema_timezones(schemas:list[pa.Schema], timezone:str|None=None) -> list[pa.Schema]:
+    """
+    Standardize timezone info for all timestamp columns in a list of PyArrow schemas.
+
+    Args:
+        schemas (list of pa.Schema): List of PyArrow schemas.
+        timezone (str or None): If None, remove timezone from all timestamp columns.
+                                If str, set this timezone for all timestamp columns.
+                                If "auto", use the most frequent timezone across schemas.
+
+    Returns:
+        list of pa.Schema: New schemas with standardized timezone info.
+    """
+    if timezone == "auto":
+        # Use the most frequent timezone for each column
+        return standardize_schema_timezones_by_majority(schemas)
+    new_schemas = []
+    for schema in schemas:
+        fields = []
+        for field in schema:
+            if pa.types.is_timestamp(field.type):
+                fields.append(
+                    pa.field(
+                        field.name,
+                        pa.timestamp(field.type.unit, timezone),
+                        field.nullable,
+                        field.metadata,
+                    )
+                )
+            else:
+                fields.append(field)
+        new_schemas.append(pa.schema(fields, schema.metadata))
+    return new_schemas
+
 
 def unify_schemas(
-    schemas: list[pa.Schema], use_large_dtypes: bool = False
+    schemas: list[pa.Schema], use_large_dtypes: bool = False, timezone: str | None = None, standardize_timezones: bool = True
 ) -> pa.Schema:
     """
     Unify a list of PyArrow schemas into a single schema.
 
     Args:
         schemas (list[pa.Schema]): List of PyArrow schemas to unify.
+        use_large_dtypes (bool): If True, keep large types like large_string.
+        timezone (str | None): If specified, standardize all timestamp columns to this timezone.
+            If "auto", use the most frequent timezone across schemas.
+            If None, remove timezone from all timestamp columns.
+        standardize_timezones (bool): If True, standardize all timestamp columns to the most frequent timezone.
 
     Returns:
         pa.Schema: A unified PyArrow schema.
     """
+    if standardize_timezones:
+        schemas = standardize_schema_timezones(schemas, timezone)
     try:
         return pa.unify_schemas(schemas, promote_options="permissive")
     except (pa.lib.ArrowInvalid, pa.lib.ArrowTypeError) as e:

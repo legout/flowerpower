@@ -951,7 +951,7 @@ def _read_parquet(
         if isinstance(tables, list):
             if len(tables) > 1:
                 schemas = [t.schema for t in tables]
-                unified_schema = unify_schemas_pa(schemas)
+                unified_schema = unify_schemas_pa(schemas, standardize_timezones=True)
                 tables = [cast_schema(t, unified_schema) for t in tables]
 
             tables = [table for table in tables if table.num_rows > 0]
@@ -1095,7 +1095,7 @@ def _read_parquet_batches(
             # Unify schemas before concatenation
             if len(batch_tables) > 1:
                 schemas = [t.schema for t in batch_tables]
-                unified_schema = unify_schemas_pa(schemas)
+                unified_schema = unify_schemas_pa(schemas, standardize_timezones=True)
                 batch_tables = [cast_schema(t, unified_schema) for t in batch_tables]
             batch_tables = [table for table in batch_tables if table.num_rows > 0]
             if not batch_tables:
