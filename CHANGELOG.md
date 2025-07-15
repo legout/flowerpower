@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.13] - 2025-07-15
+
+### Changes
+- Bump version to 0.11.6.13 in pyproject.toml and update timestamp handling in unify_schemas function
+- Fix whitespace in _read_parquet function to improve readability
+
+
+
 ## [0.11.6.12] - 2025-07-12
 
 ### Changes
