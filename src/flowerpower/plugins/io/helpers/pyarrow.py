@@ -27,7 +27,10 @@ DATETIME_REGEX = (
 F32_MIN = float(np.finfo(np.float32).min)
 F32_MAX = float(np.finfo(np.float32).max)
 
-def dominant_timezone_per_column(schemas: list[pa.Schema]) -> dict[str, tuple[str | None, str | None]]:
+
+def dominant_timezone_per_column(
+    schemas: list[pa.Schema],
+) -> dict[str, tuple[str | None, str | None]]:
     """
     For each timestamp column (by name) across all schemas, detect the most frequent timezone (including None).
     If None and a timezone are tied, prefer the timezone.
@@ -64,7 +67,10 @@ def dominant_timezone_per_column(schemas: list[pa.Schema]) -> dict[str, tuple[st
         dominant[name] = (units[name], tz)
     return dominant
 
-def standardize_schema_timezones_by_majority(schemas:list[pa.Schema]) -> list[pa.Schema]:
+
+def standardize_schema_timezones_by_majority(
+    schemas: list[pa.Schema],
+) -> list[pa.Schema]:
     """
     For each timestamp column (by name) across all schemas, set the timezone to the most frequent (with tie-breaking).
     Returns a new list of schemas with updated timestamp timezones.
@@ -89,7 +95,10 @@ def standardize_schema_timezones_by_majority(schemas:list[pa.Schema]) -> list[pa
         new_schemas.append(pa.schema(fields, schema.metadata))
     return new_schemas
 
-def standardize_schema_timezones(schemas:list[pa.Schema], timezone:str|None=None) -> list[pa.Schema]:
+
+def standardize_schema_timezones(
+    schemas: list[pa.Schema], timezone: str | None = None
+) -> list[pa.Schema]:
     """
     Standardize timezone info for all timestamp columns in a list of PyArrow schemas.
 
@@ -125,7 +134,10 @@ def standardize_schema_timezones(schemas:list[pa.Schema], timezone:str|None=None
 
 
 def unify_schemas(
-    schemas: list[pa.Schema], use_large_dtypes: bool = False, timezone: str | None = None, standardize_timezones: bool = True
+    schemas: list[pa.Schema],
+    use_large_dtypes: bool = False,
+    timezone: str | None = None,
+    standardize_timezones: bool = True,
 ) -> pa.Schema:
     """
     Unify a list of PyArrow schemas into a single schema.
