@@ -46,15 +46,27 @@ def _can_downcast_to_float32(series: pl.Series) -> bool:
     return F32_MIN <= min_val <= max_val <= F32_MAX
 
 
-def _optimize_numeric_column(series: pl.Series, col_name: str, shrink: bool) -> pl.Expr:
-    """Optimize numeric column types."""
+def _optimize_numeric_column(
+    series: pl.Series, col_name: str, shrink: bool, allow_unsigned: bool = False
+) -> pl.Expr:
+    """Optimize numeric column types, optionally converting to unsigned if all values >= 0."""
+    expr = pl.col(col_name)
+    dtype = series.dtype
+
+    if allow_unsigned and dtype.is_integer() and (series.min() is not None) and series.min() >= 0:
+        # Convert to unsigned integer type, shrink if requested
+        if shrink:
+            return expr.cast(pl.UInt64).shrink_dtype()
+        else:
+            return expr.cast(pl.UInt64)
+
     if not shrink:
-        return pl.col(col_name)
+        return expr
 
-    if series.dtype == pl.Float64 and not _can_downcast_to_float32(series):
-        return pl.col(col_name)
+    if dtype == pl.Float64 and not _can_downcast_to_float32(series):
+        return expr
 
-    return pl.col(col_name).shrink_dtype()
+    return expr.shrink_dtype()
 
 
 def _optimize_string_column(
