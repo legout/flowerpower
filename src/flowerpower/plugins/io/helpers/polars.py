@@ -53,7 +53,12 @@ def _optimize_numeric_column(
     expr = pl.col(col_name)
     dtype = series.dtype
 
-    if allow_unsigned and dtype.is_integer() and (series.min() is not None) and series.min() >= 0:
+    if (
+        allow_unsigned
+        and dtype.is_integer()
+        and (series.min() is not None)
+        and series.min() >= 0
+    ):
         # Convert to unsigned integer type, shrink if requested
         if shrink:
             return expr.cast(pl.UInt64).shrink_dtype()
