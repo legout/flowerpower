@@ -133,7 +133,7 @@ def _optimize_string_column(
 
 
 def _get_column_expr(
-    df: pl.DataFrame, col_name: str, shrink_numerics: bool, time_zone: str | None = None
+    df: pl.DataFrame, col_name: str, shrink_numerics: bool, allow_unsigned: bool, time_zone: str | None = None
 ) -> pl.Expr:
     """Generate optimization expression for a single column."""
     series = df[col_name]
@@ -144,7 +144,7 @@ def _get_column_expr(
 
     # Process based on current type
     if series.dtype.is_numeric():
-        return _optimize_numeric_column(series, col_name, shrink_numerics)
+        return _optimize_numeric_column(series, col_name, shrink_numerics, allow_unsigned)
     elif series.dtype == pl.Utf8:
         return _optimize_string_column(series, col_name, shrink_numerics, time_zone)
 
@@ -158,6 +158,7 @@ def opt_dtype(
     exclude: str | list[str] | None = None,
     time_zone: str | None = None,
     shrink_numerics: bool = True,
+    allow_unsigned: bool = True,
     strict: bool = False,
 ) -> pl.DataFrame:
     """
@@ -173,6 +174,7 @@ def opt_dtype(
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
+        allow_unsigned: Whether to allow unsigned integer types
         strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
@@ -196,7 +198,7 @@ def opt_dtype(
     for col_name in cols_to_process:
         try:
             expressions.append(
-                _get_column_expr(df, col_name, shrink_numerics, time_zone)
+                _get_column_expr(df, col_name, shrink_numerics, allow_unsigned, time_zone)
             )
         except Exception as e:
             if strict:
