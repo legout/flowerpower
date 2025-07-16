@@ -304,7 +304,7 @@ def _can_downcast_to_float32(array: pa.Array) -> bool:
     return F32_MIN <= min_val <= max_val <= F32_MAX
 
 
-def _get_optimal_int_type(array: pa.Array) -> pa.DataType:
+def _get_optimal_int_type(array: pa.Array, allow_unsigned: bool) -> pa.DataType:
     """
     Determine the most efficient integer type based on data range.
     """
@@ -317,7 +317,8 @@ def _get_optimal_int_type(array: pa.Array) -> pa.DataType:
     min_val = min_max["min"].as_py()
     max_val = min_max["max"].as_py()
 
-    if min_val >= 0:  # Unsigned
+    if allow_unsigned and min_val >= 0:
+        # If allow_unsigned is True, check for unsigned types
         if max_val <= 255:
             return pa.uint8()
         elif max_val <= 65535:
@@ -326,6 +327,7 @@ def _get_optimal_int_type(array: pa.Array) -> pa.DataType:
             return pa.uint32()
         else:
             return pa.uint64()
+   
     else:  # Signed
         if -128 <= min_val and max_val <= 127:
             return pa.int8()
@@ -337,7 +339,7 @@ def _get_optimal_int_type(array: pa.Array) -> pa.DataType:
             return pa.int64()
 
 
-def _optimize_numeric_array(array: pa.Array, shrink: bool) -> pa.Array:
+def _optimize_numeric_array(array: pa.Array, shrink: bool, allow_unsigned: bool = True) -> pa.Array:
     """
     Optimize numeric PyArrow array by downcasting when possible.
     Uses vectorized operations for efficiency.
@@ -357,7 +359,7 @@ def _optimize_numeric_array(array: pa.Array, shrink: bool) -> pa.Array:
         if array.type in [pa.int8(), pa.uint8()]:
             return array
 
-        optimal_type = _get_optimal_int_type(array)
+        optimal_type = _get_optimal_int_type(array, allow_unsigned)
         return pc.cast(array, optimal_type)
 
     # Default: return unchanged
@@ -448,7 +450,7 @@ def _optimize_string_array(
 
 
 def _process_column(
-    table: pa.Table, col_name: str, shrink_numerics: bool, time_zone: str | None = None
+    table: pa.Table, col_name: str, shrink_numerics: bool, allow_unsigned: bool, time_zone: str | None = None
 ) -> pa.Array:
     """
     Process a single column for type optimization.
@@ -461,7 +463,7 @@ def _process_column(
 
     # Process based on current type
     if pa.types.is_floating(array.type) or pa.types.is_integer(array.type):
-        return _optimize_numeric_array(array, shrink_numerics)
+        return _optimize_numeric_array(array, shrink_numerics, allow_unsigned)
     elif pa.types.is_string(array.type):
         return _optimize_string_array(array, col_name, shrink_numerics, time_zone)
 
@@ -475,6 +477,7 @@ def opt_dtype(
     exclude: str | list[str] | None = None,
     time_zone: str | None = None,
     shrink_numerics: bool = True,
+    allow_unsigned: bool = True,
     strict: bool = False,
 ) -> pa.Table:
     """
@@ -491,6 +494,7 @@ def opt_dtype(
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
+        allow_unsigned: Whether to allow unsigned types
         strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
@@ -516,7 +520,7 @@ def opt_dtype(
             try:
                 # Process column for optimization
                 new_columns.append(
-                    _process_column(table, col_name, shrink_numerics, time_zone)
+                    _process_column(table, col_name, shrink_numerics, allow_unsigned, time_zone)
                 )
             except Exception as e:
                 if strict:
