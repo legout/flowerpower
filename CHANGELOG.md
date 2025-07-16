@@ -3,6 +3,13 @@
 ## [0.11.6.14] - 2025-07-16
 
 ### Changes
+- Refactor _get_optimal_int_type and _optimize_numeric_array function signatures for improved readability
+
+
+
+## [0.11.6.14] - 2025-07-16
+
+### Changes
 - Update _get_optimal_int_type and _optimize_numeric_array functions to support unsigned integer types
 - Refactor function signatures for improved readability in pyarrow.py
 
