@@ -327,7 +327,7 @@ def _get_optimal_int_type(array: pa.Array, allow_unsigned: bool) -> pa.DataType:
             return pa.uint32()
         else:
             return pa.uint64()
-   
+
     else:  # Signed
         if -128 <= min_val and max_val <= 127:
             return pa.int8()
@@ -339,7 +339,9 @@ def _get_optimal_int_type(array: pa.Array, allow_unsigned: bool) -> pa.DataType:
             return pa.int64()
 
 
-def _optimize_numeric_array(array: pa.Array, shrink: bool, allow_unsigned: bool = True) -> pa.Array:
+def _optimize_numeric_array(
+    array: pa.Array, shrink: bool, allow_unsigned: bool = True
+) -> pa.Array:
     """
     Optimize numeric PyArrow array by downcasting when possible.
     Uses vectorized operations for efficiency.
@@ -450,7 +452,11 @@ def _optimize_string_array(
 
 
 def _process_column(
-    table: pa.Table, col_name: str, shrink_numerics: bool, allow_unsigned: bool, time_zone: str | None = None
+    table: pa.Table,
+    col_name: str,
+    shrink_numerics: bool,
+    allow_unsigned: bool,
+    time_zone: str | None = None,
 ) -> pa.Array:
     """
     Process a single column for type optimization.
@@ -520,7 +526,9 @@ def opt_dtype(
             try:
                 # Process column for optimization
                 new_columns.append(
-                    _process_column(table, col_name, shrink_numerics, allow_unsigned, time_zone)
+                    _process_column(
+                        table, col_name, shrink_numerics, allow_unsigned, time_zone
+                    )
                 )
             except Exception as e:
                 if strict:
