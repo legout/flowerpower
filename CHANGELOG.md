@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.16] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.16 and update _get_column_expr to include allow_unsigned parameter for numeric optimization
+- Refactor _optimize_numeric_column to improve readability of unsigned integer check
+
+
+
 ## [0.11.6.15] - 2025-07-16
 
 ### Changes
