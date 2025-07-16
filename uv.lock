@@ -943,7 +943,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.11.6.14"
+version = "0.11.6.16"
 source = { editable = "." }
 dependencies = [
     { name = "dill" },

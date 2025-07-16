@@ -7,8 +7,8 @@ from .datetime import get_timedelta_str, get_timestamp_column
 # Pre-compiled regex patterns (identical to original)
 INTEGER_REGEX = r"^[-+]?\d+$"
 FLOAT_REGEX = r"^[-+]?(?:\d*[.,])?\d+(?:[eE][-+]?\d+)?$"
-BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n)$"
-BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j)$"
+BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n|ok|nok)$"
+BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j|ok)$"
 DATETIME_REGEX = (
     r"^("
     r"\d{4}-\d{2}-\d{2}"  # ISO: 2023-12-31
@@ -32,7 +32,26 @@ F32_MAX = float(np.finfo(np.float32).max)
 def _clean_string_expr(col_name: str) -> pl.Expr:
     """Create expression to clean string values."""
     return (
-        pl.col(col_name).str.strip_chars().replace({"-": None, "": None, "None": None})
+        pl.col(col_name)
+        .str.strip_chars()
+        .replace(
+            {
+                "-": None,
+                "": None,
+                "None": None,
+                "none": None,
+                "NONE": None,
+                "NaN": None,
+                "Nan": None,
+                "nan": None,
+                "NAN": None,
+                "N/A": None,
+                "n/a": None,
+                "null": None,
+                "Null": None,
+                "NULL": None,
+            }
+        )
     )
 
 
@@ -47,11 +66,24 @@ def _can_downcast_to_float32(series: pl.Series) -> bool:
 
 
 def _optimize_numeric_column(
-    series: pl.Series, col_name: str, shrink: bool, allow_unsigned: bool = False
+    series: pl.Series,
+    shrink: bool,
+    allow_unsigned: bool = True,
+    allow_null: bool = True,
 ) -> pl.Expr:
     """Optimize numeric column types, optionally converting to unsigned if all values >= 0."""
+    col_name = series.name
     expr = pl.col(col_name)
     dtype = series.dtype
+    if series.is_null().all():
+        # If all values are null, cast to Null type if allow_null is True
+        if allow_null:
+            return expr.cast(pl.Null())
+        
+    if not allow_unsigned:
+        # If unsigned types are not allowed, ensure we use signed integer types
+        if dtype.is_integer() and not dtype.is_signed_integer():
+            return expr.cast(pl.Int64)
 
     if (
         allow_unsigned
@@ -76,16 +108,21 @@ def _optimize_numeric_column(
 
 def _optimize_string_column(
     series: pl.Series,
-    col_name: str,
     shrink_numerics: bool,
     time_zone: str | None = None,
+    allow_null: bool = True,
+    allow_unsigned: bool = True,
 ) -> pl.Expr:
     """Convert string column to appropriate type based on content analysis."""
     # Return early for empty or null-only series
+    col_name = series.name
     cleaned_expr = _clean_string_expr(col_name)
-    non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
-    if len(non_null) == 0:
-        return pl.col(col_name).cast(pl.Null())  # Fix: Cast to Null type
+    non_null = series.drop_nulls()
+    if non_null.is_empty():
+        if allow_null:
+            return pl.col(col_name).cast(pl.Null())
+        else:
+            return pl.col(col_name).cast(series.dtype)
 
     stripped = non_null.str.strip_chars()
     lowercase = stripped.str.to_lowercase()
@@ -99,16 +136,16 @@ def _optimize_string_column(
         )
 
     elif stripped.str.contains(INTEGER_REGEX).all(ignore_nulls=False):
-        int_expr = cleaned_expr.cast(pl.Int64)
+        int_expr = cleaned_expr.cast(pl.Int64).alias(col_name)
         return (
-            int_expr.shrink_dtype().alias(col_name)
-            if shrink_numerics
-            else int_expr.alias(col_name)
+           int_expr.shrink_dtype().alias(col_name)
+           if shrink_numerics
+           else int_expr.alias(col_name)
         )
 
     # Check for numeric values
     elif stripped.str.contains(FLOAT_REGEX).all(ignore_nulls=False):
-        float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64)
+        float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64).alias(col_name)
 
         if shrink_numerics:
             # Check if values can fit in Float32
@@ -118,7 +155,7 @@ def _optimize_string_column(
             if _can_downcast_to_float32(temp_floats):
                 return float_expr.shrink_dtype().alias(col_name)
 
-        return float_expr.alias(col_name)
+        return float_expr
 
     try:
         if stripped.str.contains(DATETIME_REGEX).all(ignore_nulls=False):
@@ -135,8 +172,9 @@ def _optimize_string_column(
 def _get_column_expr(
     df: pl.DataFrame,
     col_name: str,
-    shrink_numerics: bool,
-    allow_unsigned: bool,
+    shrink_numerics: bool = True,
+    allow_unsigned: bool = True,
+    allow_null: bool = True,
     time_zone: str | None = None,
 ) -> pl.Expr:
     """Generate optimization expression for a single column."""
@@ -144,15 +182,15 @@ def _get_column_expr(
 
     # Handle all-null columns
     if series.is_null().all():
-        return pl.col(col_name).cast(pl.Null())
+        if allow_null:
+            # If all values are null, cast to Null type if allow_null is True
+            return pl.col(col_name).cast(pl.Null())
 
     # Process based on current type
     if series.dtype.is_numeric():
-        return _optimize_numeric_column(
-            series, col_name, shrink_numerics, allow_unsigned
-        )
+        return _optimize_numeric_column(series, shrink_numerics, allow_unsigned, allow_null)
     elif series.dtype == pl.Utf8:
-        return _optimize_string_column(series, col_name, shrink_numerics, time_zone)
+        return _optimize_string_column(series, col_name, shrink_numerics, time_zone, allow_null)
 
     # Keep original for other types
     return pl.col(col_name)
@@ -165,6 +203,7 @@ def opt_dtype(
     time_zone: str | None = None,
     shrink_numerics: bool = True,
     allow_unsigned: bool = True,
+    allow_null: bool = True,
     strict: bool = False,
 ) -> pl.DataFrame:
     """
@@ -181,6 +220,7 @@ def opt_dtype(
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
         allow_unsigned: Whether to allow unsigned integer types
+        allow_null: Whether to allow columns with all null values to be cast to Null type
         strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
@@ -205,7 +245,7 @@ def opt_dtype(
         try:
             expressions.append(
                 _get_column_expr(
-                    df, col_name, shrink_numerics, allow_unsigned, time_zone
+                    df, col_name, shrink_numerics, allow_unsigned, allow_null, time_zone
                 )
             )
         except Exception as e:
@@ -383,30 +423,41 @@ def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None)
     def _unnest_all(struct_columns):
         if fields is not None:
             return (
-                df.with_columns([
-                    pl.col(col).struct.rename_fields([
-                        f"{col}{seperator}{field_name}"
-                        for field_name in df[col].struct.fields
-                    ])
-                    for col in struct_columns
-                ])
+                df.with_columns(
+                    [
+                        pl.col(col).struct.rename_fields(
+                            [
+                                f"{col}{seperator}{field_name}"
+                                for field_name in df[col].struct.fields
+                            ]
+                        )
+                        for col in struct_columns
+                    ]
+                )
                 .unnest(struct_columns)
                 .select(
                     list(set(df.columns) - set(struct_columns))
-                    + sorted([
-                        f"{col}{seperator}{field_name}"
-                        for field_name in fields
-                        for col in struct_columns
-                    ])
+                    + sorted(
+                        [
+                            f"{col}{seperator}{field_name}"
+                            for field_name in fields
+                            for col in struct_columns
+                        ]
+                    )
                 )
             )
 
-        return df.with_columns([
-            pl.col(col).struct.rename_fields([
-                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
-            ])
-            for col in struct_columns
-        ]).unnest(struct_columns)
+        return df.with_columns(
+            [
+                pl.col(col).struct.rename_fields(
+                    [
+                        f"{col}{seperator}{field_name}"
+                        for field_name in df[col].struct.fields
+                    ]
+                )
+                for col in struct_columns
+            ]
+        ).unnest(struct_columns)
 
     struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
     while len(struct_columns):
@@ -448,13 +499,15 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns([
-            pl.col(timestamp_column)
-            .dt.strftime(strftime_)
-            .fill_null(0)
-            .alias(column_name)
-            for strftime_, column_name in zip(strftime, column_names)
-        ]),
+        df.with_columns(
+            [
+                pl.col(timestamp_column)
+                .dt.strftime(strftime_)
+                .fill_null(0)
+                .alias(column_name)
+                for strftime_, column_name in zip(strftime, column_names)
+            ]
+        ),
         include=column_names,
         strict=False,
     )
@@ -489,10 +542,12 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns([
-        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-        for truncate_, column_name in zip(truncate_by, column_names)
-    ])
+    return df.with_columns(
+        [
+            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+            for truncate_, column_name in zip(truncate_by, column_names)
+        ]
+    )
 
 
 def with_datepart_columns(
@@ -642,9 +697,9 @@ def cast_relaxed(
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
     if len(new_columns):
-        return df.with_columns([
-            pl.lit(None).alias(new_col) for new_col in new_columns
-        ]).cast(schema)
+        return df.with_columns(
+            [pl.lit(None).alias(new_col) for new_col in new_columns]
+        ).cast(schema)
     return df.cast(schema)
 
 
