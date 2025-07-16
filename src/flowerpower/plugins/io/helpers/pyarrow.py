@@ -1,8 +1,9 @@
+import concurrent.futures
+
 import numpy as np
 import polars as pl
 import pyarrow as pa
 import pyarrow.compute as pc
-import concurrent.futures
 
 # Pre-compiled regex patterns (identical to original)
 INTEGER_REGEX = r"^[-+]?\d+$"
@@ -406,7 +407,9 @@ def _optimize_string_array(
         else:
             return array.type
 
-    cleaned_array = _clean_string_array(array, allow_null) # pc.utf8_trim_whitespace(array)
+    cleaned_array = _clean_string_array(
+        array, allow_null
+    )  # pc.utf8_trim_whitespace(array)
 
     try:
         if _all_match_regex(cleaned_array, BOOLEAN_REGEX):

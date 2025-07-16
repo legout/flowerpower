@@ -34,24 +34,22 @@ def _clean_string_expr(col_name: str) -> pl.Expr:
     return (
         pl.col(col_name)
         .str.strip_chars()
-        .replace(
-            {
-                "-": None,
-                "": None,
-                "None": None,
-                "none": None,
-                "NONE": None,
-                "NaN": None,
-                "Nan": None,
-                "nan": None,
-                "NAN": None,
-                "N/A": None,
-                "n/a": None,
-                "null": None,
-                "Null": None,
-                "NULL": None,
-            }
-        )
+        .replace({
+            "-": None,
+            "": None,
+            "None": None,
+            "none": None,
+            "NONE": None,
+            "NaN": None,
+            "Nan": None,
+            "nan": None,
+            "NAN": None,
+            "N/A": None,
+            "n/a": None,
+            "null": None,
+            "Null": None,
+            "NULL": None,
+        })
     )
 
 
@@ -79,7 +77,7 @@ def _optimize_numeric_column(
         # If all values are null, cast to Null type if allow_null is True
         if allow_null:
             return expr.cast(pl.Null())
-        
+
     if not allow_unsigned:
         # If unsigned types are not allowed, ensure we use signed integer types
         if dtype.is_integer() and not dtype.is_signed_integer():
@@ -138,14 +136,16 @@ def _optimize_string_column(
     elif stripped.str.contains(INTEGER_REGEX).all(ignore_nulls=False):
         int_expr = cleaned_expr.cast(pl.Int64).alias(col_name)
         return (
-           int_expr.shrink_dtype().alias(col_name)
-           if shrink_numerics
-           else int_expr.alias(col_name)
+            int_expr.shrink_dtype().alias(col_name)
+            if shrink_numerics
+            else int_expr.alias(col_name)
         )
 
     # Check for numeric values
     elif stripped.str.contains(FLOAT_REGEX).all(ignore_nulls=False):
-        float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64).alias(col_name)
+        float_expr = (
+            cleaned_expr.str.replace_all(",", ".").cast(pl.Float64).alias(col_name)
+        )
 
         if shrink_numerics:
             # Check if values can fit in Float32
@@ -188,9 +188,13 @@ def _get_column_expr(
 
     # Process based on current type
     if series.dtype.is_numeric():
-        return _optimize_numeric_column(series, shrink_numerics, allow_unsigned, allow_null)
+        return _optimize_numeric_column(
+            series, shrink_numerics, allow_unsigned, allow_null
+        )
     elif series.dtype == pl.Utf8:
-        return _optimize_string_column(series, col_name, shrink_numerics, time_zone, allow_null)
+        return _optimize_string_column(
+            series, col_name, shrink_numerics, time_zone, allow_null
+        )
 
     # Keep original for other types
     return pl.col(col_name)
@@ -423,41 +427,30 @@ def unnest_all(df: pl.DataFrame, seperator="_", fields: list[str] | None = None)
     def _unnest_all(struct_columns):
         if fields is not None:
             return (
-                df.with_columns(
-                    [
-                        pl.col(col).struct.rename_fields(
-                            [
-                                f"{col}{seperator}{field_name}"
-                                for field_name in df[col].struct.fields
-                            ]
-                        )
-                        for col in struct_columns
-                    ]
-                )
+                df.with_columns([
+                    pl.col(col).struct.rename_fields([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in df[col].struct.fields
+                    ])
+                    for col in struct_columns
+                ])
                 .unnest(struct_columns)
                 .select(
                     list(set(df.columns) - set(struct_columns))
-                    + sorted(
-                        [
-                            f"{col}{seperator}{field_name}"
-                            for field_name in fields
-                            for col in struct_columns
-                        ]
-                    )
+                    + sorted([
+                        f"{col}{seperator}{field_name}"
+                        for field_name in fields
+                        for col in struct_columns
+                    ])
                 )
             )
 
-        return df.with_columns(
-            [
-                pl.col(col).struct.rename_fields(
-                    [
-                        f"{col}{seperator}{field_name}"
-                        for field_name in df[col].struct.fields
-                    ]
-                )
-                for col in struct_columns
-            ]
-        ).unnest(struct_columns)
+        return df.with_columns([
+            pl.col(col).struct.rename_fields([
+                f"{col}{seperator}{field_name}" for field_name in df[col].struct.fields
+            ])
+            for col in struct_columns
+        ]).unnest(struct_columns)
 
     struct_columns = [col for col in df.columns if df[col].dtype == pl.Struct]  # noqa: F821
     while len(struct_columns):
@@ -499,15 +492,13 @@ def with_strftime_columns(
         ]
     # print("timestamp_column, with_strftime_columns", timestamp_column)
     return opt_dtype(
-        df.with_columns(
-            [
-                pl.col(timestamp_column)
-                .dt.strftime(strftime_)
-                .fill_null(0)
-                .alias(column_name)
-                for strftime_, column_name in zip(strftime, column_names)
-            ]
-        ),
+        df.with_columns([
+            pl.col(timestamp_column)
+            .dt.strftime(strftime_)
+            .fill_null(0)
+            .alias(column_name)
+            for strftime_, column_name in zip(strftime, column_names)
+        ]),
         include=column_names,
         strict=False,
     )
@@ -542,12 +533,10 @@ def with_truncated_columns(
     truncate_by = [
         get_timedelta_str(truncate_, to="polars") for truncate_ in truncate_by
     ]
-    return df.with_columns(
-        [
-            pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
-            for truncate_, column_name in zip(truncate_by, column_names)
-        ]
-    )
+    return df.with_columns([
+        pl.col(timestamp_column).dt.truncate(truncate_).alias(column_name)
+        for truncate_, column_name in zip(truncate_by, column_names)
+    ])
 
 
 def with_datepart_columns(
@@ -697,9 +686,9 @@ def cast_relaxed(
         columns = df.schema.names()
     new_columns = [col for col in schema.names() if col not in columns]
     if len(new_columns):
-        return df.with_columns(
-            [pl.lit(None).alias(new_col) for new_col in new_columns]
-        ).cast(schema)
+        return df.with_columns([
+            pl.lit(None).alias(new_col) for new_col in new_columns
+        ]).cast(schema)
     return df.cast(schema)
 
 
