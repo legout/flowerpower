@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.18] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.18 and update condition for table length check in _read_parquet function
+- Refactor string cleaning and optimize imports in PyArrow; improve readability of _clean_string_array function
+
+
+
 ## [0.11.6.17] - 2025-07-16
 
 ### Changes
