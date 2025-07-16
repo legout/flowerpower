@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.17] - 2025-07-16
+
+### Changes
+- Update regex patterns and enhance string cleaning in PyArrow and Polars; optimize numeric and string array processing with null handling
+- Refactor _get_column_expr and opt_dtype for improved readability by formatting function arguments
+
+
+
 ## [0.11.6.16] - 2025-07-16
 
 ### Changes
