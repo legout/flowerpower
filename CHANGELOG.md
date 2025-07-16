@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.15] - 2025-07-16
+
+### Changes
+- Enhance _optimize_numeric_column to support unsigned integer types and improve type optimization logic
+- Refactor _get_optimal_int_type and _optimize_numeric_array function signatures for improved readability
+
+
+
 ## [0.11.6.14] - 2025-07-16
 
 ### Changes
