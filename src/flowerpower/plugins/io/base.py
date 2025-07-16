@@ -113,7 +113,7 @@ class BaseFileIO(msgspec.Struct, gc=False):
     def _base_path(self) -> str:
         """Get the base path for the filesystem."""
         if isinstance(self.path, list):
-            base_path =  posixpath.commonpath(self.path).rstrip("/*")
+            base_path = posixpath.commonpath(self.path).rstrip("/*")
         else:
             base_path = self.path
 
