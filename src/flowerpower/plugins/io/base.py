@@ -112,9 +112,15 @@ class BaseFileIO(msgspec.Struct, gc=False):
     @property
     def _base_path(self) -> str:
         """Get the base path for the filesystem."""
-        return (
-            self.path if isinstance(self.path, str) else os.path.commonpath(self.path)
-        )
+        if isinstance(self.path, list):
+            base_path =  posixpath.commonpath(self.path).rstrip("/*")
+        else:
+            base_path = self.path
+
+        if self.format in base_path:
+            base_path = posixpath.dirname(base_path).rstrip("/")
+
+        return base_path
 
     @property
     def _path(self) -> str | list[str]:
