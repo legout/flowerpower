@@ -949,7 +949,7 @@ def _read_parquet(
     if concat:
         # Unify schemas before concatenation if opt_dtypes or multiple tables
         if isinstance(tables, list):
-            if len(tables) > 1:
+            if len(tables) > 0:
                 schemas = [t.schema for t in tables]
                 unified_schema = unify_schemas_pa(schemas, standardize_timezones=True)
                 tables = [cast_schema(t, unified_schema) for t in tables]
