@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.6.19] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.19 in pyproject.toml and update version to 0.11.6.18 in uv.lock; enhance base path handling in BaseFileIO class
+
+
+
 ## [0.11.6.18] - 2025-07-16
 
 ### Changes
