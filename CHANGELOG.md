@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.6.20] - 2025-08-12
+
+### Changes
+- fixed a bug in the job queue manager and updated the CLI job queue script
+- Fix formatting of base path calculation in BaseFileIO class
+
+
+
 ## [0.11.6.19] - 2025-07-16
 
 ### Changes
