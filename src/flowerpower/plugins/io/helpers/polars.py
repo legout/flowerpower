@@ -7,8 +7,8 @@ from .datetime import get_timedelta_str, get_timestamp_column
 # Pre-compiled regex patterns (identical to original)
 INTEGER_REGEX = r"^[-+]?\d+$"
 FLOAT_REGEX = r"^[-+]?(?:\d*[.,])?\d+(?:[eE][-+]?\d+)?$"
-BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n)$"
-BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j)$"
+BOOLEAN_REGEX = r"^(true|false|1|0|yes|ja|no|nein|t|f|y|j|n|ok|nok)$"
+BOOLEAN_TRUE_REGEX = r"^(true|1|yes|ja|t|y|j|ok)$"
 DATETIME_REGEX = (
     r"^("
     r"\d{4}-\d{2}-\d{2}"  # ISO: 2023-12-31
@@ -32,7 +32,24 @@ F32_MAX = float(np.finfo(np.float32).max)
 def _clean_string_expr(col_name: str) -> pl.Expr:
     """Create expression to clean string values."""
     return (
-        pl.col(col_name).str.strip_chars().replace({"-": None, "": None, "None": None})
+        pl.col(col_name)
+        .str.strip_chars()
+        .replace({
+            "-": None,
+            "": None,
+            "None": None,
+            "none": None,
+            "NONE": None,
+            "NaN": None,
+            "Nan": None,
+            "nan": None,
+            "NAN": None,
+            "N/A": None,
+            "n/a": None,
+            "null": None,
+            "Null": None,
+            "NULL": None,
+        })
     )
 
 
@@ -46,43 +63,78 @@ def _can_downcast_to_float32(series: pl.Series) -> bool:
     return F32_MIN <= min_val <= max_val <= F32_MAX
 
 
-def _optimize_numeric_column(series: pl.Series, col_name: str, shrink: bool) -> pl.Expr:
-    """Optimize numeric column types."""
+def _optimize_numeric_column(
+    series: pl.Series,
+    shrink: bool,
+    allow_unsigned: bool = True,
+    allow_null: bool = True,
+) -> pl.Expr:
+    """Optimize numeric column types, optionally converting to unsigned if all values >= 0."""
+    col_name = series.name
+    expr = pl.col(col_name)
+    dtype = series.dtype
+    if series.is_null().all():
+        # If all values are null, cast to Null type if allow_null is True
+        if allow_null:
+            return expr.cast(pl.Null())
+
+    if not allow_unsigned:
+        # If unsigned types are not allowed, ensure we use signed integer types
+        if dtype.is_integer() and not dtype.is_signed_integer():
+            return expr.cast(pl.Int64)
+
+    if (
+        allow_unsigned
+        and dtype.is_integer()
+        and (series.min() is not None)
+        and series.min() >= 0
+    ):
+        # Convert to unsigned integer type, shrink if requested
+        if shrink:
+            return expr.cast(pl.UInt64).shrink_dtype()
+        else:
+            return expr.cast(pl.UInt64)
+
     if not shrink:
-        return pl.col(col_name)
+        return expr
 
-    if series.dtype == pl.Float64 and not _can_downcast_to_float32(series):
-        return pl.col(col_name)
+    if dtype == pl.Float64 and not _can_downcast_to_float32(series):
+        return expr
 
-    return pl.col(col_name).shrink_dtype()
+    return expr.shrink_dtype()
 
 
 def _optimize_string_column(
     series: pl.Series,
-    col_name: str,
     shrink_numerics: bool,
     time_zone: str | None = None,
+    allow_null: bool = True,
+    allow_unsigned: bool = True,
 ) -> pl.Expr:
     """Convert string column to appropriate type based on content analysis."""
     # Return early for empty or null-only series
+    col_name = series.name
     cleaned_expr = _clean_string_expr(col_name)
-    non_null = series.drop_nulls().replace({"-": None, "": None, "None": None})
-    if len(non_null) == 0:
-        return pl.col(col_name).cast(pl.Int8)
+    non_null = series.drop_nulls()
+    if non_null.is_empty():
+        if allow_null:
+            return pl.col(col_name).cast(pl.Null())
+        else:
+            return pl.col(col_name).cast(series.dtype)
 
     stripped = non_null.str.strip_chars()
     lowercase = stripped.str.to_lowercase()
 
     # Check for boolean values
-    if lowercase.str.contains(BOOLEAN_REGEX).all():
+    if lowercase.str.contains(BOOLEAN_REGEX).all(ignore_nulls=False):
         return (
             cleaned_expr.str.to_lowercase()
             .str.contains(BOOLEAN_TRUE_REGEX)
             .alias(col_name)
         )
 
-    elif stripped.str.contains(INTEGER_REGEX).all():
-        int_expr = cleaned_expr.cast(pl.Int64)
+    elif stripped.str.contains(INTEGER_REGEX).all(ignore_nulls=False):
+        int_expr = cleaned_expr.cast(pl.Int64).alias(col_name)
         return (
             int_expr.shrink_dtype().alias(col_name)
             if shrink_numerics
@@ -90,8 +142,10 @@ def _optimize_string_column(
         )
 
     # Check for numeric values
-    elif stripped.str.contains(FLOAT_REGEX).all():
-        float_expr = cleaned_expr.str.replace_all(",", ".").cast(pl.Float64)
+    elif stripped.str.contains(FLOAT_REGEX).all(ignore_nulls=False):
+        float_expr = (
+            cleaned_expr.str.replace_all(",", ".").cast(pl.Float64).alias(col_name)
+        )
 
         if shrink_numerics:
             # Check if values can fit in Float32
@@ -101,10 +155,10 @@ def _optimize_string_column(
             if _can_downcast_to_float32(temp_floats):
                 return float_expr.shrink_dtype().alias(col_name)
 
-        return float_expr.alias(col_name)
+        return float_expr
 
     try:
-        if stripped.str.contains(DATETIME_REGEX).all():
+        if stripped.str.contains(DATETIME_REGEX).all(ignore_nulls=False):
             return cleaned_expr.str.to_datetime(
                 strict=False, time_unit="us", time_zone=time_zone
             ).alias(col_name)
@@ -116,20 +170,31 @@ def _optimize_string_column(
 
 
 def _get_column_expr(
-    df: pl.DataFrame, col_name: str, shrink_numerics: bool, time_zone: str | None = None
+    df: pl.DataFrame,
+    col_name: str,
+    shrink_numerics: bool = True,
+    allow_unsigned: bool = True,
+    allow_null: bool = True,
+    time_zone: str | None = None,
 ) -> pl.Expr:
     """Generate optimization expression for a single column."""
     series = df[col_name]
 
     # Handle all-null columns
     if series.is_null().all():
-        return pl.col(col_name).cast(pl.Int8)
+        if allow_null:
+            # If all values are null, cast to Null type if allow_null is True
+            return pl.col(col_name).cast(pl.Null())
 
     # Process based on current type
     if series.dtype.is_numeric():
-        return _optimize_numeric_column(series, col_name, shrink_numerics)
+        return _optimize_numeric_column(
+            series, shrink_numerics, allow_unsigned, allow_null
+        )
     elif series.dtype == pl.Utf8:
-        return _optimize_string_column(series, col_name, shrink_numerics, time_zone)
+        return _optimize_string_column(
+            series, col_name, shrink_numerics, time_zone, allow_null
+        )
 
     # Keep original for other types
     return pl.col(col_name)
@@ -141,6 +206,9 @@ def opt_dtype(
     exclude: str | list[str] | None = None,
     time_zone: str | None = None,
     shrink_numerics: bool = True,
+    allow_unsigned: bool = True,
+    allow_null: bool = True,
+    strict: bool = False,
 ) -> pl.DataFrame:
     """
     Optimize data types of a Polars DataFrame for performance and memory efficiency.
@@ -155,6 +223,9 @@ def opt_dtype(
         exclude: Column(s) to exclude from optimization
         time_zone: Optional time zone for datetime parsing
         shrink_numerics: Whether to downcast numeric types when possible
+        allow_unsigned: Whether to allow unsigned integer types
+        allow_null: Whether to allow columns with all null values to be cast to Null type
+        strict: If True, will raise an error if any column cannot be optimized
 
     Returns:
         DataFrame with optimized data types
@@ -173,10 +244,19 @@ def opt_dtype(
         cols_to_process = [col for col in cols_to_process if col not in exclude]
 
     # Generate optimization expressions for all columns
-    expressions = [
-        _get_column_expr(df, col_name, shrink_numerics, time_zone)
-        for col_name in cols_to_process
-    ]
+    expressions = []
+    for col_name in cols_to_process:
+        try:
+            expressions.append(
+                _get_column_expr(
+                    df, col_name, shrink_numerics, allow_unsigned, allow_null, time_zone
+                )
+            )
+        except Exception as e:
+            if strict:
+                raise e
+            # If strict mode is off, just keep the original column
+            continue
 
     # Apply all transformations at once if any exist
     return df if not expressions else df.with_columns(expressions)

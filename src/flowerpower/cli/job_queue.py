@@ -79,7 +79,7 @@ def start_worker(
         log_level=log_level,
     ) as worker:
         if num_workers:
-            num_workers = worker.cfg.backend.num_workers
+            num_workers = worker.cfg.num_workers
 
         if num_workers and num_workers > 1:
             worker.start_worker_pool(num_workers=num_workers, background=background)

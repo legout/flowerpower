@@ -1,5 +1,207 @@
 # Changelog
 
+## [0.11.6.20] - 2025-08-12
+
+### Changes
+- fixed a bug in the job queue manager and updated the CLI job queue script
+- Fix formatting of base path calculation in BaseFileIO class
+
+
+
+## [0.11.6.19] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.19 in pyproject.toml and update version to 0.11.6.18 in uv.lock; enhance base path handling in BaseFileIO class
+
+
+
+## [0.11.6.18] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.18 and update condition for table length check in _read_parquet function
+- Refactor string cleaning and optimize imports in PyArrow; improve readability of _clean_string_array function
+
+
+
+## [0.11.6.17] - 2025-07-16
+
+### Changes
+- Update regex patterns and enhance string cleaning in PyArrow and Polars; optimize numeric and string array processing with null handling
+- Refactor _get_column_expr and opt_dtype for improved readability by formatting function arguments
+
+
+
+## [0.11.6.16] - 2025-07-16
+
+### Changes
+- Bump version to 0.11.6.16 and update _get_column_expr to include allow_unsigned parameter for numeric optimization
+- Refactor _optimize_numeric_column to improve readability of unsigned integer check
+
+
+
+## [0.11.6.15] - 2025-07-16
+
+### Changes
+- Enhance _optimize_numeric_column to support unsigned integer types and improve type optimization logic
+- Refactor _get_optimal_int_type and _optimize_numeric_array function signatures for improved readability
+
+
+
+## [0.11.6.14] - 2025-07-16
+
+### Changes
+- Refactor _get_optimal_int_type and _optimize_numeric_array function signatures for improved readability
+
+
+
+## [0.11.6.14] - 2025-07-16
+
+### Changes
+- Update _get_optimal_int_type and _optimize_numeric_array functions to support unsigned integer types
+- Refactor function signatures for improved readability in pyarrow.py
+
+
+
+## [0.11.6.13] - 2025-07-15
+
+### Changes
+- Bump version to 0.11.6.13 in pyproject.toml and update timestamp handling in unify_schemas function
+- Fix whitespace in _read_parquet function to improve readability
+
+
+
+## [0.11.6.12] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.12 in pyproject.toml and enhance _read_parquet function to handle empty tables
+
+
+
+## [0.11.6.11] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.11 in pyproject.toml and fix null type casting in polars.py and pyarrow.py
+- Fix indentation in _read_parquet function for schema unification logic
+
+
+
+## [0.11.6.10] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.10 in pyproject.toml and refactor schema unification logic in _read_parquet function
+- Refactor commented code for clarity in _read_parquet function
+
+
+
+## [0.11.6.9] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.9 in pyproject.toml and set opt_dtypes to False in BaseFileReader
+- Refactor import statement formatting and improve readability in run_parallel function
+
+
+
+## [0.11.6.8] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.8 in pyproject.toml and enhance parallel processing with progress indicators in run_parallel function
+- Refactor comments for clarity in parquet reading functions
+
+
+
+## [0.11.6.7] - 2025-07-12
+
+### Changes
+- Refactor comments for clarity in parquet reading functions
+
+
+
+## [0.11.6.7] - 2025-07-12
+
+### Changes
+- Bump version to 0.11.6.7 in pyproject.toml and update version to 0.11.6.6 in uv.lock
+
+
+
+## [0.11.6.6] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.6 and update casting logic in polars and pyarrow helpers
+- Refactor code for improved readability and consistency in various modules
+
+
+
+## [0.11.6.5] - 2025-07-11
+
+### Changes
+- Refactor code for improved readability and consistency in various modules
+
+
+
+## [0.11.6.5] - 2025-07-11
+
+### Changes
+- Refactor tests for CLI and pipeline modules
+- Bump version to 0.11.6.5 in pyproject.toml and update parquet reading logic to exclude empty tables
+- Refactor import formatting and improve readability in base.py
+
+
+
+## [0.11.6.4] - 2025-07-11
+
+### Changes
+- Refactor import formatting and improve readability in base.py
+
+
+
+## [0.11.6.4] - 2025-07-11
+
+### Changes
+- Refactor import formatting and improve readability in base.py
+
+
+
+## [0.11.6.4] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.4 in pyproject.toml and clean up import formatting in base.py
+
+
+
+## [0.11.6.3] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.3 in pyproject.toml
+- Add strict mode to opt_dtype for enhanced error handling
+- Add a blank line for improved readability in pyproject.toml
+
+
+
+## [0.11.6.2] - 2025-07-11
+
+### Changes
+- Bump version to 0.11.6.2 in pyproject.toml
+- Add verbose option to BaseFileReader for improved logging control
+- Refactor import statements for improved organization and readability
+
+
+
+## [0.11.6.1] - 2025-07-11
+
+### Changes
+- Refactor import statements for improved organization and readability
+
+
+
+## [0.11.6.1] - 2025-07-11
+
+### Changes
+- Remove unused Alembic files and update version to 0.11.6.1
+- Refactor code for improved readability and consistency in JSON reading functions
+- Add opt_dtypes parameter to optimize DataFrame dtypes in JSON and CSV reading functions
+
+
+
 ## [0.11.6] - 2025-06-17
 
 ### Changes
