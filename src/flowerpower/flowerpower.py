@@ -47,6 +47,21 @@ class FlowerPowerProject:
             else None
         )
 
+    def _inject_dependencies(self):
+        """Inject dependencies between managers for proper architecture.
+        
+        This method establishes the correct dependency flow:
+        - Pipeline registry is injected into job queue manager for pipeline-specific operations
+        - Project context is properly established for pipeline execution
+        """
+        # Inject the pipeline registry into job queue manager
+        # This allows job queue to use high-level pipeline operations
+        self.job_queue_manager._pipeline_registry = self.pipeline_manager.registry
+        
+        # Store project reference for pipeline context
+        # This will be used when creating Pipeline instances
+        self.pipeline_manager._project_context = self
+
     @staticmethod
     def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):
         if fs is None:
@@ -138,10 +153,17 @@ class FlowerPowerProject:
                 fs=fs,
                 log_level=log_level,
             )
-            return cls(
+            
+            # Create the project instance
+            project = cls(
                 pipeline_manager=pipeline_manager,
                 job_queue_manager=job_queue_manager,
             )
+            
+            # Inject dependencies after creation to avoid circular imports
+            project._inject_dependencies()
+            
+            return project
         else:
             logger.error(
                 f"Project does not exist at {base_dir}. Please initialize it first. Use `FlowerPowerProject.init()` to create a new project."

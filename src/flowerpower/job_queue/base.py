@@ -14,13 +14,19 @@ import urllib.parse
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from loguru import logger
 
 if importlib.util.find_spec("sqlalchemy"):
     from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 else:
     create_async_engine = None
     AsyncEngine = TypeVar("AsyncEngine")
+
+# Import PipelineRegistry with TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from ..pipeline.registry import PipelineRegistry
 
 from ..cfg import ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
@@ -357,6 +363,9 @@ class BaseJobQueueManager:
         self._type = type
         self._pipelines_dir = kwargs.get("pipelines_dir", PIPELINES_DIR)
         self._cfg_dir = CONFIG_DIR
+        
+        # Initialize pipeline registry (will be injected by FlowerPowerProject)
+        self._pipeline_registry = None
 
         if storage_options is not None:
             cached = True
@@ -412,3 +421,189 @@ class BaseJobQueueManager:
 
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
+    
+    @property
+    def pipeline_registry(self) -> "PipelineRegistry":
+        """Get or create a PipelineRegistry instance for this job queue manager.
+        
+        This property lazily creates a PipelineRegistry using the job queue manager's
+        filesystem and directory configuration. The registry is cached after first access.
+        
+        Returns:
+            PipelineRegistry: A registry instance configured with this manager's settings
+            
+        Raises:
+            RuntimeError: If PipelineRegistry creation fails
+            
+        Example:
+            ```python
+            manager = RQManager(base_dir="/path/to/project")
+            registry = manager.pipeline_registry  # Creates registry on first access
+            pipeline = registry.get_pipeline("my_pipeline")
+            ```
+        """
+        if self._pipeline_registry is None:
+            try:
+                # Import here to avoid circular import issues
+                from ..pipeline.registry import PipelineRegistry
+                
+                # Create registry using the from_filesystem factory method
+                self._pipeline_registry = PipelineRegistry.from_filesystem(
+                    base_dir=self._base_dir,
+                    fs=self._fs,
+                    storage_options=self._storage_options
+                )
+                
+                logger.debug(f"Created PipelineRegistry for JobQueueManager with base_dir: {self._base_dir}")
+                
+            except Exception as e:
+                error_msg = f"Failed to create PipelineRegistry: {e}"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg) from e
+                
+        return self._pipeline_registry
+    
+    # --- Pipeline-specific high-level methods ---
+    
+    def schedule_pipeline(self, name: str, *args, **kwargs):
+        """Schedule a pipeline for execution using its name.
+        
+        This high-level method loads the pipeline from the internal registry and schedules
+        its execution with the job queue.
+        
+        Args:
+            name: Name of the pipeline to schedule
+            *args: Additional positional arguments for scheduling
+            **kwargs: Additional keyword arguments for scheduling
+            
+        Returns:
+            Schedule ID or job ID depending on implementation
+            
+        Raises:
+            NotImplementedError: Must be implemented by subclasses
+        """
+        raise NotImplementedError("Subclasses must implement schedule_pipeline()")
+    
+    def enqueue_pipeline_run(self, name: str, *args, **kwargs):
+        """Enqueue a pipeline for immediate execution using its name.
+        
+        This high-level method loads the pipeline from the internal registry and enqueues
+        it for immediate execution in the job queue.
+        
+        Args:
+            name: Name of the pipeline to enqueue
+            *args: Additional positional arguments for job execution
+            **kwargs: Additional keyword arguments for job execution
+            
+        Returns:
+            Job ID or result depending on implementation
+            
+        Raises:
+            NotImplementedError: Must be implemented by subclasses
+        """
+        raise NotImplementedError("Subclasses must implement enqueue_pipeline_run()")
+    
+    # --- Core job queue methods ---
+    
+    def enqueue(self, func, *args, **kwargs):
+        """Enqueue a job for execution (immediate, delayed, or scheduled).
+        
+        This is the main method for adding jobs to the queue. It supports:
+        - Immediate execution (no run_at or run_in parameters)
+        - Delayed execution (run_in parameter)
+        - Scheduled execution (run_at parameter)
+        
+        Args:
+            func: Function to execute. Must be importable from the worker process.
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments including:
+                - run_in: Schedule the job to run after a delay (timedelta, int seconds, or string)
+                - run_at: Schedule the job to run at a specific datetime
+                - Other job queue specific parameters (timeout, retry, etc.)
+                
+        Returns:
+            Job object or job ID depending on implementation
+            
+        Raises:
+            NotImplementedError: Must be implemented by subclasses
+            
+        Example:
+            ```python
+            # Immediate execution
+            manager.enqueue(my_func, arg1, arg2, kwarg1="value")
+            
+            # Delayed execution  
+            manager.enqueue(my_func, arg1, run_in=300)  # 5 minutes
+            manager.enqueue(my_func, arg1, run_in=timedelta(hours=1))
+            
+            # Scheduled execution
+            manager.enqueue(my_func, arg1, run_at=datetime(2025, 1, 1, 9, 0))
+            ```
+        """
+        raise NotImplementedError("Subclasses must implement enqueue()")
+    
+    def enqueue_in(self, delay, func, *args, **kwargs):
+        """Enqueue a job to run after a specified delay.
+        
+        This is a convenience method for delayed execution. It's equivalent to
+        calling enqueue() with the run_in parameter.
+        
+        Args:
+            delay: Time to wait before execution (timedelta, int seconds, or string)
+            func: Function to execute
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function and job options
+            
+        Returns:
+            Job object or job ID depending on implementation
+            
+        Raises:
+            NotImplementedError: Must be implemented by subclasses
+            
+        Example:
+            ```python
+            # Run in 5 minutes
+            manager.enqueue_in(300, my_func, arg1, arg2)
+            
+            # Run in 1 hour
+            manager.enqueue_in(timedelta(hours=1), my_func, arg1, kwarg1="value")
+            
+            # Run in 30 seconds (string format)
+            manager.enqueue_in("30s", my_func, arg1)
+            ```
+        """
+        raise NotImplementedError("Subclasses must implement enqueue_in()")
+    
+    def enqueue_at(self, datetime, func, *args, **kwargs):
+        """Enqueue a job to run at a specific datetime.
+        
+        This is a convenience method for scheduled execution. It's equivalent to
+        calling enqueue() with the run_at parameter.
+        
+        Args:
+            datetime: When to execute the job (datetime object or ISO string)
+            func: Function to execute
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function and job options
+            
+        Returns:
+            Job object or job ID depending on implementation
+            
+        Raises:
+            NotImplementedError: Must be implemented by subclasses
+            
+        Example:
+            ```python
+            # Run at specific time
+            manager.enqueue_at(datetime(2025, 1, 1, 9, 0), my_func, arg1, arg2)
+            
+            # Run tomorrow at 9 AM
+            tomorrow_9am = datetime.now() + timedelta(days=1)
+            tomorrow_9am = tomorrow_9am.replace(hour=9, minute=0, second=0)
+            manager.enqueue_at(tomorrow_9am, my_func, arg1, kwarg1="value")
+            
+            # Run using ISO string
+            manager.enqueue_at("2025-01-01T09:00:00", my_func, arg1)
+            ```
+        """
+        raise NotImplementedError("Subclasses must implement enqueue_at()")
