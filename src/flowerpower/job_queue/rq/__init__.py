@@ -1,4 +1,4 @@
-from ..registry import JobQueueBackendRegistry
+#from ..registry import JobQueueBackendRegistry
 from .manager import RQManager
 
-JobQueueBackendRegistry.register("rq", RQManager)
+# JobQueueBackendRegistry.register("rq", RQManager)
