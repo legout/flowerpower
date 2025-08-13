@@ -86,7 +86,7 @@ from flowerpower.pipeline import PipelineManager
 
 manager = PipelineManager()
 
-# Assume project.yml has job_queue.type: apscheduler (or similar)
+# Assume project.yml has job_queue.type: rq
 print("Scheduling the daily_report pipeline...")
 
 # 'schedule' adds the task to the backend's schedule list
@@ -153,7 +153,7 @@ from ..job_queue import JobQueueManager # The factory
 class PipelineJobQueue:
     def __init__(self, project_cfg: ProjectConfig, ...):
         self.project_cfg = project_cfg
-        # Store the type name ('rq', 'apscheduler', etc.)
+        # Store the type name ('rq')
         self._job_queue_type = project_cfg.job_queue.type or settings.DEFAULT_JOB_QUEUE
         self._cached_job_queue = None # Cache for the actual queue manager
 

@@ -8,8 +8,7 @@ from loguru import logger
 
 from . import settings
 from .cfg import ProjectConfig
-from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-                 get_filesystem)
+from .fs import AbstractFileSystem, BaseStorageOptions, DirFileSystem, get_filesystem
 from .job_queue import JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging

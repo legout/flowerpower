@@ -1,6 +1,6 @@
 import configparser
 import os
-from typing import Any, TypeVar, Union
+from typing import Any
 
 import msgspec
 import yaml

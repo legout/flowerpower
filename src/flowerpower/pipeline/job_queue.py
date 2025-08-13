@@ -10,7 +10,7 @@ from uuid import UUID
 from loguru import logger
 from rich import print as rprint
 
-from .. import settings
+
 # Import necessary config types
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem
@@ -39,7 +39,7 @@ class PipelineJobQueue:
             fs: The file system to use for file operations.
             cfg_dir: The directory for configuration files.
             pipelines_dir: The directory for pipeline files.
-            job_queue_type: The type of job queue to use (e.g., 'rq', 'apscheduler'). If None, defaults to the project config.
+            job_queue_type: The type of job queue to use (e.g., 'rq'). If None, defaults to the project config.
         """
         self.project_cfg = project_cfg
         self._fs = fs
@@ -83,12 +83,6 @@ class PipelineJobQueue:
                 logger.warning(
                     "JobQueueManager could not be instantiated. The RQ backend is unavailable. "
                     "Please ensure RQ is installed and configured correctly and that the Redis server is running."
-                )
-            elif self._job_queue_type == "apscheduler":
-                logger.warning(
-                    "JobQueueManager could not be instantiated. The APScheduler backend is unavailable. "
-                    f"Please ensure APScheduler is installed and configured correctly, and that the configured data store ({self.project_cfg.job_queue.backend.data_store.type}) "
-                    f"and event_broker ({self.project_cfg.job_queue.backend.event_broker.type}) are accessible."
                 )
             return None
         return self._job_queue
@@ -361,13 +355,6 @@ class PipelineJobQueue:
                     - result_ttl: Time to live for the job result (float or timedelta)
                     - ttl: Time to live for the job (float or timedelta)
                     - use_local_time_zone: Whether to use local time zone for scheduling (bool)
-                For APScheduler, this includes:
-                    - misfire_grace_time: Grace time for misfires (timedelta)
-                    - coalesce: Whether to coalesce jobs (bool)
-                    - max_running_jobs: Maximum instances of the job (int)
-                    - max_jitter: Maximum jitter for scheduling (int)
-                    - conflict_policy: Policy for conflicting jobs (str)
-                    - paused: Whether to pause the job (bool)
 
 
         Returns:

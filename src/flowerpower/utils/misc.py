@@ -3,6 +3,7 @@ import os
 import subprocess
 import tempfile
 import time
+
 # from collections.abc import Iterable
 from typing import Any
 
@@ -152,10 +153,12 @@ if importlib.util.find_spec("polars"):
                     next(v for v in data.values() if isinstance(v, (list, tuple)))
                 )
                 # Convert to DataFrame where each list element becomes a row
-                data = pl.DataFrame({
-                    k: v if isinstance(v, (list, tuple)) else [v] * length
-                    for k, v in data.items()
-                })
+                data = pl.DataFrame(
+                    {
+                        k: v if isinstance(v, (list, tuple)) else [v] * length
+                        for k, v in data.items()
+                    }
+                )
             else:
                 # If values are scalars, wrap them in a list to create a single row
                 data = pl.DataFrame({k: [v] for k, v in data.items()})
@@ -266,8 +269,7 @@ else:
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
-    from rich.progress import (BarColumn, Progress, TextColumn,
-                               TimeElapsedColumn)
+    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
     def run_parallel(
         func: callable,

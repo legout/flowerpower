@@ -6,7 +6,7 @@ from munch import Munch, munchify
 from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..base import BaseConfig
 from .adapter import AdapterConfig
-from .run import RunConfig
+from .run import RunConfig, ExecutorConfig as ExecutorConfig, WithAdapterConfig as WithAdapterConfig
 from .schedule import ScheduleConfig
 
 

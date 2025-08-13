@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, mock_open
 
 import msgspec
 import pytest
-import yaml  # For creating test YAML content easily
 from fsspec.implementations.memory import MemoryFileSystem
 
 from flowerpower.cfg.base import BaseConfig
@@ -256,14 +255,6 @@ def test_base_config_merge_method_no_explicit_defaults_source_has_none():
 
 def test_base_config_merge_method_source_fields_are_all_defaults():
     target = SimpleConfig(name="target_name", value=1, optional_field="target_opt")
-    # Source has all default values
-    source = SimpleConfig(
-        name=SimpleConfig.__struct_fields_meta__["name"].default
-        if "name" in SimpleConfig.__struct_fields_meta__
-        else "default_name_placeholder",  # name is required
-        value=SimpleConfig.__struct_fields_meta__["value"].default,
-        optional_field=SimpleConfig.__struct_fields_meta__["optional_field"].default,
-    )
     # Correcting source for required field 'name' if it doesn't have a default in struct_fields_meta
     # For this test, let's assume 'name' must be provided, so we give it a value that we consider "default" for the test.
     # However, msgspec.Struct requires all non-Optional fields without defaults to be provided.

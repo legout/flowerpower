@@ -1,6 +1,6 @@
 <div align="center">
   <h1>FlowerPower 🌸 - Build & Orchestrate Data Pipelines</h1>
-  <h3>Simple Workflow Framework - Hamilton + APScheduler or RQ = FlowerPower</h3>
+  <h3>Simple Workflow Framework - Hamilton + RQ = FlowerPower</h3>
   <img src="./image.png" alt="FlowerPower Logo" width="400" height="300">
 </div>
 
@@ -14,7 +14,7 @@
 **FlowerPower** is a Python framework designed for building, configuring, scheduling, and executing data processing pipelines with ease and flexibility. It promotes a modular, configuration-driven approach, allowing you to focus on your pipeline logic while FlowerPower handles the orchestration.
 
 It is leveraging the [Hamilton](https://github.com/DAGWorks-Inc/hamilton) library for defining dataflows in a clean, functional way within your Python pipeline scripts. Pipelines are defined in Python modules and configured using YAML files, making it easy to manage and understand your data workflows.
-FlowerPower integrates with job queue systems like [APScheduler](https://github.com/scheduler/apscheduler) and [RQ](https://github.com/rq/rq), enabling you to schedule and manage your pipeline runs efficiently. It also provides a web UI (Hamilton UI) for monitoring and managing your pipelines.
+FlowerPower integrates with job queue systems like [RQ](https://github.com/rq/rq), enabling you to schedule and manage your pipeline runs efficiently. It also provides a web UI (Hamilton UI) for monitoring and managing your pipelines.
 FlowerPower is designed to be extensible, allowing you to easily swap components like job queue backends or add custom I/O plugins. This flexibility makes it suitable for a wide range of data processing tasks, from simple ETL jobs to complex data workflows.
 
 
@@ -22,9 +22,8 @@ FlowerPower is designed to be extensible, allowing you to easily swap components
 
 *   **Modular Pipeline Design:** Thanks to [Hamilton](https://github.com/DAGWorks-Inc/hamilton), you can define your data processing logic in Python modules, using functions as nodes in a directed acyclic graph (DAG).
 *   **Configuration-Driven:** Define pipeline parameters, execution logic, and scheduling declaratively using simple YAML files.
-*   **Job Queue Integration:** Built-in support for different asynchronous execution models:
-    *   **APScheduler:** For time-based scheduling (cron, interval, date).
-    *   **RQ (Redis Queue):** For distributed task queues.
+*   **Job Queue Integration:** Built-in support for asynchronous execution:
+    *   **RQ (Redis Queue):** For distributed task queues and time-based scheduling.
 *   **Extensible I/O Plugins:** Connect to various data sources and destinations (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, MQTT, SQLite, and more).
 *   **Multiple Interfaces:** Interact with your pipelines via:
     *   **Command Line Interface (CLI):** For running, managing, and inspecting pipelines.
@@ -44,7 +43,7 @@ source .venv/bin/activate # Or .\.venv\Scripts\activate on Windows
 uv pip install flowerpower
 
 # Optional: Install additional dependencies for specific features
-uv pip install flowerpower[apscheduler,rq] # Example for APScheduler and RQ
+uv pip install flowerpower[rq] # Example for RQ
 uv pip install flowerpower[io] # Example for I/O plugins (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite)
 uv pip install flowerpower[ui] # Example for Hamilton UI
 uv pip install flowerpower[all] # Install all optional dependencies
@@ -75,7 +74,7 @@ Alternatively, you can initialize programmatically:
 from flowerpower import init_project
 
 # Creates the structure in the current directory
-init_project(name='hello-flowerpower-project', job_queue_type='rq') # Or 'apscheduler'
+init_project(name='hello-flowerpower-project', job_queue_type='rq')
 ```
 
 This will create a `hello-flowerpower-project` directory with the necessary `conf/` and `pipelines/` subdirectories and default configuration files.
@@ -239,21 +238,21 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
 
 For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. 
 
-You have to install the job queue backend you want to use. FlowerPower supports two job queue backends: RQ (Redis Queue) and APScheduler.
+You have to install the job queue backend. FlowerPower uses RQ (Redis Queue) as its job queue backend.
 ```bash
-# Install RQ (Redis Queue) or APScheduler
+# Install RQ (Redis Queue)
 uv pip install flowerpower[rq] # For RQ (Redis Queue)
-uv pip install flowerpower[apscheduler] # For APScheduler
 ```
-*   **Note:** Ensure you have the required dependencies installed for your chosen job queue backend. For RQ, you need Redis running. For APScheduler, you need a data store (PostgreSQL, MySQL, SQLite, MongoDB) and an event broker (Redis, MQTT, PostgreSQL).
+*   **Note:** Ensure you have the required dependencies installed. For RQ, you need Redis running.
 
 **a) Configuring Job Queue Backends:** 
 
-Configuration of the job queue backend is done in your `conf/project.yml`. Currently, FlowerPower supports two job queue backends:
+Configuration of the job queue backend is done in your `conf/project.yml`. FlowerPower uses RQ (Redis Queue) as its job queue backend:
 
 *   **RQ (Redis Queue):**
-    *   **Requires:** Access to a running Redis server.
-    *   Configure in `conf/project.yml`: 
+    *   **Requires:**
+        *   A **Redis server** running for job queuing and task coordination.
+    *   Configure in `conf/project.yml`:
           ```yaml
           job_queue:
             type: rq
@@ -261,29 +260,10 @@ Configuration of the job queue backend is done in your `conf/project.yml`. Curre
               type: redis
               host: localhost
               port: 6379
-              ... # other redis options
-
-*   **APScheduler:**
-    *   **Requires:**
-        *   A **Data Store:** To persist job information (Options: PostgreSQL, MySQL, SQLite, MongoDB).
-        *   An **Event Broker:** To notify workers of scheduled jobs (Options: Redis, MQTT, PostgreSQL).
-    *   Configure in `cong/project.yml`:
-          ```yaml
-          job_queue:
-            type: apscheduler
-            backend:
-              type: postgresql # or mysql, sqlite, mongodb
-              host: localhost
-              port: 5432
-              user: your_user
-              password: your_password
-              database: your_database
-              ... # other database options
-            event_broker:
-              type: redis # or mqtt, postgresql
-              host: localhost
-              port: 6379
-              ... # other redis options
+              database: 0
+              # Optional: username, password for Redis auth
+              username: your_username  # if needed
+              password: your_password  # if needed
           ```
     
 It is possible to override the job queue backend configuration using environment variables, the `settings` module or by monkey patching the backend configuration of the `PipelineManager` or `JobQueueManager` classes. This might be useful for testing or when you want to avoid hardcoding values in your configuration files.

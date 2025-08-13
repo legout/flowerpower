@@ -1,7 +1,6 @@
 import datetime as dt
 import posixpath  # Important for consistent path joining as used in registry.py
-from pathlib import Path
-from unittest.mock import MagicMock, call, mock_open, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -9,8 +8,9 @@ from flowerpower.cfg import PipelineConfig  # Actual config classes
 from flowerpower.cfg import ProjectConfig
 from flowerpower.fs import AbstractFileSystem  # For type hinting mocks
 from flowerpower.pipeline.registry import HookType, PipelineRegistry
-from flowerpower.utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
-                                         PIPELINE_PY_TEMPLATE)
+from flowerpower.utils.templates import (
+    HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
+)
 
 # --- Fixtures ---
 
@@ -131,9 +131,9 @@ class TestPipelineRegistry:
 
         # Check PipelineConfig instantiation and save
         # PipelineConfig(name=pipeline_name) is called, then new_pipeline_cfg.save(fs=mock_fs)
-        from flowerpower.pipeline.registry import \
-            PipelineConfig as \
-            ActualPipelineConfig  # get the class for constructor check
+        from flowerpower.pipeline.registry import (
+            PipelineConfig as ActualPipelineConfig,
+        )  # get the class for constructor check
 
         ActualPipelineConfig.assert_called_once_with(name=pipeline_name)
         mock_pipeline_cfg_instance.save.assert_called_once_with(fs=mock_fs)
@@ -446,7 +446,6 @@ class TestPipelineRegistry:
         mock_fs.exists.return_value = False
         registry.add_hook(name=pipeline_name, type=hook_type)  # No function_name
 
-        expected_hook_file_path = f"hooks/{pipeline_name}/hook.py"
         default_func_name = hook_type.default_function_name()
         expected_content = HOOK_TEMPLATE__MQTT_BUILD_CONFIG.format(
             function_name=default_func_name

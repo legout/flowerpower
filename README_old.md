@@ -27,7 +27,7 @@
 FlowerPower is a simple workflow framework based on two fantastic Python libraries:
 
 - **[Hamilton](https://github.com/DAGWorks-Inc/hamilton)**: Creates DAGs from your pipeline functions
-- **[APScheduler](https://github.com/agronholm/apscheduler)**: Handles pipeline scheduling
+- **[RQ](https://github.com/rq/rq)**: Handles pipeline scheduling and task queuing
 
 ### Key Features
 

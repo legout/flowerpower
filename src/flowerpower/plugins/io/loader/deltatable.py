@@ -14,8 +14,11 @@ from msgspec import field
 from sherlock import RedisLock
 
 from ..base import BaseDatasetReader
-from ..metadata import (get_dataframe_metadata, get_delta_metadata,
-                        get_pyarrow_dataset_metadata)
+from ..metadata import (
+    get_dataframe_metadata,
+    get_delta_metadata,
+    get_pyarrow_dataset_metadata,
+)
 
 
 # @attrs.define

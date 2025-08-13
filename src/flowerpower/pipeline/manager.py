@@ -98,7 +98,7 @@ class PipelineManager:
             pipelines_dir: Override default pipelines directory name ('pipelines').
                 Example: "flows" or "dags".
             job_queue_type: Override worker type from project config/settings.
-                Valid values: "rq", "apscheduler", or "huey".
+                Valid values: "rq".
             log_level: Set logging level for the manager.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
@@ -1762,7 +1762,6 @@ class PipelineManager:
         Returns:
             list[Any]: List of schedule objects. Exact type depends on worker:
                 - RQ: List[rq.job.Job]
-                - APScheduler: List[apscheduler.schedulers.base.Schedule]
 
         Example:
             >>> from flowerpower.pipeline import PipelineManager

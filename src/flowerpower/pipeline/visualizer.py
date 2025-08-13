@@ -1,5 +1,4 @@
 import posixpath
-from typing import Any
 
 from hamilton import driver
 from rich import print

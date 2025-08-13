@@ -51,3 +51,4 @@ repomix-output.md
 src/flowerpower/_settings.py
 .sesskey
 test.db*
+docs/08_jobqueuemanager___pipelinejobqueue_.md

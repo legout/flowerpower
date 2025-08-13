@@ -1,7 +1,5 @@
 import typer
 
-from ..cfg import Config
-from ..cli.utils import parse_dict_or_list_param
 
 app = typer.Typer(help="Config management commands")
 

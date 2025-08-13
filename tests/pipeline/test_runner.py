@@ -1,13 +1,16 @@
 # tests/pipeline/test_runner.py
 import unittest
-from unittest.mock import MagicMock
 
 from flowerpower.cfg import PipelineConfig, ProjectConfig
-from flowerpower.cfg.pipeline import (ExecutorConfig, PipelineAdapterConfig,
-                                      PipelineRunConfig, WithAdapterConfig)
-from flowerpower.cfg.project import ProjectAdapterConfig
+from flowerpower.cfg.pipeline import (
+    ExecutorConfig,
+    AdapterConfig,
+    RunConfig,
+    WithAdapterConfig,
+)
+from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from flowerpower.pipeline.runner import PipelineRunner, run_pipeline
-from tests.pipelines.test_pipeline_module import reset_flaky_attempts
+from .test_pipeline_module import reset_flaky_attempts
 
 # It's good practice to place test modules in a way that mimics the main structure if possible,
 # or ensure sys.path is handled correctly for Hamilton to find the module.
@@ -28,7 +31,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.mock_pipeline_cfg = PipelineConfig(
             name="tests.pipelines.test_pipeline_module",  # This is crucial for loading the test module
             # Define other necessary fields for PipelineConfig
-            run=PipelineRunConfig(  # Assuming default run config is okay, or mock as needed
+            run=RunConfig(  # Assuming default run config is okay, or mock as needed
                 inputs={},
                 final_vars=[],
                 executor=ExecutorConfig(
@@ -36,7 +39,7 @@ class TestPipelineRunner(unittest.TestCase):
                 ),  # Default to synchronous for basic tests
                 with_adapter=WithAdapterConfig(),  # Default adapter settings
             ),
-            adapter=PipelineAdapterConfig(),  # Default or mock further
+            adapter=AdapterConfig(),  # Default or mock further
         )
 
         self.runner = PipelineRunner(

@@ -4,8 +4,7 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 from deltalake.transaction import CommitProperties, PostCommitHookProperties
-from deltalake.writer import (ColumnProperties, WriterProperties,
-                              write_deltalake)
+from deltalake.writer import ColumnProperties, WriterProperties, write_deltalake
 from msgspec import field
 from redis import Redis, StrictRedis
 from sherlock import RedisLock

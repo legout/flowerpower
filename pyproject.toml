@@ -1,6 +1,6 @@
 [project]
 name = "FlowerPower"
-description = "A simple workflow framework. Hamilton + APScheduler = FlowerPower"
+description = "A simple workflow framework. Hamilton + RQ = FlowerPower"
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
@@ -10,7 +10,7 @@ keywords = [
   "workflow",
   "pipeline",
   "scheduler",
-  "apscheduler",
+  "rq",
   "dask",
   "ray",
 ]
@@ -41,14 +41,6 @@ dependencies = [
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-apscheduler = [
-  'aiosqlite>=0.21.0',
-  'apscheduler==4.0.0a5',
-  'asyncpg>=0.29.0',
-  'greenlet>=3.0.3',
-  'sqlalchemy>=2.0.30',
-  "cron-descriptor>=1.4.5",
-]
 io = [
   "adbc-driver-manager>=1.4.0",
   "aiosqlite>=0.21.0",

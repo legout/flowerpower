@@ -2,7 +2,7 @@
 
 ## Introduction
 
-FlowerPower is a Python workflow framework designed to simplify the creation, configuration, and execution of data processing pipelines. It leverages the Hamilton SDK and integrates with job queue systems like APScheduler and RQ, allowing for scheduled and managed pipeline runs. Pipelines are defined in Python modules and configured using YAML files.
+FlowerPower is a Python workflow framework designed to simplify the creation, configuration, and execution of data processing pipelines. It leverages the Hamilton SDK and integrates with job queue systems like RQ, allowing for scheduled and managed pipeline runs. Pipelines are defined in Python modules and configured using YAML files.
 
 ## Installation
 
@@ -12,10 +12,10 @@ Install the core FlowerPower library using pip:
 pip install flowerpower
 ```
 
-FlowerPower uses optional dependencies for specific features like job queue backends (APScheduler, RQ), I/O connectors (databases, MQTT), etc. Install these as needed. For example, to use the APScheduler backend and MQTT:
+FlowerPower uses optional dependencies for specific features like job queue backends (RQ), I/O connectors (databases, MQTT), etc. Install these as needed. For example, to use the RQ backend and MQTT:
 
 ```bash
-pip install flowerpower[apscheduler,mqtt]
+pip install flowerpower[rq,mqtt]
 ```
 
 Refer to the `pyproject.toml` file for a full list of available optional dependencies.
@@ -87,7 +87,7 @@ This command tells FlowerPower to execute the pipeline named `hello_world`, usin
 
 As seen in the example, FlowerPower relies heavily on YAML configuration files:
 
-*   **Project Configuration (`project.yml`):** Defines project-level settings, such as the job queue backend (e.g., APScheduler, RQ), filesystem configurations, and default settings.
+*   **Project Configuration (`project.yml`):** Defines project-level settings, such as the job queue backend (RQ), filesystem configurations, and default settings.
 *   **Pipeline Configuration (`pipelines/*.yml`):** Defines individual pipeline specifics, including the source module, default parameters, input sources, and output targets/actions.
 
 Understanding and modifying these configuration files is key to using FlowerPower effectively.
