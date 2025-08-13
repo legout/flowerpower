@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.11.6.20] - 2025-08-13
+
+### Changes
+- refactor(job_queue): reorganize imports and improve error message formatting in models.py
+- feat(job_queue): implement JobQueueManagerFactory for dynamic job queue manager creation
+- style: clean up whitespace and improve code readability in ext.py and base.py
+- Enhance logging and add adlfs dependency for improved file handling
+- refactor(job_queue): improve import organization and code readability across modules
+- feat(job_queue): introduce unified job queue backend registry and models
+- style(job_queue): reformat code for consistency and readability
+- feat(job_queue): add RQ job serialization and callback registry
+- Refactor code for improved readability and consistency in various modules
+- Refactor code structure for improved readability and maintainability
+- fix: clean up imports and whitespace across multiple files
+- feat: Implement Adapter and Pipeline Configuration
+
+
+
 ## [0.11.6.20] - 2025-08-12
 
 ### Changes
