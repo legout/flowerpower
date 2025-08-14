@@ -175,7 +175,7 @@ class PipelineManager:
             base_dir=self._base_dir,
             storage_options=self._storage_options,
         )
-        
+
         # Initialize project context (will be injected by FlowerPowerProject)
         self._project_context = None
         self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
@@ -227,7 +227,6 @@ class PipelineManager:
         """
         # Add cleanup code if needed
         pass
-
 
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path.
@@ -489,15 +488,13 @@ class PipelineManager:
             ... )
         """
         # Use injected project context, fallback to self for backward compatibility
-        project_context = getattr(self, '_project_context', self)
-        
+        project_context = getattr(self, "_project_context", self)
+
         # Get Pipeline instance from registry
         pipeline = self.registry.get_pipeline(
-            name=name, 
-            project_context=project_context, 
-            reload=reload
+            name=name, project_context=project_context, reload=reload
         )
-        
+
         # Execute pipeline using its own run method
         return pipeline.run(
             inputs=inputs,
@@ -1162,7 +1159,3 @@ class PipelineManager:
         return self.visualizer.show_dag(
             name=name, format=format, reload=reload, raw=raw
         )
-
-
-
-

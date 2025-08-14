@@ -6,8 +6,8 @@ import typer
 from loguru import logger
 from typing_extensions import Annotated
 
-from ..pipeline.manager import HookType, PipelineManager
 from ..flowerpower import FlowerPowerProject
+from ..pipeline.manager import HookType, PipelineManager
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param  # , parse_param_dict
 
@@ -111,11 +111,11 @@ def run(
         storage_options=parsed_storage_options or {},
         log_level=log_level,
     )
-    
+
     if project is None:
         logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
         raise typer.Exit(1)
-    
+
     try:
         _ = project.run(
             name=name,
@@ -1052,11 +1052,11 @@ def enqueue(
         storage_options=parsed_storage_options or {},
         log_level=log_level,
     )
-    
+
     if project is None:
         logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
         raise typer.Exit(1)
-    
+
     if project.job_queue_manager is None:
         logger.error("No job queue configured. Cannot enqueue pipeline jobs.")
         raise typer.Exit(1)
@@ -1067,35 +1067,41 @@ def enqueue(
         if run_in:
             try:
                 delay_seconds = duration_parser.parse(run_in).total_seconds()
-                kwargs['run_in'] = delay_seconds
+                kwargs["run_in"] = delay_seconds
             except Exception as e:
                 logger.error(f"Invalid duration format '{run_in}': {e}")
                 raise typer.Exit(1)
-        
+
         # Parse run_at datetime if provided
         if run_at:
             try:
                 run_at_dt = dt.datetime.fromisoformat(run_at)
-                kwargs['run_at'] = run_at_dt
+                kwargs["run_at"] = run_at_dt
             except Exception as e:
                 logger.error(f"Invalid datetime format '{run_at}': {e}")
                 raise typer.Exit(1)
 
         # Add pipeline execution parameters
         if parsed_inputs:
-            kwargs['inputs'] = parsed_inputs
+            kwargs["inputs"] = parsed_inputs
         if parsed_final_vars:
-            kwargs['final_vars'] = parsed_final_vars
+            kwargs["final_vars"] = parsed_final_vars
 
         job_id = project.enqueue(name, **kwargs)
-        
+
         if run_in:
-            logger.info(f"Pipeline '{name}' enqueued to run in {run_in}. Job ID: {job_id}")
+            logger.info(
+                f"Pipeline '{name}' enqueued to run in {run_in}. Job ID: {job_id}"
+            )
         elif run_at:
-            logger.info(f"Pipeline '{name}' enqueued to run at {run_at}. Job ID: {job_id}")
+            logger.info(
+                f"Pipeline '{name}' enqueued to run at {run_at}. Job ID: {job_id}"
+            )
         else:
-            logger.info(f"Pipeline '{name}' enqueued for immediate execution. Job ID: {job_id}")
-            
+            logger.info(
+                f"Pipeline '{name}' enqueued for immediate execution. Job ID: {job_id}"
+            )
+
     except Exception as e:
         logger.error(f"Failed to enqueue pipeline '{name}': {e}")
         raise typer.Exit(1)
@@ -1156,7 +1162,7 @@ def schedule(
     if not cron and not interval:
         logger.error("Either --cron or --interval must be specified")
         raise typer.Exit(1)
-    
+
     if cron and interval:
         logger.error("Cannot specify both --cron and --interval")
         raise typer.Exit(1)
@@ -1171,11 +1177,11 @@ def schedule(
         storage_options=parsed_storage_options or {},
         log_level=log_level,
     )
-    
+
     if project is None:
         logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
         raise typer.Exit(1)
-    
+
     if project.job_queue_manager is None:
         logger.error("No job queue configured. Cannot schedule pipeline jobs.")
         raise typer.Exit(1)
@@ -1184,29 +1190,33 @@ def schedule(
         # Prepare schedule parameters
         kwargs = {}
         if cron:
-            kwargs['cron'] = cron
+            kwargs["cron"] = cron
         if interval:
             try:
                 interval_seconds = duration_parser.parse(interval).total_seconds()
-                kwargs['interval'] = {'seconds': interval_seconds}
+                kwargs["interval"] = {"seconds": interval_seconds}
             except Exception as e:
                 logger.error(f"Invalid interval format '{interval}': {e}")
                 raise typer.Exit(1)
-        
+
         if schedule_id:
-            kwargs['schedule_id'] = schedule_id
+            kwargs["schedule_id"] = schedule_id
         if parsed_inputs:
-            kwargs['inputs'] = parsed_inputs
+            kwargs["inputs"] = parsed_inputs
         if parsed_final_vars:
-            kwargs['final_vars'] = parsed_final_vars
+            kwargs["final_vars"] = parsed_final_vars
 
         schedule_result = project.schedule(name, **kwargs)
-        
+
         if cron:
-            logger.info(f"Pipeline '{name}' scheduled with cron '{cron}'. Schedule ID: {schedule_result}")
+            logger.info(
+                f"Pipeline '{name}' scheduled with cron '{cron}'. Schedule ID: {schedule_result}"
+            )
         elif interval:
-            logger.info(f"Pipeline '{name}' scheduled every {interval}. Schedule ID: {schedule_result}")
-            
+            logger.info(
+                f"Pipeline '{name}' scheduled every {interval}. Schedule ID: {schedule_result}"
+            )
+
     except Exception as e:
         logger.error(f"Failed to schedule pipeline '{name}': {e}")
         raise typer.Exit(1)

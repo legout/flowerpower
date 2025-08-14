@@ -551,12 +551,12 @@ class RQManager(BaseJobQueueManager):
         **kwargs,
     ) -> Job:
         """Enqueue a job for execution (immediate, delayed, or scheduled).
-        
+
         This is the main method for adding jobs to the queue. It supports:
         - Immediate execution (no run_at or run_in parameters)
         - Delayed execution (run_in parameter)
         - Scheduled execution (run_at parameter)
-        
+
         Args:
             func: Function to execute. Must be importable from the worker process.
             *args: Positional arguments for the function
@@ -566,27 +566,27 @@ class RQManager(BaseJobQueueManager):
                 - func_args: Alternative way to pass positional arguments
                 - func_kwargs: Alternative way to pass keyword arguments
                 - Other job queue specific parameters (timeout, retry, etc.)
-                
+
         Returns:
             Job: The created job instance
-            
+
         Example:
             ```python
             # Immediate execution
             manager.enqueue(my_func, arg1, arg2, kwarg1="value")
-            
-            # Delayed execution  
+
+            # Delayed execution
             manager.enqueue(my_func, arg1, run_in=300)  # 5 minutes
             manager.enqueue(my_func, arg1, run_in=timedelta(hours=1))
-            
+
             # Scheduled execution
             manager.enqueue(my_func, arg1, run_at=datetime(2025, 1, 1, 9, 0))
             ```
         """
         # Extract func_args and func_kwargs if provided as alternatives to *args
-        func_args = kwargs.pop('func_args', None)
-        func_kwargs = kwargs.pop('func_kwargs', None)
-        
+        func_args = kwargs.pop("func_args", None)
+        func_kwargs = kwargs.pop("func_kwargs", None)
+
         # Use provided args or fall back to func_args
         if args:
             final_args = args
@@ -594,21 +594,18 @@ class RQManager(BaseJobQueueManager):
             final_args = func_args
         else:
             final_args = ()
-            
+
         # Extract function keyword arguments
         if func_kwargs:
             final_kwargs = func_kwargs
         else:
             final_kwargs = {}
-        
+
         # Delegate to add_job with the parameters
         return self.add_job(
-            func=func,
-            func_args=final_args,
-            func_kwargs=final_kwargs,
-            **kwargs
+            func=func, func_args=final_args, func_kwargs=final_kwargs, **kwargs
         )
-    
+
     def enqueue_in(
         self,
         delay,
@@ -617,29 +614,29 @@ class RQManager(BaseJobQueueManager):
         **kwargs,
     ) -> Job:
         """Enqueue a job to run after a specified delay.
-        
+
         This is a convenience method for delayed execution.
-        
+
         Args:
             delay: Time to wait before execution (timedelta, int seconds, or string)
             func: Function to execute
             *args: Positional arguments for the function
             **kwargs: Keyword arguments for the function and job options
-            
+
         Returns:
             Job: The created job instance
-            
+
         Example:
             ```python
             # Run in 5 minutes
             manager.enqueue_in(300, my_func, arg1, arg2)
-            
+
             # Run in 1 hour
             manager.enqueue_in(timedelta(hours=1), my_func, arg1, kwarg1="value")
             ```
         """
         return self.enqueue(func, *args, run_in=delay, **kwargs)
-    
+
     def enqueue_at(
         self,
         datetime,
@@ -648,23 +645,23 @@ class RQManager(BaseJobQueueManager):
         **kwargs,
     ) -> Job:
         """Enqueue a job to run at a specific datetime.
-        
+
         This is a convenience method for scheduled execution.
-        
+
         Args:
             datetime: When to execute the job (datetime object or ISO string)
             func: Function to execute
             *args: Positional arguments for the function
             **kwargs: Keyword arguments for the function and job options
-            
+
         Returns:
             Job: The created job instance
-            
+
         Example:
             ```python
             # Run at specific time
             manager.enqueue_at(datetime(2025, 1, 1, 9, 0), my_func, arg1, arg2)
-            
+
             # Run tomorrow at 9 AM
             tomorrow_9am = datetime.now() + timedelta(days=1)
             tomorrow_9am = tomorrow_9am.replace(hour=9, minute=0, second=0)
@@ -696,7 +693,7 @@ class RQManager(BaseJobQueueManager):
         **job_kwargs,
     ) -> Job:
         """Add a job for immediate or scheduled execution.
-        
+
         .. deprecated:: 0.12.0
             Use :meth:`enqueue`, :meth:`enqueue_in`, or :meth:`enqueue_at` instead.
             The add_job method will be removed in version 1.0.0.
@@ -779,9 +776,9 @@ class RQManager(BaseJobQueueManager):
             "add_job() is deprecated and will be removed in version 1.0.0. "
             "Use enqueue(), enqueue_in(), or enqueue_at() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         job_id = job_id or str(uuid.uuid4())
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
@@ -1722,24 +1719,24 @@ class RQManager(BaseJobQueueManager):
         """
         schedule_ids = [schedule.id for schedule in self.schedules]
         return schedule_ids
-    
+
     # --- Pipeline-specific high-level methods implementation ---
-    
+
     def schedule_pipeline(self, name: str, project_context=None, *args, **kwargs):
         """Schedule a pipeline for execution using its name.
-        
+
         This high-level method loads the pipeline from the internal registry and schedules
         its execution with the job queue using the existing add_schedule method.
-        
+
         Args:
             name: Name of the pipeline to schedule
             project_context: Project context for the pipeline (optional)
             *args: Additional positional arguments for scheduling
             **kwargs: Additional keyword arguments for scheduling
-            
+
         Returns:
             Schedule ID from the underlying add_schedule call
-            
+
         Example:
             ```python
             manager = RQManager(base_dir="/path/to/project")
@@ -1751,105 +1748,124 @@ class RQManager(BaseJobQueueManager):
             ```
         """
         logger.info(f"Scheduling pipeline '{name}' via RQ job queue")
-        
-        # Create a function that will be executed by the job queue
-        def pipeline_job(*job_args, **job_kwargs):
-            # Get the pipeline instance
-            pipeline = self.pipeline_registry.get_pipeline(
-                name=name, 
-                project_context=project_context,
-                reload=job_kwargs.pop('reload', False)
-            )
-            
-            # Execute the pipeline
-            return pipeline.run(*job_args, **job_kwargs)
-        
-        # Extract pipeline execution arguments from kwargs
-        pipeline_kwargs = {
-            k: v for k, v in kwargs.items() 
-            if k in [
-                'inputs', 'final_vars', 'config', 'cache', 
-                'executor_cfg', 'with_adapter_cfg', 'pipeline_adapter_cfg',
-                'project_adapter_cfg', 'adapter', 'reload', 'log_level',
-                'max_retries', 'retry_delay', 'jitter_factor', 'retry_exceptions',
-                'on_success', 'on_failure'
-            ]
-        }
-        
-        # Extract scheduling arguments
-        schedule_kwargs = {
-            k: v for k, v in kwargs.items() 
-            if k not in pipeline_kwargs
-        }
-        
-        # Schedule the job
-        return self.add_schedule(
-            func=pipeline_job,
-            func_kwargs=pipeline_kwargs,
-            **schedule_kwargs
-        )
-    
-    def enqueue_pipeline_run(self, name: str, project_context=None, *args, **kwargs):
-        """Enqueue a pipeline for immediate execution using its name.
-        
-        This high-level method loads the pipeline from the internal registry and enqueues
-        it for immediate execution in the job queue using the existing enqueue method.
-        
-        Args:
-            name: Name of the pipeline to enqueue
-            project_context: Project context for the pipeline (optional)  
-            *args: Additional positional arguments for job execution
-            **kwargs: Additional keyword arguments for job execution
-            
-        Returns:
-            Job ID from the underlying enqueue call
-            
-        Example:
-            ```python
-            manager = RQManager(base_dir="/path/to/project")
-            job_id = manager.enqueue_pipeline_run(
-                "my_pipeline", 
-                inputs={"date": "2025-01-01"},
-                final_vars=["result"]
-            )
-            ```
-        """
-        logger.info(f"Enqueueing pipeline '{name}' for immediate execution via RQ job queue")
-        
+
         # Create a function that will be executed by the job queue
         def pipeline_job(*job_args, **job_kwargs):
             # Get the pipeline instance
             pipeline = self.pipeline_registry.get_pipeline(
                 name=name,
                 project_context=project_context,
-                reload=job_kwargs.pop('reload', False)
+                reload=job_kwargs.pop("reload", False),
             )
-            
+
             # Execute the pipeline
             return pipeline.run(*job_args, **job_kwargs)
-        
+
         # Extract pipeline execution arguments from kwargs
         pipeline_kwargs = {
-            k: v for k, v in kwargs.items() 
-            if k in [
-                'inputs', 'final_vars', 'config', 'cache',
-                'executor_cfg', 'with_adapter_cfg', 'pipeline_adapter_cfg',
-                'project_adapter_cfg', 'adapter', 'reload', 'log_level',
-                'max_retries', 'retry_delay', 'jitter_factor', 'retry_exceptions',
-                'on_success', 'on_failure'
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "inputs",
+                "final_vars",
+                "config",
+                "cache",
+                "executor_cfg",
+                "with_adapter_cfg",
+                "pipeline_adapter_cfg",
+                "project_adapter_cfg",
+                "adapter",
+                "reload",
+                "log_level",
+                "max_retries",
+                "retry_delay",
+                "jitter_factor",
+                "retry_exceptions",
+                "on_success",
+                "on_failure",
             ]
         }
-        
-        # Extract job queue arguments  
-        job_kwargs = {
-            k: v for k, v in kwargs.items()
-            if k not in pipeline_kwargs
+
+        # Extract scheduling arguments
+        schedule_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+
+        # Schedule the job
+        return self.add_schedule(
+            func=pipeline_job, func_kwargs=pipeline_kwargs, **schedule_kwargs
+        )
+
+    def enqueue_pipeline_run(self, name: str, project_context=None, *args, **kwargs):
+        """Enqueue a pipeline for immediate execution using its name.
+
+        This high-level method loads the pipeline from the internal registry and enqueues
+        it for immediate execution in the job queue using the existing enqueue method.
+
+        Args:
+            name: Name of the pipeline to enqueue
+            project_context: Project context for the pipeline (optional)
+            *args: Additional positional arguments for job execution
+            **kwargs: Additional keyword arguments for job execution
+
+        Returns:
+            Job ID from the underlying enqueue call
+
+        Example:
+            ```python
+            manager = RQManager(base_dir="/path/to/project")
+            job_id = manager.enqueue_pipeline_run(
+                "my_pipeline",
+                inputs={"date": "2025-01-01"},
+                final_vars=["result"]
+            )
+            ```
+        """
+        logger.info(
+            f"Enqueueing pipeline '{name}' for immediate execution via RQ job queue"
+        )
+
+        # Create a function that will be executed by the job queue
+        def pipeline_job(*job_args, **job_kwargs):
+            # Get the pipeline instance
+            pipeline = self.pipeline_registry.get_pipeline(
+                name=name,
+                project_context=project_context,
+                reload=job_kwargs.pop("reload", False),
+            )
+
+            # Execute the pipeline
+            return pipeline.run(*job_args, **job_kwargs)
+
+        # Extract pipeline execution arguments from kwargs
+        pipeline_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "inputs",
+                "final_vars",
+                "config",
+                "cache",
+                "executor_cfg",
+                "with_adapter_cfg",
+                "pipeline_adapter_cfg",
+                "project_adapter_cfg",
+                "adapter",
+                "reload",
+                "log_level",
+                "max_retries",
+                "retry_delay",
+                "jitter_factor",
+                "retry_exceptions",
+                "on_success",
+                "on_failure",
+            ]
         }
-        
+
+        # Extract job queue arguments
+        job_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+
         # Add the job
         return self.enqueue(
-            func=pipeline_job,
-            func_kwargs=pipeline_kwargs,
-            *args,
-            **job_kwargs
+            func=pipeline_job, func_kwargs=pipeline_kwargs, *args, **job_kwargs
         )

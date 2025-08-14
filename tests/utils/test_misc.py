@@ -1,13 +1,12 @@
-import pytest
-import msgspec
 from typing import Any
 
+import msgspec
+import pytest
+
 # Assuming misc.py is in src/flowerpower/utils/
-from flowerpower.utils.misc import (
-    get_partitions_from_path,
-    update_nested_dict,
-    update_config_from_dict,
-)
+from flowerpower.utils.misc import (get_partitions_from_path,
+                                    update_config_from_dict,
+                                    update_nested_dict)
 
 # --- Tests for get_partitions_from_path ---
 

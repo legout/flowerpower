@@ -5,7 +5,7 @@ import datetime as dt
 import os
 import posixpath
 import sys
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 import rich
 from loguru import logger
@@ -16,17 +16,15 @@ from rich.table import Table
 from rich.tree import Tree
 
 from .. import settings
-
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
 from ..fs import AbstractFileSystem, get_filesystem
 from ..utils.logging import setup_logging
-
+# Assuming view_img might be used indirectly or needed later
+from ..utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
+                               PIPELINE_PY_TEMPLATE)
 # Import base utilities
 from .base import load_module
-
-# Assuming view_img might be used indirectly or needed later
-from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -78,15 +76,15 @@ class PipelineRegistry:
         self._base_dir = base_dir
         self._storage_options = storage_options or {}
         self._console = Console()
-        
+
         # Cache for loaded pipelines
         self._pipeline_cache: Dict[str, "Pipeline"] = {}
         self._config_cache: Dict[str, PipelineConfig] = {}
         self._module_cache: Dict[str, Any] = {}
-        
+
         # Ensure module paths are added
         self._add_modules_path()
-    
+
     @classmethod
     def from_filesystem(
         cls,
@@ -96,29 +94,29 @@ class PipelineRegistry:
     ) -> "PipelineRegistry":
         """
         Create a PipelineRegistry from filesystem parameters.
-        
+
         This factory method creates a complete PipelineRegistry instance by:
         1. Creating the filesystem if not provided
         2. Loading the ProjectConfig from the base directory
         3. Initializing the registry with the loaded configuration
-        
+
         Args:
             base_dir: The base directory path for the FlowerPower project
             fs: Optional filesystem instance. If None, will be created from base_dir
             storage_options: Optional storage options for filesystem access
-            
+
         Returns:
             PipelineRegistry: A fully configured registry instance
-            
+
         Raises:
             ValueError: If base_dir is invalid or ProjectConfig cannot be loaded
             RuntimeError: If filesystem creation fails
-            
+
         Example:
             ```python
             # Create registry from local directory
             registry = PipelineRegistry.from_filesystem("/path/to/project")
-            
+
             # Create registry with S3 storage
             registry = PipelineRegistry.from_filesystem(
                 "s3://my-bucket/project",
@@ -131,37 +129,34 @@ class PipelineRegistry:
             fs = get_filesystem(
                 base_dir,
                 storage_options=storage_options,
-                cached=storage_options is not None
+                cached=storage_options is not None,
             )
-        
+
         # Load project configuration
-        project_cfg = ProjectConfig.load(
-            base_dir=base_dir,
-            fs=fs
-        )
-        
+        project_cfg = ProjectConfig.load(base_dir=base_dir, fs=fs)
+
         # Ensure we have a ProjectConfig instance
         if not isinstance(project_cfg, ProjectConfig):
             raise TypeError(f"Expected ProjectConfig, got {type(project_cfg)}")
-        
+
         # Create and return registry instance
         return cls(
             project_cfg=project_cfg,
             fs=fs,
             base_dir=base_dir,
-            storage_options=storage_options
+            storage_options=storage_options,
         )
-    
+
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path."""
         try:
-            if hasattr(self._fs, 'is_cache_fs') and self._fs.is_cache_fs:
+            if hasattr(self._fs, "is_cache_fs") and self._fs.is_cache_fs:
                 self._fs.sync_cache()
                 project_path = self._fs._mapper.directory
                 modules_path = posixpath.join(project_path, self._pipelines_dir)
             else:
                 # Use the base directory directly if not using cache
-                if hasattr(self._fs, 'path'):
+                if hasattr(self._fs, "path"):
                     project_path = self._fs.path
                 elif self._base_dir:
                     project_path = self._base_dir
@@ -178,23 +173,25 @@ class PipelineRegistry:
         except (AttributeError, TypeError):
             # Handle case where filesystem is mocked or doesn't have required properties
             logger.debug("Could not add modules path - using default Python path")
-    
+
     # --- Pipeline Factory Methods ---
-    
-    def get_pipeline(self, name: str, project_context: "FlowerPowerProject", reload: bool = False) -> "Pipeline":
+
+    def get_pipeline(
+        self, name: str, project_context: "FlowerPowerProject", reload: bool = False
+    ) -> "Pipeline":
         """Get a Pipeline instance for the given name.
-        
+
         This method creates a fully-formed Pipeline object by loading its configuration
         and Python module, then injecting the project context.
-        
+
         Args:
             name: Name of the pipeline to get
             project_context: Reference to the FlowerPowerProject
             reload: Whether to reload configuration and module from disk
-            
+
         Returns:
             Pipeline instance ready for execution
-            
+
         Raises:
             FileNotFoundError: If pipeline configuration or module doesn't exist
             ImportError: If pipeline module cannot be imported
@@ -204,18 +201,18 @@ class PipelineRegistry:
         if not reload and name in self._pipeline_cache:
             logger.debug(f"Returning cached pipeline '{name}'")
             return self._pipeline_cache[name]
-            
+
         logger.debug(f"Creating pipeline instance for '{name}'")
-        
+
         # Load pipeline configuration
         config = self.load_config(name, reload=reload)
-        
+
         # Load pipeline module
         module = self.load_module(name, reload=reload)
-        
+
         # Import Pipeline class here to avoid circular import
         from .pipeline import Pipeline
-        
+
         # Create Pipeline instance
         pipeline = Pipeline(
             name=name,
@@ -223,20 +220,20 @@ class PipelineRegistry:
             module=module,
             project_context=project_context,
         )
-        
+
         # Cache the pipeline instance
         self._pipeline_cache[name] = pipeline
-        
+
         logger.debug(f"Successfully created pipeline instance for '{name}'")
         return pipeline
-    
+
     def load_config(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load pipeline configuration from disk.
-        
+
         Args:
             name: Name of the pipeline
             reload: Whether to reload from disk even if cached
-            
+
         Returns:
             PipelineConfig instance
         """
@@ -244,9 +241,9 @@ class PipelineRegistry:
         if not reload and name in self._config_cache:
             logger.debug(f"Returning cached config for pipeline '{name}'")
             return self._config_cache[name]
-            
+
         logger.debug(f"Loading configuration for pipeline '{name}'")
-        
+
         # Load configuration from disk
         config = PipelineConfig.load(
             base_dir=self._base_dir,
@@ -254,19 +251,19 @@ class PipelineRegistry:
             fs=self._fs,
             storage_options=self._storage_options,
         )
-        
+
         # Cache the configuration
         self._config_cache[name] = config
-        
+
         return config
-    
+
     def load_module(self, name: str, reload: bool = False) -> Any:
         """Load pipeline module from disk.
-        
+
         Args:
             name: Name of the pipeline
             reload: Whether to reload from disk even if cached
-            
+
         Returns:
             Loaded Python module
         """
@@ -274,24 +271,24 @@ class PipelineRegistry:
         if not reload and name in self._module_cache:
             logger.debug(f"Returning cached module for pipeline '{name}'")
             return self._module_cache[name]
-            
+
         logger.debug(f"Loading module for pipeline '{name}'")
-        
+
         # Convert pipeline name to module name
         formatted_name = name.replace(".", "/").replace("-", "_")
         module_name = f"pipelines.{formatted_name}"
-        
+
         # Load the module
         module = load_module(module_name, reload=reload)
-        
+
         # Cache the module
         self._module_cache[name] = module
-        
+
         return module
-    
+
     def clear_cache(self, name: str | None = None):
         """Clear cached pipelines, configurations, and modules.
-        
+
         Args:
             name: If provided, clear cache only for this pipeline.
                  If None, clear entire cache.
@@ -684,14 +681,12 @@ class PipelineRegistry:
                 logger.warning(f"Could not get size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append(
-                {
-                    "name": name,
-                    "path": path,
-                    "mod_time": mod_time,
-                    "size": size,
-                }
-            )
+            pipeline_info.append({
+                "name": name,
+                "path": path,
+                "mod_time": mod_time,
+                "size": size,
+            })
 
         if show:
             table = Table(title="Available Pipelines")

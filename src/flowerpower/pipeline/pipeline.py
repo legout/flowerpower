@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import importlib
 import importlib.util
 import random
 import time
-from typing import Any, Callable, TYPE_CHECKING
-import importlib
+from typing import TYPE_CHECKING, Any, Callable
 
 import humanize
 import msgspec
@@ -23,6 +23,7 @@ from .. import settings
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
+
     from ..utils.open_telemetry import init_tracer
 else:
     h_opentelemetry = None
@@ -63,18 +64,18 @@ if TYPE_CHECKING:
 
 class Pipeline(msgspec.Struct):
     """Active pipeline object that encapsulates its own execution logic.
-    
+
     This class represents a single pipeline with its configuration, loaded module,
     and project context. It is responsible for its own execution, including
     setting up Hamilton drivers, managing adapters, and handling retries.
-    
+
     Attributes:
         name: The name of the pipeline
         config: The pipeline configuration
         module: The loaded Python module containing Hamilton functions
         project_context: Reference to the FlowerPowerProject
     """
-    
+
     name: str
     config: PipelineConfig
     module: Any
@@ -112,7 +113,7 @@ class Pipeline(msgspec.Struct):
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
     ) -> dict[str, Any]:
         """Execute the pipeline with the given parameters.
-        
+
         Args:
             inputs: Override pipeline input values
             final_vars: Specify which output variables to return
@@ -131,27 +132,27 @@ class Pipeline(msgspec.Struct):
             retry_exceptions: Exceptions to catch for retries
             on_success: Callback for successful execution
             on_failure: Callback for failed execution
-            
+
         Returns:
             The result of executing the pipeline
         """
         start_time = dt.datetime.now()
-        
+
         # Reload module if requested
         if reload:
             self._reload_module()
-        
+
         # Set up configuration with defaults from pipeline config
         inputs = inputs or self.config.run.inputs or {}
         final_vars = final_vars or self.config.run.final_vars or []
         config = {**(self.config.run.config or {}), **(config or {})}
         cache = cache or self.config.run.cache or {}
-        
+
         # Set up retry configuration
         max_retries = max_retries or self.config.run.max_retries or 0
         retry_delay = retry_delay or self.config.run.retry_delay or 1.0
         jitter_factor = jitter_factor or self.config.run.jitter_factor or 0.1
-        
+
         # Convert string exceptions to actual exception classes
         if retry_exceptions and isinstance(retry_exceptions, (list, tuple)):
             converted_exceptions = []
@@ -160,13 +161,19 @@ class Pipeline(msgspec.Struct):
                     try:
                         exc_class = eval(exc)
                         # Ensure it's actually an exception class
-                        if isinstance(exc_class, type) and issubclass(exc_class, BaseException):
+                        if isinstance(exc_class, type) and issubclass(
+                            exc_class, BaseException
+                        ):
                             converted_exceptions.append(exc_class)
                         else:
-                            logger.warning(f"'{exc}' is not an exception class, using Exception")
+                            logger.warning(
+                                f"'{exc}' is not an exception class, using Exception"
+                            )
                             converted_exceptions.append(Exception)
                     except (NameError, AttributeError):
-                        logger.warning(f"Unknown exception type: {exc}, using Exception")
+                        logger.warning(
+                            f"Unknown exception type: {exc}, using Exception"
+                        )
                         converted_exceptions.append(Exception)
                 elif isinstance(exc, type) and issubclass(exc, BaseException):
                     converted_exceptions.append(exc)
@@ -176,12 +183,14 @@ class Pipeline(msgspec.Struct):
             retry_exceptions = tuple(converted_exceptions)
         elif not retry_exceptions:
             retry_exceptions = (Exception,)
-        
+
         # Execute with retry logic
         for attempt in range(max_retries + 1):
             try:
-                logger.info(f"🚀 Running pipeline '{self.name}' (attempt {attempt + 1}/{max_retries + 1})")
-                
+                logger.info(
+                    f"🚀 Running pipeline '{self.name}' (attempt {attempt + 1}/{max_retries + 1})"
+                )
+
                 result = self._execute_pipeline(
                     inputs=inputs,
                     final_vars=final_vars,
@@ -194,24 +203,26 @@ class Pipeline(msgspec.Struct):
                     adapter=adapter,
                     log_level=log_level,
                 )
-                
+
                 end_time = dt.datetime.now()
                 duration = humanize.naturaldelta(end_time - start_time)
-                
-                logger.success(f"✅ Pipeline '{self.name}' completed successfully in {duration}")
-                
+
+                logger.success(
+                    f"✅ Pipeline '{self.name}' completed successfully in {duration}"
+                )
+
                 # Execute success callback if provided
                 if on_success:
                     self._execute_callback(on_success, result, None)
-                
+
                 return result
-                
+
             except retry_exceptions as e:
                 if attempt < max_retries:
-                    delay = retry_delay * (2 ** attempt)
+                    delay = retry_delay * (2**attempt)
                     jitter = delay * jitter_factor * random.random()
                     total_delay = delay + jitter
-                    
+
                     logger.warning(
                         f"⚠️  Pipeline '{self.name}' failed (attempt {attempt + 1}/{max_retries + 1}): {e}"
                     )
@@ -220,24 +231,26 @@ class Pipeline(msgspec.Struct):
                 else:
                     end_time = dt.datetime.now()
                     duration = humanize.naturaldelta(end_time - start_time)
-                    
-                    logger.error(f"❌ Pipeline '{self.name}' failed after {max_retries + 1} attempts in {duration}: {e}")
-                    
+
+                    logger.error(
+                        f"❌ Pipeline '{self.name}' failed after {max_retries + 1} attempts in {duration}: {e}"
+                    )
+
                     # Execute failure callback if provided
                     if on_failure:
                         self._execute_callback(on_failure, None, e)
-                    
+
                     raise
             except Exception as e:
                 end_time = dt.datetime.now()
                 duration = humanize.naturaldelta(end_time - start_time)
-                
+
                 logger.error(f"❌ Pipeline '{self.name}' failed in {duration}: {e}")
-                
+
                 # Execute failure callback if provided
                 if on_failure:
                     self._execute_callback(on_failure, None, e)
-                
+
                 raise
 
     def _execute_pipeline(
@@ -262,23 +275,25 @@ class Pipeline(msgspec.Struct):
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
         )
-        
+
         try:
             # Create Hamilton driver
-            dr = driver.Builder()\
-                .with_config(config)\
-                .with_modules(self.module)\
-                .with_adapters(*adapters)\
+            dr = (
+                driver.Builder()
+                .with_config(config)
+                .with_modules(self.module)
+                .with_adapters(*adapters)
                 .build()
-            
+            )
+
             # Execute the pipeline
             result = dr.execute(
                 final_vars=final_vars,
                 inputs=inputs,
             )
-            
+
             return result
-            
+
         finally:
             # Clean up executor if needed
             if shutdown_func:
@@ -292,7 +307,7 @@ class Pipeline(msgspec.Struct):
     ) -> tuple[executors.BaseExecutor, Callable | None]:
         """Get the executor based on the provided configuration."""
         logger.debug("Setting up executor...")
-        
+
         if executor_cfg:
             if isinstance(executor_cfg, str):
                 executor_cfg = ExecutorConfig(type=executor_cfg)
@@ -308,9 +323,7 @@ class Pipeline(msgspec.Struct):
             executor_cfg = self.config.run.executor
 
         if executor_cfg.type is None or executor_cfg.type == "synchronous":
-            logger.debug(
-                "Using SynchronousLocalTaskExecutor as default."
-            )
+            logger.debug("Using SynchronousLocalTaskExecutor as default.")
             return executors.SynchronousLocalTaskExecutor(), None
 
         if executor_cfg.type == "threadpool":
@@ -334,9 +347,10 @@ class Pipeline(msgspec.Struct):
                 )
 
                 # Handle temporary case where project_context is PipelineManager
-                project_cfg = getattr(self.project_context, 'project_cfg', None) or \
-                            getattr(self.project_context, '_project_cfg', None)
-                
+                project_cfg = getattr(
+                    self.project_context, "project_cfg", None
+                ) or getattr(self.project_context, "_project_cfg", None)
+
                 return (
                     h_ray.RayTaskExecutor(
                         num_cpus=executor_cfg.num_cpus,
@@ -372,7 +386,7 @@ class Pipeline(msgspec.Struct):
     ) -> list:
         """Set up the adapters for the pipeline."""
         logger.debug("Setting up adapters...")
-        
+
         # Resolve adapter configurations
         if with_adapter_cfg:
             if isinstance(with_adapter_cfg, dict):
@@ -388,7 +402,9 @@ class Pipeline(msgspec.Struct):
 
         if pipeline_adapter_cfg:
             if isinstance(pipeline_adapter_cfg, dict):
-                pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(pipeline_adapter_cfg)
+                pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(
+                    pipeline_adapter_cfg
+                )
             elif not isinstance(pipeline_adapter_cfg, PipelineAdapterConfig):
                 raise TypeError(
                     "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
@@ -400,53 +416,71 @@ class Pipeline(msgspec.Struct):
 
         if project_adapter_cfg:
             if isinstance(project_adapter_cfg, dict):
-                project_adapter_cfg = ProjectAdapterConfig.from_dict(project_adapter_cfg)
+                project_adapter_cfg = ProjectAdapterConfig.from_dict(
+                    project_adapter_cfg
+                )
             elif not isinstance(project_adapter_cfg, ProjectAdapterConfig):
                 raise TypeError(
                     "project_adapter_cfg must be a dictionary or ProjectAdapterConfig instance."
                 )
 
             # Handle temporary case where project_context is PipelineManager
-            manager_project_cfg = getattr(self.project_context, 'project_cfg', None) or \
-                                getattr(self.project_context, '_project_cfg', None)
-            if manager_project_cfg and hasattr(manager_project_cfg, 'adapter'):
-                project_adapter_cfg = manager_project_cfg.adapter.merge(project_adapter_cfg)
+            manager_project_cfg = getattr(
+                self.project_context, "project_cfg", None
+            ) or getattr(self.project_context, "_project_cfg", None)
+            if manager_project_cfg and hasattr(manager_project_cfg, "adapter"):
+                project_adapter_cfg = manager_project_cfg.adapter.merge(
+                    project_adapter_cfg
+                )
             else:
                 # Use project context directly if it's FlowerPowerProject
-                if hasattr(self.project_context, 'pipeline_manager'):
-                    pm_cfg = getattr(self.project_context.pipeline_manager, 'project_cfg', None) or \
-                           getattr(self.project_context.pipeline_manager, '_project_cfg', None)
+                if hasattr(self.project_context, "pipeline_manager"):
+                    pm_cfg = getattr(
+                        self.project_context.pipeline_manager, "project_cfg", None
+                    ) or getattr(
+                        self.project_context.pipeline_manager, "_project_cfg", None
+                    )
                     base_cfg = pm_cfg.adapter if pm_cfg else None
                     if base_cfg:
                         project_adapter_cfg = base_cfg.merge(project_adapter_cfg)
                     else:
-                        from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+                        from ..cfg.project.adapter import \
+                            AdapterConfig as ProjectAdapterConfig
+
                         project_adapter_cfg = ProjectAdapterConfig()
                 else:
-                    from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+                    from ..cfg.project.adapter import \
+                        AdapterConfig as ProjectAdapterConfig
+
                     project_adapter_cfg = ProjectAdapterConfig()
         else:
             # Handle temporary case where project_context is PipelineManager
-            manager_project_cfg = getattr(self.project_context, 'project_cfg', None) or \
-                                getattr(self.project_context, '_project_cfg', None)
-            if manager_project_cfg and hasattr(manager_project_cfg, 'adapter'):
+            manager_project_cfg = getattr(
+                self.project_context, "project_cfg", None
+            ) or getattr(self.project_context, "_project_cfg", None)
+            if manager_project_cfg and hasattr(manager_project_cfg, "adapter"):
                 project_adapter_cfg = manager_project_cfg.adapter
             else:
                 # Use project context directly if it's FlowerPowerProject
-                if hasattr(self.project_context, 'pipeline_manager'):
-                    pm_cfg = getattr(self.project_context.pipeline_manager, 'project_cfg', None) or \
-                           getattr(self.project_context.pipeline_manager, '_project_cfg', None)
+                if hasattr(self.project_context, "pipeline_manager"):
+                    pm_cfg = getattr(
+                        self.project_context.pipeline_manager, "project_cfg", None
+                    ) or getattr(
+                        self.project_context.pipeline_manager, "_project_cfg", None
+                    )
                     project_adapter_cfg = pm_cfg.adapter if pm_cfg else None
                 else:
                     project_adapter_cfg = None
-                
+
             # Create default adapter config if none found
             if project_adapter_cfg is None:
-                from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+                from ..cfg.project.adapter import \
+                    AdapterConfig as ProjectAdapterConfig
+
                 project_adapter_cfg = ProjectAdapterConfig()
 
         adapters = []
-        
+
         # Hamilton Tracker adapter
         if with_adapter_cfg.hamilton_tracker:
             tracker_kwargs = project_adapter_cfg.hamilton_tracker.to_dict()
@@ -483,7 +517,9 @@ class Pipeline(msgspec.Struct):
         # OpenTelemetry adapter
         if with_adapter_cfg.opentelemetry:
             if h_opentelemetry is None:
-                logger.warning("OpenTelemetry is not installed. Skipping OpenTelemetry adapter.")
+                logger.warning(
+                    "OpenTelemetry is not installed. Skipping OpenTelemetry adapter."
+                )
             else:
                 otel_kwargs = project_adapter_cfg.opentelemetry.to_dict()
                 otel_kwargs.update(pipeline_adapter_cfg.opentelemetry.to_dict())

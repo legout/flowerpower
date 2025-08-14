@@ -9,12 +9,8 @@ from typing import Any, Callable
 import mmh3
 from loguru import logger
 from munch import Munch
-from paho.mqtt.client import (
-    MQTT_ERR_SUCCESS,
-    CallbackAPIVersion,
-    Client,
-    MQTTMessageInfo,
-)
+from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
+                              MQTTMessageInfo)
 from paho.mqtt.reasoncodes import ReasonCode
 
 from ...cfg import ProjectConfig
