@@ -7,6 +7,7 @@ from loguru import logger
 from typing_extensions import Annotated
 
 from ..pipeline.manager import HookType, PipelineManager
+from ..flowerpower import FlowerPowerProject
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param  # , parse_param_dict
 
@@ -104,12 +105,19 @@ def run(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
     parsed_with_adapter = parse_dict_or_list_param(with_adapter, "dict")
 
-    with PipelineManager(
+    # Use FlowerPowerProject for better consistency with the new architecture
+    project = FlowerPowerProject.load(
         base_dir=base_dir,
         storage_options=parsed_storage_options or {},
         log_level=log_level,
-    ) as manager:
-        _ = manager.run(
+    )
+    
+    if project is None:
+        logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
+        raise typer.Exit(1)
+    
+    try:
+        _ = project.run(
             name=name,
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
@@ -122,6 +130,9 @@ def run(
             jitter_factor=jitter_factor,
         )
         logger.info(f"Pipeline '{name}' finished running.")
+    except Exception as e:
+        logger.error(f"Pipeline execution failed: {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -978,3 +989,224 @@ def add_hook(
             )
         except Exception as e:
             logger.error(f"Failed to add hook to pipeline '{name}': {e}")
+
+
+@app.command()
+def enqueue(
+    name: str = typer.Argument(..., help="Name of the pipeline to enqueue"),
+    base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
+    final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    run_in: str | None = typer.Option(
+        None, help="Schedule job to run after a delay (e.g., '5m', '1h', '30s')"
+    ),
+    run_at: str | None = typer.Option(
+        None, help="Schedule job to run at a specific datetime (ISO format)"
+    ),
+):
+    """
+    Enqueue a pipeline for execution via the job queue.
+
+    This command queues a pipeline for asynchronous execution using the configured
+    job queue backend (RQ). The job can be executed immediately, after a delay,
+    or at a specific time.
+
+    Args:
+        name: Name of the pipeline to enqueue
+        base_dir: Base directory containing pipelines and configurations
+        inputs: Input parameters for the pipeline
+        final_vars: Final variables to request from the pipeline
+        storage_options: Options for storage backends
+        log_level: Set the logging level
+        run_in: Delay before execution (duration format like '5m', '1h', '30s')
+        run_at: Specific datetime for execution (ISO format)
+
+    Examples:
+        # Enqueue for immediate execution
+        $ pipeline enqueue my_pipeline
+
+        # Enqueue with custom inputs
+        $ pipeline enqueue my_pipeline --inputs '{"data_path": "data/file.csv"}'
+
+        # Enqueue with delay
+        $ pipeline enqueue my_pipeline --run-in "30m"
+
+        # Enqueue for specific time
+        $ pipeline enqueue my_pipeline --run-at "2025-01-01T09:00:00"
+    """
+    parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    # Use FlowerPowerProject for consistency
+    project = FlowerPowerProject.load(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+        log_level=log_level,
+    )
+    
+    if project is None:
+        logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
+        raise typer.Exit(1)
+    
+    if project.job_queue_manager is None:
+        logger.error("No job queue configured. Cannot enqueue pipeline jobs.")
+        raise typer.Exit(1)
+
+    try:
+        # Parse run_in duration if provided
+        kwargs = {}
+        if run_in:
+            try:
+                delay_seconds = duration_parser.parse(run_in).total_seconds()
+                kwargs['run_in'] = delay_seconds
+            except Exception as e:
+                logger.error(f"Invalid duration format '{run_in}': {e}")
+                raise typer.Exit(1)
+        
+        # Parse run_at datetime if provided
+        if run_at:
+            try:
+                run_at_dt = dt.datetime.fromisoformat(run_at)
+                kwargs['run_at'] = run_at_dt
+            except Exception as e:
+                logger.error(f"Invalid datetime format '{run_at}': {e}")
+                raise typer.Exit(1)
+
+        # Add pipeline execution parameters
+        if parsed_inputs:
+            kwargs['inputs'] = parsed_inputs
+        if parsed_final_vars:
+            kwargs['final_vars'] = parsed_final_vars
+
+        job_id = project.enqueue(name, **kwargs)
+        
+        if run_in:
+            logger.info(f"Pipeline '{name}' enqueued to run in {run_in}. Job ID: {job_id}")
+        elif run_at:
+            logger.info(f"Pipeline '{name}' enqueued to run at {run_at}. Job ID: {job_id}")
+        else:
+            logger.info(f"Pipeline '{name}' enqueued for immediate execution. Job ID: {job_id}")
+            
+    except Exception as e:
+        logger.error(f"Failed to enqueue pipeline '{name}': {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def schedule(
+    name: str = typer.Argument(..., help="Name of the pipeline to schedule"),
+    base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
+    cron: str | None = typer.Option(
+        None, help="Cron expression for recurring execution (e.g., '0 9 * * *')"
+    ),
+    interval: str | None = typer.Option(
+        None, help="Interval for recurring execution (e.g., '1h', '30m')"
+    ),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
+    final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    schedule_id: str | None = typer.Option(
+        None, help="Unique identifier for the schedule"
+    ),
+):
+    """
+    Schedule a pipeline for recurring or future execution.
+
+    This command sets up recurring or future execution of a pipeline using cron
+    expressions or interval-based scheduling via the configured job queue backend.
+
+    Args:
+        name: Name of the pipeline to schedule
+        base_dir: Base directory containing pipelines and configurations
+        cron: Cron expression for scheduling (e.g., '0 9 * * *' for 9 AM daily)
+        interval: Interval for recurring execution (duration format)
+        inputs: Input parameters for the pipeline
+        final_vars: Final variables to request from the pipeline
+        storage_options: Options for storage backends
+        log_level: Set the logging level
+        schedule_id: Custom identifier for the schedule
+
+    Examples:
+        # Schedule daily at 9 AM
+        $ pipeline schedule my_pipeline --cron "0 9 * * *"
+
+        # Schedule every 30 minutes
+        $ pipeline schedule my_pipeline --interval "30m"
+
+        # Schedule with custom inputs and ID
+        $ pipeline schedule my_pipeline --cron "0 0 * * *" \\
+            --inputs '{"env": "prod"}' --schedule-id "nightly-prod"
+    """
+    if not cron and not interval:
+        logger.error("Either --cron or --interval must be specified")
+        raise typer.Exit(1)
+    
+    if cron and interval:
+        logger.error("Cannot specify both --cron and --interval")
+        raise typer.Exit(1)
+
+    parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    # Use FlowerPowerProject for consistency
+    project = FlowerPowerProject.load(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+        log_level=log_level,
+    )
+    
+    if project is None:
+        logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
+        raise typer.Exit(1)
+    
+    if project.job_queue_manager is None:
+        logger.error("No job queue configured. Cannot schedule pipeline jobs.")
+        raise typer.Exit(1)
+
+    try:
+        # Prepare schedule parameters
+        kwargs = {}
+        if cron:
+            kwargs['cron'] = cron
+        if interval:
+            try:
+                interval_seconds = duration_parser.parse(interval).total_seconds()
+                kwargs['interval'] = {'seconds': interval_seconds}
+            except Exception as e:
+                logger.error(f"Invalid interval format '{interval}': {e}")
+                raise typer.Exit(1)
+        
+        if schedule_id:
+            kwargs['schedule_id'] = schedule_id
+        if parsed_inputs:
+            kwargs['inputs'] = parsed_inputs
+        if parsed_final_vars:
+            kwargs['final_vars'] = parsed_final_vars
+
+        schedule_result = project.schedule(name, **kwargs)
+        
+        if cron:
+            logger.info(f"Pipeline '{name}' scheduled with cron '{cron}'. Schedule ID: {schedule_result}")
+        elif interval:
+            logger.info(f"Pipeline '{name}' scheduled every {interval}. Schedule ID: {schedule_result}")
+            
+    except Exception as e:
+        logger.error(f"Failed to schedule pipeline '{name}': {e}")
+        raise typer.Exit(1)

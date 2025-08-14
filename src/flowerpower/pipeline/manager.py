@@ -25,7 +25,6 @@ from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .registry import HookType, PipelineRegistry
-from .runner import run_pipeline
 from .visualizer import PipelineVisualizer
 
 setup_logging(level=settings.LOG_LEVEL)
