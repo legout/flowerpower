@@ -132,14 +132,6 @@ def run(
         raise typer.Exit(1)
 
 
-
-
-
-
-
-
-
-
 @app.command()
 def new(
     name: str = typer.Argument(..., help="Name of the pipeline to create"),
@@ -587,7 +579,3 @@ def add_hook(
             )
         except Exception as e:
             logger.error(f"Failed to add hook to pipeline '{name}': {e}")
-
-
-
-

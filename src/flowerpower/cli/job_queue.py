@@ -1273,9 +1273,7 @@ def list_schedules(
     show_status: bool = typer.Option(
         True, help="Show schedule status (active, paused, etc.)"
     ),
-    show_next_run: bool = typer.Option(
-        True, help="Show next scheduled execution time"
-    ),
+    show_next_run: bool = typer.Option(True, help="Show next scheduled execution time"),
 ):
     """
     List all schedules with detailed status information.
@@ -1325,5 +1323,7 @@ def list_schedules(
             )
         except TypeError:
             # Fallback if the show_schedules method doesn't support new parameters
-            logger.warning("Using basic schedule listing (enhanced options not supported)")
+            logger.warning(
+                "Using basic schedule listing (enhanced options not supported)"
+            )
             worker.show_schedules(format=format)
