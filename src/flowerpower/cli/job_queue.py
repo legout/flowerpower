@@ -1,7 +1,11 @@
+import datetime as dt
+
+import duration_parser
 import typer
 from loguru import logger
 
 from .. import settings
+from ..flowerpower import FlowerPowerProject
 from ..job_queue import JobQueueManager  # Adjust import as needed
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param
@@ -959,3 +963,367 @@ def show_schedules(
         log_level=log_level,
     ) as worker:
         worker.show_schedules(format=format)
+
+
+@app.command()
+def enqueue_pipeline(
+    name: str = typer.Argument(..., help="Name of the pipeline to enqueue"),
+    base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
+    final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    run_in: str | None = typer.Option(
+        None, help="Schedule job to run after a delay (e.g., '5m', '1h', '30s')"
+    ),
+    run_at: str | None = typer.Option(
+        None, help="Schedule job to run at a specific datetime (ISO format)"
+    ),
+):
+    """
+    Enqueue a pipeline for execution via the job queue.
+
+    This command queues a pipeline for asynchronous execution using the configured
+    job queue backend (RQ). The job can be executed immediately, after a delay,
+    or at a specific time.
+
+    Args:
+        name: Name of the pipeline to enqueue
+        base_dir: Base directory containing pipelines and configurations
+        inputs: Input parameters for the pipeline
+        final_vars: Final variables to request from the pipeline
+        storage_options: Options for storage backends
+        log_level: Set the logging level
+        run_in: Delay before execution (duration format like '5m', '1h', '30s')
+        run_at: Specific datetime for execution (ISO format)
+
+    Examples:
+        # Enqueue for immediate execution
+        $ flowerpower job-queue enqueue-pipeline my_pipeline
+
+        # Enqueue with custom inputs
+        $ flowerpower job-queue enqueue-pipeline my_pipeline --inputs '{"data_path": "data/file.csv"}'
+
+        # Enqueue with delay
+        $ flowerpower job-queue enqueue-pipeline my_pipeline --run-in "30m"
+
+        # Enqueue for specific time
+        $ flowerpower job-queue enqueue-pipeline my_pipeline --run-at "2025-01-01T09:00:00"
+    """
+    parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    # Use FlowerPowerProject for consistency
+    project = FlowerPowerProject.load(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+        log_level=log_level,
+    )
+
+    if project is None:
+        logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
+        raise typer.Exit(1)
+
+    if project.job_queue_manager is None:
+        logger.error("No job queue configured. Cannot enqueue pipeline jobs.")
+        raise typer.Exit(1)
+
+    try:
+        # Parse run_in duration if provided
+        kwargs = {}
+        if run_in:
+            try:
+                delay_seconds = duration_parser.parse(run_in).total_seconds()
+                kwargs["run_in"] = delay_seconds
+            except Exception as e:
+                logger.error(f"Invalid duration format '{run_in}': {e}")
+                raise typer.Exit(1)
+
+        # Parse run_at datetime if provided
+        if run_at:
+            try:
+                run_at_dt = dt.datetime.fromisoformat(run_at)
+                kwargs["run_at"] = run_at_dt
+            except Exception as e:
+                logger.error(f"Invalid datetime format '{run_at}': {e}")
+                raise typer.Exit(1)
+
+        # Add pipeline execution parameters
+        if parsed_inputs:
+            kwargs["inputs"] = parsed_inputs
+        if parsed_final_vars:
+            kwargs["final_vars"] = parsed_final_vars
+
+        job_id = project.enqueue(name, **kwargs)
+
+        if run_in:
+            logger.info(
+                f"Pipeline '{name}' enqueued to run in {run_in}. Job ID: {job_id}"
+            )
+        elif run_at:
+            logger.info(
+                f"Pipeline '{name}' enqueued to run at {run_at}. Job ID: {job_id}"
+            )
+        else:
+            logger.info(
+                f"Pipeline '{name}' enqueued for immediate execution. Job ID: {job_id}"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to enqueue pipeline '{name}': {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def schedule_pipeline(
+    name: str = typer.Argument(..., help="Name of the pipeline to schedule"),
+    base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
+    cron: str | None = typer.Option(
+        None, help="Cron expression for recurring execution (e.g., '0 9 * * *')"
+    ),
+    interval: str | None = typer.Option(
+        None, help="Interval for recurring execution (e.g., '1h', '30m')"
+    ),
+    inputs: str | None = typer.Option(
+        None, help="Input parameters as JSON, dict string, or key=value pairs"
+    ),
+    final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON, dict string, or key=value pairs"
+    ),
+    log_level: str | None = typer.Option(
+        None, help="Logging level (debug, info, warning, error, critical)"
+    ),
+    schedule_id: str | None = typer.Option(
+        None, help="Unique identifier for the schedule"
+    ),
+):
+    """
+    Schedule a pipeline for recurring or future execution.
+
+    This command sets up recurring or future execution of a pipeline using cron
+    expressions or interval-based scheduling via the configured job queue backend.
+
+    Args:
+        name: Name of the pipeline to schedule
+        base_dir: Base directory containing pipelines and configurations
+        cron: Cron expression for scheduling (e.g., '0 9 * * *' for 9 AM daily)
+        interval: Interval for recurring execution (duration format)
+        inputs: Input parameters for the pipeline
+        final_vars: Final variables to request from the pipeline
+        storage_options: Options for storage backends
+        log_level: Set the logging level
+        schedule_id: Custom identifier for the schedule
+
+    Examples:
+        # Schedule daily at 9 AM
+        $ flowerpower job-queue schedule-pipeline my_pipeline --cron "0 9 * * *"
+
+        # Schedule every 30 minutes
+        $ flowerpower job-queue schedule-pipeline my_pipeline --interval "30m"
+
+        # Schedule with custom inputs and ID
+        $ flowerpower job-queue schedule-pipeline my_pipeline --cron "0 0 * * *" \\
+            --inputs '{"env": "prod"}' --schedule-id "nightly-prod"
+    """
+    if not cron and not interval:
+        logger.error("Either --cron or --interval must be specified")
+        raise typer.Exit(1)
+
+    if cron and interval:
+        logger.error("Cannot specify both --cron and --interval")
+        raise typer.Exit(1)
+
+    parsed_inputs = parse_dict_or_list_param(inputs, "dict")
+    parsed_final_vars = parse_dict_or_list_param(final_vars, "list")
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
+
+    # Use FlowerPowerProject for consistency
+    project = FlowerPowerProject.load(
+        base_dir=base_dir,
+        storage_options=parsed_storage_options or {},
+        log_level=log_level,
+    )
+
+    if project is None:
+        logger.error(f"Failed to load FlowerPower project from {base_dir or '.'}")
+        raise typer.Exit(1)
+
+    if project.job_queue_manager is None:
+        logger.error("No job queue configured. Cannot schedule pipeline jobs.")
+        raise typer.Exit(1)
+
+    try:
+        # Prepare schedule parameters
+        kwargs = {}
+        if cron:
+            kwargs["cron"] = cron
+        if interval:
+            try:
+                interval_seconds = duration_parser.parse(interval).total_seconds()
+                kwargs["interval"] = {"seconds": interval_seconds}
+            except Exception as e:
+                logger.error(f"Invalid interval format '{interval}': {e}")
+                raise typer.Exit(1)
+
+        if schedule_id:
+            kwargs["schedule_id"] = schedule_id
+        if parsed_inputs:
+            kwargs["inputs"] = parsed_inputs
+        if parsed_final_vars:
+            kwargs["final_vars"] = parsed_final_vars
+
+        schedule_result = project.schedule(name, **kwargs)
+
+        if cron:
+            logger.info(
+                f"Pipeline '{name}' scheduled with cron '{cron}'. Schedule ID: {schedule_result}"
+            )
+        elif interval:
+            logger.info(
+                f"Pipeline '{name}' scheduled every {interval}. Schedule ID: {schedule_result}"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to schedule pipeline '{name}': {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def run_job(
+    job_id: str = typer.Argument(..., help="ID of the job to run"),
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
+):
+    """
+    Execute a specific job by its ID.
+
+    This command runs a job that has been previously enqueued in the job queue.
+    The job will be executed immediately regardless of its original schedule.
+
+    Args:
+        job_id: ID of the job to run
+        type: Type of job queue backend (rq)
+        name: Name of the scheduler configuration to use
+        base_dir: Base directory for the scheduler configuration
+        storage_options: Storage options as JSON or key=value pairs
+        log_level: Logging level (debug, info, warning, error, critical)
+
+    Examples:
+        # Run a specific job
+        $ flowerpower job-queue run-job job-123456
+
+        # Run a job with a specific backend type
+        $ flowerpower job-queue run-job job-123456 --type rq
+
+        # Run a job with debug logging
+        $ flowerpower job-queue run-job job-123456 --log-level debug
+    """
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
+
+    with JobQueueManager(
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
+    ) as worker:
+        try:
+            worker.run_job(job_id)
+            logger.info(f"Job '{job_id}' finished running.")
+        except Exception as e:
+            logger.error(f"Failed to run job '{job_id}': {e}")
+            raise typer.Exit(1)
+
+
+@app.command()
+def list_schedules(
+    type: str | None = typer.Option(None, help="Type of job queue backend (rq)"),
+    name: str | None = typer.Option(
+        None, help="Name of the scheduler configuration to use"
+    ),
+    base_dir: str | None = typer.Option(
+        None, help="Base directory for the scheduler configuration"
+    ),
+    storage_options: str | None = typer.Option(
+        None, help="Storage options as JSON or key=value pairs"
+    ),
+    log_level: str = typer.Option(
+        "info", help="Logging level (debug, info, warning, error, critical)"
+    ),
+    format: str = typer.Option("table", help="Output format (table, json, yaml)"),
+    show_status: bool = typer.Option(
+        True, help="Show schedule status (active, paused, etc.)"
+    ),
+    show_next_run: bool = typer.Option(
+        True, help="Show next scheduled execution time"
+    ),
+):
+    """
+    List all schedules with detailed status information.
+
+    This command provides enhanced schedule listing showing trigger configuration,
+    status, next run time, and execution history. This is an enhanced version of
+    show-schedules with more detailed information.
+
+    Args:
+        type: Type of job queue backend (rq)
+        name: Name of the scheduler configuration to use
+        base_dir: Base directory for the scheduler configuration
+        storage_options: Storage options as JSON or key=value pairs
+        log_level: Logging level (debug, info, warning, error, critical)
+        format: Output format for the schedule information
+        show_status: Include schedule status information
+        show_next_run: Include next execution time information
+
+    Examples:
+        # List all schedules with full details
+        $ flowerpower job-queue list-schedules
+
+        # List schedules in JSON format
+        $ flowerpower job-queue list-schedules --format json
+
+        # List schedules without status information
+        $ flowerpower job-queue list-schedules --no-show-status
+
+        # List schedules for a specific backend
+        $ flowerpower job-queue list-schedules --type rq
+    """
+    parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
+
+    with JobQueueManager(
+        type=type,
+        name=name,
+        base_dir=base_dir,
+        storage_options=parsed_storage_options,
+        log_level=log_level,
+    ) as worker:
+        # This will use the enhanced show_schedules method with additional options
+        try:
+            worker.show_schedules(
+                format=format,
+                show_status=show_status,
+                show_next_run=show_next_run,
+            )
+        except TypeError:
+            # Fallback if the show_schedules method doesn't support new parameters
+            logger.warning("Using basic schedule listing (enhanced options not supported)")
+            worker.show_schedules(format=format)
