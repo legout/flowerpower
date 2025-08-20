@@ -1481,7 +1481,7 @@ def pyarrow_parquet_dataset(
         ...     )
         ... )
     """
-    if not self.is_file(path):
+    if not self.isfile(path):
         path = posixpath.join(path, "_metadata")
     return pds.dataset(
         path,
