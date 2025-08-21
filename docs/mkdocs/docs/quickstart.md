@@ -171,7 +171,7 @@ Add your pipeline to the job queue for background processing.
 ##### Using the CLI
 
 ```bash
-flowerpower pipeline add-job hello_world
+flowerpower job-queue enqueue-pipeline hello_world
 ```
 
 ##### Using the Python API

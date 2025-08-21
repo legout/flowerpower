@@ -8,7 +8,7 @@ Welcome to the FlowerPower quickstart guide! This guide will walk you through th
 
 First, ensure you have FlowerPower installed. We recommend using `uv` for a fast and reliable installation.
 
-```bash
+``` bash
 # Create and activate a virtual environment
 uv venv
 source .venv/bin/activate
@@ -23,14 +23,14 @@ You can create a new project using either the CLI or the Python API.
 
 ### Using the CLI
 
-```bash
+``` bash
 flowerpower init --name hello-flowerpower --job_queue_type rq
 cd hello-flowerpower
 ```
 
 ### Using the Python API
 
-```python
+``` python
 from flowerpower import FlowerPowerProject
 
 # Initialize a new project with RQ job queue support
@@ -46,7 +46,7 @@ This creates a standard project structure with `conf/` and `pipelines/` director
 
 The `conf/project.yml` file contains global settings for your project, including the job queue configuration.
 
-```yaml
+``` yaml
 # conf/project.yml
 name: hello-flowerpower
 job_queue:
@@ -67,13 +67,13 @@ Next, create a pipeline to define your data processing logic.
 
 ### Using the CLI
 
-```bash
+``` bash
 flowerpower pipeline new hello_world
 ```
 
 ### Using the Python API
 
-```python
+``` python
 from flowerpower import FlowerPowerProject
 
 project = FlowerPowerProject.load('.')
@@ -86,7 +86,7 @@ This generates `pipelines/hello_world.py` for your pipeline logic and `conf/pipe
 
 Open `pipelines/hello_world.py` and add your Hamilton functions.
 
-```python
+``` python
 # pipelines/hello_world.py
 from pathlib import Path
 from hamilton.function_modifiers import parameterize
@@ -115,7 +115,7 @@ def full_greeting(greeting_message: str, target_name: str) -> str:
 
 In `conf/pipelines/hello_world.yml`, define the parameters and execution details for your pipeline.
 
-```yaml
+``` yaml
 # conf/pipelines/hello_world.yml
 params:
   greeting_message:
@@ -141,13 +141,13 @@ This is useful for debugging and local development.
 
 #### Using the CLI
 
-```bash
+``` bash
 flowerpower pipeline run hello_world
 ```
 
 #### Using the Python API
 
-```python
+``` python
 from flowerpower import FlowerPowerProject
 
 project = FlowerPowerProject.load('.')
@@ -159,9 +159,10 @@ print(result)
 
 For asynchronous execution, you need a running Redis server.
 
-::: {.callout-note}
+::: callout-note
 Ensure Redis is running before proceeding with asynchronous execution. You can use the provided Docker setup for a quick start:
-```bash
+
+``` bash
 cd docker
 docker-compose up -d redis
 ```
@@ -173,13 +174,13 @@ Add your pipeline to the job queue for background processing.
 
 ##### Using the CLI
 
-```bash
-flowerpower pipeline add-job hello_world
+``` bash
+flowerpower job-queue enqueue-pipeline hello_world
 ```
 
 ##### Using the Python API
 
-```python
+``` python
 from flowerpower import FlowerPowerProject
 
 project = FlowerPowerProject.load('.')
@@ -193,13 +194,13 @@ Workers are required to process jobs from the queue.
 
 ##### Using the CLI
 
-```bash
+``` bash
 flowerpower job-queue start-worker
 ```
 
 ##### Using the Python API
 
-```python
+``` python
 from flowerpower import FlowerPowerProject
 
 project = FlowerPowerProject.load('.')

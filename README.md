@@ -325,10 +325,10 @@ Run your pipeline using the job queue system. This allows you to schedule jobs, 
 *   **Via CLI:**
     ```bash
     # Submit the pipeline to the job queue and return the job ID (non-blocking)
-    flowerpower pipeline add-job hello_world --base_dir . 
+    flowerpower job-queue enqueue-pipeline hello_world --base_dir . 
     
     # Run the pipeline via job queue and wait for result (blocking)
-    flowerpower pipeline run-job hello_world --base_dir . 
+    flowerpower job-queue run-job hello_world --base_dir . 
     ```
 *   **Via Python:**
     
@@ -425,10 +425,10 @@ project.start_worker_pool(num_workers=4, background=True)
 flowerpower pipeline run hello_world --base_dir .
 
 # Add a job to the queue
-flowerpower pipeline add-job hello_world --base_dir .
+flowerpower job-queue enqueue-pipeline hello_world --base_dir .
 
 # Schedule a pipeline
-flowerpower pipeline schedule hello_world --base_dir .
+flowerpower job-queue schedule-pipeline hello_world --base_dir .
 
 # Start job queue worker
 flowerpower job-queue start-worker --base_dir .
