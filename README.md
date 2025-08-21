@@ -424,7 +424,7 @@ project.start_worker_pool(num_workers=4, background=True)
 # Run a pipeline manually
 flowerpower pipeline run hello_world --base_dir .
 
-# Add a job to the queue
+# Add a pipeline run to the queue
 flowerpower job-queue enqueue-pipeline hello_world --base_dir .
 
 # Schedule a pipeline
