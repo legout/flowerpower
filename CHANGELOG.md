@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.20.0] - 2025-08-21
+
+### Changes
+- IMPORTANT: BREAKING CHANGES Remove outdated documentation and CLI generation script; update project version to 0.20.0
+- refactor: Remove unnecessary blank line for improved code clarity
+- Refactor code structure and remove redundant sections for improved readability and maintainability
+- Refactor code structure for improved readability and maintainability
+- refactor: Remove unnecessary blank line for improved code clarity
+- refactor: Update import statements to use fsspec_utils for consistency and clarity
+- Refactor code structure and remove redundant sections for improved readability and maintainability
+- fix(ext): Correct method call from is_file to isfile for path validation
+- refactor(cli): Simplify options and logging in job queue and pipeline commands
+- feat(cli): Refactor job queue commands from pipeline module
+- Refactor code for improved readability and consistency
+- Refactor pipeline management by removing the runner module and updating the manager. Introduce unit tests for the pipeline and flower power project, ensuring proper functionality and validation of methods.
+- feat(pipeline): Implement active Pipeline class with execution logic
+- Refactor tests and update dependencies
+
+
+
 ## [0.11.6.20] - 2025-08-14
 
 ### Changes
