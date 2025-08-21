@@ -222,8 +222,14 @@ class RQManager(BaseJobQueueManager):
             ```
         """
         if num_workers is not None and num_workers > 1:
-            self.start_worker_pool(num_workers=num_workers, background=background, queue_names=queue_names, with_scheduler=with_scheduler, **kwargs)
-        else:    
+            self.start_worker_pool(
+                num_workers=num_workers,
+                background=background,
+                queue_names=queue_names,
+                with_scheduler=with_scheduler,
+                **kwargs,
+            )
+        else:
             import multiprocessing
 
             logging_level = kwargs.pop("logging_level", self._log_level)
@@ -236,7 +242,9 @@ class RQManager(BaseJobQueueManager):
                 queue_names_str = ", ".join(queue_names)
             else:
                 # Filter to only include valid queue names
-                queue_names = [name for name in queue_names if name in self._queue_names]
+                queue_names = [
+                    name for name in queue_names if name in self._queue_names
+                ]
                 queue_names_str = ", ".join(queue_names)
 
             if not queue_names:
@@ -318,7 +326,7 @@ class RQManager(BaseJobQueueManager):
         """
         if hasattr(self, "_worker_pool"):
             self.stop_worker_pool()
-        else:    
+        else:
             if hasattr(self, "_worker_process") and self._worker_process is not None:
                 if self._worker_process.is_alive():
                     self._worker_process.terminate()

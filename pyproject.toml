@@ -78,5 +78,8 @@ dev-dependencies = [
   "quarto>=0.1.0",
   "mkdocs-glightbox>=0.4.0",
   "mkdocs-mermaid2-plugin>=1.2.1",
+  "pymdown-extensions>=10.16.1",
+  "mkdocstrings>=0.30.0",
+  "mkdocstrings-python>=1.17.0",
 ]
 package = true

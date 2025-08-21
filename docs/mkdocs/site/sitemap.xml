@@ -1,75 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/</loc>
+         <loc>https://legout.github.io/flowerpower/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/advanced/</loc>
+         <loc>https://legout.github.io/flowerpower/advanced/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/architecture/</loc>
+         <loc>https://legout.github.io/flowerpower/architecture/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/contributing/</loc>
+         <loc>https://legout.github.io/flowerpower/contributing/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/examples/</loc>
+         <loc>https://legout.github.io/flowerpower/examples/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/installation/</loc>
+         <loc>https://legout.github.io/flowerpower/installation/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/quickstart/</loc>
+         <loc>https://legout.github.io/flowerpower/quickstart/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/</loc>
+         <loc>https://legout.github.io/flowerpower/api/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/cli/</loc>
+         <loc>https://legout.github.io/flowerpower/api/cli/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/cli_job_queue/</loc>
+         <loc>https://legout.github.io/flowerpower/api/cli_job_queue/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/cli_mqtt/</loc>
+         <loc>https://legout.github.io/flowerpower/api/cli_mqtt/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/cli_pipeline/</loc>
+         <loc>https://legout.github.io/flowerpower/api/cli_pipeline/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/configuration/</loc>
+         <loc>https://legout.github.io/flowerpower/api/configuration/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/flowerpower/</loc>
+         <loc>https://legout.github.io/flowerpower/api/flowerpower/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/init/</loc>
+         <loc>https://legout.github.io/flowerpower/api/init/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/jobqueuemanager/</loc>
+         <loc>https://legout.github.io/flowerpower/api/jobqueuemanager/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/pipelinemanager/</loc>
+         <loc>https://legout.github.io/flowerpower/api/pipelinemanager/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
     <url>
-         <loc>https://your-domain.com/flowerpower-docs/api/rqmanager/</loc>
+         <loc>https://legout.github.io/flowerpower/api/rqmanager/</loc>
          <lastmod>2025-08-21</lastmod>
     </url>
 </urlset>

@@ -16,8 +16,10 @@ from pathlib import Path
 project_root = Path(__file__).parents[1]
 sys.path.insert(0, str(project_root))
 
-import typer
 from typing import Annotated
+
+import typer
+
 from flowerpower import FlowerPowerProject
 
 app = typer.Typer()
@@ -26,19 +28,19 @@ app = typer.Typer()
 def run_synchronous():
     """Run the ETL pipeline synchronously."""
     project = FlowerPowerProject.load(str(project_root))
-    return project.run('sales_etl')
+    return project.run("sales_etl")
 
 
 def run_with_job_queue():
     """Run the ETL pipeline using the job queue."""
     project = FlowerPowerProject.load(str(project_root))
-    return project.enqueue('sales_etl')
+    return project.enqueue("sales_etl")
 
 
 def schedule_pipeline():
     """Schedule the ETL pipeline for recurring execution."""
     project = FlowerPowerProject.load(str(project_root))
-    return project.schedule('sales_etl')
+    return project.schedule("sales_etl")
 
 
 @app.command()

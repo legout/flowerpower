@@ -132,7 +132,8 @@ class MqttManager:
 
             if fs is None:
                 fs = filesystem(
-                    protocol_or_path=os.path.dirname(path), storage_options=storage_options
+                    protocol_or_path=os.path.dirname(path),
+                    storage_options=storage_options,
                 )
 
             cfg = MqttConfig.from_yaml(path=os.path.basename(path), fs=fs)

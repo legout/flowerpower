@@ -1,5 +1,5 @@
 site_name: FlowerPower Documentation
-site_url: https://your-domain.com/flowerpower-docs/ # Placeholder, update later
+site_url: https://legout.github.io/flowerpower # Placeholder, update later
 repo_url: https://github.com/legout/flowerpower
 repo_name: legout/flowerpower
 
@@ -51,28 +51,84 @@ nav:
           - Pipeline CLI: api/cli_pipeline.md
   - Contributing: contributing.md
 
-plugins:
-  - search
-  - glightbox # For image lightboxes, if needed
-
 markdown_extensions:
   - admonition
-  - pymdownx.details
-  - pymdownx.superfences
   - pymdownx.highlight:
       anchor_linenums: true
+      linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - attr_list
   - md_in_html
   - toc:
       permalink: true
+  - codehilite:
+      guess_lang: false
+  - def_list
+  - footnotes
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra_javascript:
+   - https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js
+   - javascripts/mermaid.js
+
+
+plugins:
+  - search
+  - glightbox # For image lightboxes, if needed
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_signature_annotations: true
+            show_source: true
+            members_order: alphabetical
+            docstring_style: google
+            separate_signature: true
+            show_root_heading: true
+            show_category_heading: true
+            show_submodules: true
+            heading_level: 2
+            merge_init_into_class: true
+            show_object_full_path: true
+            show_bases: true
+            show_if_no_docstring: false
+            group_by_category: true
+            show_root_toc_entry: false
+            show_root_full_path: false
+            show_root_members_heading: false
+            show_module_summary: true
+            show_class_inheritance: true
+            show_signature: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc_entry: true
+            signature_crossrefs: true
 
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/legout/flowerpower
   generator: false # Hide "Made with Material for MkDocs" footer
-  analytics:
-    provider: google # Example, configure later
-    property: G-XXXXXXXXXX # Example, configure later
+  
 
 copyright: "Copyright &copy; 2025 FlowerPower"
