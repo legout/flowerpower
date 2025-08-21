@@ -17,7 +17,7 @@ FlowerPower offers multiple ways to configure your project, ensuring flexibility
 
 You can override configuration settings directly in your Python code. This is useful for dynamic adjustments or for settings that are determined at runtime.
 
-```{{python}}
+``` python
 from flowerpower.core.config import settings
 
 # Override the default Redis host
@@ -35,7 +35,7 @@ For fine-grained control, you can work directly with `PipelineManager` and `JobQ
 
 The `PipelineManager` is responsible for loading, validating, and executing data pipelines.
 
-```{{python}}
+``` python
 from flowerpower.core.pipeline import PipelineManager
 
 # Initialize the manager
@@ -53,7 +53,7 @@ print(result)
 
 The `JobQueueManager` handles job queuing, scheduling, and worker management.
 
-```{{python}}
+``` python
 from flowerpower.core.job_queue import JobQueueManager
 
 # Initialize the manager
@@ -87,7 +87,7 @@ You can manage workers to process your queued jobs.
 
 Start a single worker in the foreground:
 
-```{{bash}}
+``` bash
 flowerpower job-queue start-worker
 ```
 
@@ -95,13 +95,13 @@ flowerpower job-queue start-worker
 
 Start a pool of workers in the background:
 
-```{{bash}}
+``` bash
 flowerpower job-queue start-worker --pool-size 5 --background
 ```
 
 To stop background workers:
 
-```{{bash}}
+``` bash
 flowerpower job-queue start-worker stop
 ```
 

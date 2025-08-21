@@ -20,41 +20,6 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
 </style>
 
 
@@ -71,10 +36,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-c35703f27e2ef84e2c700e09dd0c80cb.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -104,10 +73,171 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 }</script>
 
 
-<link rel="stylesheet" href="styles.css">
 </head>
 
-<body class="nav-fixed quarto-light">
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -204,8 +334,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="https://github.com/legout/flowerpower"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text">GitHub</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://pypi.org/project/flowerpower/"> <i class="bi bi-box-arrow-down" role="img">
+</i> 
+<span class="menu-text">PyPI</span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
 </div>
       </div> <!-- /container-fluid -->
     </nav>
@@ -219,14 +362,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#available-examples" id="toc-available-examples" class="nav-link active" data-scroll-target="#available-examples">Available Examples</a></li>
-  <li><a href="#example-in-depth-data-etl-pipeline" id="toc-example-in-depth-data-etl-pipeline" class="nav-link" data-scroll-target="#example-in-depth-data-etl-pipeline">Example in Depth: Data ETL Pipeline</a></li>
-  <li><a href="#example-in-depth-job-queue-only" id="toc-example-in-depth-job-queue-only" class="nav-link" data-scroll-target="#example-in-depth-job-queue-only">Example in Depth: Job Queue Only</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link active" data-scroll-target="#examples">Examples</a>
+  <ul class="collapse">
+  <li><a href="#available-examples" id="toc-available-examples" class="nav-link" data-scroll-target="#available-examples">Available Examples</a>
+  <ul class="collapse">
+  <li><a href="#data-etl-pipeline" id="toc-data-etl-pipeline" class="nav-link" data-scroll-target="#data-etl-pipeline"><code>data-etl-pipeline/</code></a></li>
+  <li><a href="#hello-world" id="toc-hello-world" class="nav-link" data-scroll-target="#hello-world"><code>hello-world/</code></a></li>
+  <li><a href="#job-queue-only-example" id="toc-job-queue-only-example" class="nav-link" data-scroll-target="#job-queue-only-example"><code>job-queue-only-example/</code></a></li>
+  <li><a href="#ml-training-pipeline" id="toc-ml-training-pipeline" class="nav-link" data-scroll-target="#ml-training-pipeline"><code>ml-training-pipeline/</code></a></li>
+  <li><a href="#pipeline-only-example" id="toc-pipeline-only-example" class="nav-link" data-scroll-target="#pipeline-only-example"><code>pipeline-only-example/</code></a></li>
+  <li><a href="#scheduled-reports" id="toc-scheduled-reports" class="nav-link" data-scroll-target="#scheduled-reports"><code>scheduled-reports/</code></a></li>
+  <li><a href="#web-scraping-pipeline" id="toc-web-scraping-pipeline" class="nav-link" data-scroll-target="#web-scraping-pipeline"><code>web-scraping-pipeline/</code></a></li>
+  </ul></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/legout/flowerpower/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li><li><a href="https://github.com/legout/flowerpower/edit/main/examples.qmd" class="toc-action"><i class="bi empty"></i>Edit this page</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
+
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -247,127 +401,60 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Welcome to the FlowerPower examples section! Here, you’ll find a variety of projects demonstrating the library’s capabilities in different scenarios. Each example is designed to be a practical, hands-on guide to help you get started.</p>
+<section id="examples" class="level1">
+<h1>Examples</h1>
+<p>This section provides an overview of various example projects built with FlowerPower. These examples demonstrate different use cases and functionalities of the framework, from simple “Hello World” setups to complex machine learning pipelines and data processing workflows. You can find the source code for these examples in the <a href="https://github.com/legout/flowerpower/examples">FlowerPower GitHub repository</a>.</p>
 <section id="available-examples" class="level2">
 <h2 class="anchored" data-anchor-id="available-examples">Available Examples</h2>
-<p>The <code>examples/</code> directory in the project repository contains the following examples:</p>
-<ul>
-<li><strong>Data ETL Pipeline</strong>: Demonstrates how to build a classic Extract, Transform, Load (ETL) pipeline. This example reads raw data, cleans and processes it, and saves the output, showcasing FlowerPower’s ability to manage data-centric workflows.</li>
-<li><strong>Hello World</strong>: A simple, introductory example to help you verify your setup and understand the basic concepts of creating and running a FlowerPower project.</li>
-<li><strong>Job Queue Only</strong>: Shows how to use FlowerPower’s job queue functionality independently of the pipeline engine. This is useful for applications that need a robust background task processor without a complex, multi-stage pipeline.</li>
-<li><strong>ML Training Pipeline</strong>: Illustrates how to structure a machine learning workflow, from data loading and preprocessing to model training and evaluation.</li>
-<li><strong>Pipeline Only</strong>: A focused example that highlights the pipeline creation and execution features without involving a job queue.</li>
-<li><strong>Scheduled Reports</strong>: Shows how to create pipelines that run on a schedule to generate and save reports, a common use case for business intelligence and monitoring.</li>
-<li><strong>Web Scraping Pipeline</strong>: Demonstrates how to build a pipeline that scrapes data from websites, processes it, and stores the results.</li>
-</ul>
+<section id="data-etl-pipeline" class="level3">
+<h3 class="anchored" data-anchor-id="data-etl-pipeline"><code>data-etl-pipeline/</code></h3>
+<p>This example demonstrates a typical Extract, Transform, Load (ETL) pipeline, showcasing how FlowerPower can be used to process and move data between different systems.</p>
 </section>
-<section id="example-in-depth-data-etl-pipeline" class="level2">
-<h2 class="anchored" data-anchor-id="example-in-depth-data-etl-pipeline">Example in Depth: Data ETL Pipeline</h2>
-<p>This example demonstrates a common use case for FlowerPower: creating a data pipeline to process sales data. The pipeline reads a CSV file, cleans the data, and computes a summary.</p>
-<p>To run this example, navigate to the <code>examples/data-etl-pipeline</code> directory and execute the main script.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> examples/data-etl-pipeline</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/run_example.py</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Below is a simplified version of the pipeline definition, which can be found in <code>pipelines/sales_etl.py</code>.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># examples/data-etl-pipeline/pipelines/sales_etl.py</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower.pipeline <span class="im">import</span> Pipeline, pipeline_node</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">@pipeline_node</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_sales_data(file_path: <span class="bu">str</span>) <span class="op">-&gt;</span> pd.DataFrame:</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Loads sales data from a CSV file."""</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.read_csv(file_path)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">@pipeline_node</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> clean_data(df: pd.DataFrame) <span class="op">-&gt;</span> pd.DataFrame:</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Removes rows with missing values."""</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> df.dropna()</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">@pipeline_node</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_summary(df: pd.DataFrame) <span class="op">-&gt;</span> pd.DataFrame:</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Generates a summary of total sales per product."""</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> df.groupby(<span class="st">"product"</span>)[<span class="st">"sales"</span>].<span class="bu">sum</span>().reset_index()</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="at">@pipeline_node</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> save_summary(df: pd.DataFrame, output_path: <span class="bu">str</span>):</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Saves the summary to a new CSV file."""</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    df.to_csv(output_path, index<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Sales summary saved to </span><span class="sc">{</span>output_path<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> create_pipeline() <span class="op">-&gt;</span> Pipeline:</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Creates the sales ETL pipeline."""</span></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Pipeline(</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        nodes<span class="op">=</span>[</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>            load_sales_data,</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            clean_data,</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>            generate_summary,</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>            save_summary,</span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>        ],</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">"sales_etl_pipeline"</span>,</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Each function decorated with <code>@pipeline_node</code> becomes a step in our pipeline. FlowerPower automatically manages the data flow between these nodes.</p>
-</div>
-</div>
+<section id="hello-world" class="level3">
+<h3 class="anchored" data-anchor-id="hello-world"><code>hello-world/</code></h3>
+<p>A basic “Hello World” example illustrating the fundamental structure of a FlowerPower project and how to define and run a simple pipeline or job.</p>
 </section>
-<section id="example-in-depth-job-queue-only" class="level2">
-<h2 class="anchored" data-anchor-id="example-in-depth-job-queue-only">Example in Depth: Job Queue Only</h2>
-<p>This example showcases how to use FlowerPower’s job queue for running background tasks. It’s ideal for offloading long-running processes from a web server or other main application thread.</p>
-<p>The core of this example is a simple task that processes some data.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># examples/job-queue-only-example/tasks/data_processing.py</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> process_data_task(record_id: <span class="bu">int</span>, data: <span class="bu">dict</span>):</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">    A sample task that simulates processing a record.</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Processing record </span><span class="sc">{</span>record_id<span class="sc">}</span><span class="ss">..."</span>)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simulate a long-running task</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    time.sleep(<span class="dv">5</span>)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Finished processing record </span><span class="sc">{</span>record_id<span class="sc">}</span><span class="ss">. Data: </span><span class="sc">{</span>data<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">"record_id"</span>: record_id, <span class="st">"status"</span>: <span class="st">"processed"</span>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>To enqueue this task, you would use a script similar to the one in <code>scripts/run_example.py</code>.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># examples/job-queue-only-example/scripts/run_example.py</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower.job_queue <span class="im">import</span> JobQueue</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tasks.data_processing <span class="im">import</span> process_data_task</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize the job queue</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>jq <span class="op">=</span> JobQueue.from_config()</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Enqueue a job</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>job <span class="op">=</span> jq.enqueue(process_data_task, record_id<span class="op">=</span><span class="dv">123</span>, data<span class="op">=</span>{<span class="st">"value"</span>: <span class="dv">42</span>})</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Enqueued job </span><span class="sc">{</span>job<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss"> to process record 123."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>To run this example, you’ll need a running Redis server and a FlowerPower worker. The worker will pick up and execute the enqueued jobs.</p>
-</div>
-</div>
+<section id="job-queue-only-example" class="level3">
+<h3 class="anchored" data-anchor-id="job-queue-only-example"><code>job-queue-only-example/</code></h3>
+<p>This example focuses specifically on the job queuing capabilities of FlowerPower, demonstrating how to use the built-in job queue to manage and execute background tasks independently of pipelines.</p>
+</section>
+<section id="ml-training-pipeline" class="level3">
+<h3 class="anchored" data-anchor-id="ml-training-pipeline"><code>ml-training-pipeline/</code></h3>
+<p>Showcases how to build a machine learning training pipeline with FlowerPower, including data preparation, model training, and evaluation steps.</p>
+</section>
+<section id="pipeline-only-example" class="level3">
+<h3 class="anchored" data-anchor-id="pipeline-only-example"><code>pipeline-only-example/</code></h3>
+<p>This example highlights the core pipeline functionality of FlowerPower, demonstrating how to define and execute a sequence of interconnected tasks without relying on a job queue.</p>
+</section>
+<section id="scheduled-reports" class="level3">
+<h3 class="anchored" data-anchor-id="scheduled-reports"><code>scheduled-reports/</code></h3>
+<p>Demonstrates how to use FlowerPower to automate the generation and distribution of scheduled reports, leveraging its scheduling and task management features.</p>
+</section>
+<section id="web-scraping-pipeline" class="level3">
+<h3 class="anchored" data-anchor-id="web-scraping-pipeline"><code>web-scraping-pipeline/</code></h3>
+<p>An example illustrating a web scraping workflow implemented as a FlowerPower pipeline, showing how to extract data from websites and process it.</p>
 
 
+</section>
+</section>
 </section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
     const anchorJS = new window.AnchorJS();
     anchorJS.options = {
