@@ -1,5 +1,3 @@
-import os
-
 # Define backend properties in a dictionary for easier maintenance
 
 BACKEND_PROPERTIES = {

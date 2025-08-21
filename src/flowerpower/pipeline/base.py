@@ -3,11 +3,11 @@ import posixpath
 import sys
 from types import TracebackType
 
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 
 from ..cfg import PipelineConfig, ProjectConfig
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ..utils.logging import setup_logging
 
 setup_logging()
@@ -47,7 +47,7 @@ class BasePipeline:
         self._base_dir = base_dir
         self._storage_options = storage_options
         if fs is None:
-            fs = get_filesystem(self._base_dir, **self._storage_options)
+            fs = filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
         self._cfg_dir = cfg_dir
         self._pipelines_dir = pipelines_dir

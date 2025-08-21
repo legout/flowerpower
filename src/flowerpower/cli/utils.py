@@ -4,7 +4,6 @@ import json
 import posixpath
 import re
 import sys
-from pathlib import Path
 from typing import Callable
 
 from loguru import logger

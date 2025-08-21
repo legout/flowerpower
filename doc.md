@@ -21,10 +21,6 @@ FlowerPower offers several optional dependencies to enable extra features. You c
   ```bash
   pip install flowerpower[mqtt]
   ```
-- **APScheduler**: For using APScheduler as the job queue backend.
-  ```bash
-  pip install flowerpower[apscheduler]
-  ```
 - **RQ**: For using RQ (Redis Queue) as the job queue backend.
   ```bash
   pip install flowerpower[rq]
@@ -49,7 +45,7 @@ flowerpower init --name <project_name> --base-dir <path_to_create_in> --job-queu
 
 *   `--name <project_name>`: Specifies the name of your project. If you are in a directory named `my_project`, FlowerPower can infer this as `my_project`.
 *   `--base-dir <path_to_create_in>`: Defines the directory where the project structure will be created. Defaults to the current directory (`.`). If a directory with `<project_name>` already exists, it will use that; otherwise, it will create a new directory named `<project_name>`.
-*   `--job-queue-type <type>`: Sets the default job queue system for the project. Common options are `rq` (Redis Queue) or `apscheduler`. The default is typically `rq`. You can change this later in the project configuration.
+*   `--job-queue-type <type>`: Sets the default job queue system for the project. Only `rq` (Redis Queue) is supported. The default is `rq`. You can change this later in the project configuration.
 
 In many cases, if you navigate to the desired parent directory for your project and your project directory is already named appropriately, you might only need to run:
 ```bash
@@ -57,7 +53,7 @@ flowerpower init
 ```
 Or if you want to specify the job queue type:
 ```bash
-flowerpower init --job-queue-type apscheduler
+flowerpower init --job-queue-type rq
 ```
 
 ## 2. Generated Directory Structure
@@ -94,7 +90,7 @@ Here are the main top-level keys you'll typically find and configure:
 
 *   **`job_queue:`**:
     *   Configuration for the job queue system used for asynchronous task execution.
-    *   `type: <rq | apscheduler>`: Specifies whether to use RQ or APScheduler.
+    *   `type: rq`: Specifies to use RQ (only supported option).
     *   More detailed settings for RQ (e.g., Redis connection details) and APScheduler (e.g., job store configurations) are available and will be covered in the main "Configuration" section of this documentation.
 
 *   **`adapter:`**:
@@ -686,7 +682,7 @@ flowerpower job-queue start-worker [OPTIONS]
 
 **Common Options:**
 
-*   `--type <rq | apscheduler>`: Specifies the job queue type. If not provided, it defaults to the type configured in your `conf/project.yml`.
+*   `--type rq`: Specifies the job queue type. If not provided, it defaults to the type configured in your `conf/project.yml`.
 *   `--name <config_name>`: Refers to a specific named configuration block under `job_queue` in your `project.yml` (e.g., if you have multiple RQ setups for different queues).
 *   `--num-workers <integer>`: (Primarily for RQ) The number of worker processes to start. For APScheduler, this might influence the size of an internal thread or process pool if it's configured to use one and this command supports it. Default is usually 1.
 *   `--background`: Runs the worker(s) in the background, detaching from the terminal.

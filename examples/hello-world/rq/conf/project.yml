@@ -1,7 +1,7 @@
 name: hello-world
 job_queue:
   type: rq
-  num_workers: 10
+  num_workers: 2
   backend:
     type: redis
     uri: null

@@ -1,0 +1,14 @@
+product,customer,total_sales,avg_price,total_quantity
+Widget B,Jane Smith,500.5,45.5,11
+Widget C,Bob Johnson,300.0,75.0,4
+Widget A,David Lee,285.89,25.99,11
+Widget B,Carol White,227.5,45.5,5
+Widget C,John Doe,225.0,75.0,3
+Widget B,John Doe,182.0,45.5,4
+Widget A,Alice Brown,181.93,25.99,7
+Widget C,Jane Smith,150.0,75.0,2
+Widget A,John Doe,129.95,25.99,5
+Widget A,Bob Johnson,77.97,25.99,3
+Widget C,Alice Brown,75.0,75.0,1
+Widget A,Carol White,51.98,25.99,2
+Widget B,David Lee,45.5,45.5,1

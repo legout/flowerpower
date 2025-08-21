@@ -1,0 +1,70 @@
+project:
+  type: website
+
+website:
+  title: "FlowerPower Documentation"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: installation.qmd
+        text: Installation
+      - href: quickstart.qmd
+        text: Quickstart
+      - href: architecture.qmd
+        text: Architecture
+      - href: examples.qmd
+        text: Examples
+      - href: advanced.qmd
+        text: Advanced Usage
+      - href: contributing.qmd
+        text: Contributing
+      - text: API Reference
+        menu:
+          - href: api/index.qmd
+            text: Overview
+          - href: api/flowerpower.qmd
+            text: FlowerPower
+          - href: api/pipelinemanager.qmd
+            text: PipelineManager
+          - href: api/jobqueuemanager.qmd
+            text: JobQueueManager
+          - href: api/rqmanager.qmd
+            text: RQManager
+          - href: api/configuration.qmd
+            text: Configuration
+          - href: api/init.qmd
+            text: init
+          - href: api/cli.qmd
+            text: CLI
+          - href: api/cli_job_queue.qmd
+            text: Job Queue CLI
+          - href: api/cli_mqtt.qmd
+            text: MQTT CLI
+          - href: api/cli_pipeline.qmd
+            text: Pipeline CLI
+    right:
+      - text: GitHub
+        icon: github
+        href: https://github.com/legout/flowerpower
+      - text: PyPI
+        icon: box-arrow-down
+        href: https://pypi.org/project/flowerpower/
+  page-footer:
+    left: "Copyright 2025, FlowerPower"
+    right: "Licensed under MIT"
+  repo-url: https://github.com/legout/flowerpower
+  repo-actions: [issue, edit]
+  search: true
+format:
+  html:
+    theme: 
+      light: cosmo
+      dark: darkly
+    theme-toggle: true
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    #css: styles.css # This will be created later if needed for custom styling
+
+editor: visual

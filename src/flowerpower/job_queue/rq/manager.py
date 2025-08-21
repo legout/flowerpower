@@ -10,10 +10,13 @@ import platform
 import sys
 import time
 import uuid
+import warnings
 from typing import Any, Callable
 
 import duration_parser
 from cron_descriptor import get_description
+# from ...fs import AbstractFileSystem
+from fsspec_utils import AbstractFileSystem
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
@@ -23,7 +26,6 @@ from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
-from ...fs import AbstractFileSystem
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend
@@ -175,6 +177,7 @@ class RQManager(BaseJobQueueManager):
         background: bool = False,
         queue_names: list[str] | None = None,
         with_scheduler: bool = True,
+        num_workers: int | None = None,
         **kwargs: Any,
     ) -> None:
         """Start a worker process for processing jobs from the queues.
@@ -186,6 +189,7 @@ class RQManager(BaseJobQueueManager):
                 queues defined in the backend configuration.
             with_scheduler: Whether to include the scheduler queue for processing
                 scheduled jobs.
+            num_workers: Number of worker processes to start (pool mode).
             **kwargs: Additional arguments passed to RQ's Worker class.
                 Example: {"burst": True, "logging_level": "INFO", "job_monitoring_interval": 30}
 
@@ -210,84 +214,100 @@ class RQManager(BaseJobQueueManager):
                 max_jobs=100,
                 job_monitoring_interval=30
             )
+            # Start a worker pool with 4 processes
+            worker.start_worker(
+                background=True,
+                num_workers=4
+            )
             ```
         """
-        import multiprocessing
-
-        logging_level = kwargs.pop("logging_level", self._log_level)
-        burst = kwargs.pop("burst", False)
-        max_jobs = kwargs.pop("max_jobs", None)
-        # Determine which queues to process
-        if queue_names is None:
-            # Use all queues by default
-            queue_names = self._queue_names
-            queue_names_str = ", ".join(queue_names)
+        if num_workers is not None and num_workers > 1:
+            self.start_worker_pool(
+                num_workers=num_workers,
+                background=background,
+                queue_names=queue_names,
+                with_scheduler=with_scheduler,
+                **kwargs,
+            )
         else:
-            # Filter to only include valid queue names
-            queue_names = [name for name in queue_names if name in self._queue_names]
-            queue_names_str = ", ".join(queue_names)
+            import multiprocessing
 
-        if not queue_names:
-            logger.error("No valid queues specified, cannot start worker")
-            return
+            logging_level = kwargs.pop("logging_level", self._log_level)
+            burst = kwargs.pop("burst", False)
+            max_jobs = kwargs.pop("max_jobs", None)
+            # Determine which queues to process
+            if queue_names is None:
+                # Use all queues by default
+                queue_names = self._queue_names
+                queue_names_str = ", ".join(queue_names)
+            else:
+                # Filter to only include valid queue names
+                queue_names = [
+                    name for name in queue_names if name in self._queue_names
+                ]
+                queue_names_str = ", ".join(queue_names)
 
-        if with_scheduler:
-            # Add the scheduler queue to the list of queues
-            queue_names.append(self._scheduler_name)
-            queue_names_str = ", ".join(queue_names)
+            if not queue_names:
+                logger.error("No valid queues specified, cannot start worker")
+                return
 
-        # Create a worker instance with queue names (not queue objects)
-        worker = Worker(queue_names, connection=self._backend.client, **kwargs)
+            if with_scheduler:
+                # Add the scheduler queue to the list of queues
+                queue_names.append(self._scheduler_name)
+                queue_names_str = ", ".join(queue_names)
 
-        if background:
-            # We need to use a separate process rather than a thread because
-            # RQ's signal handler registration only works in the main thread
-            def run_worker_process(queue_names_arg):
-                # Import RQ inside the process to avoid connection sharing issues
-                from redis import Redis
-                from rq import Worker
+            # Create a worker instance with queue names (not queue objects)
+            worker = Worker(queue_names, connection=self._backend.client, **kwargs)
 
-                # Create a fresh Redis connection in this process
-                redis_conn = Redis.from_url(self._backend.uri)
+            if background:
+                # We need to use a separate process rather than a thread because
+                # RQ's signal handler registration only works in the main thread
+                def run_worker_process(queue_names_arg):
+                    # Import RQ inside the process to avoid connection sharing issues
+                    from redis import Redis
+                    from rq import Worker
 
-                # Create a worker instance with queue names
-                worker_proc = Worker(queue_names_arg, connection=redis_conn)
+                    # Create a fresh Redis connection in this process
+                    redis_conn = Redis.from_url(self._backend.uri)
 
-                # Disable the default signal handlers in RQ worker by patching
-                # the _install_signal_handlers method to do nothing
-                worker_proc._install_signal_handlers = lambda: None
+                    # Create a worker instance with queue names
+                    worker_proc = Worker(queue_names_arg, connection=redis_conn)
 
-                # Work until terminated
-                worker_proc.work(
+                    # Disable the default signal handlers in RQ worker by patching
+                    # the _install_signal_handlers method to do nothing
+                    worker_proc._install_signal_handlers = lambda: None
+
+                    # Work until terminated
+                    worker_proc.work(
+                        with_scheduler=True,
+                        logging_level=logging_level,
+                        burst=burst,
+                        max_jobs=max_jobs,
+                    )
+
+                # Create and start the process
+                process = multiprocessing.Process(
+                    target=run_worker_process,
+                    args=(queue_names,),
+                    name=f"rq-worker-{self.name}",
+                )
+                # Don't use daemon=True to avoid the "daemonic processes are not allowed to have children" error
+                process.start()
+                self._worker_process = process
+                logger.info(
+                    f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
+                )
+            else:
+                # Start worker in the current process (blocking)
+                logger.info(
+                    f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
+                )
+                worker.work(
                     with_scheduler=True,
                     logging_level=logging_level,
                     burst=burst,
                     max_jobs=max_jobs,
                 )
-
-            # Create and start the process
-            process = multiprocessing.Process(
-                target=run_worker_process,
-                args=(queue_names,),
-                name=f"rq-worker-{self.name}",
-            )
-            # Don't use daemon=True to avoid the "daemonic processes are not allowed to have children" error
-            process.start()
-            self._worker_process = process
-            logger.info(
-                f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
-            )
-        else:
-            # Start worker in the current process (blocking)
-            logger.info(
-                f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
-            )
-            worker.work(
-                with_scheduler=True,
-                logging_level=logging_level,
-                burst=burst,
-                max_jobs=max_jobs,
-            )
 
     def stop_worker(self) -> None:
         """Stop the worker process.
@@ -304,14 +324,17 @@ class RQManager(BaseJobQueueManager):
                 worker.stop_worker()
             ```
         """
-        if hasattr(self, "_worker_process") and self._worker_process is not None:
-            if self._worker_process.is_alive():
-                self._worker_process.terminate()
-                self._worker_process.join(timeout=5)
-                logger.info("RQ worker process terminated")
-            self._worker_process = None
+        if hasattr(self, "_worker_pool"):
+            self.stop_worker_pool()
         else:
-            logger.warning("No worker process to stop")
+            if hasattr(self, "_worker_process") and self._worker_process is not None:
+                if self._worker_process.is_alive():
+                    self._worker_process.terminate()
+                    self._worker_process.join(timeout=5)
+                    logger.info("RQ worker process terminated")
+                self._worker_process = None
+            else:
+                logger.warning("No worker process to stop")
 
     def start_worker_pool(
         self,
@@ -543,6 +566,132 @@ class RQManager(BaseJobQueueManager):
 
     ## Jobs ###
 
+    def enqueue(
+        self,
+        func: Callable,
+        *args,
+        **kwargs,
+    ) -> Job:
+        """Enqueue a job for execution (immediate, delayed, or scheduled).
+
+        This is the main method for adding jobs to the queue. It supports:
+        - Immediate execution (no run_at or run_in parameters)
+        - Delayed execution (run_in parameter)
+        - Scheduled execution (run_at parameter)
+
+        Args:
+            func: Function to execute. Must be importable from the worker process.
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments including:
+                - run_in: Schedule the job to run after a delay (timedelta, int seconds, or string)
+                - run_at: Schedule the job to run at a specific datetime
+                - func_args: Alternative way to pass positional arguments
+                - func_kwargs: Alternative way to pass keyword arguments
+                - Other job queue specific parameters (timeout, retry, etc.)
+
+        Returns:
+            Job: The created job instance
+
+        Example:
+            ```python
+            # Immediate execution
+            manager.enqueue(my_func, arg1, arg2, kwarg1="value")
+
+            # Delayed execution
+            manager.enqueue(my_func, arg1, run_in=300)  # 5 minutes
+            manager.enqueue(my_func, arg1, run_in=timedelta(hours=1))
+
+            # Scheduled execution
+            manager.enqueue(my_func, arg1, run_at=datetime(2025, 1, 1, 9, 0))
+            ```
+        """
+        # Extract func_args and func_kwargs if provided as alternatives to *args
+        func_args = kwargs.pop("func_args", None)
+        func_kwargs = kwargs.pop("func_kwargs", None)
+
+        # Use provided args or fall back to func_args
+        if args:
+            final_args = args
+        elif func_args:
+            final_args = func_args
+        else:
+            final_args = ()
+
+        # Extract function keyword arguments
+        if func_kwargs:
+            final_kwargs = func_kwargs
+        else:
+            final_kwargs = {}
+
+        # Delegate to add_job with the parameters
+        return self.add_job(
+            func=func, func_args=final_args, func_kwargs=final_kwargs, **kwargs
+        )
+
+    def enqueue_in(
+        self,
+        delay,
+        func: Callable,
+        *args,
+        **kwargs,
+    ) -> Job:
+        """Enqueue a job to run after a specified delay.
+
+        This is a convenience method for delayed execution.
+
+        Args:
+            delay: Time to wait before execution (timedelta, int seconds, or string)
+            func: Function to execute
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function and job options
+
+        Returns:
+            Job: The created job instance
+
+        Example:
+            ```python
+            # Run in 5 minutes
+            manager.enqueue_in(300, my_func, arg1, arg2)
+
+            # Run in 1 hour
+            manager.enqueue_in(timedelta(hours=1), my_func, arg1, kwarg1="value")
+            ```
+        """
+        return self.enqueue(func, *args, run_in=delay, **kwargs)
+
+    def enqueue_at(
+        self,
+        datetime,
+        func: Callable,
+        *args,
+        **kwargs,
+    ) -> Job:
+        """Enqueue a job to run at a specific datetime.
+
+        This is a convenience method for scheduled execution.
+
+        Args:
+            datetime: When to execute the job (datetime object or ISO string)
+            func: Function to execute
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function and job options
+
+        Returns:
+            Job: The created job instance
+
+        Example:
+            ```python
+            # Run at specific time
+            manager.enqueue_at(datetime(2025, 1, 1, 9, 0), my_func, arg1, arg2)
+
+            # Run tomorrow at 9 AM
+            tomorrow_9am = datetime.now() + timedelta(days=1)
+            tomorrow_9am = tomorrow_9am.replace(hour=9, minute=0, second=0)
+            manager.enqueue_at(tomorrow_9am, my_func, arg1, kwarg1="value")
+            ```
+        """
+        return self.enqueue(func, *args, run_at=datetime, **kwargs)
+
     def add_job(
         self,
         func: Callable,
@@ -566,6 +715,10 @@ class RQManager(BaseJobQueueManager):
         **job_kwargs,
     ) -> Job:
         """Add a job for immediate or scheduled execution.
+
+        .. deprecated:: 0.12.0
+            Use :meth:`enqueue`, :meth:`enqueue_in`, or :meth:`enqueue_at` instead.
+            The add_job method will be removed in version 1.0.0.
 
         Args:
             func: Function to execute. Must be importable from the worker process.
@@ -640,6 +793,14 @@ class RQManager(BaseJobQueueManager):
             )
             ```
         """
+        # Issue deprecation warning
+        warnings.warn(
+            "add_job() is deprecated and will be removed in version 1.0.0. "
+            "Use enqueue(), enqueue_in(), or enqueue_at() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         job_id = job_id or str(uuid.uuid4())
         if isinstance(result_ttl, (int, float)):
             result_ttl = dt.timedelta(seconds=result_ttl)
@@ -1580,3 +1741,153 @@ class RQManager(BaseJobQueueManager):
         """
         schedule_ids = [schedule.id for schedule in self.schedules]
         return schedule_ids
+
+    # --- Pipeline-specific high-level methods implementation ---
+
+    def schedule_pipeline(self, name: str, project_context=None, *args, **kwargs):
+        """Schedule a pipeline for execution using its name.
+
+        This high-level method loads the pipeline from the internal registry and schedules
+        its execution with the job queue using the existing add_schedule method.
+
+        Args:
+            name: Name of the pipeline to schedule
+            project_context: Project context for the pipeline (optional)
+            *args: Additional positional arguments for scheduling
+            **kwargs: Additional keyword arguments for scheduling
+
+        Returns:
+            Schedule ID from the underlying add_schedule call
+
+        Example:
+            ```python
+            manager = RQManager(base_dir="/path/to/project")
+            schedule_id = manager.schedule_pipeline(
+                "my_pipeline",
+                cron="0 9 * * *",  # Run daily at 9 AM
+                inputs={"date": "today"}
+            )
+            ```
+        """
+        logger.info(f"Scheduling pipeline '{name}' via RQ job queue")
+
+        # Create a function that will be executed by the job queue
+        def pipeline_job(*job_args, **job_kwargs):
+            # Get the pipeline instance
+            pipeline = self.pipeline_registry.get_pipeline(
+                name=name,
+                project_context=project_context,
+                reload=job_kwargs.pop("reload", False),
+            )
+
+            # Execute the pipeline
+            return pipeline.run(*job_args, **job_kwargs)
+
+        # Extract pipeline execution arguments from kwargs
+        pipeline_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "inputs",
+                "final_vars",
+                "config",
+                "cache",
+                "executor_cfg",
+                "with_adapter_cfg",
+                "pipeline_adapter_cfg",
+                "project_adapter_cfg",
+                "adapter",
+                "reload",
+                "log_level",
+                "max_retries",
+                "retry_delay",
+                "jitter_factor",
+                "retry_exceptions",
+                "on_success",
+                "on_failure",
+            ]
+        }
+
+        # Extract scheduling arguments
+        schedule_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+
+        # Schedule the job
+        return self.add_schedule(
+            func=pipeline_job, func_kwargs=pipeline_kwargs, **schedule_kwargs
+        )
+
+    def enqueue_pipeline(self, name: str, project_context=None, *args, **kwargs):
+        """Enqueue a pipeline for immediate execution using its name.
+
+        This high-level method loads the pipeline from the internal registry and enqueues
+        it for immediate execution in the job queue using the existing enqueue method.
+
+        Args:
+            name: Name of the pipeline to enqueue
+            project_context: Project context for the pipeline (optional)
+            *args: Additional positional arguments for job execution
+            **kwargs: Additional keyword arguments for job execution
+
+        Returns:
+            Job ID from the underlying enqueue call
+
+        Example:
+            ```python
+            manager = RQManager(base_dir="/path/to/project")
+            job_id = manager.enqueue_pipeline(
+                "my_pipeline",
+                inputs={"date": "2025-01-01"},
+                final_vars=["result"]
+            )
+            ```
+        """
+        logger.info(
+            f"Enqueueing pipeline '{name}' for immediate execution via RQ job queue"
+        )
+
+        # Create a function that will be executed by the job queue
+        def pipeline_job(*job_args, **job_kwargs):
+            # Get the pipeline instance
+            pipeline = self.pipeline_registry.get_pipeline(
+                name=name,
+                project_context=project_context,
+                reload=job_kwargs.pop("reload", False),
+            )
+
+            # Execute the pipeline
+            return pipeline.run(*job_args, **job_kwargs)
+
+        # Extract pipeline execution arguments from kwargs
+        pipeline_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "inputs",
+                "final_vars",
+                "config",
+                "cache",
+                "executor_cfg",
+                "with_adapter_cfg",
+                "pipeline_adapter_cfg",
+                "project_adapter_cfg",
+                "adapter",
+                "reload",
+                "log_level",
+                "max_retries",
+                "retry_delay",
+                "jitter_factor",
+                "retry_exceptions",
+                "on_success",
+                "on_failure",
+            ]
+        }
+
+        # Extract job queue arguments
+        job_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+
+        # Add the job
+        return self.enqueue(
+            func=pipeline_job, func_kwargs=pipeline_kwargs, *args, **job_kwargs
+        )

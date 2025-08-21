@@ -7,15 +7,17 @@ Manages the import and export of pipelines.
 
 import posixpath
 
+from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
+                          DirFileSystem, filesystem)
 from loguru import logger
 from rich.console import Console
 
-# Import necessary config types and utility functions
-from ..fs.base import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-                       get_filesystem)
 from ..settings import LOG_LEVEL
 from ..utils.logging import setup_logging
 from .registry import PipelineRegistry
+
+# Import necessary config types and utility functions
+
 
 console = Console()
 
@@ -69,7 +71,7 @@ class PipelineIOManager:
 
         def _get_filesystem(base_dir, fs, storage_options):
             if fs is None:
-                fs = get_filesystem(base_dir, storage_options=storage_options)
+                fs = filesystem(base_dir, storage_options=storage_options)
             else:
                 if not isinstance(fs, AbstractFileSystem):
                     raise ValueError(
@@ -211,12 +213,10 @@ class PipelineIOManager:
         files = ["conf/project.yml"]
 
         for name in names:
-            files.extend(
-                [
-                    f"conf/pipelines/{name}.yml",
-                    f"pipelines/{name}.py",
-                ]
-            )
+            files.extend([
+                f"conf/pipelines/{name}.yml",
+                f"pipelines/{name}.py",
+            ])
 
         # Sync the filesystem
         self._sync_filesystem(
@@ -366,12 +366,10 @@ class PipelineIOManager:
                     f"Pipeline {name} does not exist in the registry. Please check the name."
                 )
             # Add pipeline files to the list
-            files.extend(
-                [
-                    f"conf/pipelines/{name}.yml",
-                    f"pipelines/{name}.py",
-                ]
-            )
+            files.extend([
+                f"conf/pipelines/{name}.yml",
+                f"pipelines/{name}.py",
+            ])
         # Sync the filesystem
         self._sync_filesystem(
             src_base_dir=".",

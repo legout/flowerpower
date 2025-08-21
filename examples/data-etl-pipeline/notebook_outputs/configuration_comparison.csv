@@ -1,0 +1,4 @@
+name,groups,total_revenue,avg_revenue_per_group,price_violations,is_valid
+Standard Analysis,13,2433.2199999999993,187.17076923076917,0,True
+High-Value Focus,3,2433.22,811.0733333333333,14,False
+Customer Focus,6,2433.22,405.53666666666663,0,True

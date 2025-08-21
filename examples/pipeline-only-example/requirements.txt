@@ -1,0 +1,10 @@
+# Core FlowerPower dependencies (pipeline only)
+flowerpower
+
+# No job queue dependencies required
+# No Redis required
+# No RQ required
+
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0

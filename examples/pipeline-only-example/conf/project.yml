@@ -1,0 +1,2 @@
+name: pipeline-only-example
+# Note: No job_queue configuration - this example demonstrates pipeline-only usage

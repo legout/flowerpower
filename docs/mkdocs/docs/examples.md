@@ -1,0 +1,113 @@
+# Examples
+
+Welcome to the FlowerPower examples section! Here, you'll find a variety of projects demonstrating the library's capabilities in different scenarios. Each example is designed to be a practical, hands-on guide to help you get started.
+
+## Available Examples
+
+The `examples/` directory in the project repository contains the following examples:
+
+*   **Data ETL Pipeline**: Demonstrates how to build a classic Extract, Transform, Load (ETL) pipeline. This example reads raw data, cleans and processes it, and saves the output, showcasing FlowerPower's ability to manage data-centric workflows.
+*   **Hello World**: A simple, introductory example to help you verify your setup and understand the basic concepts of creating and running a FlowerPower project.
+*   **Job Queue Only**: Shows how to use FlowerPower's job queue functionality independently of the pipeline engine. This is useful for applications that need a robust background task processor without a complex, multi-stage pipeline.
+*   **ML Training Pipeline**: Illustrates how to structure a machine learning workflow, from data loading and preprocessing to model training and evaluation.
+*   **Pipeline Only**: A focused example that highlights the pipeline creation and execution features without involving a job queue.
+*   **Scheduled Reports**: Shows how to create pipelines that run on a schedule to generate and save reports, a common use case for business intelligence and monitoring.
+*   **Web Scraping Pipeline**: Demonstrates how to build a pipeline that scrapes data from websites, processes it, and stores the results.
+
+## Example in Depth: Data ETL Pipeline
+
+This example demonstrates a common use case for FlowerPower: creating a data pipeline to process sales data. The pipeline reads a CSV file, cleans the data, and computes a summary.
+
+To run this example, navigate to the `examples/data-etl-pipeline` directory and execute the main script.
+
+```bash
+cd examples/data-etl-pipeline
+uv run python scripts/run_example.py
+```
+
+Below is a simplified version of the pipeline definition, which can be found in `pipelines/sales_etl.py`.
+
+```python
+# examples/data-etl-pipeline/pipelines/sales_etl.py
+
+import pandas as pd
+from flowerpower.pipeline import Pipeline, pipeline_node
+
+@pipeline_node
+def load_sales_data(file_path: str) -> pd.DataFrame:
+    """Loads sales data from a CSV file."""
+    return pd.read_csv(file_path)
+
+@pipeline_node
+def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Removes rows with missing values."""
+    return df.dropna()
+
+@pipeline_node
+def generate_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Generates a summary of total sales per product."""
+    return df.groupby("product")["sales"].sum().reset_index()
+
+@pipeline_node
+def save_summary(df: pd.DataFrame, output_path: str):
+    """Saves the summary to a new CSV file."""
+    df.to_csv(output_path, index=False)
+    print(f"Sales summary saved to {output_path}")
+
+def create_pipeline() -> Pipeline:
+    """Creates the sales ETL pipeline."""
+    return Pipeline(
+        nodes=[
+            load_sales_data,
+            clean_data,
+            generate_summary,
+            save_summary,
+        ],
+        name="sales_etl_pipeline",
+    )
+```
+
+!!! note
+    Each function decorated with `@pipeline_node` becomes a step in our pipeline. FlowerPower automatically manages the data flow between these nodes.
+
+## Example in Depth: Job Queue Only
+
+This example showcases how to use FlowerPower's job queue for running background tasks. It's ideal for offloading long-running processes from a web server or other main application thread.
+
+The core of this example is a simple task that processes some data.
+
+```python
+# examples/job-queue-only-example/tasks/data_processing.py
+
+import time
+
+def process_data_task(record_id: int, data: dict):
+    """
+    A sample task that simulates processing a record.
+    """
+    print(f"Processing record {record_id}...")
+    # Simulate a long-running task
+    time.sleep(5)
+    print(f"Finished processing record {record_id}. Data: {data}")
+    return {"record_id": record_id, "status": "processed"}
+```
+
+To enqueue this task, you would use a script similar to the one in `scripts/run_example.py`.
+
+```python
+# examples/job-queue-only-example/scripts/run_example.py
+
+from flowerpower.job_queue import JobQueue
+from tasks.data_processing import process_data_task
+
+# Initialize the job queue
+jq = JobQueue.from_config()
+
+# Enqueue a job
+job = jq.enqueue(process_data_task, record_id=123, data={"value": 42})
+print(f"Enqueued job {job.id} to process record 123.")
+
+```
+
+!!! note
+    To run this example, you'll need a running Redis server and a FlowerPower worker. The worker will pick up and execute the enqueued jobs.

@@ -1,0 +1,61 @@
+sale_date,customer_id,product_name,category,quantity,unit_price
+2024-11-01,CUST001,Wireless Headphones,Electronics,2,99.99
+2024-11-01,CUST002,Coffee Maker,Appliances,1,149.99
+2024-11-02,CUST003,Running Shoes,Sports,1,89.99
+2024-11-02,CUST001,Laptop Stand,Electronics,1,49.99
+2024-11-03,CUST004,Yoga Mat,Sports,2,29.99
+2024-11-03,CUST002,Bluetooth Speaker,Electronics,1,79.99
+2024-11-04,CUST005,Blender,Appliances,1,199.99
+2024-11-04,CUST003,Protein Powder,Health,3,39.99
+2024-11-05,CUST006,Gaming Mouse,Electronics,1,69.99
+2024-11-05,CUST004,Water Bottle,Sports,2,19.99
+2024-11-06,CUST007,Air Fryer,Appliances,1,129.99
+2024-11-06,CUST001,Monitor,Electronics,1,299.99
+2024-11-07,CUST008,Resistance Bands,Sports,1,24.99
+2024-11-07,CUST002,Vitamins,Health,2,34.99
+2024-11-08,CUST009,Smartphone,Electronics,1,699.99
+2024-11-08,CUST003,Toaster,Appliances,1,89.99
+2024-11-09,CUST010,Dumbbells,Sports,2,149.99
+2024-11-09,CUST005,Tea Set,Home,1,59.99
+2024-11-10,CUST006,Tablet,Electronics,1,399.99
+2024-11-10,CUST007,Pressure Cooker,Appliances,1,179.99
+2024-11-11,CUST008,Fitness Tracker,Electronics,1,199.99
+2024-11-11,CUST004,Supplements,Health,1,49.99
+2024-11-12,CUST009,Kitchen Scale,Appliances,1,39.99
+2024-11-12,CUST001,Keyboard,Electronics,1,119.99
+2024-11-13,CUST010,Baseball Cap,Sports,3,19.99
+2024-11-13,CUST002,Candles,Home,4,12.99
+2024-11-14,CUST003,Microwave,Appliances,1,189.99
+2024-11-14,CUST005,Smartwatch,Electronics,1,249.99
+2024-11-15,CUST006,Tennis Racket,Sports,1,159.99
+2024-11-15,CUST007,Aromatherapy Diffuser,Home,1,79.99
+2024-11-16,CUST008,Wireless Charger,Electronics,2,29.99
+2024-11-16,CUST009,Protein Bars,Health,6,24.99
+2024-11-17,CUST010,Vacuum Cleaner,Appliances,1,299.99
+2024-11-17,CUST001,Desk Lamp,Home,1,49.99
+2024-11-18,CUST002,Power Bank,Electronics,1,39.99
+2024-11-18,CUST003,Jump Rope,Sports,1,14.99
+2024-11-19,CUST004,Essential Oils,Health,3,29.99
+2024-11-19,CUST005,Rice Cooker,Appliances,1,119.99
+2024-11-20,CUST006,Webcam,Electronics,1,89.99
+2024-11-20,CUST007,Yoga Block,Sports,2,19.99
+2024-11-21,CUST008,Throw Pillows,Home,4,24.99
+2024-11-21,CUST009,Electric Kettle,Appliances,1,69.99
+2024-11-22,CUST010,Wireless Earbuds,Electronics,1,129.99
+2024-11-22,CUST001,Exercise Ball,Sports,1,34.99
+2024-11-23,CUST002,Multivitamins,Health,2,44.99
+2024-11-23,CUST003,Food Processor,Appliances,1,249.99
+2024-11-24,CUST004,Gaming Headset,Electronics,1,179.99
+2024-11-24,CUST005,Foam Roller,Sports,1,39.99
+2024-11-25,CUST006,Hand Cream,Health,3,19.99
+2024-11-25,CUST007,Stand Mixer,Appliances,1,399.99
+2024-11-26,CUST008,USB Hub,Electronics,1,29.99
+2024-11-26,CUST009,Wall Art,Home,2,49.99
+2024-11-27,CUST010,Slow Cooker,Appliances,1,159.99
+2024-11-27,CUST001,Fitness Mat,Sports,1,29.99
+2024-11-28,CUST002,Face Mask,Health,5,14.99
+2024-11-28,CUST003,Air Purifier,Home,1,199.99
+2024-11-29,CUST004,Mechanical Keyboard,Electronics,1,149.99
+2024-11-29,CUST005,Kettlebell,Sports,1,79.99
+2024-11-30,CUST006,Sleep Mask,Health,2,24.99
+2024-11-30,CUST007,Espresso Machine,Appliances,1,599.99

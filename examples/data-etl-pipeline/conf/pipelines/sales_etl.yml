@@ -1,0 +1,35 @@
+params:
+  #validation_report:
+  #  min_price: 0
+  #  max_price: 10000
+  #  required_columns: ["date", "product", "price", "quantity", "customer"]
+  #sales_summary:
+  #  group_by: ["product", "customer"]
+  #  metrics: ["total_sales", "avg_price", "total_quantity"]
+run:
+  final_vars:
+    - clean_data
+    - sales_summary
+    - validation_report
+    - processed_file_path
+  inputs:
+    # Data source parameters
+    input_file: "data/sales_data.csv"
+    output_dir: "data/processed"
+    # Validation parameters
+    min_price: 0
+    max_price: 10000
+    required_columns: ["date", "product", "price", "quantity", "customer"]
+    # Aggregation parameters
+    group_by: ["product", "customer"]
+    metrics: ["total_sales", "avg_price", "total_quantity"]
+  config:
+    enable_validation: true
+    save_intermediate: true
+  executor:
+    type: threadpool
+    max_workers: 4
+
+schedule:
+  # Run daily at 6 AM
+  cron: "0 6 * * *"

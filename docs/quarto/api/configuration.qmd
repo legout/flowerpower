@@ -1,0 +1,161 @@
+---
+title: "Configuration"
+---
+
+# Configuration
+
+FlowerPower uses a hierarchical configuration system to manage project and pipeline settings. The main configuration classes are:
+
+-   [`Config`](#config)
+-   [`ProjectConfig`](#projectconfig)
+-   [`PipelineConfig`](#pipelineconfig)
+
+These classes are designed to be flexible and extensible, allowing you to manage your project's configuration in a clean and organized way.
+
+## Classes
+
+### Config
+**Module:** `flowerpower.cfg.Config`
+
+The `Config` class is the main configuration class that combines project and pipeline settings. It serves as the central configuration manager.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `pipeline` | `PipelineConfig` | A `PipelineConfig` object containing pipeline-specific settings. |
+| `project` | `ProjectConfig` | A `ProjectConfig` object containing project-level settings. |
+
+#### Example
+
+```python
+from flowerpower.cfg import Config
+
+# Load default configuration
+config = Config()
+
+# Access project and pipeline settings
+print(config.project.name)
+print(config.pipeline.name)
+```
+
+### ProjectConfig
+**Module:** `flowerpower.cfg.ProjectConfig`
+
+The `ProjectConfig` class manages project-level settings, including job queue and adapter configurations.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `name` | `str` | The name of the project. |
+| `job_queue` | `JobQueueConfig` | A `JobQueueConfig` object for the job queue settings. |
+| `adapter` | `AdapterConfig` | An `AdapterConfig` object for the project-level adapter settings. |
+
+#### Example
+
+```python
+from flowerpower.cfg import ProjectConfig
+
+# Load project configuration
+project_config = ProjectConfig()
+
+# Access project settings
+print(project_config.name)
+print(project_config.job_queue.type)
+```
+
+### PipelineConfig
+**Module:** `flowerpower.cfg.PipelineConfig`
+
+The `PipelineConfig` class manages pipeline-specific settings, including run settings, scheduling, parameters, and adapter configurations.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `name` | `str` | The name of the pipeline. |
+| `run` | `RunConfig` | A `RunConfig` object for pipeline execution settings. |
+| `schedule` | `ScheduleConfig` | A `ScheduleConfig` object for pipeline scheduling. |
+| `params` | `dict` | A dictionary of pipeline parameters. |
+| `adapter` | `AdapterConfig` | An `AdapterConfig` object for pipeline-specific adapter settings. |
+
+#### Example
+
+```python
+from flowerpower.cfg import PipelineConfig
+
+# Load pipeline configuration
+pipeline_config = PipelineConfig()
+
+# Access pipeline settings
+print(pipeline_config.name)
+print(pipeline_config.run.executor)
+```
+
+### ExecutorConfig
+**Module:** `flowerpower.cfg.ExecutorConfig`
+
+Defines the configuration for the pipeline executor (e.g., "local", "threadpool").
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `type` | `str` | The type of executor (e.g., "local", "threadpool"). |
+| `config` | `dict` | A dictionary of executor-specific configurations. |
+
+#### Example
+
+```python
+from flowerpower.cfg import ExecutorConfig
+
+# Create an ExecutorConfig
+executor_config = ExecutorConfig(type="threadpool", config={"max_workers": 4})
+print(executor_config.type)
+```
+
+### WithAdapterConfig
+**Module:** `flowerpower.cfg.WithAdapterConfig`
+
+Defines settings for using adapters during pipeline execution.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `adapter_name` | `str` | The name of the adapter. |
+| `enabled` | `bool` | Whether the adapter is enabled. |
+| `config` | `dict` | Adapter-specific configurations. |
+
+#### Example
+
+```python
+from flowerpower.cfg import WithAdapterConfig
+
+# Create a WithAdapterConfig
+adapter_config = WithAdapterConfig(adapter_name="opentelemetry", enabled=True)
+print(adapter_config.enabled)
+```
+
+### AdapterConfig
+**Module:** `flowerpower.cfg.AdapterConfig`
+
+A base class for adapter configurations, used for both project and pipeline-level settings.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `type` | `str` | The type of adapter. |
+| `config` | `dict` | A dictionary of adapter-specific configurations. |
+
+#### Example
+
+```python
+from flowerpower.cfg import AdapterConfig
+
+# Create an AdapterConfig
+adapter_config = AdapterConfig(type="tracker", config={"project_id": "abc"})
+print(adapter_config.type)
+```

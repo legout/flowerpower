@@ -7,6 +7,7 @@ from types import TracebackType
 from typing import Any, Callable
 
 import mmh3
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
@@ -16,9 +17,7 @@ from paho.mqtt.reasoncodes import ReasonCode
 from ...cfg import ProjectConfig
 from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ...cfg.project.adapter import AdapterConfig
-from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from ...pipeline.manager import PipelineManager
-from ...utils.callback import run_with_callback
 from ...utils.logging import setup_logging
 from .cfg import MqttConfig
 
@@ -132,8 +131,9 @@ class MqttManager:
             import os
 
             if fs is None:
-                fs = get_filesystem(
-                    path=os.path.dirname(path), storage_options=storage_options
+                fs = filesystem(
+                    protocol_or_path=os.path.dirname(path),
+                    storage_options=storage_options,
                 )
 
             cfg = MqttConfig.from_yaml(path=os.path.basename(path), fs=fs)
@@ -637,7 +637,7 @@ class MqttManager:
                 storage_options=storage_options, fs=fs, base_dir=base_dir
             ) as pipeline:
                 if as_job:
-                    res = pipeline.add_job(
+                    pipeline.add_job(
                         name=name,
                         inputs=inputs,
                         final_vars=final_vars,
@@ -664,7 +664,7 @@ class MqttManager:
                     )
 
                 else:
-                    res = pipeline.run(
+                    pipeline.run(
                         name=name,
                         inputs=inputs,
                         final_vars=final_vars,
