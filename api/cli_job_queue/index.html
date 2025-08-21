@@ -1,0 +1,3488 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://legout.github.io/flowerpower/api/cli_job_queue/">
+      
+      
+        <link rel="prev" href="../cli/">
+      
+      
+        <link rel="next" href="../cli_mqtt/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
+    
+    
+      
+        <title>Job Queue CLI - FlowerPower Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#flowerpower-job-queue" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="FlowerPower Documentation" class="md-header__button md-logo" aria-label="FlowerPower Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FlowerPower Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Job Queue CLI
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/legout/flowerpower" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    legout/flowerpower
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../examples/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Examples
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../advanced/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Advanced Usage
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="FlowerPower Documentation" class="md-nav__button md-logo" aria-label="FlowerPower Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FlowerPower Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/legout/flowerpower" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    legout/flowerpower
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Examples
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flowerpower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FlowerPower
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelinemanager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PipelineManager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../jobqueuemanager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    JobQueueManager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rqmanager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    RQManager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../init/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    init
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7_8" id="__nav_7_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    CLI
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_8">
+            <span class="md-nav__icon md-icon"></span>
+            CLI
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Job Queue CLI
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Job Queue CLI
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-start_worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      start_worker
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="start_worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-cancel_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      cancel_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cancel_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-cancel_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      cancel_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cancel_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-delete_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      delete_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="delete_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-delete_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      delete_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="delete_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_job_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_job_ids
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_job_ids">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_schedule_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_schedule_ids
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_schedule_ids">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-pause_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      pause_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="pause_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-resume_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      resume_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="resume_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_jobs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_jobs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_schedules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_schedules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-enqueue_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      enqueue_pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="enqueue_pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-schedule_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      schedule_pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="schedule_pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-run_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      run_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-list_schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      list_schedules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="list_schedules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_mqtt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MQTT CLI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Pipeline CLI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-start_worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      start_worker
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="start_worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-cancel_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      cancel_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cancel_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-cancel_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      cancel_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cancel_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-delete_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      delete_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="delete_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-delete_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      delete_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="delete_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_job_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_job_ids
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_job_ids">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_schedule_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_schedule_ids
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_schedule_ids">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-pause_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      pause_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="pause_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-resume_schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      resume_schedule
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="resume_schedule">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_jobs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_jobs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-show_schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_schedules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show_schedules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-enqueue_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      enqueue_pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="enqueue_pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-schedule_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      schedule_pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="schedule_pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-run_job" class="md-nav__link">
+    <span class="md-ellipsis">
+      run_job
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flowerpower-list_schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      list_schedules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="list_schedules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="flowerpower-job-queue">flowerpower job-queue Commands<a class="headerlink" href="#flowerpower-job-queue" title="Permanent link">&para;</a></h1>
+<p>This section details the commands available under <code>flowerpower job-queue</code>.</p>
+<h2 id="flowerpower-start_worker">start_worker<a class="headerlink" href="#flowerpower-start_worker" title="Permanent link">&para;</a></h2>
+<p>Start a worker or worker pool to process jobs.</p>
+<p>This command starts a worker process (or a pool of worker processes) that will
+execute jobs from the queue. The worker will continue running until stopped
+or can be run in the background.</p>
+<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start_worker<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments">Arguments<a class="headerlink" href="#arguments" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>background</td>
+<td>str</td>
+<td>Run the worker in the background</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>num_workers</td>
+<td>str</td>
+<td>Number of worker processes to start (pool mode)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1">1</a></span>
+<span class="normal"><a href="#__codelineno-1-2">2</a></span>
+<span class="normal"><a href="#__codelineno-1-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start-worker
+<a id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="c1"># Start a worker for a specific backend type</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1">1</a></span>
+<span class="normal"><a href="#__codelineno-2-2">2</a></span>
+<span class="normal"><a href="#__codelineno-2-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start-worker<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-2-2" name="__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="c1"># Start a worker pool with 4 processes</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1">1</a></span>
+<span class="normal"><a href="#__codelineno-3-2">2</a></span>
+<span class="normal"><a href="#__codelineno-3-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start-worker<span class="w"> </span>--num-workers<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="c1"># Run a worker in the background</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-4-1">1</a></span>
+<span class="normal"><a href="#__codelineno-4-2">2</a></span>
+<span class="normal"><a href="#__codelineno-4-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start-worker<span class="w"> </span>--background
+<a id="__codelineno-4-2" name="__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="c1"># Set a specific logging level</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-5-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>start-worker<span class="w"> </span>--log-level<span class="w"> </span>debug
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-cancel_job">cancel_job<a class="headerlink" href="#flowerpower-cancel_job" title="Permanent link">&para;</a></h2>
+<p>Cancel a job or multiple jobs in the queue.</p>
+<p>This command stops a job from executing (if it hasn't started yet) or signals
+it to stop (if already running). Canceling is different from deleting as it
+maintains the job history but prevents execution.</p>
+<h3 id="usage_1">Usage<a class="headerlink" href="#usage_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-6-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel_job<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_1">Arguments<a class="headerlink" href="#arguments_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>job_id</td>
+<td>str</td>
+<td>ID of the job to cancel (ignored if --all is used)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>Cancel all jobs instead of a specific one</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>queue_name</td>
+<td>str</td>
+<td>For RQ only, specifies the queue to cancel jobs from</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_1">Examples<a class="headerlink" href="#examples_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-7-1">1</a></span>
+<span class="normal"><a href="#__codelineno-7-2">2</a></span>
+<span class="normal"><a href="#__codelineno-7-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel-job<span class="w"> </span>job-123456
+<a id="__codelineno-7-2" name="__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3"></a><span class="c1"># Cancel all jobs in the default queue</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-8-1">1</a></span>
+<span class="normal"><a href="#__codelineno-8-2">2</a></span>
+<span class="normal"><a href="#__codelineno-8-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel-job<span class="w"> </span>--all<span class="w"> </span>dummy-id
+<a id="__codelineno-8-2" name="__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3"></a><span class="c1"># Cancel all jobs in a specific queue (RQ only)</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-9-1">1</a></span>
+<span class="normal"><a href="#__codelineno-9-2">2</a></span>
+<span class="normal"><a href="#__codelineno-9-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel-job<span class="w"> </span>--all<span class="w"> </span>dummy-id<span class="w"> </span>--queue-name<span class="w"> </span>high-priority
+<a id="__codelineno-9-2" name="__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3"></a><span class="c1"># Specify the backend type explicitly</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-10-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel-job<span class="w"> </span>job-123456<span class="w"> </span>--type<span class="w"> </span>rq
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-cancel_schedule">cancel_schedule<a class="headerlink" href="#flowerpower-cancel_schedule" title="Permanent link">&para;</a></h2>
+<p>Cancel a specific schedule.</p>
+<p>Note: This is different from deleting a schedule as it only stops it from running but keeps its configuration.</p>
+<h3 id="usage_2">Usage<a class="headerlink" href="#usage_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-11-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>cancel_schedule<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_2">Arguments<a class="headerlink" href="#arguments_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>schedule_id</td>
+<td>str</td>
+<td>ID of the schedule to cancel</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>If True, cancel all schedules</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of the job queue (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="flowerpower-delete_job">delete_job<a class="headerlink" href="#flowerpower-delete_job" title="Permanent link">&para;</a></h2>
+<p>Delete a specific job.</p>
+<h3 id="usage_3">Usage<a class="headerlink" href="#usage_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-12-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>delete_job<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_3">Arguments<a class="headerlink" href="#arguments_3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>job_id</td>
+<td>str</td>
+<td>ID of the job to delete</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>If True, delete all jobs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>queue_name</td>
+<td>str</td>
+<td>Name of the queue (RQ only). If provided and all is True, delete all jobs in the queue</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of the job queue (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="flowerpower-delete_schedule">delete_schedule<a class="headerlink" href="#flowerpower-delete_schedule" title="Permanent link">&para;</a></h2>
+<p>Delete a specific schedule.</p>
+<h3 id="usage_4">Usage<a class="headerlink" href="#usage_4" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-13-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>delete_schedule<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_4">Arguments<a class="headerlink" href="#arguments_4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>schedule_id</td>
+<td>str</td>
+<td>ID of the schedule to delete</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>If True, delete all schedules</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of the job queue (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="flowerpower-show_job_ids">show_job_ids<a class="headerlink" href="#flowerpower-show_job_ids" title="Permanent link">&para;</a></h2>
+<p>Show all job IDs in the job queue.</p>
+<p>This command displays all job IDs currently in the system, helping you identify
+jobs for other operations like getting results, canceling, or deleting jobs.</p>
+<h3 id="usage_5">Usage<a class="headerlink" href="#usage_5" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-14-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show_job_ids<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_5">Arguments<a class="headerlink" href="#arguments_5" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_2">Examples<a class="headerlink" href="#examples_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-15-1">1</a></span>
+<span class="normal"><a href="#__codelineno-15-2">2</a></span>
+<span class="normal"><a href="#__codelineno-15-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-job-ids
+<a id="__codelineno-15-2" name="__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3"></a><span class="c1"># Show job IDs for a specific queue type</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-16-1">1</a></span>
+<span class="normal"><a href="#__codelineno-16-2">2</a></span>
+<span class="normal"><a href="#__codelineno-16-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-job-ids<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-16-2" name="__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3"></a><span class="c1"># Show job IDs with a custom scheduler configuration</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-17-1">1</a></span>
+<span class="normal"><a href="#__codelineno-17-2">2</a></span>
+<span class="normal"><a href="#__codelineno-17-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-job-ids<span class="w"> </span>--name<span class="w"> </span>my-scheduler
+<a id="__codelineno-17-2" name="__codelineno-17-2"></a>
+<a id="__codelineno-17-3" name="__codelineno-17-3"></a><span class="c1"># Show job IDs with debug logging</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-18-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-job-ids<span class="w"> </span>--log-level<span class="w"> </span>debug
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-show_schedule_ids">show_schedule_ids<a class="headerlink" href="#flowerpower-show_schedule_ids" title="Permanent link">&para;</a></h2>
+<p>Show all schedule IDs in the job queue.</p>
+<p>This command displays all schedule IDs currently in the system, helping you
+identify schedules for other operations like pausing, resuming, or deleting schedules.</p>
+<h3 id="usage_6">Usage<a class="headerlink" href="#usage_6" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-19-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show_schedule_ids<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_6">Arguments<a class="headerlink" href="#arguments_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_3">Examples<a class="headerlink" href="#examples_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-20-1">1</a></span>
+<span class="normal"><a href="#__codelineno-20-2">2</a></span>
+<span class="normal"><a href="#__codelineno-20-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedule-ids
+<a id="__codelineno-20-2" name="__codelineno-20-2"></a>
+<a id="__codelineno-20-3" name="__codelineno-20-3"></a><span class="c1"># Show schedule IDs for RQ</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-21-1">1</a></span>
+<span class="normal"><a href="#__codelineno-21-2">2</a></span>
+<span class="normal"><a href="#__codelineno-21-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedule-ids<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-21-2" name="__codelineno-21-2"></a>
+<a id="__codelineno-21-3" name="__codelineno-21-3"></a><span class="c1"># Show schedule IDs with a custom scheduler configuration</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-22-1">1</a></span>
+<span class="normal"><a href="#__codelineno-22-2">2</a></span>
+<span class="normal"><a href="#__codelineno-22-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedule-ids<span class="w"> </span>--name<span class="w"> </span>my-scheduler
+<a id="__codelineno-22-2" name="__codelineno-22-2"></a>
+<a id="__codelineno-22-3" name="__codelineno-22-3"></a><span class="c1"># Show schedule IDs with debug logging</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-23-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedule-ids<span class="w"> </span>--log-level<span class="w"> </span>debug
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-pause_schedule">pause_schedule<a class="headerlink" href="#flowerpower-pause_schedule" title="Permanent link">&para;</a></h2>
+<p>Pause a schedule or multiple schedules.</p>
+<p>This command temporarily stops a scheduled job from running while maintaining its
+configuration. Paused schedules can be resumed later. </p>
+<h3 id="usage_7">Usage<a class="headerlink" href="#usage_7" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-24-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>pause_schedule<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_7">Arguments<a class="headerlink" href="#arguments_7" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>schedule_id</td>
+<td>str</td>
+<td>ID of the schedule to pause (ignored if --all is used)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>Pause all schedules instead of a specific one</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_4">Examples<a class="headerlink" href="#examples_4" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-25-1">1</a></span>
+<span class="normal"><a href="#__codelineno-25-2">2</a></span>
+<span class="normal"><a href="#__codelineno-25-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>pause-schedule<span class="w"> </span>schedule-123456
+<a id="__codelineno-25-2" name="__codelineno-25-2"></a>
+<a id="__codelineno-25-3" name="__codelineno-25-3"></a><span class="c1"># Pause all schedules</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-26-1">1</a></span>
+<span class="normal"><a href="#__codelineno-26-2">2</a></span>
+<span class="normal"><a href="#__codelineno-26-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>pause-schedule<span class="w"> </span>--all<span class="w"> </span>dummy-id
+<a id="__codelineno-26-2" name="__codelineno-26-2"></a>
+<a id="__codelineno-26-3" name="__codelineno-26-3"></a><span class="c1"># Note: Schedule pausing is not supported for RQ workers</span>
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-resume_schedule">resume_schedule<a class="headerlink" href="#flowerpower-resume_schedule" title="Permanent link">&para;</a></h2>
+<p>Resume a paused schedule or multiple schedules.</p>
+<p>This command restarts previously paused schedules, allowing them to run again according
+to their original configuration. </p>
+<h3 id="usage_8">Usage<a class="headerlink" href="#usage_8" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-27-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>resume_schedule<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_8">Arguments<a class="headerlink" href="#arguments_8" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>schedule_id</td>
+<td>str</td>
+<td>ID of the schedule to resume (ignored if --all is used)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>all</td>
+<td>str</td>
+<td>Resume all schedules instead of a specific one</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_5">Examples<a class="headerlink" href="#examples_5" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-28-1">1</a></span>
+<span class="normal"><a href="#__codelineno-28-2">2</a></span>
+<span class="normal"><a href="#__codelineno-28-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>resume-schedule<span class="w"> </span>schedule-123456
+<a id="__codelineno-28-2" name="__codelineno-28-2"></a>
+<a id="__codelineno-28-3" name="__codelineno-28-3"></a><span class="c1"># Resume all schedules</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-29-1">1</a></span>
+<span class="normal"><a href="#__codelineno-29-2">2</a></span>
+<span class="normal"><a href="#__codelineno-29-3">3</a></span>
+<span class="normal"><a href="#__codelineno-29-4">4</a></span>
+<span class="normal"><a href="#__codelineno-29-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>resume-schedule<span class="w"> </span>--all<span class="w"> </span>dummy-id
+<a id="__codelineno-29-2" name="__codelineno-29-2"></a>
+<a id="__codelineno-29-3" name="__codelineno-29-3"></a><span class="c1"># Note: Schedule resuming is not supported for RQ workers</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4"></a>
+<a id="__codelineno-29-5" name="__codelineno-29-5"></a><span class="c1"># Set a specific logging level</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-30-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>resume-schedule<span class="w"> </span>schedule-123456<span class="w"> </span>--log-level<span class="w"> </span>debug
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-show_jobs">show_jobs<a class="headerlink" href="#flowerpower-show_jobs" title="Permanent link">&para;</a></h2>
+<p>Display detailed information about all jobs in the queue.</p>
+<p>This command shows comprehensive information about jobs including their status,
+creation time, execution time, and other details in a user-friendly format.</p>
+<h3 id="usage_9">Usage<a class="headerlink" href="#usage_9" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-31-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show_jobs<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_9">Arguments<a class="headerlink" href="#arguments_9" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>queue_name</td>
+<td>str</td>
+<td>Name of the queue to show jobs from (RQ only)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>format</td>
+<td>str</td>
+<td>Output format for the job information</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_6">Examples<a class="headerlink" href="#examples_6" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-32-1">1</a></span>
+<span class="normal"><a href="#__codelineno-32-2">2</a></span>
+<span class="normal"><a href="#__codelineno-32-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-jobs
+<a id="__codelineno-32-2" name="__codelineno-32-2"></a>
+<a id="__codelineno-32-3" name="__codelineno-32-3"></a><span class="c1"># Show jobs for a specific queue type</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-33-1">1</a></span>
+<span class="normal"><a href="#__codelineno-33-2">2</a></span>
+<span class="normal"><a href="#__codelineno-33-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-jobs<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-33-2" name="__codelineno-33-2"></a>
+<a id="__codelineno-33-3" name="__codelineno-33-3"></a><span class="c1"># Show jobs in a specific RQ queue</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-34-1">1</a></span>
+<span class="normal"><a href="#__codelineno-34-2">2</a></span>
+<span class="normal"><a href="#__codelineno-34-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-jobs<span class="w"> </span>--queue-name<span class="w"> </span>high-priority
+<a id="__codelineno-34-2" name="__codelineno-34-2"></a>
+<a id="__codelineno-34-3" name="__codelineno-34-3"></a><span class="c1"># Display jobs in JSON format</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-35-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-jobs<span class="w"> </span>--format<span class="w"> </span>json
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-show_schedules">show_schedules<a class="headerlink" href="#flowerpower-show_schedules" title="Permanent link">&para;</a></h2>
+<p>Display detailed information about all schedules.</p>
+<p>This command shows comprehensive information about scheduled jobs including their
+timing configuration, status, and other details in a user-friendly format.</p>
+<h3 id="usage_10">Usage<a class="headerlink" href="#usage_10" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-36-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show_schedules<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_10">Arguments<a class="headerlink" href="#arguments_10" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>format</td>
+<td>str</td>
+<td>Output format for the schedule information</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_7">Examples<a class="headerlink" href="#examples_7" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-37-1">1</a></span>
+<span class="normal"><a href="#__codelineno-37-2">2</a></span>
+<span class="normal"><a href="#__codelineno-37-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedules
+<a id="__codelineno-37-2" name="__codelineno-37-2"></a>
+<a id="__codelineno-37-3" name="__codelineno-37-3"></a><span class="c1"># Show schedules for RQ</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-38-1">1</a></span>
+<span class="normal"><a href="#__codelineno-38-2">2</a></span>
+<span class="normal"><a href="#__codelineno-38-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedules<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-38-2" name="__codelineno-38-2"></a>
+<a id="__codelineno-38-3" name="__codelineno-38-3"></a><span class="c1"># Display schedules in JSON format</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-39-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>show-schedules<span class="w"> </span>--format<span class="w"> </span>json
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-enqueue_pipeline">enqueue_pipeline<a class="headerlink" href="#flowerpower-enqueue_pipeline" title="Permanent link">&para;</a></h2>
+<p>Enqueue a pipeline for execution via the job queue.</p>
+<p>This command queues a pipeline for asynchronous execution using the configured
+job queue backend (RQ). The job can be executed immediately, after a delay,
+or at a specific time.</p>
+<h3 id="usage_11">Usage<a class="headerlink" href="#usage_11" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-40-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>enqueue_pipeline<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_11">Arguments<a class="headerlink" href="#arguments_11" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the pipeline to enqueue</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory containing pipelines and configurations</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>inputs</td>
+<td>str</td>
+<td>Input parameters for the pipeline</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>final_vars</td>
+<td>str</td>
+<td>Final variables to request from the pipeline</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Options for storage backends</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Set the logging level</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>run_in</td>
+<td>str</td>
+<td>Delay before execution (duration format like '5m', '1h', '30s')</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>run_at</td>
+<td>str</td>
+<td>Specific datetime for execution (ISO format)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_8">Examples<a class="headerlink" href="#examples_8" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-41-1">1</a></span>
+<span class="normal"><a href="#__codelineno-41-2">2</a></span>
+<span class="normal"><a href="#__codelineno-41-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>enqueue-pipeline<span class="w"> </span>my_pipeline
+<a id="__codelineno-41-2" name="__codelineno-41-2"></a>
+<a id="__codelineno-41-3" name="__codelineno-41-3"></a><span class="c1"># Enqueue with custom inputs</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-42-1">1</a></span>
+<span class="normal"><a href="#__codelineno-42-2">2</a></span>
+<span class="normal"><a href="#__codelineno-42-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>enqueue-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--inputs<span class="w"> </span><span class="s1">&#39;{&quot;data_path&quot;: &quot;data/file.csv&quot;}&#39;</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2"></a>
+<a id="__codelineno-42-3" name="__codelineno-42-3"></a><span class="c1"># Enqueue with delay</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-43-1">1</a></span>
+<span class="normal"><a href="#__codelineno-43-2">2</a></span>
+<span class="normal"><a href="#__codelineno-43-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>enqueue-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--run-in<span class="w"> </span><span class="s2">&quot;30m&quot;</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2"></a>
+<a id="__codelineno-43-3" name="__codelineno-43-3"></a><span class="c1"># Enqueue for specific time</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-44-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>enqueue-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--run-at<span class="w"> </span><span class="s2">&quot;2025-01-01T09:00:00&quot;</span>
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-schedule_pipeline">schedule_pipeline<a class="headerlink" href="#flowerpower-schedule_pipeline" title="Permanent link">&para;</a></h2>
+<p>Schedule a pipeline for recurring or future execution.</p>
+<p>This command sets up recurring or future execution of a pipeline using cron
+expressions or interval-based scheduling via the configured job queue backend.</p>
+<h3 id="usage_12">Usage<a class="headerlink" href="#usage_12" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-45-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>schedule_pipeline<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_12">Arguments<a class="headerlink" href="#arguments_12" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the pipeline to schedule</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory containing pipelines and configurations</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>cron</td>
+<td>str</td>
+<td>Cron expression for scheduling (e.g., '0 9 * * *' for 9 AM daily)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>interval</td>
+<td>str</td>
+<td>Interval for recurring execution (duration format)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>inputs</td>
+<td>str</td>
+<td>Input parameters for the pipeline</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>final_vars</td>
+<td>str</td>
+<td>Final variables to request from the pipeline</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Options for storage backends</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Set the logging level</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>schedule_id</td>
+<td>str</td>
+<td>Custom identifier for the schedule</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_9">Examples<a class="headerlink" href="#examples_9" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-46-1">1</a></span>
+<span class="normal"><a href="#__codelineno-46-2">2</a></span>
+<span class="normal"><a href="#__codelineno-46-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>schedule-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--cron<span class="w"> </span><span class="s2">&quot;0 9 * * *&quot;</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2"></a>
+<a id="__codelineno-46-3" name="__codelineno-46-3"></a><span class="c1"># Schedule every 30 minutes</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-47-1">1</a></span>
+<span class="normal"><a href="#__codelineno-47-2">2</a></span>
+<span class="normal"><a href="#__codelineno-47-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>schedule-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--interval<span class="w"> </span><span class="s2">&quot;30m&quot;</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2"></a>
+<a id="__codelineno-47-3" name="__codelineno-47-3"></a><span class="c1"># Schedule with custom inputs and ID</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-48-1">1</a></span>
+<span class="normal"><a href="#__codelineno-48-2">2</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>schedule-pipeline<span class="w"> </span>my_pipeline<span class="w"> </span>--cron<span class="w"> </span><span class="s2">&quot;0 0 * * *&quot;</span><span class="w"> </span><span class="se">\\</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2"></a>--inputs<span class="w"> </span><span class="s1">&#39;{&quot;env&quot;: &quot;prod&quot;}&#39;</span><span class="w"> </span>--schedule-id<span class="w"> </span><span class="s2">&quot;nightly-prod&quot;</span>
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-run_job">run_job<a class="headerlink" href="#flowerpower-run_job" title="Permanent link">&para;</a></h2>
+<p>Execute a specific job by its ID.</p>
+<p>This command runs a job that has been previously enqueued in the job queue.
+The job will be executed immediately regardless of its original schedule.</p>
+<h3 id="usage_13">Usage<a class="headerlink" href="#usage_13" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-49-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>run_job<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_13">Arguments<a class="headerlink" href="#arguments_13" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>job_id</td>
+<td>str</td>
+<td>ID of the job to run</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_10">Examples<a class="headerlink" href="#examples_10" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-50-1">1</a></span>
+<span class="normal"><a href="#__codelineno-50-2">2</a></span>
+<span class="normal"><a href="#__codelineno-50-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>run-job<span class="w"> </span>job-123456
+<a id="__codelineno-50-2" name="__codelineno-50-2"></a>
+<a id="__codelineno-50-3" name="__codelineno-50-3"></a><span class="c1"># Run a job with a specific backend type</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-51-1">1</a></span>
+<span class="normal"><a href="#__codelineno-51-2">2</a></span>
+<span class="normal"><a href="#__codelineno-51-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>run-job<span class="w"> </span>job-123456<span class="w"> </span>--type<span class="w"> </span>rq
+<a id="__codelineno-51-2" name="__codelineno-51-2"></a>
+<a id="__codelineno-51-3" name="__codelineno-51-3"></a><span class="c1"># Run a job with debug logging</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-52-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>run-job<span class="w"> </span>job-123456<span class="w"> </span>--log-level<span class="w"> </span>debug
+</code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="flowerpower-list_schedules">list_schedules<a class="headerlink" href="#flowerpower-list_schedules" title="Permanent link">&para;</a></h2>
+<p>List all schedules with detailed status information.</p>
+<p>This command provides enhanced schedule listing showing trigger configuration,
+status, next run time, and execution history. This is an enhanced version of
+show-schedules with more detailed information.</p>
+<h3 id="usage_14">Usage<a class="headerlink" href="#usage_14" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-53-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1"></a>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>list_schedules<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="arguments_14">Arguments<a class="headerlink" href="#arguments_14" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>str</td>
+<td>Type of job queue backend (rq)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>name</td>
+<td>str</td>
+<td>Name of the scheduler configuration to use</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>base_dir</td>
+<td>str</td>
+<td>Base directory for the scheduler configuration</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>storage_options</td>
+<td>str</td>
+<td>Storage options as JSON or key=value pairs</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>log_level</td>
+<td>str</td>
+<td>Logging level (debug, info, warning, error, critical)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>format</td>
+<td>str</td>
+<td>Output format for the schedule information</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>show_status</td>
+<td>str</td>
+<td>Include schedule status information</td>
+<td>Required</td>
+</tr>
+<tr>
+<td>show_next_run</td>
+<td>str</td>
+<td>Include next execution time information</td>
+<td>Required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_11">Examples<a class="headerlink" href="#examples_11" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-54-1">1</a></span>
+<span class="normal"><a href="#__codelineno-54-2">2</a></span>
+<span class="normal"><a href="#__codelineno-54-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>list-schedules
+<a id="__codelineno-54-2" name="__codelineno-54-2"></a>
+<a id="__codelineno-54-3" name="__codelineno-54-3"></a><span class="c1"># List schedules in JSON format</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-55-1">1</a></span>
+<span class="normal"><a href="#__codelineno-55-2">2</a></span>
+<span class="normal"><a href="#__codelineno-55-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>list-schedules<span class="w"> </span>--format<span class="w"> </span>json
+<a id="__codelineno-55-2" name="__codelineno-55-2"></a>
+<a id="__codelineno-55-3" name="__codelineno-55-3"></a><span class="c1"># List schedules without status information</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-56-1">1</a></span>
+<span class="normal"><a href="#__codelineno-56-2">2</a></span>
+<span class="normal"><a href="#__codelineno-56-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>list-schedules<span class="w"> </span>--no-show-status
+<a id="__codelineno-56-2" name="__codelineno-56-2"></a>
+<a id="__codelineno-56-3" name="__codelineno-56-3"></a><span class="c1"># List schedules for a specific backend</span>
+</code></pre></div></td></tr></table></div>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-57-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1"></a>$<span class="w"> </span>flowerpower<span class="w"> </span>job-queue<span class="w"> </span>list-schedules<span class="w"> </span>--type<span class="w"> </span>rq
+</code></pre></div></td></tr></table></div>
+<hr />
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 FlowerPower
+    </div>
+  
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/legout/flowerpower" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.instant", "navigation.tracking", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js"></script>
+      
+        <script src="../../javascripts/mermaid.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>
