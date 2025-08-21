@@ -7,13 +7,14 @@ Manages the import and export of pipelines.
 
 import posixpath
 
+# Import necessary config types and utility functions
+# from ..fs.base import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
+#                       get_filesystem)
+from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
+                          DirFileSystem, get_filesystem)
 from loguru import logger
 from rich.console import Console
 
-# Import necessary config types and utility functions
-#from ..fs.base import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-#                       get_filesystem)
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, DirFileSystem, get_filesystem
 from ..settings import LOG_LEVEL
 from ..utils.logging import setup_logging
 from .registry import PipelineRegistry

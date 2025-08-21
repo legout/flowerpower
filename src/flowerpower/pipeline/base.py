@@ -3,12 +3,12 @@ import posixpath
 import sys
 from types import TracebackType
 
+# from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from loguru import logger
 from munch import Munch
 
 from ..cfg import PipelineConfig, ProjectConfig
-#from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..utils.logging import setup_logging
 
 setup_logging()

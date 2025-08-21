@@ -3,10 +3,10 @@ import posixpath  # Important for consistent path joining as used in registry.py
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from fsspec_utils import AbstractFileSystem  # For type hinting mocks
 
 from flowerpower.cfg import PipelineConfig  # Actual config classes
 from flowerpower.cfg import ProjectConfig
-from fsspec_utils import AbstractFileSystem  # For type hinting mocks
 from flowerpower.pipeline.registry import HookType, PipelineRegistry
 from flowerpower.utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 

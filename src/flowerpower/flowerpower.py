@@ -5,6 +5,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 import rich
+# from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
+#                 get_filesystem)
+from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
+                          DirFileSystem, get_filesystem)
 from loguru import logger
 
 from . import settings
@@ -12,9 +16,6 @@ from .cfg import ProjectConfig
 from .cfg.pipeline import ExecutorConfig, WithAdapterConfig
 from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-#from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-#                 get_filesystem)
-from fsspec_utils import AbstractFileSystem, get_filesystem, DirFileSystem, BaseStorageOptions
 from .job_queue import JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging

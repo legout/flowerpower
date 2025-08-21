@@ -8,7 +8,6 @@ from typing import Any
 
 import msgspec
 
-
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
     from rich.progress import (BarColumn, Progress, TextColumn,

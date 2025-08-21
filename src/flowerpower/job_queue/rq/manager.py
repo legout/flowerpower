@@ -15,6 +15,8 @@ from typing import Any, Callable
 
 import duration_parser
 from cron_descriptor import get_description
+# from ...fs import AbstractFileSystem
+from fsspec_utils import AbstractFileSystem
 from humanize import precisedelta
 from loguru import logger
 from rq import Queue, Repeat, Retry
@@ -24,8 +26,6 @@ from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
-#from ...fs import AbstractFileSystem
-from fsspec_utils import AbstractFileSystem
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend

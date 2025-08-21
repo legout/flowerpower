@@ -9,8 +9,7 @@ import pyarrow as pa
 import pyarrow.dataset as pds
 from deltalake import DeltaTable
 from fsspec_utils import AbstractFileSystem
-
-#from ...fs.ext import path_to_glob
+# from ...fs.ext import path_to_glob
 from fsspec_utils.utils.misc import path_to_glob
 
 

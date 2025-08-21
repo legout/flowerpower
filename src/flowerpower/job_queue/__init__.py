@@ -1,12 +1,11 @@
 import importlib
 from typing import Any, Optional
 
+from fsspec_utils import AbstractFileSystem
 from loguru import logger
 
 from ..cfg.project import ProjectConfig
-from fsspec_utils import AbstractFileSystem
 from ..utils.logging import setup_logging
-
 
 if importlib.util.find_spec("rq"):
     from .rq import RQBackend, RQManager

@@ -1,10 +1,10 @@
 import msgspec
 import yaml
+# from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
-#from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .run import ExecutorConfig as ExecutorConfig

@@ -8,6 +8,8 @@ import sys
 from typing import TYPE_CHECKING, Any, Dict
 
 import rich
+# from ..fs import AbstractFileSystem, get_filesystem
+from fsspec_utils import AbstractFileSystem, get_filesystem
 from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
@@ -18,8 +20,6 @@ from rich.tree import Tree
 from .. import settings
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
-#from ..fs import AbstractFileSystem, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem
 from ..utils.logging import setup_logging
 # Assuming view_img might be used indirectly or needed later
 from ..utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,

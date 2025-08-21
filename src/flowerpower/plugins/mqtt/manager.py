@@ -7,6 +7,8 @@ from types import TracebackType
 from typing import Any, Callable
 
 import mmh3
+# from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
 from loguru import logger
 from munch import Munch
 from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
@@ -16,8 +18,6 @@ from paho.mqtt.reasoncodes import ReasonCode
 from ...cfg import ProjectConfig
 from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ...cfg.project.adapter import AdapterConfig
-#from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
 from .cfg import MqttConfig
