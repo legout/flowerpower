@@ -4,11 +4,10 @@ from typing import Any, Optional
 from loguru import logger
 
 from ..cfg.project import ProjectConfig
-from ..fs import AbstractFileSystem
+from fsspec_utils import AbstractFileSystem
 from ..utils.logging import setup_logging
 
-APSBackend = None
-APSManager = None
+
 if importlib.util.find_spec("rq"):
     from .rq import RQBackend, RQManager
 else:

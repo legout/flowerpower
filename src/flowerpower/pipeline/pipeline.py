@@ -48,7 +48,8 @@ else:
 
 if importlib.util.find_spec("ray"):
     import ray
-    from hamilton.plugins import h_ray
+    #from hamilton.plugins import h_ray
+    h_ray = None
 else:
     ray = None
     h_ray = None

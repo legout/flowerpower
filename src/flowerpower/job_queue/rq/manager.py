@@ -24,7 +24,8 @@ from rq.worker import Worker
 from rq.worker_pool import WorkerPool
 from rq_scheduler import Scheduler
 
-from ...fs import AbstractFileSystem
+#from ...fs import AbstractFileSystem
+from fsspec_utils import AbstractFileSystem
 from ...utils.logging import setup_logging
 from ..base import BaseJobQueueManager
 from .setup import RQBackend

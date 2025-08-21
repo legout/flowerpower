@@ -13,19 +13,28 @@ import msgspec
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset as pds
-from fsspec import AbstractFileSystem
 from msgspec import field
 from pydala.dataset import ParquetDataset
 from sqlalchemy import create_engine, text
 
-from ...fs import get_filesystem
-from ...fs.ext import _dict_to_dataframe, path_to_glob
-from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
-                                   GcsStorageOptions, GitHubStorageOptions,
-                                   GitLabStorageOptions, StorageOptions)
-from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
-from .helpers.polars import pl
-from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
+#from ...fs import get_filesystem
+#from ...fs.ext import _dict_to_dataframe, path_to_glob
+# from ...fs.storage_options import (AwsStorageOptions, AzureStorageOptions,
+#                                    GcsStorageOptions, GitHubStorageOptions,
+#                                    GitLabStorageOptions, StorageOptions)
+from fsspec_utils import get_filesystem, AbstractFileSystem
+from fsspec_utils.utils.misc import path_to_glob
+from fsspec_utils.utils.types import dict_to_dataframe, to_pyarrow_table
+from fsspec_utils.utils.pyarrow import convert_large_types_to_normal
+from fsspec_utils.storage_options import (AwsStorageOptions, AzureStorageOptions,
+                                          GcsStorageOptions, GitHubStorageOptions,
+                                          GitLabStorageOptions, StorageOptions)
+#from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
+
+#from .helpers.polars import pl
+#from .helpers.sql import sql2polars_filter, sql2pyarrow_filter
+from fsspec_utils.utils.polars import pl
+from fsspec_utils.utils.sql import sql2polars_filter, sql2pyarrow_filter
 from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 
 
@@ -1646,9 +1655,9 @@ class BaseFileWriter(BaseFileIO, gc=False):
         """
         if isinstance(data, list):
             if isinstance(data[0], dict):
-                data = _dict_to_dataframe(data)
+                data = dict_to_dataframe(data)
         if isinstance(data, dict):
-            data = _dict_to_dataframe(data)
+            data = dict_to_dataframe(data)
 
         self._metadata = get_dataframe_metadata(
             df=data, path=self.path, format=self.format
@@ -1800,9 +1809,9 @@ class BaseDatasetWriter(BaseFileWriter, gc=False):
 
         if isinstance(data, list):
             if isinstance(data[0], dict):
-                data = _dict_to_dataframe(data)
+                data = dict_to_dataframe(data)
         if isinstance(data, dict):
-            data = _dict_to_dataframe(data)
+            data = dict_to_dataframe(data)
 
         self._metadata = get_dataframe_metadata(
             df=data, path=self.path, format=self.format
@@ -2337,7 +2346,7 @@ class BaseDatabaseReader(BaseDatabaseIO, gc=False):
                         **kwargs,
                     )
                 ).to_arrow()
-                self._data = data.cast(convert_large_types_to_standard(data.schema))
+                self._data = data.cast(convert_large_types_to_normal(data.schema))
 
         self._metadata = get_dataframe_metadata(
             self._data, path=self.connection_string, format=self.type_

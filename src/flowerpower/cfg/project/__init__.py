@@ -1,6 +1,7 @@
 import msgspec
 
-from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+#from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .job_queue import JobQueueConfig

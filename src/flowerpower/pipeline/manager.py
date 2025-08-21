@@ -21,7 +21,8 @@ from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+#from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
 from .registry import HookType, PipelineRegistry

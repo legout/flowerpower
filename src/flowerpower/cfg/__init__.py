@@ -3,7 +3,8 @@ from pathlib import Path
 import msgspec
 from munch import Munch
 
-from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+#from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config

@@ -16,7 +16,8 @@ from paho.mqtt.reasoncodes import ReasonCode
 from ...cfg import ProjectConfig
 from ...cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
 from ...cfg.project.adapter import AdapterConfig
-from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+#from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, get_filesystem, BaseStorageOptions
 from ...pipeline.manager import PipelineManager
 from ...utils.logging import setup_logging
 from .cfg import MqttConfig

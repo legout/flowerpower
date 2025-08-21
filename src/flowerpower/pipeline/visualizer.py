@@ -5,7 +5,7 @@ from rich import print
 
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
-from ..fs import AbstractFileSystem
+from fsspec_utils import AbstractFileSystem
 from ..utils.misc import view_img
 from .base import load_module  # Import module loading utility
 
