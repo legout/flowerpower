@@ -19,7 +19,6 @@ from .registry import PipelineRegistry
 # Import necessary config types and utility functions
 
 
-
 console = Console()
 
 setup_logging(level=LOG_LEVEL)
