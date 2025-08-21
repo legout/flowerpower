@@ -1,0 +1,78 @@
+site_name: FlowerPower Documentation
+site_url: https://your-domain.com/flowerpower-docs/ # Placeholder, update later
+repo_url: https://github.com/legout/flowerpower
+repo_name: legout/flowerpower
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.instant
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Architecture: architecture.md
+  - Examples: examples.md
+  - Advanced Usage: advanced.md
+  - API Reference:
+      - Overview: api/index.md
+      - FlowerPower: api/flowerpower.md
+      - PipelineManager: api/pipelinemanager.md
+      - JobQueueManager: api/jobqueuemanager.md
+      - RQManager: api/rqmanager.md
+      - Configuration: api/configuration.md
+      - init: api/init.md
+      - CLI:
+          - CLI: api/cli.md
+          - Job Queue CLI: api/cli_job_queue.md
+          - MQTT CLI: api/cli_mqtt.md
+          - Pipeline CLI: api/cli_pipeline.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+  - glightbox # For image lightboxes, if needed
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/legout/flowerpower
+  generator: false # Hide "Made with Material for MkDocs" footer
+  analytics:
+    provider: google # Example, configure later
+    property: G-XXXXXXXXXX # Example, configure later
+
+copyright: "Copyright &copy; 2025 FlowerPower"

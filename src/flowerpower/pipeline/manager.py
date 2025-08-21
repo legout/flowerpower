@@ -16,8 +16,7 @@ try:
 except ImportError:
     Digraph = Any  # Type alias for when graphviz isn't installed
 
-# from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from .. import settings
 from ..cfg import PipelineConfig, ProjectConfig
@@ -137,7 +136,7 @@ class PipelineManager:
             cached = False
             cache_storage = None
         if not fs:
-            fs = get_filesystem(
+            fs = filesystem(
                 self._base_dir,
                 storage_options=storage_options,
                 cached=cached,

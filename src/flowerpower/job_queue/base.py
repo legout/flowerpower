@@ -28,8 +28,7 @@ else:
 if TYPE_CHECKING:
     from ..pipeline.registry import PipelineRegistry
 
-# from ..fs import AbstractFileSystem, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem
+from fsspec_utils import AbstractFileSystem, filesystem
 
 from ..cfg import ProjectConfig
 # from ..utils.misc import update_config_from_dict
@@ -378,7 +377,7 @@ class BaseJobQueueManager:
             cached = False
             cache_storage = None
         if not fs:
-            fs = get_filesystem(
+            fs = filesystem(
                 self._base_dir,
                 storage_options=storage_options,
                 cached=cached,
@@ -487,7 +486,7 @@ class BaseJobQueueManager:
         """
         raise NotImplementedError("Subclasses must implement schedule_pipeline()")
 
-    def enqueue_pipeline_run(self, name: str, *args, **kwargs):
+    def enqueue_pipeline(self, name: str, *args, **kwargs):
         """Enqueue a pipeline for immediate execution using its name.
 
         This high-level method loads the pipeline from the internal registry and enqueues
@@ -504,7 +503,7 @@ class BaseJobQueueManager:
         Raises:
             NotImplementedError: Must be implemented by subclasses
         """
-        raise NotImplementedError("Subclasses must implement enqueue_pipeline_run()")
+        raise NotImplementedError("Subclasses must implement enqueue_pipeline()")
 
     # --- Core job queue methods ---
 

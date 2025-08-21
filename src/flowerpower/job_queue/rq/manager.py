@@ -177,6 +177,7 @@ class RQManager(BaseJobQueueManager):
         background: bool = False,
         queue_names: list[str] | None = None,
         with_scheduler: bool = True,
+        num_workers: int | None = None,
         **kwargs: Any,
     ) -> None:
         """Start a worker process for processing jobs from the queues.
@@ -188,6 +189,7 @@ class RQManager(BaseJobQueueManager):
                 queues defined in the backend configuration.
             with_scheduler: Whether to include the scheduler queue for processing
                 scheduled jobs.
+            num_workers: Number of worker processes to start (pool mode).
             **kwargs: Additional arguments passed to RQ's Worker class.
                 Example: {"burst": True, "logging_level": "INFO", "job_monitoring_interval": 30}
 
@@ -212,84 +214,92 @@ class RQManager(BaseJobQueueManager):
                 max_jobs=100,
                 job_monitoring_interval=30
             )
+            # Start a worker pool with 4 processes
+            worker.start_worker(
+                background=True,
+                num_workers=4
+            )
             ```
         """
-        import multiprocessing
+        if num_workers is not None and num_workers > 1:
+            self.start_worker_pool(num_workers=num_workers, background=background, queue_names=queue_names, with_scheduler=with_scheduler, **kwargs)
+        else:    
+            import multiprocessing
 
-        logging_level = kwargs.pop("logging_level", self._log_level)
-        burst = kwargs.pop("burst", False)
-        max_jobs = kwargs.pop("max_jobs", None)
-        # Determine which queues to process
-        if queue_names is None:
-            # Use all queues by default
-            queue_names = self._queue_names
-            queue_names_str = ", ".join(queue_names)
-        else:
-            # Filter to only include valid queue names
-            queue_names = [name for name in queue_names if name in self._queue_names]
-            queue_names_str = ", ".join(queue_names)
+            logging_level = kwargs.pop("logging_level", self._log_level)
+            burst = kwargs.pop("burst", False)
+            max_jobs = kwargs.pop("max_jobs", None)
+            # Determine which queues to process
+            if queue_names is None:
+                # Use all queues by default
+                queue_names = self._queue_names
+                queue_names_str = ", ".join(queue_names)
+            else:
+                # Filter to only include valid queue names
+                queue_names = [name for name in queue_names if name in self._queue_names]
+                queue_names_str = ", ".join(queue_names)
 
-        if not queue_names:
-            logger.error("No valid queues specified, cannot start worker")
-            return
+            if not queue_names:
+                logger.error("No valid queues specified, cannot start worker")
+                return
 
-        if with_scheduler:
-            # Add the scheduler queue to the list of queues
-            queue_names.append(self._scheduler_name)
-            queue_names_str = ", ".join(queue_names)
+            if with_scheduler:
+                # Add the scheduler queue to the list of queues
+                queue_names.append(self._scheduler_name)
+                queue_names_str = ", ".join(queue_names)
 
-        # Create a worker instance with queue names (not queue objects)
-        worker = Worker(queue_names, connection=self._backend.client, **kwargs)
+            # Create a worker instance with queue names (not queue objects)
+            worker = Worker(queue_names, connection=self._backend.client, **kwargs)
 
-        if background:
-            # We need to use a separate process rather than a thread because
-            # RQ's signal handler registration only works in the main thread
-            def run_worker_process(queue_names_arg):
-                # Import RQ inside the process to avoid connection sharing issues
-                from redis import Redis
-                from rq import Worker
+            if background:
+                # We need to use a separate process rather than a thread because
+                # RQ's signal handler registration only works in the main thread
+                def run_worker_process(queue_names_arg):
+                    # Import RQ inside the process to avoid connection sharing issues
+                    from redis import Redis
+                    from rq import Worker
 
-                # Create a fresh Redis connection in this process
-                redis_conn = Redis.from_url(self._backend.uri)
+                    # Create a fresh Redis connection in this process
+                    redis_conn = Redis.from_url(self._backend.uri)
 
-                # Create a worker instance with queue names
-                worker_proc = Worker(queue_names_arg, connection=redis_conn)
+                    # Create a worker instance with queue names
+                    worker_proc = Worker(queue_names_arg, connection=redis_conn)
 
-                # Disable the default signal handlers in RQ worker by patching
-                # the _install_signal_handlers method to do nothing
-                worker_proc._install_signal_handlers = lambda: None
+                    # Disable the default signal handlers in RQ worker by patching
+                    # the _install_signal_handlers method to do nothing
+                    worker_proc._install_signal_handlers = lambda: None
 
-                # Work until terminated
-                worker_proc.work(
+                    # Work until terminated
+                    worker_proc.work(
+                        with_scheduler=True,
+                        logging_level=logging_level,
+                        burst=burst,
+                        max_jobs=max_jobs,
+                    )
+
+                # Create and start the process
+                process = multiprocessing.Process(
+                    target=run_worker_process,
+                    args=(queue_names,),
+                    name=f"rq-worker-{self.name}",
+                )
+                # Don't use daemon=True to avoid the "daemonic processes are not allowed to have children" error
+                process.start()
+                self._worker_process = process
+                logger.info(
+                    f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
+                )
+            else:
+                # Start worker in the current process (blocking)
+                logger.info(
+                    f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
+                )
+                worker.work(
                     with_scheduler=True,
                     logging_level=logging_level,
                     burst=burst,
                     max_jobs=max_jobs,
                 )
-
-            # Create and start the process
-            process = multiprocessing.Process(
-                target=run_worker_process,
-                args=(queue_names,),
-                name=f"rq-worker-{self.name}",
-            )
-            # Don't use daemon=True to avoid the "daemonic processes are not allowed to have children" error
-            process.start()
-            self._worker_process = process
-            logger.info(
-                f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
-            )
-        else:
-            # Start worker in the current process (blocking)
-            logger.info(
-                f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
-            )
-            worker.work(
-                with_scheduler=True,
-                logging_level=logging_level,
-                burst=burst,
-                max_jobs=max_jobs,
-            )
 
     def stop_worker(self) -> None:
         """Stop the worker process.
@@ -306,14 +316,17 @@ class RQManager(BaseJobQueueManager):
                 worker.stop_worker()
             ```
         """
-        if hasattr(self, "_worker_process") and self._worker_process is not None:
-            if self._worker_process.is_alive():
-                self._worker_process.terminate()
-                self._worker_process.join(timeout=5)
-                logger.info("RQ worker process terminated")
-            self._worker_process = None
-        else:
-            logger.warning("No worker process to stop")
+        if hasattr(self, "_worker_pool"):
+            self.stop_worker_pool()
+        else:    
+            if hasattr(self, "_worker_process") and self._worker_process is not None:
+                if self._worker_process.is_alive():
+                    self._worker_process.terminate()
+                    self._worker_process.join(timeout=5)
+                    logger.info("RQ worker process terminated")
+                self._worker_process = None
+            else:
+                logger.warning("No worker process to stop")
 
     def start_worker_pool(
         self,
@@ -1796,7 +1809,7 @@ class RQManager(BaseJobQueueManager):
             func=pipeline_job, func_kwargs=pipeline_kwargs, **schedule_kwargs
         )
 
-    def enqueue_pipeline_run(self, name: str, project_context=None, *args, **kwargs):
+    def enqueue_pipeline(self, name: str, project_context=None, *args, **kwargs):
         """Enqueue a pipeline for immediate execution using its name.
 
         This high-level method loads the pipeline from the internal registry and enqueues
@@ -1814,7 +1827,7 @@ class RQManager(BaseJobQueueManager):
         Example:
             ```python
             manager = RQManager(base_dir="/path/to/project")
-            job_id = manager.enqueue_pipeline_run(
+            job_id = manager.enqueue_pipeline(
                 "my_pipeline",
                 inputs={"date": "2025-01-01"},
                 final_vars=["result"]

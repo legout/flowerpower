@@ -36,8 +36,8 @@ services:
   codeserver:
     image: lscr.io/linuxserver/code-server:latest
     container_name: codeserver
-    env_file:
-      - .env
+    #env_file:
+    #  - .env
     environment:
       - PUID=1000 # Use your user's ID (run `id -u` on VPS)
       - PGID=1000 # Use your user's group ID (run `id -g` on VPS)
@@ -75,7 +75,7 @@ services:
       - flowerpower-net
 
   # MQTT 
-  # When using APScheduler as the FlowerPower worker, MQTT can be used as a event broker
+ 
   # nanomq
   mqtt-nanomq:
     image: emqx/nanomq
@@ -92,19 +92,9 @@ services:
     ports:
      - 1883:1883
     command: mosquitto -c /mosquitto/config/mosquitto.conf
-  
-  #mqtt:
-  #  image: emqx/nanomq
-  #  ports:
-  #    - 1883:1883
-  #    - 8083:8083
-  #    - 8883:8883
     networks:
       - flowerpower-net
 
-  # Redis
-  # When using APScheduler as the FlowerPower worker, Redis can be used as a event broker
-  # When using RQ as the FlowerPower worker, Redis is used as the task queue
   # Redis
   redis:
     image: redis
@@ -117,7 +107,7 @@ services:
   valkey:
     image: valkey/valkey
     ports:
-     - 6379:6379
+     - 6380:6379
     networks:
       - flowerpower-net
 
@@ -127,12 +117,11 @@ services:
     ulimits:
       memlock: -1
     ports:
-     - 6379:6379
+     - 6381:6378
     networks:
       - flowerpower-net
 
   # MongoDB
-  # When using APScheduler as the FlowerPower worker, MongoDB can be used as a data store
   mongodb:
     image: mongo
     ports:
@@ -141,7 +130,6 @@ services:
       - flowerpower-net
 
   # PostgreSQL
-  # When using RQ as the FlowerPower worker, PostgreSQL can be used as a data store and event broker
   postgres:
     image: postgres
     environment:
@@ -150,6 +138,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
      - 5432:5432
+    networks:
+      - flowerpower-net
+
+  # NodeRed
+  nodered:
+    image: nodered/node-red
+    volumes:
+      - nodered_data:/data
+    ports:
+      - 1880:1880
     networks:
       - flowerpower-net
 
@@ -237,17 +235,6 @@ services:
     environment:
       - HOSTNAME=flowerpower.local
 
-  dockge:
-    image: louislam/dockge:latest
-    container_name: dockge
-    #ports:
-    #  - "5001:5001"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - dockge_data:/data
-    networks:
-      - flowerpower-net
-    restart: unless-stopped
 
   rq-exporter:
     container_name: rq-exporter
@@ -268,14 +255,14 @@ services:
       - flowerpower-net
     restart: unless-stopped
     
-  rq-dashboard:
-    image: eoranged/rq-dashboard
-    command: -u redis://:123456@redis:6379/0
-    ports:
-      - 9181:9181
-    networks:
-      - flowerpower-net
-    restart: unless-stopped
+  # rq-dashboard:
+  #   image: eoranged/rq-dashboard
+  #   command: -u redis://redis:6379/0
+  #   ports:
+  #     - 9181:9181
+  #   networks:
+  #     - flowerpower-net
+  #   restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.55.1

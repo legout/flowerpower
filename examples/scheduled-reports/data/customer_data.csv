@@ -1,0 +1,11 @@
+customer_id,name,email,signup_date,last_purchase,total_spent,purchase_count
+CUST001,John Smith,john.smith@email.com,2023-05-15,2024-11-27,1384.96,8
+CUST002,Sarah Johnson,sarah.j@email.com,2023-07-22,2024-11-28,569.94,6
+CUST003,Mike Davis,mike.davis@email.com,2023-09-10,2024-11-28,774.94,7
+CUST004,Emily Wilson,emily.w@email.com,2023-11-03,2024-11-29,439.95,5
+CUST005,David Brown,david.brown@email.com,2024-01-18,2024-11-29,909.96,6
+CUST006,Lisa Garcia,lisa.garcia@email.com,2024-02-25,2024-11-30,764.96,5
+CUST007,Alex Miller,alex.miller@email.com,2024-03-12,2024-11-30,1064.96,5
+CUST008,Jennifer Taylor,jen.taylor@email.com,2024-04-08,2024-11-26,488.94,5
+CUST009,Robert Anderson,rob.anderson@email.com,2024-05-20,2024-11-26,1084.96,4
+CUST010,Maria Rodriguez,maria.r@email.com,2024-06-14,2024-11-30,639.95,5

@@ -82,7 +82,7 @@ def start_worker(
         storage_options=parsed_storage_options,
         log_level=log_level,
     ) as worker:
-        if num_workers:
+        if not num_workers:
             num_workers = worker.cfg.num_workers
 
         if num_workers and num_workers > 1:

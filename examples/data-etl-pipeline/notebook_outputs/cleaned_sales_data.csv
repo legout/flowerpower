@@ -1,0 +1,21 @@
+date,product,price,quantity,customer,total_sales
+2024-01-15,Widget A,25.99,5,John Doe,129.95
+2024-01-15,Widget B,45.5,2,Jane Smith,91.0
+2024-01-16,Widget A,25.99,3,Bob Johnson,77.97
+2024-01-16,Widget C,75.0,1,Alice Brown,75.0
+2024-01-17,Widget B,45.5,4,John Doe,182.0
+2024-01-17,Widget A,25.99,2,Carol White,51.98
+2024-01-18,Widget C,75.0,2,Jane Smith,150.0
+2024-01-18,Widget B,45.5,1,David Lee,45.5
+2024-01-19,Widget A,25.99,6,Alice Brown,155.94
+2024-01-19,Widget C,75.0,1,Bob Johnson,75.0
+2024-01-20,Widget B,45.5,3,Carol White,136.5
+2024-01-20,Widget A,25.99,4,David Lee,103.96
+2024-01-21,Widget C,75.0,2,John Doe,150.0
+2024-01-21,Widget B,45.5,5,Jane Smith,227.5
+2024-01-22,Widget A,25.99,1,Alice Brown,25.99
+2024-01-22,Widget C,75.0,3,Bob Johnson,225.0
+2024-01-23,Widget B,45.5,2,Carol White,91.0
+2024-01-23,Widget A,25.99,7,David Lee,181.92999999999998
+2024-01-24,Widget C,75.0,1,John Doe,75.0
+2024-01-24,Widget B,45.5,4,Jane Smith,182.0

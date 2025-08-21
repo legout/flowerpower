@@ -8,8 +8,7 @@ import sys
 from typing import TYPE_CHECKING, Any, Dict
 
 import rich
-# from ..fs import AbstractFileSystem, get_filesystem
-from fsspec_utils import AbstractFileSystem, get_filesystem
+from fsspec_utils import AbstractFileSystem, filesystem
 from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
@@ -127,7 +126,7 @@ class PipelineRegistry:
         """
         # Create filesystem if not provided
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir,
                 storage_options=storage_options,
                 cached=storage_options is not None,

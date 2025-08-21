@@ -1,0 +1,29 @@
+params:
+  # Parameters are now provided as function inputs
+
+run:
+  inputs:
+    # Input configuration parameters
+    input_file: "data/sample_texts.txt"
+    encoding: "utf-8"
+    chunk_size: 1000  # characters per chunk
+    # Processing configuration parameters
+    operations:
+      - "word_count"
+      - "sentence_count" 
+      - "character_count"
+      - "extract_keywords"
+      - "analyze_sentiment"
+    filters:
+      min_words: 5
+      max_words: 10000
+      remove_stopwords: true
+    # Output configuration parameters
+    process_timestamp: "2024-11-30T12:00:00"
+    output_format: "json"
+    include_statistics: true
+    save_to_file: true
+  final_vars:
+    - text_analysis_results
+  executor:
+    type: synchronous

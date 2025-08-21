@@ -8,10 +8,9 @@ Manages the import and export of pipelines.
 import posixpath
 
 # Import necessary config types and utility functions
-# from ..fs.base import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-#                       get_filesystem)
+
 from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
-                          DirFileSystem, get_filesystem)
+                          DirFileSystem, filesystem)
 from loguru import logger
 from rich.console import Console
 
@@ -71,7 +70,7 @@ class PipelineIOManager:
 
         def _get_filesystem(base_dir, fs, storage_options):
             if fs is None:
-                fs = get_filesystem(base_dir, storage_options=storage_options)
+                fs = filesystem(base_dir, storage_options=storage_options)
             else:
                 if not isinstance(fs, AbstractFileSystem):
                     raise ValueError(

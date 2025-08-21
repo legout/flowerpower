@@ -1,8 +1,7 @@
 from pathlib import Path
 
 import msgspec
-# from ..fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from munch import Munch
 
 from .base import BaseConfig
@@ -78,7 +77,7 @@ class Config(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir, cached=True, dirfs=True, storage_options=storage_options
             )
         project = ProjectConfig.load(
@@ -124,7 +123,7 @@ class Config(BaseConfig):
             ```
         """
         if fs is None and self.fs is None:
-            self.fs = get_filesystem(
+            self.fs = filesystem(
                 self.base_dir, cached=True, dirfs=True, **storage_options
             )
 

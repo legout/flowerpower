@@ -1,0 +1,11 @@
+# Core FlowerPower dependencies
+flowerpower[rq]
+
+# Machine Learning
+scikit-learn>=1.3.0
+pandas>=1.5.0
+numpy>=1.21.0
+joblib>=1.2.0
+
+# Logging
+loguru>=0.6.0

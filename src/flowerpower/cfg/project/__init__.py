@@ -1,6 +1,5 @@
 import msgspec
-# from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ..base import BaseConfig
 from .adapter import AdapterConfig
@@ -72,7 +71,7 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir, cached=False, dirfs=True, storage_options=storage_options
             )
         if fs.exists("conf/project.yml"):
@@ -104,7 +103,7 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir, cached=True, dirfs=True, storage_options=storage_options
             )
 

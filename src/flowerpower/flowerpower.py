@@ -5,10 +5,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import rich
-# from .fs import (AbstractFileSystem, BaseStorageOptions, DirFileSystem,
-#                 get_filesystem)
 from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
-                          DirFileSystem, get_filesystem)
+                          DirFileSystem, filesystem)
 from loguru import logger
 
 from . import settings
@@ -207,7 +205,7 @@ class FlowerPowerProject:
         """Enqueue a pipeline for execution via the job queue.
 
         This is a convenience method that delegates to the job queue manager's
-        enqueue_pipeline_run method. It provides asynchronous pipeline execution.
+        enqueue_pipeline method. It provides asynchronous pipeline execution.
 
         Args:
             name: Name of the pipeline to enqueue
@@ -264,7 +262,7 @@ class FlowerPowerProject:
             )
 
         try:
-            return self.job_queue_manager.enqueue_pipeline_run(
+            return self.job_queue_manager.enqueue_pipeline(
                 name=name, project_context=self, *args, **kwargs
             )
         except Exception as e:
@@ -570,7 +568,7 @@ class FlowerPowerProject:
     @staticmethod
     def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):
         if fs is None:
-            fs = get_filesystem(base_dir, dirfs=True)
+            fs = filesystem(base_dir, dirfs=True)
         if isinstance(fs, DirFileSystem):
             if not fs.exists("."):
                 rich.print(
@@ -637,7 +635,7 @@ class FlowerPowerProject:
             cached = False
             cache_storage = None
         if not fs:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir,
                 storage_options=storage_options,
                 cached=cached,
@@ -713,8 +711,8 @@ class FlowerPowerProject:
             base_dir = posixpath.join(str(Path.cwd()), name)
 
         if fs is None:
-            fs = get_filesystem(
-                path=base_dir,
+            fs = filesystem(
+                protocol_or_path=base_dir,
                 dirfs=True,
                 storage_options=storage_options,
             )

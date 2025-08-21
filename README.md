@@ -13,19 +13,19 @@
 
 **FlowerPower** is a Python framework designed for building, configuring, scheduling, and executing data processing pipelines with ease and flexibility. It promotes a modular, configuration-driven approach, allowing you to focus on your pipeline logic while FlowerPower handles the orchestration.
 
-It is leveraging the [Hamilton](https://github.com/DAGWorks-Inc/hamilton) library for defining dataflows in a clean, functional way within your Python pipeline scripts. Pipelines are defined in Python modules and configured using YAML files, making it easy to manage and understand your data workflows.
-FlowerPower integrates with job queue systems like [RQ](https://github.com/rq/rq), enabling you to schedule and manage your pipeline runs efficiently. It also provides a web UI (Hamilton UI) for monitoring and managing your pipelines.
-FlowerPower is designed to be extensible, allowing you to easily swap components like job queue backends or add custom I/O plugins. This flexibility makes it suitable for a wide range of data processing tasks, from simple ETL jobs to complex data workflows.
+It leverages the [Hamilton](https://github.com/apache/hamilton) library for defining dataflows in a clean, functional way within your Python pipeline scripts. Pipelines are defined in Python modules and configured using YAML files, making it easy to manage and understand your data workflows.
+FlowerPower integrates with [RQ (Redis Queue)](https://github.com/rq/rq) for job queue management, enabling you to schedule and manage your pipeline runs efficiently. The framework features a clean separation between pipeline execution and job queue management, with a unified project interface that makes it easy to work with both synchronous and asynchronous execution modes. It also provides a web UI (Hamilton UI) for monitoring and managing your pipelines.
+FlowerPower is designed to be extensible, allowing you to easily add custom I/O plugins and adapt to different deployment scenarios. This flexibility makes it suitable for a wide range of data processing tasks, from simple ETL jobs to complex data workflows.
 
 
 ## ✨ Key Features
 
-*   **Modular Pipeline Design:** Thanks to [Hamilton](https://github.com/DAGWorks-Inc/hamilton), you can define your data processing logic in Python modules, using functions as nodes in a directed acyclic graph (DAG).
+*   **Modular Pipeline Design:** Thanks to [Hamilton](https://github.com/apache/hamilton), you can define your data processing logic in Python modules, using functions as nodes in a directed acyclic graph (DAG).
 *   **Configuration-Driven:** Define pipeline parameters, execution logic, and scheduling declaratively using simple YAML files.
-*   **Job Queue Integration:** Built-in support for asynchronous execution:
-    *   **RQ (Redis Queue):** For distributed task queues and time-based scheduling.
+*   **Job Queue Integration:** Built-in support for asynchronous execution with **RQ (Redis Queue)** for distributed task queues, background processing, and time-based scheduling.
 *   **Extensible I/O Plugins:** Connect to various data sources and destinations (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, MQTT, SQLite, and more).
-*   **Multiple Interfaces:** Interact with your pipelines via:
+*   **Unified Project Interface:** Interact with your pipelines via:
+    *   **FlowerPowerProject API:** A unified interface for both synchronous and asynchronous pipeline execution, job queue management, and worker control.
     *   **Command Line Interface (CLI):** For running, managing, and inspecting pipelines.
     *   **Web UI:** A graphical interface for monitoring and managing pipelines and schedules. ([Hamilton UI](https://hamilton.dagworks.io/en/latest/hamilton-ui/ui/))
 *   **Filesystem Abstraction:** Simplified file handling with support for local and remote filesystems (e.g., S3, GCS).
@@ -43,9 +43,9 @@ source .venv/bin/activate # Or .\.venv\Scripts\activate on Windows
 uv pip install flowerpower
 
 # Optional: Install additional dependencies for specific features
-uv pip install flowerpower[rq] # Example for RQ
-uv pip install flowerpower[io] # Example for I/O plugins (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite)
-uv pip install flowerpower[ui] # Example for Hamilton UI
+uv pip install flowerpower[rq] # For RQ job queue support
+uv pip install flowerpower[io] # For I/O plugins (CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite)
+uv pip install flowerpower[ui] # For Hamilton UI
 uv pip install flowerpower[all] # Install all optional dependencies
 ```
 
@@ -71,10 +71,13 @@ flowerpower init --name hello-flowerpower-project
 
 Alternatively, you can initialize programmatically:
 ```python
-from flowerpower import init_project
+from flowerpower import FlowerPowerProject
 
-# Creates the structure in the current directory
-init_project(name='hello-flowerpower-project', job_queue_type='rq')
+# Initialize a new project
+project = FlowerPowerProject.init(
+    name='hello-flowerpower-project',
+    job_queue_type='rq'
+)
 ```
 
 This will create a `hello-flowerpower-project` directory with the necessary `conf/` and `pipelines/` subdirectories and default configuration files.
@@ -95,7 +98,7 @@ cd hello-flowerpower-project
 
 **Configure Project (`conf/project.yml`):**
 
-Open `conf/project.yml` and define your project name and choose your job queue backend. Here's an example using RQ:
+Open `conf/project.yml` and define your project name and job queue backend. FlowerPower now uses RQ (Redis Queue) as its job queue system:
 
 ```yaml
 name: hello-flowerpower
@@ -125,12 +128,16 @@ flowerpower pipeline new hello_world
 
 **Using Python:**
 
-There is a `PipelineManager` class to manage pipelines programmatically:
+You can create pipelines programmatically using the FlowerPowerProject interface:
 
 ```python
-from flowerpower.pipeline import PipelineManager
-pm = PipelineManager(base_dir='.')
-pm.new(name='hello_world') # Creates a new pipeline
+from flowerpower import FlowerPowerProject
+
+# Load the project
+project = FlowerPowerProject.load('.')
+
+# Create a new pipeline
+project.pipeline_manager.new(name='hello_world')
 ```
 
 This will create a new file `hello_world.py` in the `pipelines/` directory and a corresponding configuration file `hello_world.yml` in `conf/pipelines/`.
@@ -197,7 +204,7 @@ Open `conf/pipelines/hello_world.yml` and specify parameters, run configurations
 params: # Parameters accessible in your Python code
   greeting_message:
     message: "Hello"
-  target:
+  target_name:
     name: "World"
 
 run: # How to execute the pipeline
@@ -230,28 +237,33 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
     ```
 *   **Via Python:**
     ```python
-    from flowerpower.pipeline import PipelineManager
-    pm = PipelineManager(base_dir='.')
-    pm.run('hello_world') # Execute the pipeline named 'hello_world'  
+    from flowerpower import FlowerPowerProject
+    
+    # Load the project
+    project = FlowerPowerProject.load('.')
+    
+    # Execute the pipeline synchronously
+    result = project.run('hello_world')
+    ```  
 
 #### 2. Asynchronous Execution (Job Queues):
 
-For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration. Ideal for distributed task queues where workers can pick up jobs. 
+For scheduling, background execution, or distributed processing, leverage FlowerPower's job queue integration with RQ (Redis Queue). This is ideal for distributed task queues where workers can pick up jobs. 
 
-You have to install the job queue backend. FlowerPower uses RQ (Redis Queue) as its job queue backend.
+First, install the RQ dependencies:
 ```bash
-# Install RQ (Redis Queue)
-uv pip install flowerpower[rq] # For RQ (Redis Queue)
+# Install RQ (Redis Queue) support
+uv pip install flowerpower[rq]
 ```
-*   **Note:** Ensure you have the required dependencies installed. For RQ, you need Redis running.
 
-**a) Configuring Job Queue Backends:** 
+*   **Note:** Ensure you have Redis running for RQ job queue functionality.
+
+**a) Configuring the RQ Job Queue Backend:** 
 
 Configuration of the job queue backend is done in your `conf/project.yml`. FlowerPower uses RQ (Redis Queue) as its job queue backend:
 
-*   **RQ (Redis Queue):**
-    *   **Requires:**
-        *   A **Redis server** running for job queuing and task coordination.
+*   **RQ (Redis Queue) Requirements:**
+    *   A **Redis server** running for job queuing and task coordination.
     *   Configure in `conf/project.yml`:
           ```yaml
           job_queue:
@@ -264,54 +276,45 @@ Configuration of the job queue backend is done in your `conf/project.yml`. Flowe
               # Optional: username, password for Redis auth
               username: your_username  # if needed
               password: your_password  # if needed
+              queues:
+                - default
+                - high
+                - low
           ```
     
-It is possible to override the job queue backend configuration using environment variables, the `settings` module or by monkey patching the backend configuration of the `PipelineManager` or `JobQueueManager` classes. This might be useful for testing or when you want to avoid hardcoding values in your configuration files.
+You can override the job queue backend configuration using environment variables, the `settings` module, or by modifying the configuration programmatically. This is useful for testing or when you want to avoid hardcoding values in your configuration files.
+
 *   **Using the `settings` module:**
-    e.g to override the RQ backend username and password:
+    Override RQ backend configuration:
     ```python
     from flowerpower import settings
     
-    # Override some configuration values. e.g. when using rq 
+    # Override RQ backend configuration
     settings.RQ_BACKEND_USERNAME = 'your_username'
     settings.RQ_BACKEND_PASSWORD = 'your_password'   
     ```
     See the `flowerpower/settings/job_queue.py` file for all available settings.
 
-*   **Monkey Patching:**
-    e.g to override the APScheduler data store username and password:
+*   **Programmatic Configuration:**
+    Modify configuration via the FlowerPowerProject:
     ```python
-    from flowerpower.pipeline import PipelineManager
+    from flowerpower import FlowerPowerProject
 
-    pm = PipelineManager(base_dir='.')
-    pm.project_cfg.job_queue.backend.username = 'your_username'
-    pm.project_cfg.job_queue.backend.password = 'your_password'
+    project = FlowerPowerProject.load('.')
+    project.job_queue_manager.cfg.backend.username = 'your_username'
+    project.job_queue_manager.cfg.backend.password = 'your_password'
     ```
+
 *  **Using Environment Variables:**
-    e.g. use a `.env` file or set them in your environment. Here is a list of the available environment variables for the job queue backend configuration:
+    Use a `.env` file or set them in your environment:
     ```
-    FP_JOB_QUEUE_TYPE
+    FP_JOB_QUEUE_TYPE=rq
 
     # RQ (Redis Queue) backend
-    FP_RQ_BACKEND
-    FP_RQ_BACKEND_USERNAME
-    FP_RQ_BACKEND_PASSWORD
-    FP_RQ_BACKEND_HOST
-    FP_RQ_BACKEND_PORT
-
-    # APScheduler data store
-    FP_APS_BACKEND_DS
-    FP_APS_BACKEND_DS_USERNAME
-    FP_APS_BACKEND_DS_PASSWORD
-    FP_APS_BACKEND_DS_HOST
-    FP_APS_BACKEND_DS_PORT
-
-    # APScheduler event broker
-    FP_APS_BACKEND_EB
-    FP_APS_BACKEND_EB_USERNAME
-    FP_APS_BACKEND_EB_PASSWORD
-    FP_APS_BACKEND_EB_HOST
-    FP_APS_BACKEND_EB_PORT
+    FP_RQ_BACKEND_USERNAME=your_username
+    FP_RQ_BACKEND_PASSWORD=your_password
+    FP_RQ_BACKEND_HOST=localhost
+    FP_RQ_BACKEND_PORT=6379
     ```
 
 
@@ -320,23 +323,25 @@ Run your pipeline using the job queue system. This allows you to schedule jobs, 
 
 *   **Via CLI:**
     ```bash
-    # This will run the pipeline immediately and return the job result (blocking, until the job is done)
-    flowerpower pipeline run-job hello_world --base_dir . 
-
     # Submit the pipeline to the job queue and return the job ID (non-blocking)
     flowerpower pipeline add-job hello_world --base_dir . 
+    
+    # Run the pipeline via job queue and wait for result (blocking)
+    flowerpower pipeline run-job hello_world --base_dir . 
     ```
 *   **Via Python:**
     
     ```python
-    from flowerpower.pipeline import PipelineManager
-    pm = PipelineManager(base_dir='.')
+    from flowerpower import FlowerPowerProject
+    
+    # Load the project
+    project = FlowerPowerProject.load('.')
 
-    # submit the pipeline to the job queue and return the job ID (non-blocking)
-    job_id = pm.add_job('hello_world') 
-
-    # submit the pipeline to the job queue, runs it immediately and returns the job ID (non-blocking)
-    result = pm.run_job('hello_world')
+    # Enqueue the pipeline for execution (non-blocking)
+    job_id = project.enqueue('hello_world')
+    
+    # Schedule the pipeline for future/recurring execution
+    schedule_id = project.schedule('hello_world', cron="0 9 * * *")  # Daily at 9 AM
     ```
 
 These commands will add the pipeline to the job queue, allowing it to be executed in the background or at scheduled intervals. The jobs will be processed by one or more workers, depending on your job queue configuration. You have to start the job queue workers separately.
@@ -352,10 +357,16 @@ To process jobs in the queue, you need to start one or more workers.
 
 *   **Via Python:**
     ```python
-    from flowerpower.job_queue import JobQueueManager
-    with JobQueueManager(base_dir='.'):
-        # Start the job queue worker
-        jqm.start_worker()
+    from flowerpower import FlowerPowerProject
+    
+    # Load the project
+    project = FlowerPowerProject.load('.')
+    
+    # Start a single worker (blocking)
+    project.start_worker()
+    
+    # Start a worker pool (multiple workers)
+    project.start_worker_pool(num_workers=4, background=True)
     ```
 
 
@@ -376,7 +387,7 @@ docker-compose up -d redis postgres # Example: Start Redis and PostgreSQL
 
 FlowerPower uses a layered configuration system:
 
-*   **`conf/project.yml`:** Defines global settings for your project, primarily the `job_queue` backend (RQ or APScheduler) and configurations for integrated `adapter`s (like Hamilton Tracker, MLflow, etc.).
+*   **`conf/project.yml`:** Defines global settings for your project, including the RQ job queue backend configuration and integrated `adapter`s (like Hamilton Tracker, MLflow, etc.).
 *   **`conf/pipelines/*.yml`:** Each file defines a specific pipeline. It contains:
     *   `params`: Input parameters for your Hamilton functions.
     *   `run`: Execution details like target outputs (`final_vars`), Hamilton runtime `config`, and `executor` settings.
@@ -385,8 +396,29 @@ FlowerPower uses a layered configuration system:
 
 ## 🛠️ Basic Usage
 
-The primary way to interact with pipelines is often through the CLI:
+You can interact with FlowerPower pipelines through multiple interfaces:
 
+**Python API (Recommended):**
+```python
+from flowerpower import FlowerPowerProject
+
+# Load the project
+project = FlowerPowerProject.load('.')
+
+# Run a pipeline synchronously
+result = project.run('hello_world')
+
+# Enqueue a pipeline for background execution
+job_id = project.enqueue('hello_world')
+
+# Schedule a pipeline
+schedule_id = project.schedule('hello_world', cron="0 9 * * *")
+
+# Start workers
+project.start_worker_pool(num_workers=4, background=True)
+```
+
+**CLI:**
 ```bash
 # Run a pipeline manually
 flowerpower pipeline run hello_world --base_dir .
@@ -395,12 +427,195 @@ flowerpower pipeline run hello_world --base_dir .
 flowerpower pipeline add-job hello_world --base_dir .
 
 # Schedule a pipeline
-flowerpower pipeline schedule hello_world --base_dir . # Schedules like cron, interval, or date are configured in the pipeline config
+flowerpower pipeline schedule hello_world --base_dir .
 
-# And many more commands...
-flowerpower --help # List all available commands
+# Start job queue worker
+flowerpower job-queue start-worker --base_dir .
 
+# List all available commands
+flowerpower --help
 ```
+
+## 🔧 Direct Module Usage
+
+While the unified `FlowerPowerProject` interface is recommended for most use cases, you can also use the pipeline and job queue modules directly for more granular control or when you only need specific functionality.
+
+### Pipeline-Only Usage
+
+If you only need pipeline execution without job queue functionality, you can use the `PipelineManager` directly:
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+# Initialize pipeline manager
+pm = PipelineManager(base_dir='.')
+
+# Create a new pipeline
+pm.new(name='my_pipeline')
+
+# Run a pipeline synchronously
+result = pm.run(
+    name='my_pipeline',
+    inputs={'param': 'value'},
+    final_vars=['output_var']
+)
+
+# List available pipelines
+pipelines = pm.list()
+print(f"Available pipelines: {pipelines}")
+
+# Get pipeline information
+info = pm.get('my_pipeline')
+print(f"Pipeline config: {info}")
+
+# Delete a pipeline
+pm.delete('old_pipeline')
+```
+
+**When to use Pipeline-only approach:**
+- Simple synchronous workflows
+- Testing and development
+- When you don't need background processing or scheduling
+- Lightweight applications with minimal dependencies
+
+### Job Queue-Only Usage
+
+If you need job queue functionality for general task processing (not necessarily pipelines), you can use the job queue managers directly:
+
+```python
+import datetime as dt
+from flowerpower.job_queue import JobQueueManager
+
+# Initialize job queue manager with RQ backend
+jqm = JobQueueManager(
+    type='rq',
+    name='my_worker',
+    base_dir='.'
+)
+
+# Define a simple task function
+def add_numbers(x: int, y: int) -> int:
+    """Simple task that adds two numbers."""
+    return x + y
+
+def process_data(data: dict) -> dict:
+    """More complex task that processes data."""
+    result = {
+        'processed': True,
+        'count': len(data.get('items', [])),
+        'timestamp': str(dt.datetime.now())
+    }
+    return result
+
+# Enqueue jobs for immediate execution
+job1 = jqm.enqueue(add_numbers, 5, 10)
+job2 = jqm.enqueue(process_data, {'items': [1, 2, 3, 4, 5]})
+
+# Enqueue jobs with delays
+job3 = jqm.enqueue_in(300, add_numbers, 20, 30)  # Run in 5 minutes
+job4 = jqm.enqueue_at(dt.datetime(2025, 1, 1, 9, 0), process_data, {'items': []})
+
+# Schedule recurring jobs
+schedule_id = jqm.add_schedule(
+    func=process_data,
+    func_kwargs={'data': {'items': []}},
+    cron="0 */6 * * *",  # Every 6 hours
+    schedule_id="data_processing_job"
+)
+
+# Start a worker to process jobs (blocking)
+jqm.start_worker()
+
+# Or start multiple workers in background
+jqm.start_worker_pool(num_workers=4, background=True)
+
+# Get job results
+result1 = jqm.get_job_result(job1)
+print(f"Addition result: {result1}")
+
+# Clean up
+jqm.stop_worker_pool()
+```
+
+**Alternatively, use RQManager directly for more RQ-specific features:**
+
+```python
+from flowerpower.job_queue.rq import RQManager
+
+# Initialize RQ manager with custom configuration
+rq_manager = RQManager(
+    name='specialized_worker',
+    base_dir='.',
+    log_level='DEBUG'
+)
+
+# Use RQ-specific features
+job = rq_manager.add_job(
+    func=add_numbers,
+    func_args=(100, 200),
+    queue_name='high_priority',
+    timeout=300,
+    retry=3,
+    result_ttl=3600
+)
+
+# Start worker for specific queues
+rq_manager.start_worker(
+    queue_names=['high_priority', 'default'],
+    background=True
+)
+
+# Monitor jobs and queues
+jobs = rq_manager.get_jobs()
+schedules = rq_manager.get_schedules()
+
+print(f"Active jobs: {len(jobs)}")
+print(f"Active schedules: {len(schedules)}")
+```
+
+**When to use Job Queue-only approach:**
+- General task processing and background jobs
+- When you need fine-grained control over job queue behavior
+- Microservices that only handle specific job types
+- Integration with existing RQ-based systems
+- When you don't need Hamilton-based pipeline functionality
+
+### Combining Both Approaches
+
+You can also combine both managers for custom workflows:
+
+```python
+from flowerpower.pipeline import PipelineManager
+from flowerpower.job_queue import JobQueueManager
+
+# Initialize both managers
+pm = PipelineManager(base_dir='.')
+jqm = JobQueueManager(type='rq', name='combined_worker', base_dir='.')
+
+# Create a custom function that runs a pipeline
+def run_pipeline_task(pipeline_name: str, inputs: dict = None):
+    """Custom task that executes a pipeline."""
+    result = pm.run(pipeline_name, inputs=inputs)
+    return result
+
+# Enqueue pipeline execution as a job
+job_id = jqm.enqueue(
+    run_pipeline_task,
+    'my_pipeline',
+    {'param': 'value'}
+)
+
+# Start worker to process the pipeline jobs
+jqm.start_worker()
+```
+
+**Benefits of FlowerPowerProject vs Direct Usage:**
+
+| Approach | Benefits | Use Cases |
+|----------|----------|-----------|
+| **FlowerPowerProject** | - Unified interface<br>- Automatic dependency injection<br>- Simplified configuration<br>- Best practices built-in | - Most applications<br>- Rapid development<br>- Full feature integration |
+| **Pipeline-only** | - Lightweight<br>- No Redis dependency<br>- Simple synchronous execution | - Testing<br>- Simple workflows<br>- No background processing needed |
+| **Job Queue-only** | - Fine-grained control<br>- Custom job types<br>- Existing RQ integration | - Microservices<br>- Custom task processing<br>- Non-pipeline jobs |
 
 ## 🖥️ UI
 
@@ -413,13 +628,7 @@ flowerpower ui
 
 ## 📖 Documentation
 
-There is not much documentation yet, but you can find some examples in the `examples/` directory. The examples cover various use cases, including:
-*   Basic pipeline creation and execution.
-*   Using different job queue backends (RQ and APScheduler).
-*   Configuring and scheduling pipelines.
 
-
-There is a first version of documentation in `docs/`. This documentation is generated using [Pocket Flow Tutorial Project](https://github.com/The-Pocket/PocketFlow-Tutorial-Codebase-Knowledge). Although it is not complete and might be wrong in some parts, it can be a good starting point for understanding how to use FlowerPower.
 
 
 ## 📜 License

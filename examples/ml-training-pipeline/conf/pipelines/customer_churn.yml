@@ -1,0 +1,44 @@
+params:
+  # Parameters are now provided as function inputs
+
+run:
+  final_vars:
+    - trained_model
+    - model_evaluation
+    - feature_importance
+    - model_artifacts
+  inputs:
+    # Data source parameters
+    input_file: "data/customer_data.csv"
+    target_column: "churn"
+    test_size: 0.2
+    random_state: 42
+    # Feature engineering parameters
+    categorical_columns: ["gender", "region", "subscription_type"]
+    numerical_columns: ["age", "monthly_spend", "total_spend", "support_calls"]
+    scale_features: true
+    # Model configuration parameters
+    algorithm: "random_forest"  # options: random_forest, logistic_regression, gradient_boosting
+    hyperparameters:
+      n_estimators: 100
+      max_depth: 10
+      min_samples_split: 2
+      random_state: 42
+    # Evaluation parameters
+    cv_folds: 5
+    scoring_metrics: ["accuracy", "precision", "recall", "f1", "roc_auc"]
+    # Model persistence parameters
+    model_dir: "models"
+    save_model: true
+    model_versioning: true
+  config:
+    environment: "development"  # development, staging, production
+    enable_feature_selection: true
+    cross_validation: true
+  executor:
+    type: threadpool
+    max_workers: 4
+
+schedule:
+  # Retrain model weekly on Sundays at 2 AM
+  cron: "0 2 * * 0"

@@ -1,0 +1,35 @@
+params:
+  # Parameters are now provided as function inputs
+
+run:
+  inputs:
+    # Data source parameters
+    sales_file: "data/sales_data.csv"
+    inventory_file: "data/inventory_data.csv"
+    customer_file: "data/customer_data.csv"
+    # Reporting period parameters
+    current_date: "2024-12-01"
+    start_date: "2024-01-01"
+    end_date: "2024-12-31"
+    report_frequency: "monthly"  # daily, weekly, monthly, quarterly
+    # Report configuration parameters
+    output_format: "html"  # html, pdf, excel
+    include_charts: true
+    chart_style: "plotly"  # plotly, matplotlib
+    output_dir: "reports"
+    # KPI threshold parameters
+    sales_target_monthly: 100000
+    low_inventory_threshold: 10
+    customer_retention_target: 0.85
+    # Notification parameters
+    enabled: true
+    alert_thresholds:
+      sales_below_target: true
+      low_inventory: true
+      poor_retention: true
+    email_recipients: ["business@company.com"]
+  final_vars:
+    - business_dashboard
+  executor:
+    type: threadpool
+    max_workers: 4

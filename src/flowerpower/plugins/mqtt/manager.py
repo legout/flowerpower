@@ -7,8 +7,7 @@ from types import TracebackType
 from typing import Any, Callable
 
 import mmh3
-# from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 from paho.mqtt.client import (MQTT_ERR_SUCCESS, CallbackAPIVersion, Client,
@@ -132,8 +131,8 @@ class MqttManager:
             import os
 
             if fs is None:
-                fs = get_filesystem(
-                    path=os.path.dirname(path), storage_options=storage_options
+                fs = filesystem(
+                    protocol_or_path=os.path.dirname(path), storage_options=storage_options
                 )
 
             cfg = MqttConfig.from_yaml(path=os.path.basename(path), fs=fs)

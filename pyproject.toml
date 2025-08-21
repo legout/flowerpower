@@ -16,15 +16,16 @@ keywords = [
 ]
 
 dependencies = [
-  'dill>=0.3.8',
+  #'dill>=0.3.8',
   'duration-parser>=1.0.1',
   'fsspec>=2024.10.0',
-  "fsspec-utils>=0.1.0",
+  'fsspec-utils>=0.1.0',
   'humanize>=4.12.2',
   'msgspec>=0.19.0',
   'munch>=4.0.0',
-  'orjson>=3.10.15',
-  'python-dotenv>=1.0.1',
+  #"openai>=1.100.2",
+  #'orjson>=3.10.15',
+  #'python-dotenv>=1.0.1',
   'pyyaml>=6.0.1',
   'rich>=13.9.3',
   's3fs>=2024.10.0',
@@ -42,12 +43,8 @@ dependencies = [
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-io = [
-  "flowerpower-io>=0.1.1",
-]
-io-legacy = [
-  "flowerpower-io[legacy]>=0.1.1",
-]
+io = ["flowerpower-io>=0.1.1"]
+io-legacy = ["flowerpower-io[legacy]>=0.1.1"]
 mongodb = ["pymongo>=4.7.2"]
 mqtt = ["paho-mqtt>=2.1.0", "orjson>=3.10.11", "mmh3>=5.1.0"]
 opentelemetry = [
@@ -76,5 +73,10 @@ dev-dependencies = [
   "marimo>=0.10.19",
   "pre-commit>=4.2.0",
   "rq-dashboard>=0.8.2.2",
+  "mkdocs>=1.6.1",
+  "mkdocs-material>=9.6.17",
+  "quarto>=0.1.0",
+  "mkdocs-glightbox>=0.4.0",
+  "mkdocs-mermaid2-plugin>=1.2.1",
 ]
 package = true

@@ -1,0 +1,13 @@
+# Core FlowerPower dependencies
+flowerpower[rq]
+
+# Data processing and visualization
+pandas>=2.0.0
+plotly>=5.15.0
+
+# Optional: For PDF report generation
+# weasyprint>=60.0
+
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0

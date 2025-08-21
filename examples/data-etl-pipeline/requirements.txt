@@ -1,0 +1,9 @@
+# Core FlowerPower dependencies
+flowerpower[rq]
+
+# Data processing
+pandas>=1.5.0
+numpy>=1.21.0
+
+# Logging
+loguru>=0.6.0

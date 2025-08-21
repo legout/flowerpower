@@ -133,13 +133,13 @@ class TestFlowerPowerProject(unittest.TestCase):
 
         # Mock the job queue manager's enqueue method
         expected_job_id = "job_123"
-        self.mock_job_queue_manager.enqueue_pipeline_run.return_value = expected_job_id
+        self.mock_job_queue_manager.enqueue_pipeline.return_value = expected_job_id
 
         # Call the project's enqueue method
         job_id = project.enqueue("test_pipeline", inputs={"x": 1, "y": 2})
 
         # Verify delegation
-        self.mock_job_queue_manager.enqueue_pipeline_run.assert_called_once_with(
+        self.mock_job_queue_manager.enqueue_pipeline.assert_called_once_with(
             name="test_pipeline", project_context=project, inputs={"x": 1, "y": 2}
         )
         self.assertEqual(job_id, expected_job_id)

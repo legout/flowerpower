@@ -1,7 +1,6 @@
 import msgspec
 import yaml
-# from ...fs import AbstractFileSystem, BaseStorageOptions, get_filesystem
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, get_filesystem
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 
@@ -169,7 +168,7 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir, cached=False, dirfs=True, storage_options=storage_options
             )
         if fs.exists("conf/pipelines"):
@@ -210,7 +209,7 @@ class PipelineConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = get_filesystem(
+            fs = filesystem(
                 base_dir, cached=True, dirfs=True, storage_options=storage_options
             )
 

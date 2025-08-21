@@ -1,0 +1,25 @@
+# API Reference
+
+This section provides a detailed reference for the FlowerPower API.
+
+## Core Components
+
+-   [FlowerPowerProject](./flowerpowerproject.qmd)
+-   [PipelineManager](./pipelinemanager.qmd)
+-   [JobQueueManager](./jobqueuemanager.qmd)
+-   [RQManager](./rqmanager.qmd)
+
+## Configuration
+
+-   [Configuration](./configuration.qmd)
+
+## Top-Level Functions
+
+-   [init](./init.qmd)
+
+## CLI Reference
+
+-   [CLI Overview](./cli.qmd)
+-   [CLI Pipeline Commands](./cli_pipeline.qmd)
+-   [CLI Job Queue Commands](./cli_job_queue.qmd)
+-   [CLI MQTT Commands](./cli_mqtt.qmd)
