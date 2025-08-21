@@ -40,7 +40,6 @@ from .metadata import get_dataframe_metadata, get_pyarrow_dataset_metadata
 # from ...utils.misc import convert_large_types_to_standard, to_pyarrow_table
 
 
-
 # @attrs.define # Removed
 class BaseFileIO(msgspec.Struct, gc=False):
     """
