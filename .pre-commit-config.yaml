@@ -1,14 +1,14 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.11.7  # Use the latest version
-    hooks:
-      - id: ruff-format
-        args: [--preview]
+  # - repo: https://github.com/charliermarsh/ruff-pre-commit
+  #   rev: v0.11.7  # Use the latest version
+  #   hooks:
+  #     - id: ruff-format
+  #       args: [--preview]
       
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.1  # Use the latest version
-    hooks:
-      - id: isort
+  # - repo: https://github.com/pycqa/isort
+  #   rev: 6.0.1  # Use the latest version
+  #   hooks:
+  #     - id: isort
   
   - repo: local
     hooks:
