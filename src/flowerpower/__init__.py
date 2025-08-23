@@ -18,5 +18,4 @@ __all__ = [
     "Config",
     "ProjectConfig",
     "PipelineConfig",
-    "PipelineConfig",
-]
+    ]

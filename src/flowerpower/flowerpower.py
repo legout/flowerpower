@@ -729,7 +729,7 @@ class FlowerPowerProject:
                 f"**created on**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
             )
         cfg.save(fs=fs)
-        os.chdir(posixpath.join(base_dir, name))
+        #os.chdir(posixpath.join(base_dir, name))
 
         rich.print(
             f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] "
