@@ -7,6 +7,7 @@ from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 
+from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
 
@@ -40,8 +41,8 @@ class BasePipeline:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions = {},
         fs: AbstractFileSystem | None = None,
-        cfg_dir: str = "conf",
-        pipelines_dir: str = "pipelines",
+        #cfg_dir: str = "conf",
+        #pipelines_dir: str = "pipelines",
         job_queue_type: str | None = None,  # New parameter for worker backend
     ):
         self._base_dir = base_dir
@@ -49,8 +50,8 @@ class BasePipeline:
         if fs is None:
             fs = filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
+        self._cfg_dir = CONFIG_DIR
+        self._pipelines_dir = PIPELINES_DIR
         self._job_queue_type = job_queue_type
 
         try:

@@ -4,7 +4,7 @@ import duration_parser
 import typer
 from loguru import logger
 
-from .. import settings
+from ..settings import LOG_LEVEL 
 from ..flowerpower import FlowerPowerProject
 from ..job_queue import JobQueueManager  # Adjust import as needed
 from ..utils.logging import setup_logging
@@ -13,7 +13,7 @@ from .utils import parse_dict_or_list_param
 # Create a Typer app for job queue management commands
 app = typer.Typer(help="Job queue management commands")
 
-setup_logging(level=settings.LOG_LEVEL)
+setup_logging(level=LOG_LEVEL)
 
 
 @app.command()

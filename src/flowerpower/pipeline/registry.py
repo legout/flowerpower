@@ -16,7 +16,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from .. import settings
+from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
@@ -47,7 +47,7 @@ class HookType(str, Enum):
         return self.value
 
 
-setup_logging(level=settings.LOG_LEVEL)
+setup_logging(level=LOG_LEVEL)
 
 
 class PipelineRegistry:
@@ -71,8 +71,8 @@ class PipelineRegistry:
         """
         self.project_cfg = project_cfg
         self._fs = fs
-        self._cfg_dir = settings.CONFIG_DIR
-        self._pipelines_dir = settings.PIPELINES_DIR
+        self._cfg_dir = CONFIG_DIR
+        self._pipelines_dir = PIPELINES_DIR
         self._base_dir = base_dir
         self._storage_options = storage_options or {}
         self._console = Console()
@@ -333,7 +333,7 @@ class PipelineRegistry:
 
         formatted_name = name.replace(".", "/").replace("-", "_")
         pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
-        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
+        cfg_file = posixpath.join(self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml")
 
         def check_and_handle(path: str):
             if self._fs.exists(path):
@@ -390,7 +390,7 @@ class PipelineRegistry:
         deleted_files = []
         if cfg:
             pipeline_cfg_path = posixpath.join(
-                self._cfg_dir, "pipelines", f"{name}.yml"
+                self._cfg_dir, PIPELINES_DIR, f"{name}.yml"
             )
             if self._fs.exists(pipeline_cfg_path):
                 self._fs.rm(pipeline_cfg_path)

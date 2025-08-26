@@ -1,6 +1,8 @@
 import msgspec
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+import posixpath
 
+from ...settings import CONFIG_DIR
 from ..base import BaseConfig
 from .adapter import AdapterConfig
 from .job_queue import JobQueueConfig
@@ -107,8 +109,8 @@ class ProjectConfig(BaseConfig):
                 base_dir, cached=True, dirfs=True, storage_options=storage_options
             )
 
-        fs.makedirs("conf", exist_ok=True)
-        self.to_yaml(path="conf/project.yml", fs=fs)
+        fs.makedirs(CONFIG_DIR, exist_ok=True)
+        self.to_yaml(path=posixpath.join(CONFIG_DIR, "project.yml"), fs=fs)
 
 
 def init_project_config(
