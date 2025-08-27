@@ -18,7 +18,7 @@ except ImportError:
 
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
-from ..settings import LOG_LEVEL, CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
+from ..settings import CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
@@ -28,7 +28,7 @@ from .io import PipelineIOManager
 from .registry import HookType, PipelineRegistry
 from .visualizer import PipelineVisualizer
 
-setup_logging(level=LOG_LEVEL)
+setup_logging()
 
 GraphType = TypeVar("GraphType")  # Type variable for graphviz.Digraph
 
@@ -491,6 +491,13 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
+        # Set up logging for this specific run if log_level is provided
+        if log_level is not None:
+            setup_logging(level=log_level)
+        else:
+            # Ensure logging is reset to default if no specific level is provided for this run
+            setup_logging()
+            
         # Use injected project context, fallback to self for backward compatibility
         project_context = getattr(self, "_project_context", self)
 
