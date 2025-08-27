@@ -60,14 +60,9 @@ def mock_pipeline_cfg_instance(mocker):
 @pytest.fixture
 def registry(mock_project_cfg, mock_fs):
     """Fixture for PipelineRegistry instance."""
-    # Define cfg_dir and pipelines_dir as they are passed to registry constructor
-    cfg_dir = "project/conf"
-    pipelines_dir = "project/pipelines"
     return PipelineRegistry(
         project_cfg=mock_project_cfg,
         fs=mock_fs,
-        cfg_dir=cfg_dir,
-        pipelines_dir=pipelines_dir,
     )
 
 
@@ -78,8 +73,8 @@ class TestPipelineRegistry:
     def test_initialization(self, registry, mock_project_cfg, mock_fs):
         assert registry.project_cfg == mock_project_cfg
         assert registry._fs == mock_fs
-        assert registry._cfg_dir == "project/conf"
-        assert registry._pipelines_dir == "project/pipelines"
+        assert registry._cfg_dir == "conf"
+        assert registry._pipelines_dir == "pipelines"
         assert registry._console is not None
 
     # --- Tests for new() method ---
@@ -95,7 +90,7 @@ class TestPipelineRegistry:
                 p.endswith(f"{formatted_name}.py")
                 or p.endswith(f"{formatted_name}.yml")
             )
-            if "project/" in p
+            if "conf/pipelines/" in p or "pipelines/" in p
             else True
         )  # Keep other paths (like base dirs) existing
 
@@ -142,7 +137,7 @@ class TestPipelineRegistry:
         )  # Make all paths appear non-existent
 
         with pytest.raises(
-            ValueError, match="Configuration path project/conf does not exist."
+            ValueError, match="Configuration path conf does not exist."
         ):
             registry.new("test_pipe")
 

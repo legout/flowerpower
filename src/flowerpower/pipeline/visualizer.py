@@ -25,8 +25,8 @@ class PipelineVisualizer:
         self._fs = fs
         # Attributes like fs and base_dir are accessed via self.project_cfg
 
-    def _display_all_function(self, name: str, reload: bool = False):
-        """Internal helper to load module/config and get the Hamilton DAG object.
+    def _get_dag_object(self, name: str, reload: bool = False):
+        """Get the Hamilton DAG object for a pipeline.
 
         Args:
             name (str): The name of the pipeline.
@@ -84,7 +84,7 @@ class PipelineVisualizer:
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
             >>> visualizer.save_dag(name="example_pipeline", format="png")
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._get_dag_object(name=name, reload=reload)
 
         # Use project_cfg attributes for path and filesystem access
         graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
@@ -133,7 +133,7 @@ class PipelineVisualizer:
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
             >>> visualizer.show_dag(name="example_pipeline", format="png")
         """
-        dag = self._display_all_function(name=name, reload=reload)
+        dag = self._get_dag_object(name=name, reload=reload)
         if raw:
             return dag
         # Use view_img utility to display the rendered graph

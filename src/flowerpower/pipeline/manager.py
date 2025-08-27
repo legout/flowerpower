@@ -162,9 +162,12 @@ class PipelineManager:
         try:
             self._fs.makedirs(self._cfg_dir, exist_ok=True)
             self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Error creating essential directories: {e}")
-            # Consider raising an error here depending on desired behavior
+            raise RuntimeError(f"Failed to create essential directories: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error creating essential directories: {e}")
+            raise RuntimeError(f"Unexpected filesystem error: {e}") from e
 
         # Ensure pipeline modules can be imported
         self._add_modules_path()

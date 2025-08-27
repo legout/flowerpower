@@ -4,7 +4,7 @@ import os
 import typer
 from loguru import logger
 
-from ..flowerpower import init as init_
+from ..flowerpower import FlowerPowerProject
 from .pipeline import app as pipeline_app
 from .utils import parse_dict_or_list_param
 
@@ -95,7 +95,7 @@ def init(
             raise typer.Exit(code=1)
 
     try:
-        init_(
+        FlowerPowerProject.init(
             name=project_name,
             base_dir=base_dir,
             storage_options=parsed_storage_options,

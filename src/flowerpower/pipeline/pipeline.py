@@ -151,6 +151,43 @@ class Pipeline(msgspec.Struct):
         cache = cache or self.config.run.cache or {}
 
         # Set up retry configuration
+        retry_config = self._setup_retry_config(
+            max_retries, retry_delay, jitter_factor, retry_exceptions
+        )
+        max_retries = retry_config["max_retries"]
+        retry_delay = retry_config["retry_delay"]
+        jitter_factor = retry_config["jitter_factor"]
+        retry_exceptions = retry_config["retry_exceptions"]
+
+        # Execute with retry logic
+        return self._execute_with_retry(
+            inputs=inputs,
+            final_vars=final_vars,
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+            log_level=log_level,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
+            start_time=start_time,
+            on_success=on_success,
+            on_failure=on_failure,
+        )
+
+    def _setup_retry_config(
+        self,
+        max_retries: int | None,
+        retry_delay: float | None,
+        jitter_factor: float | None,
+        retry_exceptions: tuple | None,
+    ) -> dict:
+        """Set up retry configuration with defaults and validation."""
         max_retries = max_retries or self.config.run.max_retries or 0
         retry_delay = retry_delay or self.config.run.retry_delay or 1.0
         jitter_factor = jitter_factor or self.config.run.jitter_factor or 0.1
@@ -186,7 +223,34 @@ class Pipeline(msgspec.Struct):
         elif not retry_exceptions:
             retry_exceptions = (Exception,)
 
-        # Execute with retry logic
+        return {
+            "max_retries": max_retries,
+            "retry_delay": retry_delay,
+            "jitter_factor": jitter_factor,
+            "retry_exceptions": retry_exceptions,
+        }
+
+    def _execute_with_retry(
+        self,
+        inputs: dict,
+        final_vars: list[str],
+        config: dict,
+        cache: dict,
+        executor_cfg: str | dict | ExecutorConfig | None,
+        with_adapter_cfg: dict | WithAdapterConfig | None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None,
+        adapter: dict[str, Any] | None,
+        log_level: str | None,
+        max_retries: int,
+        retry_delay: float,
+        jitter_factor: float,
+        retry_exceptions: tuple,
+        start_time: dt.datetime,
+        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None,
+        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None,
+    ) -> dict[str, Any]:
+        """Execute pipeline with retry logic."""
         for attempt in range(max_retries + 1):
             try:
                 logger.info(
@@ -255,6 +319,25 @@ class Pipeline(msgspec.Struct):
 
                 raise
 
+    def _setup_execution_context(
+        self,
+        executor_cfg: str | dict | ExecutorConfig | None,
+        with_adapter_cfg: dict | WithAdapterConfig | None,
+        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None,
+        project_adapter_cfg: dict | ProjectAdapterConfig | None,
+        adapter: dict[str, Any] | None,
+    ) -> tuple[executors.BaseExecutor, Callable | None, list]:
+        """Set up executor and adapters for pipeline execution."""
+        # Get executor and adapters
+        executor, shutdown_func = self._get_executor(executor_cfg)
+        adapters = self._get_adapters(
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+        )
+        return executor, shutdown_func, adapters
+
     def _execute_pipeline(
         self,
         inputs: dict,
@@ -269,9 +352,9 @@ class Pipeline(msgspec.Struct):
         log_level: str | None,
     ) -> dict[str, Any]:
         """Execute the pipeline with Hamilton."""
-        # Get executor and adapters
-        executor, shutdown_func = self._get_executor(executor_cfg)
-        adapters = self._get_adapters(
+        # Set up execution context
+        executor, shutdown_func, adapters = self._setup_execution_context(
+            executor_cfg=executor_cfg,
             with_adapter_cfg=with_adapter_cfg,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
@@ -566,6 +649,9 @@ class Pipeline(msgspec.Struct):
         try:
             importlib.reload(self.module)
             logger.debug(f"Reloaded module for pipeline '{self.name}'")
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.error(f"Failed to reload module for pipeline '{self.name}': {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error reloading module for pipeline '{self.name}': {e}")
             raise

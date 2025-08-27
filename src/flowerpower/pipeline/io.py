@@ -43,6 +43,41 @@ class PipelineIOManager:
         self._cfg_dir = registry._cfg_dir
         self._pipelines_dir = registry._pipelines_dir
 
+    def _get_pipeline_files(self, name: str) -> list[str]:
+        """Get the list of files for a single pipeline."""
+        return [
+            "conf/project.yml",
+            f"conf/pipelines/{name}.yml",
+            f"pipelines/{name}.py",
+        ]
+
+    def _get_many_pipeline_files(self, names: list[str]) -> list[str]:
+        """Get the list of files for multiple pipelines."""
+        files = ["conf/project.yml"]
+        for name in names:
+            files.extend([
+                f"conf/pipelines/{name}.yml",
+                f"pipelines/{name}.py",
+            ])
+        return files
+
+    def _get_all_pipeline_files(self) -> list[str] | None:
+        """Get all pipeline files (returns None to let _sync_filesystem auto-discover)."""
+        return None
+
+    def _print_import_success(self, names: list[str], src_base_dir: str) -> None:
+        """Print success message for import operations."""
+        console.print(
+            f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
+        )
+
+    def _print_export_success(self, names: list[str] | None, dest_base_dir: str) -> None:
+        """Print success message for export operations."""
+        if names:
+            self._print_export_success(names, dest_base_dir)
+        else:
+            self._print_export_success(None, dest_base_dir)
+
     def _sync_filesystem(
         self,
         src_base_dir: str,
@@ -156,12 +191,7 @@ class PipelineIOManager:
             pm.import_pipeline("my_pipeline", "/path/to/pipeline")
             ```
         """
-        files = [
-            "conf/project.yml",
-            f"conf/pipelines/{name}.yml",
-            f"pipelines/{name}.py",
-        ]
-
+        files = self._get_pipeline_files(name)
         self._sync_filesystem(
             src_base_dir=src_base_dir,
             src_fs=src_fs,
@@ -173,10 +203,7 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
 
-        # Use project_cfg.name directly
-        console.print(
-            f"✅ Imported pipeline [bold blue]{name}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
-        )
+        self._print_import_success([name], src_base_dir)
 
     def import_many(
         self,
@@ -210,15 +237,8 @@ class PipelineIOManager:
             ```
         """
 
-        files = ["conf/project.yml"]
+        files = self._get_many_pipeline_files(names)
 
-        for name in names:
-            files.extend([
-                f"conf/pipelines/{name}.yml",
-                f"pipelines/{name}.py",
-            ])
-
-        # Sync the filesystem
         self._sync_filesystem(
             src_base_dir=src_base_dir,
             src_fs=src_fs,
@@ -229,9 +249,7 @@ class PipelineIOManager:
             files=files,
             overwrite=overwrite,
         )
-        console.print(
-            f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
-        )
+        self._print_import_success(names, src_base_dir)
 
     def import_all(
         self,
@@ -260,6 +278,8 @@ class PipelineIOManager:
             # pm.import_all("s3://my-bucket/pipelines_backup", storage_options={"key": "...", "secret": "..."}, overwrite=False)
             ```
         """
+        files = self._get_all_pipeline_files()
+
         self._sync_filesystem(
             src_base_dir=src_base_dir,
             src_fs=src_fs,
@@ -267,12 +287,10 @@ class PipelineIOManager:
             dest_base_dir=".",
             dest_fs=self._fs,
             dest_storage_options=None,
-            files=None,
+            files=files,
             overwrite=overwrite,
         )
-        console.print(
-            f"✅ Imported all pipelines from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
-        )
+        self._print_import_success([], src_base_dir)
 
     def export_pipeline(
         self,
@@ -306,13 +324,8 @@ class PipelineIOManager:
             # pm.export("my_pipeline", "s3://my-bucket/exports", storage_options={"key": "...", "secret": "..."})
             ```
         """
-        files = [
-            "conf/project.yml",
-            f"conf/pipelines/{name}.yml",
-            f"pipelines/{name}.py",
-        ]
+        files = self._get_pipeline_files(name)
 
-        # Sync the filesystem
         self._sync_filesystem(
             src_base_dir=".",
             src_fs=self._fs,
@@ -324,9 +337,7 @@ class PipelineIOManager:
             overwrite=overwrite,
         )
 
-        console.print(
-            f"✅ Exported pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{dest_base_dir}[/green]"
-        )
+        self._print_export_success([name], dest_base_dir)
 
     def export_many(
         self,
@@ -356,21 +367,15 @@ class PipelineIOManager:
             pm.export_many(pipelines_to_export, "/path/to/export_dir", overwrite=True)
             ```
         """
-        files = [
-            "conf/project.yml",
-        ]
+        # Check if pipelines exist in the registry
         for name in names:
-            # Check if the pipeline exists in the registry
             if not self.registry.has_pipeline(name):
                 raise ValueError(
                     f"Pipeline {name} does not exist in the registry. Please check the name."
                 )
-            # Add pipeline files to the list
-            files.extend([
-                f"conf/pipelines/{name}.yml",
-                f"pipelines/{name}.py",
-            ])
-        # Sync the filesystem
+
+        files = self._get_many_pipeline_files(names)
+
         self._sync_filesystem(
             src_base_dir=".",
             src_fs=self._fs,
@@ -412,7 +417,8 @@ class PipelineIOManager:
             # pm.export_all("s3://my-bucket/pipelines_backup", storage_options={"key": "...", "secret": "..."}, overwrite=False)
             ```
         """
-        # sync the filesystem
+        files = self._get_all_pipeline_files()
+
         self._sync_filesystem(
             src_base_dir=".",
             src_fs=self._fs,
@@ -420,7 +426,7 @@ class PipelineIOManager:
             dest_base_dir=dest_base_dir,
             dest_fs=dest_fs,
             dest_storage_options=dest_storage_options,
-            files=None,
+            files=files,
             overwrite=overwrite,
         )
         console.print(
