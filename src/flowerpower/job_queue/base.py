@@ -49,33 +49,37 @@ class BackendType(str, Enum):
     def properties(self):
         return BACKEND_PROPERTIES[self.value]
 
+    def _get_property(self, key: str, default=None):
+        """Generic helper method to access properties with default values."""
+        return self.properties.get(key, default)
+
     @property
     def uri_prefix(self) -> str:
-        return self.properties.get("uri_prefix", "")
+        return self._get_property("uri_prefix", "")
 
     @property
     def default_port(self):
-        return self.properties.get("default_port")
+        return self._get_property("default_port")
 
     @property
     def default_host(self) -> str:
-        return self.properties.get("default_host", "")
+        return self._get_property("default_host", "")
 
     @property
     def default_username(self) -> str:
-        return self.properties.get("default_username", "")
+        return self._get_property("default_username", "")
 
     @property
     def default_password(self) -> str:
-        return self.properties.get("default_password", "")
+        return self._get_property("default_password", "")
 
     @property
     def default_database(self) -> str:
-        return self.properties.get("default_database", "")
+        return self._get_property("default_database", "")
 
     @property
     def is_sqla_type(self) -> bool:
-        return self.properties.get("is_sqla_type", False)
+        return self._get_property("is_sqla_type", False)
 
     @property
     def is_mongodb_type(self) -> bool:
@@ -101,6 +105,100 @@ class BackendType(str, Enum):
     def is_sqlite_type(self) -> bool:
         return self.value == "sqlite"
 
+    def _build_auth_string(self, username: str | None, password: str | None) -> str:
+        """Build authentication string for URI."""
+        if username and password:
+            return f"{urllib.parse.quote(username)}:{urllib.parse.quote(password)}@"
+        elif username:
+            return f"{urllib.parse.quote(username)}@"
+        elif password:
+            return f":{urllib.parse.quote(password)}@"
+        else:
+            return ""
+
+    def _get_uri_prefix(self, ssl: bool, port: int | None) -> str:
+        """Get the appropriate URI prefix based on backend type and SSL setting."""
+        if self.is_redis_type:
+            return "rediss://" if ssl else "redis://"
+        elif self.is_nats_kv_type:
+            return "nats+tls://" if ssl else "nats://"
+        elif self.is_mqtt_type:
+            if ssl and port == 1883:
+                return "mqtts://"
+            return "mqtts://" if ssl else "mqtt://"
+        else:
+            return self.uri_prefix
+
+    def _build_ssl_query_params(
+        self,
+        ssl: bool,
+        ca_file: str | None,
+        cert_file: str | None,
+        key_file: str | None,
+        verify_ssl: bool,
+    ) -> list[str]:
+        """Build SSL query parameters for various backend types."""
+        query_params: list[str] = []
+        
+        if not ssl:
+            return query_params
+
+        if self.value == "postgresql":
+            query_params.append("ssl=verify-full" if verify_ssl else "ssl=allow")
+            if ca_file:
+                query_params.append(f"sslrootcert={urllib.parse.quote(ca_file)}")
+            if cert_file:
+                query_params.append(f"sslcert={urllib.parse.quote(cert_file)}")
+            if key_file:
+                query_params.append(f"sslkey={urllib.parse.quote(key_file)}")
+        elif self.value == "mysql":
+            query_params.append("ssl=true")
+            if ca_file:
+                query_params.append(f"ssl_ca={urllib.parse.quote(ca_file)}")
+            if cert_file:
+                query_params.append(f"ssl_cert={urllib.parse.quote(cert_file)}")
+            if key_file:
+                query_params.append(f"ssl_key={urllib.parse.quote(key_file)}")
+        elif self.is_mongodb_type:
+            query_params.append("tls=true")
+            if ca_file:
+                query_params.append(f"tlsCAFile={urllib.parse.quote(ca_file)}")
+            if cert_file and key_file:
+                query_params.append(
+                    f"tlsCertificateKeyFile={urllib.parse.quote(cert_file)}"
+                )
+        elif self.is_redis_type:
+            if not verify_ssl:
+                query_params.append("ssl_cert_reqs=none")
+            if ca_file:
+                query_params.append(f"ssl_ca_certs={urllib.parse.quote(ca_file)}")
+            if cert_file:
+                query_params.append(f"ssl_certfile={urllib.parse.quote(cert_file)}")
+            if key_file:
+                query_params.append(f"ssl_keyfile={urllib.parse.quote(key_file)}")
+        elif self.is_nats_kv_type:
+            query_params.append("tls=true")
+            if ca_file:
+                query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
+            if cert_file:
+                query_params.append(
+                    f"tls_cert_file={urllib.parse.quote(cert_file)}"
+                )
+            if key_file:
+                query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
+        elif self.is_mqtt_type:
+            query_params.append("tls=true")
+            if ca_file:
+                query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
+            if cert_file:
+                query_params.append(
+                    f"tls_cert_file={urllib.parse.quote(cert_file)}"
+                )
+            if key_file:
+                query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
+
+        return query_params
+
     def gen_uri(
         self,
         host: str | None = None,
@@ -121,30 +219,17 @@ class BackendType(str, Enum):
         username = username or self.default_username
         password = password or self.default_password
 
-        # components: List[str] = []
-        # Get the appropriate URI prefix based on backend type and SSL setting
-        if self.is_redis_type:
-            uri_prefix = "rediss://" if ssl else "redis://"
-        elif self.is_nats_kv_type:
-            uri_prefix = "nats+tls://" if ssl else "nats://"
-        elif self.is_mqtt_type:
-            uri_prefix = "mqtts://" if ssl else "mqtt://"
-            if ssl and port == 1883:
-                port = 8883
-        else:
-            uri_prefix = self.uri_prefix
+        # Special handling for MQTT SSL port
+        if self.is_mqtt_type and ssl and port == 1883:
+            port = 8883
 
-        # Handle authentication
-        if username and password:
-            auth = f"{urllib.parse.quote(username)}:{urllib.parse.quote(password)}@"
-        elif username:
-            auth = f"{urllib.parse.quote(username)}@"
-        elif password:
-            auth = f":{urllib.parse.quote(password)}@"
-        else:
-            auth = ""
+        # Get URI prefix using helper method
+        uri_prefix = self._get_uri_prefix(ssl, port)
 
-        port_part = f":{port}"  # if port is not None else self.default_port
+        # Handle authentication using helper method
+        auth = self._build_auth_string(username, password)
+
+        port_part = f":{port}"
 
         # Special handling for SQLite and memory types
         if self.is_sqlite_type or self.is_memory_type:
@@ -162,69 +247,11 @@ class BackendType(str, Enum):
         # Construct base URI
         base_uri = f"{uri_prefix}{auth}{host}{port_part}{path}"
 
-        # Prepare query parameters for SSL files
-        query_params: list[str] = []
+        # Build SSL query parameters using helper method
+        query_params = self._build_ssl_query_params(ssl, ca_file, cert_file, key_file, verify_ssl)
 
-        if ssl:
-            # Always add ssl query parameter if ssl=True
-            if self.value == "postgresql":
-                query_params.append("ssl=verify-full" if verify_ssl else "ssl=allow")
-                if ca_file:
-                    query_params.append(f"sslrootcert={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(f"sslcert={urllib.parse.quote(cert_file)}")
-                if key_file:
-                    query_params.append(f"sslkey={urllib.parse.quote(key_file)}")
-            elif self.value == "mysql":
-                query_params.append("ssl=true")
-                if ca_file:
-                    query_params.append(f"ssl_ca={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(f"ssl_cert={urllib.parse.quote(cert_file)}")
-                if key_file:
-                    query_params.append(f"ssl_key={urllib.parse.quote(key_file)}")
-            elif self.is_mongodb_type:
-                query_params.append("tls=true")
-                if ca_file:
-                    query_params.append(f"tlsCAFile={urllib.parse.quote(ca_file)}")
-                if cert_file and key_file:
-                    query_params.append(
-                        f"tlsCertificateKeyFile={urllib.parse.quote(cert_file)}"
-                    )
-            elif self.is_redis_type:
-                if not verify_ssl:
-                    query_params.append("ssl_cert_reqs=none")
-                if ca_file:
-                    query_params.append(f"ssl_ca_certs={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(f"ssl_certfile={urllib.parse.quote(cert_file)}")
-                if key_file:
-                    query_params.append(f"ssl_keyfile={urllib.parse.quote(key_file)}")
-            elif self.is_nats_kv_type:
-                query_params.append("tls=true")
-                if ca_file:
-                    query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(
-                        f"tls_cert_file={urllib.parse.quote(cert_file)}"
-                    )
-                if key_file:
-                    query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
-            elif self.is_mqtt_type:
-                query_params.append("tls=true")
-                if ca_file:
-                    query_params.append(f"tls_ca_file={urllib.parse.quote(ca_file)}")
-                if cert_file:
-                    query_params.append(
-                        f"tls_cert_file={urllib.parse.quote(cert_file)}"
-                    )
-                if key_file:
-                    query_params.append(f"tls_key_file={urllib.parse.quote(key_file)}")
-
-        # Compose query string if Any params exist
-        query_string = ""
-        if query_params:
-            query_string = "?" + "&".join(query_params)
+        # Compose query string if any params exist
+        query_string = "?" + "&".join(query_params) if query_params else ""
 
         return f"{base_uri}{query_string}"
 
@@ -325,15 +352,43 @@ class BaseJobQueueManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit - ensures workers are stopped."""
-        if hasattr(self, "_worker_process") and self._worker_process is not None:
-            self.stop_worker()
-        if hasattr(self, "_worker_pool") and self._worker_pool is not None:
-            self.stop_worker_pool()
-        if hasattr(self, "_worker") and self._worker is not None:
-            self.stop_worker()
-        if hasattr(self, "_scheduler") and self._scheduler is not None:
-            self.stop_scheduler()
+        # Define cleanup attributes and their corresponding stop methods
+        cleanup_items = [
+            ("_worker_process", "stop_worker"),
+            ("_worker_pool", "stop_worker_pool"),
+            ("_worker", "stop_worker"),
+            ("_scheduler", "stop_scheduler"),
+        ]
+        
+        # Iterate through cleanup items and stop if they exist
+        for attr_name, method_name in cleanup_items:
+            if hasattr(self, attr_name) and getattr(self, attr_name) is not None:
+                getattr(self, method_name)()
+        
         return False  # Don't suppress exceptions
+
+    def _setup_filesystem(self, storage_options: dict | None, fs: AbstractFileSystem | None) -> tuple[AbstractFileSystem, dict]:
+        """Setup filesystem with caching and storage options."""
+        if storage_options is not None:
+            cached = True
+            cache_storage = posixpath.join(
+                posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1]
+            )
+            os.makedirs(cache_storage, exist_ok=True)
+        else:
+            cached = False
+            cache_storage = None
+            
+        if not fs:
+            fs = filesystem(
+                self._base_dir,
+                storage_options=storage_options,
+                cached=cached,
+                cache_storage=cache_storage,
+            )
+        
+        storage_options = storage_options or fs.storage_options
+        return fs, storage_options
 
     def __init__(
         self,
@@ -358,7 +413,6 @@ class BaseJobQueueManager:
         """
         self.name = name or ""
         self._base_dir = base_dir or str(Path.cwd())
-        # self._storage_options = storage_options or {}
         self._backend = backend
         self._type = type
         self._pipelines_dir = kwargs.get("pipelines_dir", PIPELINES_DIR)
@@ -367,24 +421,8 @@ class BaseJobQueueManager:
         # Initialize pipeline registry (will be injected by FlowerPowerProject)
         self._pipeline_registry = None
 
-        if storage_options is not None:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(CACHE_DIR), self._base_dir.split("://")[-1]
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-        if not fs:
-            fs = filesystem(
-                self._base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-        self._fs = fs
-        self._storage_options = storage_options or fs.storage_options
+        # Setup filesystem using helper method
+        self._fs, self._storage_options = self._setup_filesystem(storage_options, fs)
 
         self._add_modules_path()
         self._load_config()
@@ -422,6 +460,40 @@ class BaseJobQueueManager:
         if modules_path not in sys.path:
             sys.path.insert(0, modules_path)
 
+    def _create_pipeline_registry(self) -> "PipelineRegistry":
+        """Create a PipelineRegistry instance for this job queue manager.
+        
+        This method handles the creation logic for the PipelineRegistry,
+        including import handling and error management.
+        
+        Returns:
+            PipelineRegistry: A registry instance configured with this manager's settings
+            
+        Raises:
+            RuntimeError: If PipelineRegistry creation fails
+        """
+        try:
+            # Import here to avoid circular import issues
+            from ..pipeline.registry import PipelineRegistry
+
+            # Create registry using the from_filesystem factory method
+            registry = PipelineRegistry.from_filesystem(
+                base_dir=self._base_dir,
+                fs=self._fs,
+                storage_options=self._storage_options,
+            )
+
+            logger.debug(
+                f"Created PipelineRegistry for JobQueueManager with base_dir: {self._base_dir}"
+            )
+
+            return registry
+
+        except Exception as e:
+            error_msg = f"Failed to create PipelineRegistry: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+
     @property
     def pipeline_registry(self) -> "PipelineRegistry":
         """Get or create a PipelineRegistry instance for this job queue manager.
@@ -443,25 +515,7 @@ class BaseJobQueueManager:
             ```
         """
         if self._pipeline_registry is None:
-            try:
-                # Import here to avoid circular import issues
-                from ..pipeline.registry import PipelineRegistry
-
-                # Create registry using the from_filesystem factory method
-                self._pipeline_registry = PipelineRegistry.from_filesystem(
-                    base_dir=self._base_dir,
-                    fs=self._fs,
-                    storage_options=self._storage_options,
-                )
-
-                logger.debug(
-                    f"Created PipelineRegistry for JobQueueManager with base_dir: {self._base_dir}"
-                )
-
-            except Exception as e:
-                error_msg = f"Failed to create PipelineRegistry: {e}"
-                logger.error(error_msg)
-                raise RuntimeError(error_msg) from e
+            self._pipeline_registry = self._create_pipeline_registry()
 
         return self._pipeline_registry
 

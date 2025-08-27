@@ -33,7 +33,7 @@ def test_hello_world_pipeline_run():
         [
             "pipeline",
             "run",
-            "--project-dir",
+            "--base-dir",
             project_dir,
             pipeline_name,
             # "--outputs", # Optional: Request specific outputs to make stdout more predictable
@@ -107,7 +107,7 @@ def test_hello_world_pipeline_run_with_specific_outputs():
         [
             "pipeline",
             "run",
-            "--project-dir",
+            "--base-dir",
             project_dir,
             pipeline_name,
             "--outputs",

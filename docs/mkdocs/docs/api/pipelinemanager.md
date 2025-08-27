@@ -11,15 +11,15 @@ The `PipelineManager` is the central class for managing pipeline operations in F
 __init__(self, base_dir: str | None = None, storage_options: dict | Munch | BaseStorageOptions | None = None, fs: AbstractFileSystem | None = None, cfg_dir: str | None = None, pipelines_dir: str | None = None, job_queue_type: str = settings.JOB_QUEUE_TYPE, log_level: str | None = None)
 ```
 
-Initializes the `PipelineManager`.
+Initializes the `PipelineManager`, setting up project paths and loading configurations.
 
 | Parameter         | Type                               | Description                                                                    |
 |-------------------|------------------------------------|--------------------------------------------------------------------------------|
 | `base_dir` | `str \| None` | The base directory of the project. Defaults to the current working directory. | `None` |
-| `storage_options` | `dict \| Munch \| BaseStorageOptions \| None` | Storage options for the filesystem. | `{}` |
+| `storage_options` | `dict \| Munch \| BaseStorageOptions \| None` | Configuration options for filesystem access (e.g., S3, GCS). | `{}` |
 | `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance. | `None` |
-| `cfg_dir` | `str \| None` | The directory for configuration files. | `settings.CONFIG_DIR` |
-| `pipelines_dir` | `str \| None` | The directory for pipeline modules. | `settings.PIPELINES_DIR` |
+| `cfg_dir` | `str \| None` | Override the default configuration directory name. | `settings.CONFIG_DIR` |
+| `pipelines_dir` | `str \| None` | Override the default pipelines directory name. | `settings.PIPELINES_DIR` |
 | `job_queue_type` | `str` | The type of job queue to use for the project. | `settings.JOB_QUEUE_TYPE` |
 | `log_level` | `str \| None` | The logging level for the manager. | `None` |
 
@@ -40,7 +40,7 @@ manager = PipelineManager()
 | `registry` | `PipelineRegistry` | Handles pipeline registration and discovery. |
 | `scheduler` | `PipelineScheduler` | Manages job scheduling and execution. |
 | `visualizer` | `PipelineVisualizer` | Handles pipeline visualization. |
-| `io` | `PipelineIOManager` | Manages pipeline import/export operations. |
+| `io` | `PipelineIOManager` | Handles pipeline import/export operations, consolidating common logic. |
 | `project_cfg` | `ProjectConfig` | Current project configuration. |
 | `pipeline_cfg` | `PipelineConfig` | Current pipeline configuration. |
 | `pipelines` | `list[str]` | List of available pipeline names. |
@@ -60,7 +60,7 @@ manager = PipelineManager()
 run(self, name: str, inputs: dict | None = None, final_vars: list[str] | None = None, config: dict | None = None, cache: dict | None = None, executor_cfg: str | dict | ExecutorConfig | None = None, with_adapter_cfg: dict | WithAdapterConfig | None = None, pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None, project_adapter_cfg: dict | ProjectAdapterConfig | None = None, adapter: dict[str, Any] | None = None, reload: bool = False, log_level: str | None = None, max_retries: int | None = None, retry_delay: float | None = None, jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None, on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None)
 ```
 
-Execute a pipeline synchronously and return its results.
+Execute a pipeline synchronously and return its results. Parameters related to retries (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) configure the internal retry mechanism.
 
 | Parameter | Type | Description | Default |
 |:----------|:-----|:------------|:--------|

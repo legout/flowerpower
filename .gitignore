@@ -58,3 +58,6 @@ repomix-output.xml
 repomix.config.json
 .roo/mcp.json
 CLAUDE.md
+anypath.yaml
+.dev_docs/
+package-lock.json

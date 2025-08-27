@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 import msgspec
+from fsspec_utils import AbstractFileSystem, filesystem
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
@@ -228,3 +229,19 @@ def update_nested_dict(
             # Direct update
             result[key] = value
     return result
+
+
+def get_filesystem(fs: AbstractFileSystem | None = None, fs_type: str = "file") -> AbstractFileSystem:
+    """
+    Helper function to get a filesystem instance.
+    
+    Args:
+        fs: An optional filesystem instance to use. If provided, this will be returned directly.
+        fs_type: The type of filesystem to create if fs is None. Defaults to "file".
+        
+    Returns:
+        An AbstractFileSystem instance.
+    """
+    if fs is None:
+        fs = filesystem(fs_type)
+    return fs

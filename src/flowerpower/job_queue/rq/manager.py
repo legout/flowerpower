@@ -15,7 +15,6 @@ from typing import Any, Callable
 
 import duration_parser
 from cron_descriptor import get_description
-# from ...fs import AbstractFileSystem
 from fsspec_utils import AbstractFileSystem
 from humanize import precisedelta
 from loguru import logger
@@ -32,9 +31,14 @@ from .setup import RQBackend
 
 setup_logging()
 
+# Constants for default values
+DEFAULT_SCHEDULER_INTERVAL = 60
+DEFAULT_WORKER_TIMEOUT = 5
+DEFAULT_POOL_TIMEOUT = 10
+DEFAULT_JOB_REFRESH_INTERVAL = 0.1
+
 if sys.platform == "darwin" and platform.machine() == "arm64":
     try:
-        # Check if the start method has already been set to avoid errors
         if multiprocessing.get_start_method(allow_none=True) is None:
             multiprocessing.set_start_method("fork")
             logger.debug("Set multiprocessing start method to 'fork' for macOS ARM.")
@@ -44,7 +48,6 @@ if sys.platform == "darwin" and platform.machine() == "arm64":
                 f"Cannot set to 'fork'. This might cause issues on macOS ARM."
             )
     except RuntimeError as e:
-        # Handle cases where the context might already be started
         logger.warning(f"Could not set multiprocessing start method to 'fork': {e}")
 
 
@@ -132,7 +135,7 @@ class RQManager(BaseJobQueueManager):
         redis_conn = self._backend.client
         self._queues = {}
 
-        self._queue_names = self._backend.queues  # [:-1]
+        self._queue_names = self._backend.queues
         for queue_name in self._queue_names:
             queue = Queue(name=queue_name, connection=redis_conn)
             self._queues[queue_name] = queue
@@ -141,7 +144,7 @@ class RQManager(BaseJobQueueManager):
 
         self._scheduler_name = self._backend.queues[-1]
         self._scheduler = Scheduler(
-            connection=redis_conn, queue_name=self._backend.queues[-1], interval=60
+            connection=redis_conn, queue_name=self._backend.queues[-1], interval=DEFAULT_SCHEDULER_INTERVAL
         )
         self._scheduler.log = logger
 
@@ -229,85 +232,140 @@ class RQManager(BaseJobQueueManager):
                 with_scheduler=with_scheduler,
                 **kwargs,
             )
+            return
+
+        # Prepare worker configuration
+        queue_names, queue_names_str = self._prepare_worker_queues(queue_names, with_scheduler)
+        if not queue_names:
+            return
+
+        # Create and start worker
+        worker = self._create_worker(queue_names, **kwargs)
+        self._start_worker_process(worker, background, queue_names_str, **kwargs)
+
+    def _prepare_worker_queues(
+        self, queue_names: list[str] | None, with_scheduler: bool
+    ) -> tuple[list[str], str]:
+        """Prepare and validate queue names for worker.
+
+        Args:
+            queue_names: List of queue names to process.
+            with_scheduler: Whether to include the scheduler queue.
+
+        Returns:
+            tuple[list[str], str]: Validated queue names and their string representation.
+        """
+        if queue_names is None:
+            # Use all queues by default
+            queue_names = self._queue_names
         else:
-            import multiprocessing
+            # Filter to only include valid queue names
+            queue_names = [name for name in queue_names if name in self._queue_names]
 
-            logging_level = kwargs.pop("logging_level", self._log_level)
-            burst = kwargs.pop("burst", False)
-            max_jobs = kwargs.pop("max_jobs", None)
-            # Determine which queues to process
-            if queue_names is None:
-                # Use all queues by default
-                queue_names = self._queue_names
-                queue_names_str = ", ".join(queue_names)
-            else:
-                # Filter to only include valid queue names
-                queue_names = [
-                    name for name in queue_names if name in self._queue_names
-                ]
-                queue_names_str = ", ".join(queue_names)
+        if not queue_names:
+            logger.error("No valid queues specified, cannot start worker")
+            return [], ""
 
-            if not queue_names:
-                logger.error("No valid queues specified, cannot start worker")
-                return
+        if with_scheduler:
+            # Add the scheduler queue to the list of queues
+            queue_names.append(self._scheduler_name)
 
-            if with_scheduler:
-                # Add the scheduler queue to the list of queues
-                queue_names.append(self._scheduler_name)
-                queue_names_str = ", ".join(queue_names)
+        queue_names_str = ", ".join(queue_names)
+        return queue_names, queue_names_str
 
-            # Create a worker instance with queue names (not queue objects)
-            worker = Worker(queue_names, connection=self._backend.client, **kwargs)
+    def _create_worker(self, queue_names: list[str], **kwargs: Any) -> Worker:
+        """Create a worker instance with the specified queues.
 
-            if background:
-                # We need to use a separate process rather than a thread because
-                # RQ's signal handler registration only works in the main thread
-                def run_worker_process(queue_names_arg):
-                    # Import RQ inside the process to avoid connection sharing issues
-                    from redis import Redis
-                    from rq import Worker
+        Args:
+            queue_names: List of queue names to process.
+            **kwargs: Additional arguments passed to RQ's Worker class.
 
-                    # Create a fresh Redis connection in this process
-                    redis_conn = Redis.from_url(self._backend.uri)
+        Returns:
+            Worker: Configured worker instance.
+        """
+        return Worker(queue_names, connection=self._backend.client, **kwargs)
 
-                    # Create a worker instance with queue names
-                    worker_proc = Worker(queue_names_arg, connection=redis_conn)
+    def _start_worker_process(
+        self, worker: Worker, background: bool, queue_names_str: str, **kwargs: Any
+    ) -> None:
+        """Start the worker process in background or foreground mode.
 
-                    # Disable the default signal handlers in RQ worker by patching
-                    # the _install_signal_handlers method to do nothing
-                    worker_proc._install_signal_handlers = lambda: None
+        Args:
+            worker: Worker instance to start.
+            background: If True, runs the worker in a non-blocking background mode.
+            queue_names_str: String representation of queue names for logging.
+            **kwargs: Additional arguments for worker execution.
+        """
+        logging_level = kwargs.pop("logging_level", self._log_level)
+        burst = kwargs.pop("burst", False)
+        max_jobs = kwargs.pop("max_jobs", None)
 
-                    # Work until terminated
-                    worker_proc.work(
-                        with_scheduler=True,
-                        logging_level=logging_level,
-                        burst=burst,
-                        max_jobs=max_jobs,
-                    )
+        if background:
+            self._start_background_worker(worker, queue_names_str, logging_level, burst, max_jobs)
+        else:
+            self._start_foreground_worker(worker, queue_names_str, logging_level, burst, max_jobs)
 
-                # Create and start the process
-                process = multiprocessing.Process(
-                    target=run_worker_process,
-                    args=(queue_names,),
-                    name=f"rq-worker-{self.name}",
-                )
-                # Don't use daemon=True to avoid the "daemonic processes are not allowed to have children" error
-                process.start()
-                self._worker_process = process
-                logger.info(
-                    f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
-                )
-            else:
-                # Start worker in the current process (blocking)
-                logger.info(
-                    f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
-                )
-                worker.work(
-                    with_scheduler=True,
-                    logging_level=logging_level,
-                    burst=burst,
-                    max_jobs=max_jobs,
-                )
+    def _start_background_worker(
+        self, worker: Worker, queue_names_str: str, logging_level: str, burst: bool, max_jobs: int | None
+    ) -> None:
+        """Start worker in background mode.
+
+        Args:
+            worker: Worker instance to start.
+            queue_names_str: String representation of queue names for logging.
+            logging_level: Logging level for the worker.
+            burst: Whether to run in burst mode.
+            max_jobs: Maximum number of jobs to process.
+        """
+        import multiprocessing
+
+        def run_worker_process(queue_names_arg):
+            from redis import Redis
+            from rq import Worker
+
+            redis_conn = Redis.from_url(self._backend.uri)
+            worker_proc = Worker(queue_names_arg, connection=redis_conn)
+            worker_proc._install_signal_handlers = lambda: None
+
+            worker_proc.work(
+                with_scheduler=True,
+                logging_level=logging_level,
+                burst=burst,
+                max_jobs=max_jobs,
+            )
+
+        process = multiprocessing.Process(
+            target=run_worker_process,
+            args=(worker.queues,),
+            name=f"rq-worker-{self.name}",
+        )
+        process.start()
+        self._worker_process = process
+        logger.info(
+            f"Started RQ worker in background process (PID: {process.pid}) for queues: {queue_names_str}"
+        )
+
+    def _start_foreground_worker(
+        self, worker: Worker, queue_names_str: str, logging_level: str, burst: bool, max_jobs: int | None
+    ) -> None:
+        """Start worker in foreground mode.
+
+        Args:
+            worker: Worker instance to start.
+            queue_names_str: String representation of queue names for logging.
+            logging_level: Logging level for the worker.
+            burst: Whether to run in burst mode.
+            max_jobs: Maximum number of jobs to process.
+        """
+        logger.info(
+            f"Starting RQ worker in current process (blocking) for queues: {queue_names_str}"
+        )
+        worker.work(
+            with_scheduler=True,
+            logging_level=logging_level,
+            burst=burst,
+            max_jobs=max_jobs,
+        )
 
     def stop_worker(self) -> None:
         """Stop the worker process.
@@ -330,7 +388,7 @@ class RQManager(BaseJobQueueManager):
             if hasattr(self, "_worker_process") and self._worker_process is not None:
                 if self._worker_process.is_alive():
                     self._worker_process.terminate()
-                    self._worker_process.join(timeout=5)
+                    self._worker_process.join(timeout=DEFAULT_WORKER_TIMEOUT)
                     logger.info("RQ worker process terminated")
                 self._worker_process = None
             else:
@@ -392,19 +450,13 @@ class RQManager(BaseJobQueueManager):
         burst = kwargs.pop("burst", False)
         max_jobs = kwargs.pop("max_jobs", None)
 
-        # if num_workers is None:
-        #     backend = getattr(self.cfg, "backend", None)
-        #     if backend is not None:
-        #         num_workers = getattr(backend, "num_workers", None)
         if num_workers is None:
             num_workers = self.cfg.num_workers or multiprocessing.cpu_count()
-        # Determine which queues to process
+        
         if queue_names is None:
-            # Use all queues by default
             queue_list = self._queue_names
             queue_names_str = ", ".join(queue_list)
         else:
-            # Filter to only include valid queue names
             queue_list = [name for name in queue_names if name in self._queue_names]
             queue_names_str = ", ".join(queue_list)
 
@@ -412,23 +464,19 @@ class RQManager(BaseJobQueueManager):
             logger.error("No valid queues specified, cannot start worker pool")
             return
         if with_scheduler:
-            # Add the scheduler queue to the list of queues
             queue_list.append(self._scheduler_name)
             queue_names_str = ", ".join(queue_list)
 
-        # Initialize RQ's WorkerPool
         worker_pool = WorkerPool(
             queues=queue_list,
             connection=self._backend.client,
             num_workers=num_workers,
             **kwargs,
         )
-        # worker_pool.log = logger
 
         self._worker_pool = worker_pool
 
         if background:
-            # Start the worker pool process using multiprocessing to avoid signal handler issues
             def run_pool_process():
                 worker_pool.start(
                     burst=burst, logging_level=logging_level, max_jobs=max_jobs
@@ -443,7 +491,6 @@ class RQManager(BaseJobQueueManager):
                 f"Worker pool started with {num_workers} workers across queues: {queue_names_str} in background process (PID: {self._pool_process.pid})"
             )
         else:
-            # Start the worker pool in the current process (blocking)
             logger.info(
                 f"Starting worker pool with {num_workers} workers across queues: {queue_names_str} in foreground (blocking)"
             )
@@ -469,9 +516,8 @@ class RQManager(BaseJobQueueManager):
             self._worker_pool.stop_workers()
 
             if hasattr(self, "_pool_process") and self._pool_process.is_alive():
-                # Terminate the worker pool process
                 self._pool_process.terminate()
-                self._pool_process.join(timeout=10)
+                self._pool_process.join(timeout=DEFAULT_POOL_TIMEOUT)
                 if self._pool_process.is_alive():
                     logger.warning(
                         "Worker pool process did not terminate within timeout"
@@ -507,7 +553,6 @@ class RQManager(BaseJobQueueManager):
             worker.start_scheduler(background=False)
             ```
         """
-        # Create a scheduler instance with the queue name
         if not hasattr(self, "_scheduler"):
             self._scheduler = Scheduler(
                 connection=self._backend.client,
@@ -525,7 +570,6 @@ class RQManager(BaseJobQueueManager):
             self._scheduler.log = logger
 
         if background:
-
             def run_scheduler():
                 self._scheduler.run()
 
@@ -558,7 +602,7 @@ class RQManager(BaseJobQueueManager):
         if hasattr(self, "_scheduler_process") and self._scheduler_process is not None:
             if self._scheduler_process.is_alive():
                 self._scheduler_process.terminate()
-                self._scheduler_process.join(timeout=5)
+                self._scheduler_process.join(timeout=DEFAULT_WORKER_TIMEOUT)
                 logger.info("RQ scheduler process terminated")
             self._scheduler_process = None
         else:
@@ -605,32 +649,28 @@ class RQManager(BaseJobQueueManager):
             manager.enqueue(my_func, arg1, run_at=datetime(2025, 1, 1, 9, 0))
             ```
         """
-        # Extract func_args and func_kwargs if provided as alternatives to *args
         func_args = kwargs.pop("func_args", None)
         func_kwargs = kwargs.pop("func_kwargs", None)
 
-        # Use provided args or fall back to func_args
         if args:
-            final_args = args
+            resolved_args = args
         elif func_args:
-            final_args = func_args
+            resolved_args = func_args
         else:
-            final_args = ()
+            resolved_args = ()
 
-        # Extract function keyword arguments
         if func_kwargs:
-            final_kwargs = func_kwargs
+            resolved_kwargs = func_kwargs
         else:
-            final_kwargs = {}
+            resolved_kwargs = {}
 
-        # Delegate to add_job with the parameters
         return self.add_job(
-            func=func, func_args=final_args, func_kwargs=final_kwargs, **kwargs
+            func=func, func_args=resolved_args, func_kwargs=resolved_kwargs, **kwargs
         )
 
     def enqueue_in(
         self,
-        delay,
+        when,
         func: Callable,
         *args,
         **kwargs,
@@ -640,7 +680,7 @@ class RQManager(BaseJobQueueManager):
         This is a convenience method for delayed execution.
 
         Args:
-            delay: Time to wait before execution (timedelta, int seconds, or string)
+            when: Time to wait before execution (timedelta, int seconds, or string)
             func: Function to execute
             *args: Positional arguments for the function
             **kwargs: Keyword arguments for the function and job options
@@ -657,11 +697,11 @@ class RQManager(BaseJobQueueManager):
             manager.enqueue_in(timedelta(hours=1), my_func, arg1, kwarg1="value")
             ```
         """
-        return self.enqueue(func, *args, run_in=delay, **kwargs)
+        return self.enqueue(func, *args, run_in=when, **kwargs)
 
     def enqueue_at(
         self,
-        datetime,
+        when,
         func: Callable,
         *args,
         **kwargs,
@@ -671,7 +711,7 @@ class RQManager(BaseJobQueueManager):
         This is a convenience method for scheduled execution.
 
         Args:
-            datetime: When to execute the job (datetime object or ISO string)
+            when: When to execute the job (datetime object or ISO string)
             func: Function to execute
             *args: Positional arguments for the function
             **kwargs: Keyword arguments for the function and job options
@@ -690,7 +730,7 @@ class RQManager(BaseJobQueueManager):
             manager.enqueue_at(tomorrow_9am, my_func, arg1, kwarg1="value")
             ```
         """
-        return self.enqueue(func, *args, run_at=datetime, **kwargs)
+        return self.enqueue(func, *args, run_at=when, **kwargs)
 
     def add_job(
         self,
@@ -802,135 +842,370 @@ class RQManager(BaseJobQueueManager):
         )
 
         job_id = job_id or str(uuid.uuid4())
-        if isinstance(result_ttl, (int, float)):
-            result_ttl = dt.timedelta(seconds=result_ttl)
-        # args = args or ()
-        # kwargs = kwargs or {}
+        queue_name = self._validate_queue_name(queue_name)
+        repeat = self._process_repeat_config(repeat)
+        retry = self._process_retry_config(retry)
+        
+        ttl, timeout, result_ttl, failure_ttl = self._convert_time_params(
+            ttl, timeout, result_ttl, failure_ttl
+        )
+        
+        on_success, on_failure, on_stopped = self._convert_callbacks(
+            on_success, on_failure, on_stopped
+        )
+
+        if run_at:
+            return self._create_scheduled_job(
+                func, func_args, func_kwargs, job_id, queue_name, run_at,
+                ttl, timeout, result_ttl, failure_ttl, retry, repeat, meta,
+                group_id, on_success, on_failure, on_stopped, job_kwargs
+            )
+        elif run_in:
+            return self._create_delayed_job(
+                func, func_args, func_kwargs, job_id, queue_name, run_in,
+                ttl, timeout, result_ttl, failure_ttl, retry, repeat, meta,
+                group_id, on_success, on_failure, on_stopped, job_kwargs
+            )
+        else:
+            return self._create_immediate_job(
+                func, func_args, func_kwargs, job_id, queue_name,
+                ttl, timeout, result_ttl, failure_ttl, retry, repeat, meta,
+                group_id, on_success, on_failure, on_stopped, job_kwargs
+            )
+
+    def _validate_queue_name(self, queue_name: str | None) -> str:
+        """Validate and return the queue name.
+        
+        Args:
+            queue_name: Requested queue name.
+            
+        Returns:
+            str: Validated queue name.
+        """
         if queue_name is None:
-            queue_name = self._queue_names[0]
+            return self._queue_names[0]
         elif queue_name not in self._queue_names:
             logger.warning(
                 f"Queue '{queue_name}' not found, using '{self._queue_names[0]}'"
             )
-            queue_name = self._queue_names[0]
+            return self._queue_names[0]
+        return queue_name
 
-        if repeat:
-            # If repeat is an int, convert it to a Repeat instance
-            if isinstance(repeat, int):
-                repeat = Repeat(max=repeat)
-            elif isinstance(repeat, dict):
-                # If repeat is a dict, convert it to a Repeat instance
-                repeat = Repeat(**repeat)
-            else:
-                raise ValueError("Invalid repeat value. Must be int or dict.")
-        if retry:
-            if isinstance(retry, int):
-                retry = Retry(max=retry)
-            elif isinstance(retry, dict):
-                # If retry is a dict, convert it to a Retry instance
-                retry = Retry(**retry)
-            else:
-                raise ValueError("Invalid retry value. Must be int or dict.")
+    def _process_repeat_config(self, repeat: int | dict | None) -> Repeat | None:
+        """Process and validate repeat configuration.
+        
+        Args:
+            repeat: Repeat configuration as int or dict.
+            
+        Returns:
+            Repeat | None: Processed Repeat instance.
+            
+        Raises:
+            ValueError: If repeat configuration is invalid.
+        """
+        if not repeat:
+            return None
+            
+        if isinstance(repeat, int):
+            return Repeat(max=repeat)
+        if isinstance(repeat, dict):
+            return Repeat(**repeat)
+        
+        raise ValueError("Invalid repeat value. Must be int or dict.")
 
-        if isinstance(ttl, dt.timedelta):
-            ttl = ttl.total_seconds()
-        if isinstance(timeout, dt.timedelta):
-            timeout = timeout.total_seconds()
-        if isinstance(result_ttl, dt.timedelta):
-            result_ttl = result_ttl.total_seconds()
-        if isinstance(failure_ttl, dt.timedelta):
-            failure_ttl = failure_ttl.total_seconds()
+    def _process_retry_config(self, retry: int | dict | None) -> Retry | None:
+        """Process and validate retry configuration.
+        
+        Args:
+            retry: Retry configuration as int or dict.
+            
+        Returns:
+            Retry | None: Processed Retry instance.
+            
+        Raises:
+            ValueError: If retry configuration is invalid.
+        """
+        if not retry:
+            return None
+            
+        if isinstance(retry, int):
+            return Retry(max=retry)
+        if isinstance(retry, dict):
+            return Retry(**retry)
+        
+        raise ValueError("Invalid retry value. Must be int or dict.")
 
-        if isinstance(on_success, (str, Callable)):
-            on_success = Callback(on_success)
-        if isinstance(on_failure, (str, Callable)):
-            on_failure = Callback(on_failure)
-        if isinstance(on_stopped, (str, Callable)):
-            on_stopped = Callback(on_stopped)
+    def _convert_time_param(self, param: int | dt.timedelta | None) -> float | None:
+        """Convert a single timedelta parameter to seconds.
+        
+        Args:
+            param: Time parameter to convert.
+            
+        Returns:
+            float | None: Converted parameter in seconds.
+        """
+        return param.total_seconds() if isinstance(param, dt.timedelta) else param
 
-        queue = self._queues[queue_name]
-        if run_at:
-            # Schedule the job to run at a specific time
-            run_at = (
-                dt.datetime.fromisoformat(run_at) if isinstance(run_at, str) else run_at
-            )
-            job = queue.enqueue_at(
-                run_at,
-                func,
-                args=func_args,
-                kwargs=func_kwargs,
-                job_id=job_id,
-                result_ttl=int(result_ttl) if result_ttl else None,
-                ttl=int(ttl) if ttl else None,
-                failure_ttl=int(failure_ttl) if failure_ttl else None,
-                timeout=int(timeout) if timeout else None,
-                retry=retry,
-                repeat=repeat,
-                meta=meta,
-                group_id=group_id,
-                on_success=on_success,
-                on_failure=on_failure,
-                on_stopped=on_stopped,
-                **job_kwargs,
-            )
-            logger.info(
-                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run at {run_at}."
-            )
-        elif run_in:
-            # Schedule the job to run after a delay
-            run_in = (
-                duration_parser.parse(run_in) if isinstance(run_in, str) else run_in
-            )
-            run_in = (
-                dt.timedelta(seconds=run_in)
-                if isinstance(run_in, (int, float))
-                else run_in
-            )
-            job = queue.enqueue_in(
-                run_in,
-                func,
-                args=func_args,
-                kwargs=func_kwargs,
-                job_id=job_id,
-                result_ttl=int(result_ttl) if result_ttl else None,
-                ttl=int(ttl) if ttl else None,
-                failure_ttl=int(failure_ttl) if failure_ttl else None,
-                timeout=int(timeout) if timeout else None,
-                retry=retry,
-                repeat=repeat,
-                meta=meta,
-                group_id=group_id,
-                on_success=on_success,
-                on_failure=on_failure,
-                on_stopped=on_stopped,
-                **job_kwargs,
-            )
-            logger.info(
-                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run in {precisedelta(run_in)}."
-            )
+    def _convert_time_params(
+        self, ttl: int | dt.timedelta | None, timeout: int | dt.timedelta | None,
+        result_ttl: int | dt.timedelta | None, failure_ttl: int | dt.timedelta | None
+    ) -> tuple[float | None, float | None, float | None, float | None]:
+        """Convert timedelta parameters to seconds.
+        
+        Args:
+            ttl: Time to live for the job.
+            timeout: Maximum execution time.
+            result_ttl: Time to live for the result.
+            failure_ttl: Time to live for failure result.
+            
+        Returns:
+            tuple: Converted parameters in seconds.
+        """
+        return (
+            self._convert_time_param(ttl),
+            self._convert_time_param(timeout),
+            self._convert_time_param(result_ttl),
+            self._convert_time_param(failure_ttl)
+        )
+
+    def _convert_run_in_param(self, run_in: dt.timedelta | int | str) -> dt.timedelta:
+        """Convert run_in parameter to timedelta.
+        
+        Args:
+            run_in: Delay before execution as timedelta, int seconds, or string.
+            
+        Returns:
+            dt.timedelta: Converted timedelta.
+        """
+        if isinstance(run_in, str):
+            return duration_parser.parse(run_in)
+        elif isinstance(run_in, (int, float)):
+            return dt.timedelta(seconds=run_in)
+        return run_in
+
+    def _convert_run_at_param(self, run_at: dt.datetime | str) -> dt.datetime:
+        """Convert run_at parameter to datetime.
+        
+        Args:
+            run_at: Scheduled execution time as datetime or string.
+            
+        Returns:
+            dt.datetime: Converted datetime.
+        """
+        if isinstance(run_at, str):
+            return dt.datetime.fromisoformat(run_at)
+        return run_at
+
+    def _update_meta_with_schedule_info(self, meta: dict | None, key: str, value: Any) -> dict:
+        """Update meta dictionary with schedule information.
+        
+        Args:
+            meta: Existing meta dictionary or None.
+            key: Key to add to meta.
+            value: Value to add to meta.
+            
+        Returns:
+            dict: Updated meta dictionary.
+        """
+        if meta:
+            meta.update({key: value})
         else:
-            # Enqueue the job for immediate execution
-            job = queue.enqueue(
-                func,
-                args=func_args,
-                kwargs=func_kwargs,
-                job_id=job_id,
-                result_ttl=int(result_ttl) if result_ttl else None,
-                ttl=int(ttl) if ttl else None,
-                failure_ttl=int(failure_ttl) if failure_ttl else None,
-                timeout=int(timeout) if timeout else None,
-                retry=retry,
-                repeat=repeat,
-                meta=meta,
-                group_id=group_id,
-                on_success=on_success,
-                on_failure=on_failure,
-                on_stopped=on_stopped,
-                **job_kwargs,
-            )
-            logger.info(
-                f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'"
-            )
+            meta = {key: value}
+        return meta
+
+    def _convert_callbacks(
+        self, on_success: Callback | Callable | str | None,
+        on_failure: Callback | Callable | str | None,
+        on_stopped: Callback | Callable | str | None
+    ) -> tuple[Callback | None, Callback | None, Callback | None]:
+        """Convert callback parameters to Callback instances.
+        
+        Args:
+            on_success: Success callback.
+            on_failure: Failure callback.
+            on_stopped: Stopped callback.
+            
+        Returns:
+            tuple: Converted Callback instances.
+        """
+        converted_on_success = Callback(on_success) if isinstance(on_success, (str, Callable)) else on_success
+        converted_on_failure = Callback(on_failure) if isinstance(on_failure, (str, Callable)) else on_failure
+        converted_on_stopped = Callback(on_stopped) if isinstance(on_stopped, (str, Callable)) else on_stopped
+        
+        return converted_on_success, converted_on_failure, converted_on_stopped
+
+    def _create_immediate_job(
+        self, func: Callable, func_args: tuple | None, func_kwargs: dict[str, Any] | None,
+        job_id: str, queue_name: str, ttl: float | None, timeout: float | None,
+        result_ttl: float | None, failure_ttl: float | None, retry: Retry | None,
+        repeat: Repeat | None, meta: dict | None, group_id: str | None,
+        on_success: Callback | None, on_failure: Callback | None,
+        on_stopped: Callback | None, job_kwargs: dict[str, Any]
+    ) -> Job:
+        """Create an immediate execution job.
+        
+        Args:
+            func: Function to execute.
+            func_args: Function arguments.
+            func_kwargs: Function keyword arguments.
+            job_id: Job identifier.
+            queue_name: Queue name.
+            ttl: Time to live.
+            timeout: Execution timeout.
+            result_ttl: Result time to live.
+            failure_ttl: Failure result time to live.
+            retry: Retry configuration.
+            repeat: Repeat configuration.
+            meta: Job metadata.
+            group_id: Group identifier.
+            on_success: Success callback.
+            on_failure: Failure callback.
+            on_stopped: Stopped callback.
+            job_kwargs: Additional job parameters.
+            
+        Returns:
+            Job: Created job instance.
+        """
+        queue = self._queues[queue_name]
+        job = queue.enqueue(
+            func,
+            args=func_args,
+            kwargs=func_kwargs,
+            job_id=job_id,
+            result_ttl=int(result_ttl) if result_ttl else None,
+            ttl=int(ttl) if ttl else None,
+            failure_ttl=int(failure_ttl) if failure_ttl else None,
+            timeout=int(timeout) if timeout else None,
+            retry=retry,
+            repeat=repeat,
+            meta=meta,
+            group_id=group_id,
+            on_success=on_success,
+            on_failure=on_failure,
+            on_stopped=on_stopped,
+            **job_kwargs,
+        )
+        logger.info(f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'")
+        return job
+
+    def _create_delayed_job(
+        self, func: Callable, func_args: tuple | None, func_kwargs: dict[str, Any] | None,
+        job_id: str, queue_name: str, run_in: dt.timedelta | int | str,
+        ttl: float | None, timeout: float | None, result_ttl: float | None,
+        failure_ttl: float | None, retry: Retry | None, repeat: Repeat | None,
+        meta: dict | None, group_id: str | None, on_success: Callback | None,
+        on_failure: Callback | None, on_stopped: Callback | None, job_kwargs: dict[str, Any]
+    ) -> Job:
+        """Create a delayed execution job.
+        
+        Args:
+            func: Function to execute.
+            func_args: Function arguments.
+            func_kwargs: Function keyword arguments.
+            job_id: Job identifier.
+            queue_name: Queue name.
+            run_in: Delay before execution.
+            ttl: Time to live.
+            timeout: Execution timeout.
+            result_ttl: Result time to live.
+            failure_ttl: Failure result time to live.
+            retry: Retry configuration.
+            repeat: Repeat configuration.
+            meta: Job metadata.
+            group_id: Group identifier.
+            on_success: Success callback.
+            on_failure: Failure callback.
+            on_stopped: Stopped callback.
+            job_kwargs: Additional job parameters.
+            
+        Returns:
+            Job: Created job instance.
+        """
+        queue = self._queues[queue_name]
+        run_in = self._convert_run_in_param(run_in)
+        
+        job = queue.enqueue_in(
+            run_in,
+            func,
+            args=func_args,
+            kwargs=func_kwargs,
+            job_id=job_id,
+            result_ttl=int(result_ttl) if result_ttl else None,
+            ttl=int(ttl) if ttl else None,
+            failure_ttl=int(failure_ttl) if failure_ttl else None,
+            timeout=int(timeout) if timeout else None,
+            retry=retry,
+            repeat=repeat,
+            meta=meta,
+            group_id=group_id,
+            on_success=on_success,
+            on_failure=on_failure,
+            on_stopped=on_stopped,
+            **job_kwargs,
+        )
+        logger.info(
+            f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run in {precisedelta(run_in)}."
+        )
+        return job
+
+    def _create_scheduled_job(
+        self, func: Callable, func_args: tuple | None, func_kwargs: dict[str, Any] | None,
+        job_id: str, queue_name: str, run_at: dt.datetime | str,
+        ttl: float | None, timeout: float | None, result_ttl: float | None,
+        failure_ttl: float | None, retry: Retry | None, repeat: Repeat | None,
+        meta: dict | None, group_id: str | None, on_success: Callback | None,
+        on_failure: Callback | None, on_stopped: Callback | None, job_kwargs: dict[str, Any]
+    ) -> Job:
+        """Create a scheduled execution job.
+        
+        Args:
+            func: Function to execute.
+            func_args: Function arguments.
+            func_kwargs: Function keyword arguments.
+            job_id: Job identifier.
+            queue_name: Queue name.
+            run_at: Scheduled execution time.
+            ttl: Time to live.
+            timeout: Execution timeout.
+            result_ttl: Result time to live.
+            failure_ttl: Failure result time to live.
+            retry: Retry configuration.
+            repeat: Repeat configuration.
+            meta: Job metadata.
+            group_id: Group identifier.
+            on_success: Success callback.
+            on_failure: Failure callback.
+            on_stopped: Stopped callback.
+            job_kwargs: Additional job parameters.
+            
+        Returns:
+            Job: Created job instance.
+        """
+        queue = self._queues[queue_name]
+        run_at = self._convert_run_at_param(run_at)
+        
+        job = queue.enqueue_at(
+            run_at,
+            func,
+            args=func_args,
+            kwargs=func_kwargs,
+            job_id=job_id,
+            result_ttl=int(result_ttl) if result_ttl else None,
+            ttl=int(ttl) if ttl else None,
+            failure_ttl=int(failure_ttl) if failure_ttl else None,
+            timeout=int(timeout) if timeout else None,
+            retry=retry,
+            repeat=repeat,
+            meta=meta,
+            group_id=group_id,
+            on_success=on_success,
+            on_failure=on_failure,
+            on_stopped=on_stopped,
+            **job_kwargs,
+        )
+        logger.info(
+            f"Enqueued job {job.id} ({func.__name__}) on queue '{queue_name}'. Scheduled to run at {run_at}."
+        )
         return job
 
     def run_job(
@@ -1016,11 +1291,11 @@ class RQManager(BaseJobQueueManager):
         )
         while not job.is_finished:
             job.refresh()
-            time.sleep(0.1)
+            time.sleep(DEFAULT_JOB_REFRESH_INTERVAL)
         return job.result
 
-    def _get_job_queue_name(self, job: str | Job) -> str | None:
-        """Get the queue name for a job.
+    def _find_queue_for_job(self, job: str | Job) -> str | None:
+        """Find the queue name for a job.
 
         Args:
             job: Job ID or Job object.
@@ -1033,6 +1308,19 @@ class RQManager(BaseJobQueueManager):
             if job_id in self.job_ids[queue_name]:
                 return queue_name
         return None
+
+    def _resolve_job(self, job: str | Job) -> Job | None:
+        """Resolve a job ID or Job object to a Job instance.
+
+        Args:
+            job: Job ID or Job object.
+
+        Returns:
+            Job | None: The Job instance if found, None otherwise.
+        """
+        if isinstance(job, str):
+            return self.get_job(job_id=job)
+        return job
 
     def get_jobs(
         self, queue_name: str | list[str] | None = None
@@ -1082,14 +1370,16 @@ class RQManager(BaseJobQueueManager):
                 print(f"Job status: {job.get_status()}")
             ```
         """
-        queue_name = self._get_job_queue_name(job=job_id)
+        queue_name = self._find_queue_for_job(job=job_id)
         if queue_name is None:
             logger.error(f"Job {job_id} not found in any queue")
             return None
+        
         job = self._queues[queue_name].fetch_job(job_id)
         if job is None:
             logger.error(f"Job {job_id} not found in queue '{queue_name}'")
             return None
+        
         return job
 
     def get_job_result(self, job: str | Job, delete_result: bool = False) -> Any:
@@ -1111,9 +1401,7 @@ class RQManager(BaseJobQueueManager):
             result = worker.get_job_result("job-123", delete_result=True)
             ```
         """
-        if isinstance(job, str):
-            job = self.get_job(job_id=job)
-
+        job = self._resolve_job(job)
         if job is None:
             logger.error(f"Job {job} not found in any queue")
             return None
@@ -1133,8 +1421,7 @@ class RQManager(BaseJobQueueManager):
         Returns:
             bool: True if the job was canceled, False otherwise
         """
-        if isinstance(job, str):
-            job = self.get_job(job_id=job)
+        job = self._resolve_job(job)
         if job is None:
             logger.error(f"Job {job} not found in any queue")
             return False
@@ -1156,10 +1443,10 @@ class RQManager(BaseJobQueueManager):
         Returns:
             bool: True if the job was removed, False otherwise
         """
-        if isinstance(job, str):
-            job = self.get_job(job)
-            if job is None:
-                return False
+        job = self._resolve_job(job)
+        if job is None:
+            return False
+        
         if ttl:
             job.cleanup(ttl=ttl, **kwargs)
             logger.info(
@@ -1167,7 +1454,7 @@ class RQManager(BaseJobQueueManager):
             )
         else:
             job.delete(**kwargs)
-        logger.info(f"Removed job {job.id} from queue '{job.origin}'")
+            logger.info(f"Removed job {job.id} from queue '{job.origin}'")
 
         return True
 
@@ -1346,14 +1633,9 @@ class RQManager(BaseJobQueueManager):
         func_args = func_args or ()
         func_kwargs = func_kwargs or {}
 
-        # Use the specified scheduler or default to the first one
-
         scheduler = self._scheduler
 
         use_local_time_zone = schedule_kwargs.get("use_local_time_zone", True)
-        # repeat = schedule_kwargs.get("repeat", None)
-        # result_ttl = schedule_kwargs.get("result_ttl", None)
-        # ttl = schedule_kwargs.get("ttl", None)
         if isinstance(result_ttl, dt.timedelta):
             result_ttl = result_ttl.total_seconds()
         if isinstance(ttl, dt.timedelta):
@@ -1370,18 +1652,19 @@ class RQManager(BaseJobQueueManager):
         if isinstance(on_stopped, (str, Callable)):
             on_stopped = Callback(on_stopped)
 
+        # Determine scheduling method and create schedule
+        schedule = None
+        schedule_info = ""
+        
         if cron:
-            if meta:
-                meta.update({"cron": cron})
-            else:
-                meta = {"cron": cron}
+            meta = self._update_meta_with_schedule_info(meta, "cron", cron)
             schedule = scheduler.cron(
                 cron_string=cron,
                 func=func,
                 args=func_args,
                 kwargs=func_kwargs,
                 id=schedule_id,
-                repeat=repeat,  # Infinite by default
+                repeat=repeat,
                 result_ttl=int(result_ttl) if result_ttl else None,
                 ttl=int(ttl) if ttl else None,
                 timeout=int(timeout) if timeout else None,
@@ -1392,15 +1675,10 @@ class RQManager(BaseJobQueueManager):
                 on_failure=on_failure,
                 **schedule_kwargs,
             )
-            logger.info(
-                f"Scheduled job {schedule.id} ({func.__name__}) with cron '{get_description(cron)}'"
-            )
+            schedule_info = f"with cron '{get_description(cron)}'"
 
-        if interval:
-            if meta:
-                meta.update({"interval": int(interval)})
-            else:
-                meta = {"interval": int(interval)}
+        elif interval:
+            meta = self._update_meta_with_schedule_info(meta, "interval", int(interval))
             schedule = scheduler.schedule(
                 scheduled_time=dt.datetime.now(dt.timezone.utc),
                 func=func,
@@ -1408,7 +1686,7 @@ class RQManager(BaseJobQueueManager):
                 kwargs=func_kwargs,
                 interval=int(interval),
                 id=schedule_id,
-                repeat=repeat,  # Infinite by default
+                repeat=repeat,
                 result_ttl=int(result_ttl) if result_ttl else None,
                 ttl=int(ttl) if ttl else None,
                 timeout=int(timeout) if timeout else None,
@@ -1418,22 +1696,17 @@ class RQManager(BaseJobQueueManager):
                 on_failure=on_failure,
                 **schedule_kwargs,
             )
-            logger.info(
-                f"Scheduled job {schedule.id} ({func.__name__})  with interval '{precisedelta(interval)}'"
-            )
+            schedule_info = f"with interval '{precisedelta(interval)}'"
 
-        if date:
-            if meta:
-                meta.update({"date": date})
-            else:
-                meta = {"date": date}
+        elif date:
+            meta = self._update_meta_with_schedule_info(meta, "date", date)
             schedule = scheduler.schedule(
                 scheduled_time=date,
                 func=func,
                 args=func_args,
                 kwargs=func_kwargs,
                 id=schedule_id,
-                repeat=1,  # Infinite by default
+                repeat=1,
                 result_ttl=int(result_ttl) if result_ttl else None,
                 ttl=int(ttl) if ttl else None,
                 timeout=int(timeout) if timeout else None,
@@ -1443,8 +1716,11 @@ class RQManager(BaseJobQueueManager):
                 on_failure=on_failure,
                 on_stopped=on_stopped,
             )
+            schedule_info = f"to run at '{date}'"
+
+        if schedule:
             logger.info(
-                f"Scheduled job {schedule.id} ({func.__name__}) to run at '{date}'"
+                f"Scheduled job {schedule.id} ({func.__name__}) {schedule_info}"
             )
 
         return schedule
@@ -1530,7 +1806,7 @@ class RQManager(BaseJobQueueManager):
 
         if schedule is None:
             logger.error(f"Schedule {schedule} not found in any queue")
-            return None
+            return []
 
         return [res.return_value for res in schedule.results()]
 
@@ -1558,7 +1834,10 @@ class RQManager(BaseJobQueueManager):
             )
             ```
         """
-        result = self._get_schedule_result(schedule=schedule)[-1]
+        results = self._get_schedule_results(schedule=schedule)
+        if not results:
+            return None
+        result = results[-1]
 
         if delete_result:
             self.delete_schedule(schedule)
@@ -1744,6 +2023,69 @@ class RQManager(BaseJobQueueManager):
 
     # --- Pipeline-specific high-level methods implementation ---
 
+    def _create_pipeline_job_function(self, name: str, project_context=None):
+        """Create a function that will be executed by the job queue for a pipeline.
+
+        Args:
+            name: Name of the pipeline to execute
+            project_context: Project context for the pipeline (optional)
+
+        Returns:
+            Callable: Function that can be executed by the job queue
+        """
+        def pipeline_job(*job_args, **job_kwargs):
+            # Get the pipeline instance
+            pipeline = self.pipeline_registry.get_pipeline(
+                name=name,
+                project_context=project_context,
+                reload=job_kwargs.pop("reload", False),
+            )
+
+            # Execute the pipeline
+            return pipeline.run(*job_args, **job_kwargs)
+        
+        return pipeline_job
+
+    def _extract_pipeline_kwargs(self, kwargs: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Extract pipeline execution arguments from kwargs.
+
+        Args:
+            kwargs: Keyword arguments to split into pipeline and job queue arguments
+
+        Returns:
+            tuple[dict[str, Any], dict[str, Any]]: Pipeline kwargs and job queue kwargs
+        """
+        pipeline_kwargs_keys = [
+            "inputs",
+            "final_vars",
+            "config",
+            "cache",
+            "executor_cfg",
+            "with_adapter_cfg",
+            "pipeline_adapter_cfg",
+            "project_adapter_cfg",
+            "adapter",
+            "reload",
+            "log_level",
+            "max_retries",
+            "retry_delay",
+            "jitter_factor",
+            "retry_exceptions",
+            "on_success",
+            "on_failure",
+        ]
+        
+        pipeline_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in pipeline_kwargs_keys
+        }
+
+        # Extract job queue arguments
+        job_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+        
+        return pipeline_kwargs, job_kwargs
+
     def schedule_pipeline(self, name: str, project_context=None, *args, **kwargs):
         """Schedule a pipeline for execution using its name.
 
@@ -1772,45 +2114,10 @@ class RQManager(BaseJobQueueManager):
         logger.info(f"Scheduling pipeline '{name}' via RQ job queue")
 
         # Create a function that will be executed by the job queue
-        def pipeline_job(*job_args, **job_kwargs):
-            # Get the pipeline instance
-            pipeline = self.pipeline_registry.get_pipeline(
-                name=name,
-                project_context=project_context,
-                reload=job_kwargs.pop("reload", False),
-            )
-
-            # Execute the pipeline
-            return pipeline.run(*job_args, **job_kwargs)
+        pipeline_job = self._create_pipeline_job_function(name, project_context)
 
         # Extract pipeline execution arguments from kwargs
-        pipeline_kwargs = {
-            k: v
-            for k, v in kwargs.items()
-            if k
-            in [
-                "inputs",
-                "final_vars",
-                "config",
-                "cache",
-                "executor_cfg",
-                "with_adapter_cfg",
-                "pipeline_adapter_cfg",
-                "project_adapter_cfg",
-                "adapter",
-                "reload",
-                "log_level",
-                "max_retries",
-                "retry_delay",
-                "jitter_factor",
-                "retry_exceptions",
-                "on_success",
-                "on_failure",
-            ]
-        }
-
-        # Extract scheduling arguments
-        schedule_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+        pipeline_kwargs, schedule_kwargs = self._extract_pipeline_kwargs(kwargs)
 
         # Schedule the job
         return self.add_schedule(
@@ -1847,45 +2154,10 @@ class RQManager(BaseJobQueueManager):
         )
 
         # Create a function that will be executed by the job queue
-        def pipeline_job(*job_args, **job_kwargs):
-            # Get the pipeline instance
-            pipeline = self.pipeline_registry.get_pipeline(
-                name=name,
-                project_context=project_context,
-                reload=job_kwargs.pop("reload", False),
-            )
-
-            # Execute the pipeline
-            return pipeline.run(*job_args, **job_kwargs)
+        pipeline_job = self._create_pipeline_job_function(name, project_context)
 
         # Extract pipeline execution arguments from kwargs
-        pipeline_kwargs = {
-            k: v
-            for k, v in kwargs.items()
-            if k
-            in [
-                "inputs",
-                "final_vars",
-                "config",
-                "cache",
-                "executor_cfg",
-                "with_adapter_cfg",
-                "pipeline_adapter_cfg",
-                "project_adapter_cfg",
-                "adapter",
-                "reload",
-                "log_level",
-                "max_retries",
-                "retry_delay",
-                "jitter_factor",
-                "retry_exceptions",
-                "on_success",
-                "on_failure",
-            ]
-        }
-
-        # Extract job queue arguments
-        job_kwargs = {k: v for k, v in kwargs.items() if k not in pipeline_kwargs}
+        pipeline_kwargs, job_kwargs = self._extract_pipeline_kwargs(kwargs)
 
         # Add the job
         return self.enqueue(

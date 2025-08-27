@@ -7,6 +7,7 @@ from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 
+from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
 
@@ -40,26 +41,35 @@ class BasePipeline:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions = {},
         fs: AbstractFileSystem | None = None,
-        cfg_dir: str = "conf",
-        pipelines_dir: str = "pipelines",
-        job_queue_type: str | None = None,  # New parameter for worker backend
+        job_queue_type: str | None = None,
     ):
         self._base_dir = base_dir
         self._storage_options = storage_options
         if fs is None:
             fs = filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
         self._job_queue_type = job_queue_type
 
+        self._setup_paths()
+        self._setup_directories()
+        self._add_modules_path()
+
+    def _setup_paths(self) -> None:
+        """Set up configuration and pipeline directory paths."""
+        self._cfg_dir = CONFIG_DIR
+        self._pipelines_dir = PIPELINES_DIR
+
+    def _setup_directories(self) -> None:
+        """Set up required directories with proper error handling."""
         try:
             self._fs.makedirs(f"{self._cfg_dir}/pipelines", exist_ok=True)
             self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Error creating directories: {e}")
-
-        self._add_modules_path()
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error creating directories: {e}")
+            raise
 
     def __enter__(self) -> "BasePipeline":
         return self

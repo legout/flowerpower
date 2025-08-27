@@ -4,6 +4,7 @@ import msgspec
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from munch import Munch
 
+from ..settings import CONFIG_DIR, PIPELINES_DIR
 from .base import BaseConfig
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
@@ -127,11 +128,11 @@ class Config(BaseConfig):
                 self.base_dir, cached=True, dirfs=True, **storage_options
             )
 
-        if not self.fs.exists("conf"):
-            self.fs.makedirs("conf")
+        if not self.fs.exists(CONFIG_DIR):
+            self.fs.makedirs(CONFIG_DIR)
 
         if pipeline:
-            self.fs.makedirs("conf/pipelines", exist_ok=True)
+            self.fs.makedirs(PIPELINES_DIR, exist_ok=True)
             h_params = self.pipeline.pop("h_params") if self.pipeline.h_params else None
             self.pipeline.to_yaml(
                 path=f"conf/pipelines/{self.pipeline.name}.yml", fs=self.fs

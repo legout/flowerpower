@@ -5,6 +5,7 @@ import datetime as dt
 import os
 import posixpath
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict
 
 import rich
@@ -16,7 +17,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from .. import settings
+from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
 from ..utils.logging import setup_logging
@@ -47,7 +48,15 @@ class HookType(str, Enum):
         return self.value
 
 
-setup_logging(level=settings.LOG_LEVEL)
+@dataclass
+class CachedPipelineData:
+    """Container for cached pipeline data."""
+    pipeline: "Pipeline"
+    config: PipelineConfig
+    module: Any
+
+
+setup_logging(level=LOG_LEVEL)
 
 
 class PipelineRegistry:
@@ -71,16 +80,14 @@ class PipelineRegistry:
         """
         self.project_cfg = project_cfg
         self._fs = fs
-        self._cfg_dir = settings.CONFIG_DIR
-        self._pipelines_dir = settings.PIPELINES_DIR
+        self._cfg_dir = CONFIG_DIR
+        self._pipelines_dir = PIPELINES_DIR
         self._base_dir = base_dir
         self._storage_options = storage_options or {}
         self._console = Console()
 
-        # Cache for loaded pipelines
-        self._pipeline_cache: Dict[str, "Pipeline"] = {}
-        self._config_cache: Dict[str, PipelineConfig] = {}
-        self._module_cache: Dict[str, Any] = {}
+        # Consolidated cache for pipeline data
+        self._pipeline_data_cache: Dict[str, CachedPipelineData] = {}
 
         # Ensure module paths are added
         self._add_modules_path()
@@ -198,9 +205,9 @@ class PipelineRegistry:
             ValueError: If pipeline configuration is invalid
         """
         # Use cache if available and not reloading
-        if not reload and name in self._pipeline_cache:
+        if not reload and name in self._pipeline_data_cache:
             logger.debug(f"Returning cached pipeline '{name}'")
-            return self._pipeline_cache[name]
+            return self._pipeline_data_cache[name].pipeline
 
         logger.debug(f"Creating pipeline instance for '{name}'")
 
@@ -221,8 +228,12 @@ class PipelineRegistry:
             project_context=project_context,
         )
 
-        # Cache the pipeline instance
-        self._pipeline_cache[name] = pipeline
+        # Cache the pipeline data
+        self._pipeline_data_cache[name] = CachedPipelineData(
+            pipeline=pipeline,
+            config=config,
+            module=module,
+        )
 
         logger.debug(f"Successfully created pipeline instance for '{name}'")
         return pipeline
@@ -238,9 +249,9 @@ class PipelineRegistry:
             PipelineConfig instance
         """
         # Use cache if available and not reloading
-        if not reload and name in self._config_cache:
+        if not reload and name in self._pipeline_data_cache:
             logger.debug(f"Returning cached config for pipeline '{name}'")
-            return self._config_cache[name]
+            return self._pipeline_data_cache[name].config
 
         logger.debug(f"Loading configuration for pipeline '{name}'")
 
@@ -252,8 +263,14 @@ class PipelineRegistry:
             storage_options=self._storage_options,
         )
 
-        # Cache the configuration
-        self._config_cache[name] = config
+        # Cache the configuration (will be stored in consolidated cache when pipeline is created)
+        # For now, we'll create a temporary cache entry if it doesn't exist
+        if name not in self._pipeline_data_cache:
+            self._pipeline_data_cache[name] = CachedPipelineData(
+                pipeline=None,  # type: ignore
+                config=config,
+                module=None,  # type: ignore
+            )
 
         return config
 
@@ -268,9 +285,11 @@ class PipelineRegistry:
             Loaded Python module
         """
         # Use cache if available and not reloading
-        if not reload and name in self._module_cache:
-            logger.debug(f"Returning cached module for pipeline '{name}'")
-            return self._module_cache[name]
+        if not reload and name in self._pipeline_data_cache:
+            cached_data = self._pipeline_data_cache[name]
+            if cached_data.module is not None:
+                logger.debug(f"Returning cached module for pipeline '{name}'")
+                return cached_data.module
 
         logger.debug(f"Loading module for pipeline '{name}'")
 
@@ -281,8 +300,16 @@ class PipelineRegistry:
         # Load the module
         module = load_module(module_name, reload=reload)
 
-        # Cache the module
-        self._module_cache[name] = module
+        # Cache the module (will be stored in consolidated cache when pipeline is created)
+        # For now, we'll update the existing cache entry if it exists
+        if name in self._pipeline_data_cache:
+            self._pipeline_data_cache[name].module = module
+        else:
+            self._pipeline_data_cache[name] = CachedPipelineData(
+                pipeline=None,  # type: ignore
+                config=None,  # type: ignore
+                module=module,
+            )
 
         return module
 
@@ -295,14 +322,10 @@ class PipelineRegistry:
         """
         if name:
             logger.debug(f"Clearing cache for pipeline '{name}'")
-            self._pipeline_cache.pop(name, None)
-            self._config_cache.pop(name, None)
-            self._module_cache.pop(name, None)
+            self._pipeline_data_cache.pop(name, None)
         else:
             logger.debug("Clearing entire pipeline cache")
-            self._pipeline_cache.clear()
-            self._config_cache.clear()
-            self._module_cache.clear()
+            self._pipeline_data_cache.clear()
 
     # --- Methods moved from PipelineManager ---
     def new(self, name: str, overwrite: bool = False):
@@ -333,7 +356,7 @@ class PipelineRegistry:
 
         formatted_name = name.replace(".", "/").replace("-", "_")
         pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
-        cfg_file = posixpath.join(self._cfg_dir, "pipelines", f"{formatted_name}.yml")
+        cfg_file = posixpath.join(self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml")
 
         def check_and_handle(path: str):
             if self._fs.exists(path):
@@ -390,7 +413,7 @@ class PipelineRegistry:
         deleted_files = []
         if cfg:
             pipeline_cfg_path = posixpath.join(
-                self._cfg_dir, "pipelines", f"{name}.yml"
+                self._cfg_dir, PIPELINES_DIR, f"{name}.yml"
             )
             if self._fs.exists(pipeline_cfg_path):
                 self._fs.rm(pipeline_cfg_path)
@@ -436,9 +459,14 @@ class PipelineRegistry:
         """
         try:
             return self._fs.glob(posixpath.join(self._pipelines_dir, "*.py"))
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(
                 f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
+            )
+            return []
+        except Exception as e:
+            logger.error(
+                f"Unexpected error accessing pipeline directory {self._pipelines_dir}: {e}"
             )
             return []
 
@@ -504,11 +532,16 @@ class PipelineRegistry:
                 except FileNotFoundError:
                     logger.warning(f"Module file not found for pipeline '{name}'")
                     pipeline_summary["module"] = "# Module file not found"
-                except Exception as e:
+                except (OSError, PermissionError, UnicodeDecodeError) as e:
                     logger.error(
                         f"Error reading module file for pipeline '{name}': {e}"
                     )
                     pipeline_summary["module"] = f"# Error reading module file: {e}"
+                except Exception as e:
+                    logger.error(
+                        f"Unexpected error reading module file for pipeline '{name}': {e}"
+                    )
+                    pipeline_summary["module"] = f"# Unexpected error reading module file: {e}"
 
             if pipeline_summary:  # Only add if cfg or code was requested and found
                 summary["pipelines"][name] = pipeline_summary
@@ -677,8 +710,11 @@ class PipelineRegistry:
                 size = f"{size_bytes / 1024:.1f} KB" if size_bytes else "0.0 KB"
             except NotImplementedError:
                 size = "N/A"
-            except Exception as e:
+            except (OSError, PermissionError) as e:
                 logger.warning(f"Could not get size for {path}: {e}")
+                size = "Error"
+            except Exception as e:
+                logger.warning(f"Unexpected error getting size for {path}: {e}")
                 size = "Error"
 
             pipeline_info.append({

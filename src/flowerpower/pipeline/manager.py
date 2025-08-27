@@ -18,7 +18,7 @@ except ImportError:
 
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
-from .. import settings
+from ..settings import LOG_LEVEL, CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
@@ -28,7 +28,7 @@ from .io import PipelineIOManager
 from .registry import HookType, PipelineRegistry
 from .visualizer import PipelineVisualizer
 
-setup_logging(level=settings.LOG_LEVEL)
+setup_logging(level=LOG_LEVEL)
 
 GraphType = TypeVar("GraphType")  # Type variable for graphviz.Digraph
 
@@ -74,8 +74,8 @@ class PipelineManager:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
-        cfg_dir: str | None = settings.CONFIG_DIR,
-        pipelines_dir: str | None = settings.PIPELINES_DIR,
+        cfg_dir: str | None = CONFIG_DIR,
+        pipelines_dir: str | None = PIPELINES_DIR,
         job_queue_type: str | None = None,
         log_level: str | None = None,
     ) -> None:
@@ -128,7 +128,7 @@ class PipelineManager:
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
-                posixpath.expanduser(settings.CACHE_DIR),
+                posixpath.expanduser(CACHE_DIR),
                 self._base_dir.split("://")[-1],
             )
             os.makedirs(cache_storage, exist_ok=True)
@@ -162,9 +162,12 @@ class PipelineManager:
         try:
             self._fs.makedirs(self._cfg_dir, exist_ok=True)
             self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Error creating essential directories: {e}")
-            # Consider raising an error here depending on desired behavior
+            raise RuntimeError(f"Failed to create essential directories: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error creating essential directories: {e}")
+            raise RuntimeError(f"Unexpected filesystem error: {e}") from e
 
         # Ensure pipeline modules can be imported
         self._add_modules_path()

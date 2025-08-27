@@ -3,6 +3,7 @@ import os
 import posixpath
 from pathlib import Path
 from typing import Any, Callable
+from functools import wraps
 
 import rich
 from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
@@ -20,6 +21,24 @@ from .utils.logging import setup_logging
 
 setup_logging(level=settings.LOG_LEVEL)
 
+def handle_errors(func):
+    """Decorator to handle exceptions, log them, and re-raise as RuntimeError."""
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            # Extract operation name from function name for better logging
+            operation_name = func.__name__.replace('_', ' ').title()
+            # For methods like 'run', 'enqueue', 'schedule', we want to log the pipeline name if available
+            if 'name' in kwargs and func.__name__ in ['run', 'enqueue', 'schedule']:
+                logger.error(f"Failed to {operation_name.lower()} pipeline '{kwargs.get('name')}': {e}")
+                raise RuntimeError(f"Pipeline {operation_name.lower()} failed for '{kwargs.get('name')}': {e}") from e
+            else:
+                logger.error(f"Failed to {operation_name.lower()}: {e}")
+                raise RuntimeError(f"{operation_name} failed: {e}") from e
+    return wrapper
+
 
 class FlowerPowerProject:
     def __init__(
@@ -36,9 +55,6 @@ class FlowerPowerProject:
         self.pipeline_manager = pipeline_manager
         self.job_queue_manager = job_queue_manager
         self.name = self.pipeline_manager.project_cfg.name
-        self._base_dir = self.pipeline_manager._base_dir
-        self._fs = self.pipeline_manager._fs
-        self._storage_options = self.pipeline_manager._storage_options
         self.job_queue_type = (
             self.job_queue_manager.cfg.type
             if self.job_queue_manager is not None
@@ -49,6 +65,39 @@ class FlowerPowerProject:
             if self.job_queue_manager is not None
             else None
         )
+
+    def _validate_job_queue_manager(self) -> None:
+        """Validate that the job queue manager is configured."""
+        if self.job_queue_manager is None:
+            raise RuntimeError(
+                "Job queue manager is not configured. "
+                "Ensure the project was loaded with a job queue configuration."
+            )
+
+    def _validate_pipeline_name(self, name: str) -> None:
+        """Validate the pipeline name argument."""
+        if not name or not isinstance(name, str):
+            raise ValueError("Pipeline 'name' must be a non-empty string")
+        if name.strip() != name:
+            raise ValueError(
+                "Pipeline 'name' cannot have leading or trailing whitespace"
+            )
+
+    def _validate_queue_names(self, queue_names: list[str] | None) -> None:
+        """Validate the queue_names argument."""
+        if queue_names is not None and not isinstance(queue_names, list):
+            raise TypeError("'queue_names' must be a list of strings")
+        if queue_names is not None:
+            for queue_name in queue_names:
+                if not isinstance(queue_name, str):
+                    raise TypeError("All items in 'queue_names' must be strings")
+
+    def _validate_worker_args(self, background: bool, with_scheduler: bool) -> None:
+        """Validate boolean arguments for worker methods."""
+        if not isinstance(background, bool):
+            raise TypeError("'background' must be a boolean")
+        if not isinstance(with_scheduler, bool):
+            raise TypeError("'with_scheduler' must be a boolean")
 
     def _inject_dependencies(self):
         """Inject dependencies between managers for proper architecture.
@@ -66,6 +115,7 @@ class FlowerPowerProject:
 
     # --- Convenience Methods for Pipeline Operations ---
 
+    @handle_errors
     def run(
         self,
         name: str,
@@ -150,52 +200,30 @@ class FlowerPowerProject:
             )
 
         # Validate required arguments
-        if not name or not isinstance(name, str):
-            raise ValueError("Pipeline 'name' must be a non-empty string")
+        self._validate_pipeline_name(name)
 
-        if name.strip() != name:
-            raise ValueError(
-                "Pipeline 'name' cannot have leading or trailing whitespace"
-            )
+        return self.pipeline_manager.run(
+            name=name,
+            inputs=inputs,
+            final_vars=final_vars,
+            config=config,
+            cache=cache,
+            executor_cfg=executor_cfg,
+            with_adapter_cfg=with_adapter_cfg,
+            pipeline_adapter_cfg=pipeline_adapter_cfg,
+            project_adapter_cfg=project_adapter_cfg,
+            adapter=adapter,
+            reload=reload,
+            log_level=log_level,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            jitter_factor=jitter_factor,
+            retry_exceptions=retry_exceptions,
+            on_success=on_success,
+            on_failure=on_failure,
+        )
 
-        # Validate optional arguments
-        if inputs is not None and not isinstance(inputs, dict):
-            raise TypeError("'inputs' must be a dictionary")
-
-        if final_vars is not None and not isinstance(final_vars, list):
-            raise TypeError("'final_vars' must be a list of strings")
-
-        if final_vars is not None:
-            for var in final_vars:
-                if not isinstance(var, str):
-                    raise TypeError("All items in 'final_vars' must be strings")
-
-        try:
-            return self.pipeline_manager.run(
-                name=name,
-                inputs=inputs,
-                final_vars=final_vars,
-                config=config,
-                cache=cache,
-                executor_cfg=executor_cfg,
-                with_adapter_cfg=with_adapter_cfg,
-                pipeline_adapter_cfg=pipeline_adapter_cfg,
-                project_adapter_cfg=project_adapter_cfg,
-                adapter=adapter,
-                reload=reload,
-                log_level=log_level,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                jitter_factor=jitter_factor,
-                retry_exceptions=retry_exceptions,
-                on_success=on_success,
-                on_failure=on_failure,
-            )
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to execute pipeline '{name}': {e}")
-            raise RuntimeError(f"Pipeline execution failed for '{name}': {e}") from e
-
+    @handle_errors
     def enqueue(
         self,
         name: str,
@@ -245,31 +273,15 @@ class FlowerPowerProject:
             )
             ```
         """
-        # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot enqueue pipeline jobs. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
+        # Validate job queue manager and arguments
+        self._validate_job_queue_manager()
+        self._validate_pipeline_name(name)
 
-        # Validate required arguments
-        if not name or not isinstance(name, str):
-            raise ValueError("Pipeline 'name' must be a non-empty string")
+        return self.job_queue_manager.enqueue_pipeline(
+            name=name, project_context=self, *args, **kwargs
+        )
 
-        if name.strip() != name:
-            raise ValueError(
-                "Pipeline 'name' cannot have leading or trailing whitespace"
-            )
-
-        try:
-            return self.job_queue_manager.enqueue_pipeline(
-                name=name, project_context=self, *args, **kwargs
-            )
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to enqueue pipeline '{name}': {e}")
-            raise RuntimeError(f"Pipeline enqueue failed for '{name}': {e}") from e
-
+    @handle_errors
     def schedule(
         self,
         name: str,
@@ -326,31 +338,15 @@ class FlowerPowerProject:
             )
             ```
         """
-        # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot schedule pipeline jobs. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
+        # Validate job queue manager and arguments
+        self._validate_job_queue_manager()
+        self._validate_pipeline_name(name)
 
-        # Validate required arguments
-        if not name or not isinstance(name, str):
-            raise ValueError("Pipeline 'name' must be a non-empty string")
+        return self.job_queue_manager.schedule_pipeline(
+            name=name, project_context=self, *args, **kwargs
+        )
 
-        if name.strip() != name:
-            raise ValueError(
-                "Pipeline 'name' cannot have leading or trailing whitespace"
-            )
-
-        try:
-            return self.job_queue_manager.schedule_pipeline(
-                name=name, project_context=self, *args, **kwargs
-            )
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to schedule pipeline '{name}': {e}")
-            raise RuntimeError(f"Pipeline schedule failed for '{name}': {e}") from e
-
+    @handle_errors
     def start_worker(
         self,
         background: bool = False,
@@ -389,40 +385,19 @@ class FlowerPowerProject:
             project.start_worker(queue_names=["high_priority", "default"])
             ```
         """
-        # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot start worker. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
+        # Validate job queue manager and arguments
+        self._validate_job_queue_manager()
+        self._validate_queue_names(queue_names)
+        self._validate_worker_args(background, with_scheduler)
 
-        # Validate optional arguments
-        if queue_names is not None and not isinstance(queue_names, list):
-            raise TypeError("'queue_names' must be a list of strings")
+        return self.job_queue_manager.start_worker(
+            background=background,
+            queue_names=queue_names,
+            with_scheduler=with_scheduler,
+            **kwargs,
+        )
 
-        if queue_names is not None:
-            for queue_name in queue_names:
-                if not isinstance(queue_name, str):
-                    raise TypeError("All items in 'queue_names' must be strings")
-
-        if not isinstance(background, bool):
-            raise TypeError("'background' must be a boolean")
-
-        if not isinstance(with_scheduler, bool):
-            raise TypeError("'with_scheduler' must be a boolean")
-
-        try:
-            return self.job_queue_manager.start_worker(
-                background=background,
-                queue_names=queue_names,
-                with_scheduler=with_scheduler,
-                **kwargs,
-            )
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to start worker: {e}")
-            raise RuntimeError(f"Worker start failed: {e}") from e
-
+    @handle_errors
     def stop_worker(self) -> None:
         """Stop the worker process.
 
@@ -439,19 +414,11 @@ class FlowerPowerProject:
             ```
         """
         # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot stop worker. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
+        self._validate_job_queue_manager()
 
-        try:
-            return self.job_queue_manager.stop_worker()
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to stop worker: {e}")
-            raise RuntimeError(f"Worker stop failed: {e}") from e
+        return self.job_queue_manager.stop_worker()
 
+    @handle_errors
     def start_worker_pool(
         self,
         num_workers: int | None = None,
@@ -496,46 +463,24 @@ class FlowerPowerProject:
             )
             ```
         """
-        # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot start worker pool. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
-
-        # Validate optional arguments
+        # Validate job queue manager and arguments
+        self._validate_job_queue_manager()
         if num_workers is not None and (
             not isinstance(num_workers, int) or num_workers <= 0
         ):
             raise ValueError("'num_workers' must be a positive integer")
+        self._validate_queue_names(queue_names)
+        self._validate_worker_args(background, with_scheduler)
 
-        if queue_names is not None and not isinstance(queue_names, list):
-            raise TypeError("'queue_names' must be a list of strings")
+        return self.job_queue_manager.start_worker_pool(
+            num_workers=num_workers,
+            background=background,
+            queue_names=queue_names,
+            with_scheduler=with_scheduler,
+            **kwargs,
+        )
 
-        if queue_names is not None:
-            for queue_name in queue_names:
-                if not isinstance(queue_name, str):
-                    raise TypeError("All items in 'queue_names' must be strings")
-
-        if not isinstance(background, bool):
-            raise TypeError("'background' must be a boolean")
-
-        if not isinstance(with_scheduler, bool):
-            raise TypeError("'with_scheduler' must be a boolean")
-
-        try:
-            return self.job_queue_manager.start_worker_pool(
-                num_workers=num_workers,
-                background=background,
-                queue_names=queue_names,
-                with_scheduler=with_scheduler,
-                **kwargs,
-            )
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to start worker pool: {e}")
-            raise RuntimeError(f"Worker pool start failed: {e}") from e
-
+    @handle_errors
     def stop_worker_pool(self) -> None:
         """Stop all worker processes in the worker pool.
 
@@ -552,50 +497,32 @@ class FlowerPowerProject:
             ```
         """
         # Validate job queue manager is available
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. Cannot stop worker pool. "
-                "Ensure the project was loaded with a job queue configuration."
-            )
+        self._validate_job_queue_manager()
 
-        try:
-            return self.job_queue_manager.stop_worker_pool()
-        except Exception as e:
-            # Log error and re-raise with context
-            logger.error(f"Failed to stop worker pool: {e}")
-            raise RuntimeError(f"Worker pool stop failed: {e}") from e
+        return self.job_queue_manager.stop_worker_pool()
 
     @staticmethod
-    def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None):
+    def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None) -> tuple[bool, str]:
         if fs is None:
             fs = filesystem(base_dir, dirfs=True)
-        if isinstance(fs, DirFileSystem):
-            if not fs.exists("."):
-                rich.print(
-                    "[red]Project directory does not exist. Please initialize it first.[/red]"
-                )
-                return False
-            if not fs.exists("conf") or not fs.exists("pipelines"):
-                rich.print(
-                    "[red]Project configuration or pipelines directory is missing[/red]"
-                )
-                return False
-        else:
-            if not fs.exists(base_dir):
-                rich.print(
-                    "[red]Project directory does not exist. Please initialize it first.[/red]"
-                )
-                return False
-            if not fs.exists(posixpath.join(base_dir, "conf")) or not fs.exists(
-                posixpath.join(base_dir, "pipelines")
-            ):
-                rich.print(
-                    "[red]Project configuration or pipelines directory is missing[/red]"
-                )
-                return False
+        
+        # Determine the root path for existence checks
+        # For DirFileSystem, paths are relative to its root, so we check "." for the project root.
+        # For other filesystems, we use the base_dir directly.
+        root_path = "." if isinstance(fs, DirFileSystem) else base_dir
+
+        if not fs.exists(root_path):
+            return False, "Project directory does not exist. Please initialize it first."
+        
+        # Check for required subdirectories
+        config_path = posixpath.join(root_path, settings.CONFIG_DIR)
+        pipelines_path = posixpath.join(root_path, settings.PIPELINES_DIR)
+        
+        if not fs.exists(config_path) or not fs.exists(pipelines_path):
+            return False, "Project configuration or pipelines directory is missing"
 
         logger.debug(f"Project exists at {base_dir}")
-        return True
+        return True, ""
 
     @classmethod
     def load(
@@ -642,7 +569,8 @@ class FlowerPowerProject:
                 cache_storage=cache_storage,
             )
 
-        if cls._check_project_exists(base_dir, fs):
+        project_exists, message = cls._check_project_exists(base_dir, fs)
+        if project_exists:
             logger.info(f"Loading FlowerPower project from {base_dir}")
             pipeline_manager = PipelineManager(
                 base_dir=base_dir,
@@ -669,13 +597,12 @@ class FlowerPowerProject:
 
             return project
         else:
-            logger.error(
-                f"Project does not exist at {base_dir}. Please initialize it first. Use `FlowerPowerProject.init()` to create a new project."
-            )
+            rich.print(f"[red]{message}[/red]")
+            logger.error(message)
             return None
 
     @classmethod
-    def init(
+    def new(
         cls,
         name: str | None = None,
         base_dir: str | None = None,
@@ -684,6 +611,7 @@ class FlowerPowerProject:
         job_queue_type: str = settings.JOB_QUEUE_TYPE,
         hooks_dir: str = settings.HOOKS_DIR,
         log_level: str | None = None,
+        overwrite: bool = False,
     ) -> "FlowerPowerProject":
         """
         Initialize a new FlowerPower project.
@@ -695,10 +623,11 @@ class FlowerPowerProject:
             fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
             job_queue_type (str): The type of job queue to use for the project.
             hooks_dir (str): The directory where the project hooks will be stored.
+            overwrite (bool): Whether to overwrite an existing project at the specified base directory.
         Returns:
             FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
         Raises:
-            FileExistsError: If the project already exists at the specified base directory.
+            FileExistsError: If the project already exists at the specified base directory and overwrite is False.
         """
         if log_level:
             setup_logging(level=log_level)
@@ -717,6 +646,33 @@ class FlowerPowerProject:
                 storage_options=storage_options,
             )
 
+        # Check if project already exists
+        project_exists, message = cls._check_project_exists(base_dir, fs)
+        if project_exists:
+            if overwrite:
+                # Delete existing project files and directories
+                logger.info(f"Overwriting existing project at {base_dir}")
+                
+                # Remove directories recursively
+                config_path = f"{settings.CONFIG_DIR}"
+                pipelines_path = settings.PIPELINES_DIR
+                
+                if fs.exists(config_path):
+                    fs.rmdir(config_path, recursive=True)
+                if fs.exists(pipelines_path):
+                    fs.rmdir(pipelines_path, recursive=True)
+                if fs.exists(hooks_dir):
+                    fs.rmdir(hooks_dir, recursive=True)
+                
+                # Remove README.md file
+                if fs.exists("README.md"):
+                    fs.rm("README.md")
+            else:
+                error_msg = f"Project already exists at {base_dir}. Use overwrite=True to overwrite the existing project."
+                rich.print(f"[red]{error_msg}[/red]")
+                logger.error(error_msg)
+                raise FileExistsError(error_msg)
+
         fs.makedirs(f"{settings.CONFIG_DIR}/pipelines", exist_ok=True)
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
         fs.makedirs(hooks_dir, exist_ok=True)
@@ -729,7 +685,6 @@ class FlowerPowerProject:
                 f"**created on**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
             )
         cfg.save(fs=fs)
-        #os.chdir(posixpath.join(base_dir, name))
 
         rich.print(
             f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] "
@@ -780,57 +735,45 @@ class FlowerPowerProject:
         )
 
 
-class FlowerPower:
-    def __new__(
-        self,
-        name: str | None = None,
-        base_dir: str | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
-        fs: AbstractFileSystem | None = None,
-        job_queue_type: str = settings.JOB_QUEUE_TYPE,
-        hooks_dir: str = settings.HOOKS_DIR,
-    ) -> FlowerPowerProject:
-        """
-        Initialize a FlowerPower project.
-
-        Args:
-            name (str | None): The name of the project. If None, it defaults to the current directory name.
-            base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
-            storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
-            fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
-            job_queue_type (str): The type of job queue to use for the project.
-            hooks_dir (str): The directory where the project hooks will be stored.
-
-        Returns:
-            FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
-        """
-        if FlowerPowerProject._check_project_exists(base_dir, fs=fs):
-            return FlowerPowerProject.load(
-                base_dir=base_dir,
-                storage_options=storage_options,
-                fs=fs,
-            )
-        else:
-            return FlowerPowerProject.init(
-                name=name,
-                base_dir=base_dir,
-                storage_options=storage_options,
-                fs=fs,
-                job_queue_type=job_queue_type,
-                hooks_dir=hooks_dir,
-            )
-
-    def __call__(self) -> FlowerPowerProject:
-        """
-        Call the FlowerPower instance to return the current project.
-
-        Returns:
-            FlowerPowerProject: The current FlowerPower project.
-        """
-        return self
+def initialize_project(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict | BaseStorageOptions | None = {},
+    fs: AbstractFileSystem | None = None,
+    job_queue_type: str = settings.JOB_QUEUE_TYPE,
+    hooks_dir: str = settings.HOOKS_DIR,
+    log_level: str | None = None,
+) -> FlowerPowerProject:
+    """
+    Initialize a new FlowerPower project.
+    
+    This is a standalone function that directly calls FlowerPowerProject.new
+    with the same arguments, providing easier, separately importable access.
+    
+    Args:
+        name (str | None): The name of the project. If None, it defaults to the current directory name.
+        base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
+        storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
+        fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
+        job_queue_type (str): The type of job queue to use for the project.
+        hooks_dir (str): The directory where the project hooks will be stored.
+        log_level (str | None): The logging level to set for the project.
+    
+    Returns:
+        FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
+    """
+    return FlowerPowerProject.new(
+        name=name,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        fs=fs,
+        job_queue_type=job_queue_type,
+        hooks_dir=hooks_dir,
+        log_level=log_level,
+    )
 
 
-def init(
+def create_project(
     name: str | None = None,
     base_dir: str | None = None,
     storage_options: dict | BaseStorageOptions | None = {},
@@ -839,24 +782,44 @@ def init(
     hooks_dir: str = settings.HOOKS_DIR,
 ) -> FlowerPowerProject:
     """
-    Initialize a FlowerPower project.
+    Create or load a FlowerPower project.
+
+    If a project exists at the specified base_dir, it will be loaded.
+    Otherwise, a new project will be initialized.
 
     Args:
         name (str | None): The name of the project. If None, it defaults to the current directory name.
-        base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
+        base_dir (str | None): The base directory where the project will be created or loaded from.
+                               If None, it defaults to the current working directory.
         storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
         fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
         job_queue_type (str): The type of job queue to use for the project.
         hooks_dir (str): The directory where the project hooks will be stored.
 
     Returns:
-        FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
+        FlowerPowerProject: An instance of FlowerPowerProject.
     """
-    return FlowerPowerProject.init(
-        name=name,
-        base_dir=base_dir,
-        storage_options=storage_options,
-        fs=fs,
-        job_queue_type=job_queue_type,
-        hooks_dir=hooks_dir,
-    )
+    # Note: _check_project_exists expects base_dir to be a string.
+    # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
+    # We pass fs directly, as _check_project_exists can handle fs being None.
+    project_exists, _ = FlowerPowerProject._check_project_exists(base_dir or str(Path.cwd()), fs=fs)
+
+    if project_exists:
+        return FlowerPowerProject.load(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+        )
+    else:
+        error_message = "Project does not exist. Use `initialize_project()` or `FlowerPowerProject.new()` to create it."
+        rich.print(f"[red]{error_message}[/red]")
+        logger.error(error_message)
+        raise FileNotFoundError(error_message)
+
+# Alias for backward compatibility or alternative naming
+FlowerPower = create_project
+
+
+# The standalone init function is removed as it was a direct pass-through
+# to FlowerPowerProject.new(). Users can now use FlowerPowerProject.new() directly
+# or the new create_project() function which handles both loading and initialization.

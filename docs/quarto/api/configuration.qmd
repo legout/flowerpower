@@ -9,10 +9,43 @@ FlowerPower uses a hierarchical configuration system to manage project and pipel
 -   [`Config`](#config)
 -   [`ProjectConfig`](#projectconfig)
 -   [`PipelineConfig`](#pipelineconfig)
+-   [`BaseConfig`](#baseconfig)
 
-These classes are designed to be flexible and extensible, allowing you to manage your project's configuration in a clean and organized way.
+These classes are designed to be flexible and extensible, allowing you to manage your project's configuration in a clean and organized way. All configuration classes inherit from `BaseConfig`, which provides common functionality for configuration management.
 
 ## Classes
+
+### BaseConfig
+**Module:** `flowerpower.cfg.base.BaseConfig`
+
+The `BaseConfig` class is the foundation for all configuration classes in FlowerPower. It provides common functionality including YAML serialization/deserialization, dictionary conversion, and configuration manipulation methods.
+
+**Methods:**
+
+| Method | Description |
+|:-------|:------------|
+| `to_dict()` | Converts the configuration instance to a dictionary. |
+| `to_yaml(path, fs)` | Saves the configuration to a YAML file using the specified filesystem. |
+| `from_dict(data)` | Creates a configuration instance from a dictionary. |
+| `from_yaml(path, fs)` | Loads a configuration instance from a YAML file. |
+| `update(d)` | Updates this instance with values from the provided dictionary. |
+| `merge_dict(d)` | Creates a copy of this instance and updates the copy with values from the provided dictionary. |
+| `merge(source)` | Creates a copy of this instance and updates the copy with non-default values from the source struct. |
+
+#### Example
+
+```python
+from flowerpower.cfg.base import BaseConfig
+
+# Update configuration with dictionary values
+config.update({"param1": "value1", "nested": {"key": "value"}})
+
+# Create a new configuration with merged values
+new_config = config.merge_dict({"param2": "value2"})
+
+# Merge with another configuration instance
+merged_config = config.merge(other_config)
+```
 
 ### Config
 **Module:** `flowerpower.cfg.Config`
@@ -25,6 +58,9 @@ The `Config` class is the main configuration class that combines project and pip
 |:----------|:-----|:------------|
 | `pipeline` | `PipelineConfig` | A `PipelineConfig` object containing pipeline-specific settings. |
 | `project` | `ProjectConfig` | A `ProjectConfig` object containing project-level settings. |
+| `fs` | `AbstractFileSystem \| None` | Filesystem abstraction for I/O operations. |
+| `base_dir` | `str \| Path \| None` | Base directory for the configuration. |
+| `storage_options` | `dict \| Munch` | Options for filesystem operations. |
 
 #### Example
 
@@ -37,6 +73,12 @@ config = Config()
 # Access project and pipeline settings
 print(config.project.name)
 print(config.pipeline.name)
+
+# Load configuration from directory
+config = Config.load(base_dir="my_project", name="project1", pipeline_name="data-pipeline")
+
+# Save configuration
+config.save(project=True, pipeline=True)
 ```
 
 ### ProjectConfig

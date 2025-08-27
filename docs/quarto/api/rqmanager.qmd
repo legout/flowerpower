@@ -28,42 +28,30 @@ Initializes the `RQManager`.
 
 ## Methods
 
-### add_job
+### enqueue
 ```python
-add_job(self, func: Callable, func_args: list | None = None, func_kwargs: dict | None = None, job_id: str | None = None, result_ttl: int | None = None, ttl: int | None = None, timeout: int | None = None, queue_name: str | None = None, run_at: datetime | None = None, run_in: timedelta | int | str | None = None, retry: Retry | None = None, repeat: int | None = None, meta: dict | None = None, failure_ttl: int | None = None, group_id: str | None = None, on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_stopped: Callable | tuple[Callable, tuple | None, dict | None] | None = None, **job_kwargs)
+enqueue(self, func: Callable, *args, **kwargs)
 ```
 
-Adds a job to the queue for immediate or scheduled execution.
+Enqueues a job for immediate, delayed, or scheduled execution.
 
-::: {.callout-note}
-This method is deprecated. Use `enqueue`, `enqueue_in`, or `enqueue_at` instead.
-:::
+This is the main method for adding jobs to the queue. It supports:
+- Immediate execution (no `run_at` or `run_in` parameters)
+- Delayed execution (`run_in` parameter)
+- Scheduled execution (`run_at` parameter)
 
-| Parameter | Type | Description | Default |
-|:----------|:-----|:------------|:--------|
-| `func` | `Callable` | The function to execute. | |
-| `func_args` | `list | None` | Positional arguments for the function. | `None` |
-| `func_kwargs` | `dict | None` | Keyword arguments for the function. | `None` |
-| `job_id` | `str | None` | Unique identifier for the job. | `None` |
-| `result_ttl` | `int | None` | Time to live for job result (seconds). | `None` |
-| `ttl` | `int | None` | Total time to live for the job (seconds). | `None` |
-| `timeout` | `int | None` | Job execution timeout (seconds). | `None` |
-| `queue_name` | `str | None` | The name of the RQ queue to use. | `None` |
-| `run_at` | `datetime | None` | Specific datetime to run the job. | `None` |
-| `run_in` | `timedelta | int | str | None` | Delay before running the job. | `None` |
-| `retry` | `Retry | None` | Retry policy for the job. | `None` |
-| `repeat` | `int | None` | Number of times to repeat the job. | `None` |
-| `meta` | `dict | None` | Arbitrary metadata for the job. | `None` |
-| `failure_ttl` | `int | None` | Time to live for failed job result (seconds). | `None` |
-| `group_id` | `str | None` | Group ID for the job. | `None` |
-| `on_success` | `Callable | tuple[Callable, tuple | None, dict | None] | None` | Callback on job success. | `None` |
-| `on_failure` | `Callable | tuple[Callable, tuple | None, dict | None] | None` | Callback on job failure. | `None` |
-| `on_stopped` | `Callable | tuple[Callable, tuple | None, dict | None] | None` | Callback on job stopped. | `None` |
-| `**job_kwargs` | `Any` | Additional keyword arguments for RQ's `Job` class. | |
+| Parameter | Type | Description |
+|:----------|:-----|:------------|
+| `func` | `Callable` | The function to execute. Must be importable from the worker process. |
+| `*args` | `Any` | Positional arguments for the function. |
+| `**kwargs` | `Any` | Keyword arguments including: |
+|           |      | - `run_in`: Schedule the job to run after a delay (`timedelta`, `int` seconds, or `str`) |
+|           |      | - `run_at`: Schedule the job to run at a specific `datetime` |
+|           |      | - Other job queue specific parameters (`timeout`, `retry`, etc.) |
 
-**Returns:** `Job` - The enqueued job object.
+**Returns:** `Job` - The created job instance.
 
-**Raises:** `ValueError`: If required parameters are missing or invalid.
+**Raises:** `ValueError`: If the function is not serializable or arguments are invalid.
 
 #### Example
 
@@ -73,24 +61,103 @@ from datetime import datetime, timedelta
 
 manager = RQManager(name="my_rq_manager")
 
-# Enqueue a simple job
 def my_task(x, y):
     return x + y
 
-job = manager.add_job(my_task, func_args=[1, 2], queue_name="default")
-print(f"Enqueued job {job.id}")
+# Immediate execution
+job = manager.enqueue(my_task, 1, 2, job_id="my_sum_job")
+print(f"Enqueued job: {job.id}")
 
-# Schedule a job to run in 5 minutes
-job = manager.add_job(my_task, func_args=[3, 4], run_in=timedelta(minutes=5), queue_name="default")
+# Delayed execution (5 minutes)
+job = manager.enqueue(my_task, 3, 4, run_in=timedelta(minutes=5))
 
-# Schedule a job to run at a specific time
+# Scheduled execution (specific time)
 target_time = datetime(2025, 1, 1, 10, 0, 0)
-job = manager.add_job(my_task, func_args=[5, 6], run_at=target_time, queue_name="default")
+job = manager.enqueue(my_task, 5, 6, run_at=target_time)
+```
+
+### enqueue_in
+```python
+enqueue_in(self, delay: timedelta | int | str, func: Callable, *args, **kwargs)
+```
+
+Enqueues a job to run after a specified delay.
+
+This is a convenience method for delayed execution. It's equivalent to
+calling `enqueue()` with the `run_in` parameter.
+
+| Parameter | Type | Description |
+|:----------|:-----|:------------|
+| `delay` | `timedelta | int | str` | The delay before execution. Can be a `timedelta` object, an integer (seconds), or a string (e.g., "1m" for 1 minute). |
+| `func` | `Callable` | The function to execute. |
+| `*args` | `Any` | Positional arguments for the function. |
+| `**kwargs` | `Any` | Keyword arguments for the function and job options. |
+
+**Returns:** `Job` - The created job instance.
+
+**Raises:** `ValueError`: If `delay` is invalid or `func` is not callable.
+
+#### Example
+
+```python
+from flowerpower.job_queue.rq import RQManager
+from datetime import timedelta
+
+manager = RQManager(name="my_rq_manager")
+
+def send_notification(message):
+    print(f"Notification: {message}")
+
+# Enqueue a job to run in 5 minutes
+job = manager.enqueue_in(timedelta(minutes=5), send_notification, "Your report is ready!")
+
+# Enqueue a job to run in 30 seconds (integer delay)
+job = manager.enqueue_in(30, send_notification, "Quick update!")
+
+# Enqueue a job to run in 1 hour (string delay)
+job = manager.enqueue_in("1h", send_notification, "Hourly reminder!")
+```
+
+### enqueue_at
+```python
+enqueue_at(self, datetime_obj: datetime, func: Callable, *args, **kwargs)
+```
+
+Enqueues a job to run at a specific datetime.
+
+This is a convenience method for scheduled execution. It's equivalent to
+calling `enqueue()` with the `run_at` parameter.
+
+| Parameter | Type | Description |
+|:----------|:-----|:------------|
+| `datetime_obj` | `datetime` | The datetime to execute the job. |
+| `func` | `Callable` | The function to execute. |
+| `*args` | `Any` | Positional arguments for the function. |
+| `**kwargs` | `Any` | Keyword arguments for the function and job. |
+
+**Returns:** `Job` - The created job instance.
+
+**Raises:** `ValueError`: If `datetime_obj` is in the past or `func` is not callable.
+
+#### Example
+
+```python
+from flowerpower.job_queue.rq import RQManager
+from datetime import datetime
+
+manager = RQManager(name="my_rq_manager")
+
+def generate_monthly_report(month, year):
+    print(f"Generating report for {month}/{year}")
+
+# Enqueue a job to run at a specific future date and time
+target_time = datetime(2025, 1, 1, 9, 0, 0)
+job = manager.enqueue_at(target_time, generate_monthly_report, 1, 2025)
 ```
 
 ### start_worker
 ```python
-start_worker(self, background: bool = False, queue_names: list[str] | None = None, with_scheduler: bool = False, **kwargs)
+start_worker(self, background: bool = False, queue_names: list[str] | None = None, with_scheduler: bool = False, num_workers: int | None = None, **kwargs)
 ```
 
 Starts a worker process for the job queue.
@@ -100,6 +167,7 @@ Starts a worker process for the job queue.
 | `background` | `bool` | If `True`, runs the worker in the background. | `False` |
 | `queue_names` | `list[str] \| None` | A list of RQ queues to listen to. Defaults to all queues. | `None` |
 | `with_scheduler` | `bool` | If `True`, the worker also processes scheduled jobs. | `False` |
+| `num_workers` | `int | None` | Number of worker processes to start (pool mode). | `None` |
 | `**kwargs` | `Any` | Additional arguments for RQ's `Worker` class. | |
 
 **Returns:** `None`
@@ -118,4 +186,7 @@ manager.start_worker(queue_names=["default"])
 
 # Start a worker in the background with scheduler enabled
 manager.start_worker(background=True, with_scheduler=True)
+
+# Start a worker pool with 4 processes
+manager.start_worker(num_workers=4)
 ```

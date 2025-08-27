@@ -39,17 +39,12 @@ class MLFlowConfig(BaseConfig):
             self.run_tags = munchify(self.run_tags)
 
 
-# class OpenLineageConfig(BaseConfig):
-#     namespace : str | None = msgspec.field(default=None)
-#     job_name : str | None = msgspec.field(default=None)
-
 
 class AdapterConfig(BaseConfig):
     hamilton_tracker: HamiltonTracerConfig = msgspec.field(
         default_factory=HamiltonTracerConfig
     )
     mlflow: MLFlowConfig = msgspec.field(default_factory=MLFlowConfig)
-    # openlineage: OpenLineageConfig | dict = msgspec.field(default_factory=OpenLineageConfig)
 
     def __post_init__(self):
         if isinstance(self.hamilton_tracker, dict):

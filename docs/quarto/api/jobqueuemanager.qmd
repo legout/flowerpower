@@ -122,6 +122,9 @@ manager.start_worker("high_priority_queue")
 
 # Start a worker for multiple queues
 manager.start_worker(["default", "low_priority"])
+
+# Start a worker pool with 4 processes
+manager.start_worker(num_workers=4)
 ```
 
 ### stop_worker
