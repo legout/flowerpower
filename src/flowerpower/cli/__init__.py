@@ -95,7 +95,7 @@ def init(
             raise typer.Exit(code=1)
 
     try:
-        FlowerPowerProject.init(
+        FlowerPowerProject.new(
             name=project_name,
             base_dir=base_dir,
             storage_options=parsed_storage_options,

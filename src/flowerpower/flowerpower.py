@@ -602,7 +602,7 @@ class FlowerPowerProject:
             return None
 
     @classmethod
-    def init(
+    def new(
         cls,
         name: str | None = None,
         base_dir: str | None = None,
@@ -611,6 +611,7 @@ class FlowerPowerProject:
         job_queue_type: str = settings.JOB_QUEUE_TYPE,
         hooks_dir: str = settings.HOOKS_DIR,
         log_level: str | None = None,
+        overwrite: bool = False,
     ) -> "FlowerPowerProject":
         """
         Initialize a new FlowerPower project.
@@ -622,10 +623,11 @@ class FlowerPowerProject:
             fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
             job_queue_type (str): The type of job queue to use for the project.
             hooks_dir (str): The directory where the project hooks will be stored.
+            overwrite (bool): Whether to overwrite an existing project at the specified base directory.
         Returns:
             FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
         Raises:
-            FileExistsError: If the project already exists at the specified base directory.
+            FileExistsError: If the project already exists at the specified base directory and overwrite is False.
         """
         if log_level:
             setup_logging(level=log_level)
@@ -643,6 +645,33 @@ class FlowerPowerProject:
                 dirfs=True,
                 storage_options=storage_options,
             )
+
+        # Check if project already exists
+        project_exists, message = cls._check_project_exists(base_dir, fs)
+        if project_exists:
+            if overwrite:
+                # Delete existing project files and directories
+                logger.info(f"Overwriting existing project at {base_dir}")
+                
+                # Remove directories recursively
+                config_path = f"{settings.CONFIG_DIR}"
+                pipelines_path = settings.PIPELINES_DIR
+                
+                if fs.exists(config_path):
+                    fs.rmdir(config_path, recursive=True)
+                if fs.exists(pipelines_path):
+                    fs.rmdir(pipelines_path, recursive=True)
+                if fs.exists(hooks_dir):
+                    fs.rmdir(hooks_dir, recursive=True)
+                
+                # Remove README.md file
+                if fs.exists("README.md"):
+                    fs.rm("README.md")
+            else:
+                error_msg = f"Project already exists at {base_dir}. Use overwrite=True to overwrite the existing project."
+                rich.print(f"[red]{error_msg}[/red]")
+                logger.error(error_msg)
+                raise FileExistsError(error_msg)
 
         fs.makedirs(f"{settings.CONFIG_DIR}/pipelines", exist_ok=True)
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
@@ -706,6 +735,44 @@ class FlowerPowerProject:
         )
 
 
+def initialize_project(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict | BaseStorageOptions | None = {},
+    fs: AbstractFileSystem | None = None,
+    job_queue_type: str = settings.JOB_QUEUE_TYPE,
+    hooks_dir: str = settings.HOOKS_DIR,
+    log_level: str | None = None,
+) -> FlowerPowerProject:
+    """
+    Initialize a new FlowerPower project.
+    
+    This is a standalone function that directly calls FlowerPowerProject.new
+    with the same arguments, providing easier, separately importable access.
+    
+    Args:
+        name (str | None): The name of the project. If None, it defaults to the current directory name.
+        base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
+        storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
+        fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
+        job_queue_type (str): The type of job queue to use for the project.
+        hooks_dir (str): The directory where the project hooks will be stored.
+        log_level (str | None): The logging level to set for the project.
+    
+    Returns:
+        FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
+    """
+    return FlowerPowerProject.new(
+        name=name,
+        base_dir=base_dir,
+        storage_options=storage_options,
+        fs=fs,
+        job_queue_type=job_queue_type,
+        hooks_dir=hooks_dir,
+        log_level=log_level,
+    )
+
+
 def create_project(
     name: str | None = None,
     base_dir: str | None = None,
@@ -744,19 +811,15 @@ def create_project(
             fs=fs,
         )
     else:
-        return FlowerPowerProject.init(
-            name=name,
-            base_dir=base_dir,
-            storage_options=storage_options,
-            fs=fs,
-            job_queue_type=job_queue_type,
-            hooks_dir=hooks_dir,
-        )
+        error_message = "Project does not exist. Use `initialize_project()` or `FlowerPowerProject.new()` to create it."
+        rich.print(f"[red]{error_message}[/red]")
+        logger.error(error_message)
+        raise FileNotFoundError(error_message)
 
 # Alias for backward compatibility or alternative naming
 FlowerPower = create_project
 
 
 # The standalone init function is removed as it was a direct pass-through
-# to FlowerPowerProject.init(). Users can now use FlowerPowerProject.init() directly
+# to FlowerPowerProject.new(). Users can now use FlowerPowerProject.new() directly
 # or the new create_project() function which handles both loading and initialization.
