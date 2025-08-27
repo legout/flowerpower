@@ -17,6 +17,15 @@ from .base import BaseBackend, BaseJobQueueManager
 setup_logging()
 
 
+def _check_rq_available() -> bool:
+    """Check if RQ (Redis Queue) is available.
+    
+    Returns:
+        bool: True if RQ is available, False otherwise.
+    """
+    return RQBackend is not None and RQManager is not None
+
+
 class JobQueueBackend:
     """A factory class for creating backend instances for different job queue types.
 
@@ -68,7 +77,7 @@ class JobQueueBackend:
         Example:
             ```python
             # Create RQ backend
-            rq_backend = Backend(
+            rq_backend = JobQueueBackend(
                 job_queue_type="rq",
                 uri="redis://localhost:6379/0",
                 queues=["high", "default", "low"],
@@ -77,26 +86,26 @@ class JobQueueBackend:
 
             ```
         """
-        if job_queue_type == "rq" and RQBackend is not None:
-            return RQBackend(**kwargs)
-        else:
-            if job_queue_type == "rq" and RQBackend is None:
+        if job_queue_type == "rq":
+            if _check_rq_available():
+                return RQBackend(**kwargs)
+            else:
                 logger.warning(
                     "RQ is not installed. `JobQueueBackend` is not initialized and using the job queue is disabled. "
                     "Install rq to use RQ. `uv pip install flowerpower[rq]` or `uv add flowerpower[rq]`"
                 )
                 return None
-            else:
-                raise ValueError(
-                    f"Invalid job queue type: {job_queue_type}. Valid types: ['rq']"
-                )
+        
+        raise ValueError(
+            f"Invalid job queue type: {job_queue_type}. Valid types: ['rq']"
+        )
 
 
 class JobQueueManager:
     """A factory class for creating job queue instances for job scheduling and execution.
 
     This class provides a unified interface for creating different types of job queue instances
-    (RQ, APScheduler, Huey) based on the specified backend type. Each job queue type provides
+    (RQ) based on the specified backend type. Each job queue type provides
     different capabilities for job scheduling and execution.
 
     The job queue instances handle:
@@ -113,7 +122,6 @@ class JobQueueManager:
             name="my_worker",
             log_level="DEBUG"
         )
-
 
         ```
     """
@@ -154,8 +162,6 @@ class JobQueueManager:
 
         Raises:
             ValueError: If an invalid job queue type is specified.
-            ImportError: If required dependencies for the chosen job queue type
-                are not installed.
             RuntimeError: If job queue initialization fails due to configuration
                 or connection issues.
 
@@ -163,7 +169,6 @@ class JobQueueManager:
             ```python
             # Basic RQ job queue
             worker = JobQueueManager(type="rq", name="basic_worker")
-
 
             ```
         """
@@ -176,7 +181,7 @@ class JobQueueManager:
             ).job_queue.type
 
         if type == "rq":
-            if RQManager is not None:
+            if _check_rq_available():
                 return RQManager(
                     name=name,
                     base_dir=base_dir,
@@ -192,14 +197,17 @@ class JobQueueManager:
                 )
                 return None
 
-        else:
-            raise ImportError(f"Invalid job queue type: {type}. Valid types: ['rq']")
+        raise ValueError(f"Invalid job queue type: {type}. Valid types: ['rq']")
 
 
 __all__ = [
     "JobQueueManager",
-    "RQManager",
     # "HueyWorker",
     "JobQueueBackend",
-    "RQBackend",
 ]
+
+# Conditionally add RQ classes if they are available
+if RQManager is not None:
+    __all__.append("RQManager")
+if RQBackend is not None:
+    __all__.append("RQBackend")
