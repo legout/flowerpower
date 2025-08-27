@@ -24,18 +24,6 @@ class OpenTelemetryConfig(BaseConfig):
     port: int = msgspec.field(default=6831)
 
 
-# class OpenLineageConfig(BaseConfig):
-#     from openlineage.client import OpenLineageClientOptions
-#     from openlineage.client.transport import Transport
-#     from openlineage.client.transport import TransportFactory
-#     url: str | None = msgspec.field(default=None)
-#     options: OpenLineageClientOptions | None = msgspec.field(
-#         default=None)
-#     transport: Transport | None = msgspec.field(default=None)
-#     factory: TransportFactory | None = msgspec.field(
-#         default=None)
-#     config: dict | None = msgspec.field(default=None)
-
 
 class RayConfig(BaseConfig):
     ray_init_config: dict | None = msgspec.field(default=None)

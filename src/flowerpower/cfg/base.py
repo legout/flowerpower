@@ -2,7 +2,8 @@ import copy
 from typing import Any, Self
 
 import msgspec
-from fsspec import AbstractFileSystem, filesystem
+from fsspec_utils import AbstractFileSystem, filesystem
+from ..utils.misc import get_filesystem
 
 
 class BaseConfig(msgspec.Struct, kw_only=True):
@@ -20,12 +21,10 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         Raises:
             NotImplementedError: If the filesystem does not support writing files.
         """
-        if fs is None:
-            fs = filesystem("file")
+        fs = get_filesystem(fs)
         try:
             with fs.open(path, "wb") as f:
                 f.write(msgspec.yaml.encode(self, order="deterministic"))
-                # yaml.dump(self.to_dict(), f, default_flow_style=False)
         except NotImplementedError:
             raise NotImplementedError("The filesystem does not support writing files.")
 
@@ -54,29 +53,42 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             An instance of the class with the values from the YAML file.
 
         """
-        if fs is None:
-            fs = filesystem("file")
+        fs = get_filesystem(fs)
         with fs.open(path) as f:
-            # data = yaml.full_load(f)
-            # return cls.from_dict(data)
             return msgspec.yaml.decode(f.read(), type=cls, strict=False)
 
-    def update(self, d: dict[str, Any]) -> None:
+    def _apply_dict_updates(self, target: Self, d: dict[str, Any]) -> None:
+        """
+        Helper method to apply dictionary updates to a target instance.
+        
+        Args:
+            target: The target instance to apply updates to.
+            d: The dictionary containing updates to apply.
+        """
         for k, v in d.items():
-            if hasattr(self, k):
-                current_value = getattr(self, k)
+            if hasattr(target, k):
+                current_value = getattr(target, k)
                 if isinstance(current_value, dict) and isinstance(v, dict):
                     current_value.update(v)
                 else:
-                    setattr(self, k, v)
+                    setattr(target, k, v)
             else:
-                setattr(self, k, v)
+                # Use object.__setattr__ to bypass msgspec.Struct's restrictions
+                object.__setattr__(target, k, v)
+
+    def update(self, d: dict[str, Any]) -> None:
+        """
+        Updates this instance with values from the provided dictionary.
+        
+        Args:
+            d: The dictionary containing updates to apply.
+        """
+        self._apply_dict_updates(self, d)
 
     def merge_dict(self, d: dict[str, Any]) -> Self:
         """
         Creates a copy of this instance and updates the copy with values
-        from the provided dictionary, only if the dictionary field's value is not
-        its default value. The original instance (self) is not modified.
+        from the provided dictionary. The original instance (self) is not modified.
 
         Args:
             d: The dictionary to get values from.
@@ -84,16 +96,8 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         Returns:
             A new instance of the struct with updated values.
         """
-        self_copy = copy.copy(self)
-        for k, v in d.items():
-            if hasattr(self_copy, k):
-                current_value = getattr(self_copy, k)
-                if isinstance(current_value, dict) and isinstance(v, dict):
-                    current_value.update(v)
-                else:
-                    setattr(self_copy, k, v)
-            else:
-                setattr(self_copy, k, v)
+        self_copy = copy.deepcopy(self)
+        self._apply_dict_updates(self_copy, d)
         return self_copy
 
     def merge(self, source: Self) -> Self:

@@ -552,6 +552,7 @@ class RQManager(BaseJobQueueManager):
             # Start scheduler in foreground (blocking)
             worker.start_scheduler(background=False)
             ```
+        """
         if not hasattr(self, "_scheduler"):
             self._scheduler = Scheduler(
                 connection=self._backend.client,
@@ -647,6 +648,7 @@ class RQManager(BaseJobQueueManager):
             # Scheduled execution
             manager.enqueue(my_func, arg1, run_at=datetime(2025, 1, 1, 9, 0))
             ```
+        """
         func_args = kwargs.pop("func_args", None)
         func_kwargs = kwargs.pop("func_kwargs", None)
 

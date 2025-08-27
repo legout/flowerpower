@@ -15,7 +15,7 @@ Initializes a new FlowerPower project.
 | `name`            | `str` &#124; `None`                | The name of the project. Defaults to the current directory name.               |
 | `base_dir`        | `str` &#124; `None`                | The base directory for the project. Defaults to the current working directory. |
 | `storage_options` | `dict` &#124; `BaseStorageOptions` &#124; `None` | Storage options for the filesystem.                                            |
-| `fs`              | `AbstractFileSystem` &#124; `None` | An fsspec-compatible filesystem instance.                                      |
+| `fs`              | `AbstractFileSystem` &#124; `None` | An fsspec-compatible filesystem instance. If None, uses the `get_filesystem` helper.                                      |
 | `job_queue_type`  | `str`                              | The type of job queue to use (e.g., "rq").                                     |
 | `hooks_dir`       | `str`                              | The directory for project hooks.                                               |
 

@@ -23,7 +23,7 @@ This method is called when you instantiate `FlowerPower()`. It checks if a proje
 | `name` | `str \| None` | The name of the project. If `None`, it defaults to the current directory name. | `None` |
 | `base_dir` | `str \| None` | The base directory where the project will be created or loaded. If `None`, it defaults to the current working directory. | `None` |
 | `storage_options` | `dict \| BaseStorageOptions \| None` | Storage options for the filesystem. | `{}` |
-| `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance to use for file operations. | `None` |
+| `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance to use for file operations. If None, uses the `get_filesystem` helper. | `None` |
 | `job_queue_type` | `str` | The type of job queue to use for the project (e.g., "rq"). | `settings.JOB_QUEUE_TYPE` |
 | `hooks_dir` | `str` | The directory where the project hooks will be stored. | `settings.HOOKS_DIR` |
 
@@ -359,7 +359,7 @@ If the project does not exist, it will raise an error.
 |:----------|:-----|:------------|:--------|
 | `base_dir` | `str \| None` | The base directory of the project. If `None`, it defaults to the current working directory. | `None` |
 | `storage_options` | `dict \| BaseStorageOptions \| None` | Storage options for the filesystem. | `{}` |
-| `fs` | `AbstractFileSystem \| None` | An instance of `AbstractFileSystem` to use for file operations. | `None` |
+| `fs` | `AbstractFileSystem \| None` | An instance of `AbstractFileSystem` to use for file operations. If None, uses the `get_filesystem` helper. | `None` |
 | `log_level` | `str \| None` | The logging level to set for the project. If `None`, it uses the default log level. | `None` |
 
 **Returns:** `FlowerPowerProject` - An instance of `FlowerPowerProject` if the project exists, otherwise `None`.
@@ -391,7 +391,7 @@ Initialize a new FlowerPower project.
 | `name` | `str \| None` | The name of the project. If `None`, it defaults to the current directory name. | `None` |
 | `base_dir` | `str \| None` | The base directory where the project will be created. If `None`, it defaults to the current working directory. | `None` |
 | `storage_options` | `dict \| BaseStorageOptions \| None` | Storage options for the filesystem. | `{}` |
-| `fs` | `AbstractFileSystem \| None` | An instance of `AbstractFileSystem` to use for file operations. | `None` |
+| `fs` | `AbstractFileSystem \| None` | An instance of `AbstractFileSystem` to use for file operations. If None, uses the `get_filesystem` helper. | `None` |
 | `job_queue_type` | `str` | The type of job queue to use for the project. | `settings.JOB_QUEUE_TYPE` |
 | `hooks_dir` | `str` | The directory where the project hooks will be stored. | `settings.HOOKS_DIR` |
 | `log_level` | `str \| None` | The logging level to set for the project. If `None`, it uses the default log level. | `None` |
