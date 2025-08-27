@@ -26,7 +26,7 @@ from flowerpower.utils.logging import setup_logging
 
 # Use utcnow directly for simplicity
 utcnow = dt.datetime.utcnow
-setup_logging("INFO")
+setup_logging()
 
 
 class GeventWorker(worker.Worker):

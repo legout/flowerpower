@@ -19,7 +19,7 @@ from .job_queue import JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
 
-setup_logging(level=settings.LOG_LEVEL)
+setup_logging()
 
 def handle_errors(func):
     """Decorator to handle exceptions, log them, and re-raise as RuntimeError."""
@@ -547,7 +547,7 @@ class FlowerPowerProject:
         Raises:
             FileNotFoundError: If the project does not exist at the specified base directory.
         """
-        if log_level:
+        if log_level is not None:
             setup_logging(level=log_level)
 
         base_dir = base_dir or str(Path.cwd())
@@ -731,7 +731,7 @@ class FlowerPowerProject:
             base_dir=base_dir,
             storage_options=storage_options,
             fs=fs,
-            log_level=settings.LOG_LEVEL,
+            log_level=log_level,
         )
 
 

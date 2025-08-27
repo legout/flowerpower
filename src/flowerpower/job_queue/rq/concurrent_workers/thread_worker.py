@@ -14,7 +14,7 @@ from rq.worker import StopRequested
 from flowerpower.utils.logging import setup_logging
 
 utcnow = dt.datetime.utcnow
-setup_logging("INFO")
+setup_logging()
 
 
 class ThreadWorker(worker.Worker):
