@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.7.34">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>init – FlowerPower Documentation</title>
+<title>create_project – FlowerPower Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -71,14 +71,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-befe23ebd2f54d8af2c8a89d1a1611f1.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-c35703f27e2ef84e2c700e09dd0c80cb.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2217015ce604c348b7b34c00d3b14a3a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -327,6 +327,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Overview</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../api/flowerpowerproject.html">
+ <span class="dropdown-text">FlowerPowerProject</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/initialize_project.html">
+ <span class="dropdown-text">initialize_project</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/create_project.html">
+ <span class="dropdown-text">create_project</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api/flowerpower.html">
  <span class="dropdown-text">FlowerPower</span></a>
   </li>  
@@ -345,10 +357,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../api/configuration.html">
  <span class="dropdown-text">Configuration</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../api/init.html">
- <span class="dropdown-text">init</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../api/cli.html">
@@ -397,9 +405,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#init" id="toc-init" class="nav-link active" data-scroll-target="#init">init</a></li>
+  <li><a href="#create_project" id="toc-create_project" class="nav-link active" data-scroll-target="#create_project">create_project</a></li>
+  <li><a href="#alias-for-create_project" id="toc-alias-for-create_project" class="nav-link" data-scroll-target="#alias-for-create_project">Alias for create_project</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/legout/flowerpower/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li><li><a href="https://github.com/legout/flowerpower/edit/main/api/init.qmd" class="toc-action"><i class="bi empty"></i>Edit this page</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/legout/flowerpower/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li><li><a href="https://github.com/legout/flowerpower/edit/main/api/create_project.qmd" class="toc-action"><i class="bi empty"></i>Edit this page</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -407,7 +416,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">init</h1>
+<h1 class="title">create_project</h1>
 </div>
 
 
@@ -424,12 +433,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="init" class="level1">
-<h1>init</h1>
-<p><strong>Module:</strong> <code>flowerpower.init</code></p>
-<p>The <code>init</code> function is a top-level function that initializes a new FlowerPower project. It is a convenient alias for <code>FlowerPowerProject.init()</code>.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>init(name: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, hooks_dir: <span class="bu">str</span> <span class="op">=</span> settings.HOOKS_DIR)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Initializes a new FlowerPower project.</p>
+<section id="create_project" class="level1">
+<h1>create_project</h1>
+<p><strong>Module:</strong> <code>flowerpower.flowerpower</code></p>
+<p>The <code>create_project</code> function either loads an existing FlowerPower project or raises an error if the project does not exist. It is a convenient top-level function.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>create_project(name: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> {}, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, hooks_dir: <span class="bu">str</span> <span class="op">=</span> settings.HOOKS_DIR) <span class="op">-&gt;</span> FlowerPowerProject</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Loads an existing FlowerPower project.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 28%">
@@ -455,46 +464,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td style="text-align: left;"><code>base_dir</code></td>
 <td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The base directory for the project. Defaults to the current working directory.</td>
+<td style="text-align: left;">The base directory where the project will be created or loaded from. Defaults to the current working directory.</td>
 <td style="text-align: left;"><code>None</code></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>storage_options</code></td>
 <td style="text-align: left;"><code>dict \| BaseStorageOptions \| None</code></td>
 <td style="text-align: left;">Storage options for the filesystem.</td>
-<td style="text-align: left;"><code>None</code></td>
+<td style="text-align: left;"><code>{}</code></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>fs</code></td>
 <td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">An fsspec-compatible filesystem instance.</td>
+<td style="text-align: left;">An instance of AbstractFileSystem to use for file operations.</td>
 <td style="text-align: left;"><code>None</code></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>job_queue_type</code></td>
 <td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The type of job queue to use (e.g., “rq”).</td>
+<td style="text-align: left;">The type of job queue to use for the project.</td>
 <td style="text-align: left;"><code>settings.JOB_QUEUE_TYPE</code></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>hooks_dir</code></td>
 <td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The directory for project hooks.</td>
+<td style="text-align: left;">The directory where the project hooks will be stored.</td>
 <td style="text-align: left;"><code>settings.HOOKS_DIR</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Returns:</strong> <code>FlowerPowerProject</code> - A <code>FlowerPowerProject</code> instance.</p>
-<p><strong>Raises:</strong> <code>FileExistsError</code>: If the project already exists.</p>
+<p><strong>Returns:</strong> <code>FlowerPowerProject</code> - An instance of <code>FlowerPowerProject</code>.</p>
+<p><strong>Raises:</strong> <code>FileNotFoundError</code>: If the project does not exist at the specified base directory.</p>
 <section id="example" class="level4">
 <h4 class="anchored" data-anchor-id="example">Example</h4>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> init</span>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> create_project</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize a new project</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> init(name<span class="op">=</span><span class="st">"my-new-project"</span>, job_queue_type<span class="op">=</span><span class="st">"rq"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-
-
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load an existing project</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> create_project(base_dir<span class="op">=</span><span class="st">"."</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Attempt to load a non-existent project (will raise FileNotFoundError)</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    project <span class="op">=</span> create_project(base_dir<span class="op">=</span><span class="st">"./non_existent_project"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">FileNotFoundError</span> <span class="im">as</span> e:</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(e)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>```python from flowerpower import FlowerPower</p>
 </section>
+</section>
+<section id="alias-for-create_project" class="level1">
+<h1>Alias for create_project</h1>
+<p>project = FlowerPower(base_dir=“.”)</p>
+
+
 </section>
 
 </main> <!-- /main -->
@@ -918,7 +938,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/legout/flowerpower/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li><li><a href="https://github.com/legout/flowerpower/edit/main/api/init.qmd" class="toc-action"><i class="bi empty"></i>Edit this page</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/legout/flowerpower/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li><li><a href="https://github.com/legout/flowerpower/edit/main/api/create_project.qmd" class="toc-action"><i class="bi empty"></i>Edit this page</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Licensed under MIT</p>
 </div>

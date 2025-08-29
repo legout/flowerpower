@@ -15,7 +15,8 @@ This section provides a detailed reference for the FlowerPower API.
 
 ## Top-Level Functions
 
--   [init](./init.md)
+-   [initialize_project](./initialize_project.md)
+-   [create_project](./create_project.md) (aliased as [FlowerPower](./flowerpower.md))
 
 ## CLI Reference
 

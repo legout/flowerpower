@@ -23,6 +23,12 @@ website:
         menu:
           - href: api/index.qmd
             text: Overview
+          - href: api/flowerpowerproject.qmd
+            text: FlowerPowerProject
+          - href: api/initialize_project.qmd
+            text: initialize_project
+          - href: api/create_project.qmd
+            text: create_project
           - href: api/flowerpower.qmd
             text: FlowerPower
           - href: api/pipelinemanager.qmd
@@ -33,8 +39,6 @@ website:
             text: RQManager
           - href: api/configuration.qmd
             text: Configuration
-          - href: api/init.qmd
-            text: init
           - href: api/cli.qmd
             text: CLI
           - href: api/cli_job_queue.qmd

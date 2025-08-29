@@ -11,7 +11,7 @@ FlowerPower uses a hierarchical configuration system to manage project and pipel
 -   [`PipelineConfig`](#pipelineconfig)
 -   [`BaseConfig`](#baseconfig)
 
-These classes are designed to be flexible and extensible, allowing you to manage your project's configuration in a clean and organized way. All configuration classes inherit from `BaseConfig`, which provides common functionality for configuration management.
+The `Config` class serves as a composite that combines `ProjectConfig` and `PipelineConfig`, providing a unified interface to access both project-level and pipeline-specific settings. All configuration classes inherit from `BaseConfig`, which provides common functionality for configuration management.
 
 ## Classes
 
@@ -50,7 +50,7 @@ merged_config = config.merge(other_config)
 ### Config
 **Module:** `flowerpower.cfg.Config`
 
-The `Config` class is the main configuration class that combines project and pipeline settings. It serves as the central configuration manager.
+The `Config` class is the main configuration class that combines project and pipeline settings. It serves as the central configuration manager and provides a unified interface to access both `ProjectConfig` and `PipelineConfig`.
 
 **Attributes:**
 
@@ -200,4 +200,3 @@ from flowerpower.cfg import AdapterConfig
 # Create an AdapterConfig
 adapter_config = AdapterConfig(type="tracker", config={"project_id": "abc"})
 print(adapter_config.type)
-```

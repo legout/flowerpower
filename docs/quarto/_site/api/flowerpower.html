@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.7.34">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,14 +71,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-befe23ebd2f54d8af2c8a89d1a1611f1.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-c35703f27e2ef84e2c700e09dd0c80cb.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2217015ce604c348b7b34c00d3b14a3a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -327,6 +327,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Overview</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../api/flowerpowerproject.html">
+ <span class="dropdown-text">FlowerPowerProject</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/initialize_project.html">
+ <span class="dropdown-text">initialize_project</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/create_project.html">
+ <span class="dropdown-text">create_project</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api/flowerpower.html">
  <span class="dropdown-text">FlowerPower</span></a>
   </li>  
@@ -345,10 +357,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../api/configuration.html">
  <span class="dropdown-text">Configuration</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../api/init.html">
- <span class="dropdown-text">init</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../api/cli.html">
@@ -401,25 +409,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#initialization" id="toc-initialization" class="nav-link" data-scroll-target="#initialization">Initialization</a>
   <ul class="collapse">
-  <li><a href="#new__" id="toc-new__" class="nav-link" data-scroll-target="#new__"><code>__new__</code></a></li>
-  </ul></li>
-  <li><a href="#flowerpowerproject" id="toc-flowerpowerproject" class="nav-link" data-scroll-target="#flowerpowerproject">FlowerPowerProject</a></li>
-  <li><a href="#initialization-1" id="toc-initialization-1" class="nav-link" data-scroll-target="#initialization-1">Initialization</a>
-  <ul class="collapse">
-  <li><a href="#init__" id="toc-init__" class="nav-link" data-scroll-target="#init__"><code>__init__</code></a></li>
-  </ul></li>
-  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
-  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
-  <ul class="collapse">
-  <li><a href="#run" id="toc-run" class="nav-link" data-scroll-target="#run"><code>run</code></a></li>
-  <li><a href="#enqueue" id="toc-enqueue" class="nav-link" data-scroll-target="#enqueue"><code>enqueue</code></a></li>
-  <li><a href="#schedule" id="toc-schedule" class="nav-link" data-scroll-target="#schedule"><code>schedule</code></a></li>
-  <li><a href="#start_worker" id="toc-start_worker" class="nav-link" data-scroll-target="#start_worker"><code>start_worker</code></a></li>
-  <li><a href="#stop_worker" id="toc-stop_worker" class="nav-link" data-scroll-target="#stop_worker"><code>stop_worker</code></a></li>
-  <li><a href="#start_worker_pool" id="toc-start_worker_pool" class="nav-link" data-scroll-target="#start_worker_pool"><code>start_worker_pool</code></a></li>
-  <li><a href="#stop_worker_pool" id="toc-stop_worker_pool" class="nav-link" data-scroll-target="#stop_worker_pool"><code>stop_worker_pool</code></a></li>
-  <li><a href="#load" id="toc-load" class="nav-link" data-scroll-target="#load"><code>load</code></a></li>
-  <li><a href="#init" id="toc-init" class="nav-link" data-scroll-target="#init"><code>init</code></a></li>
+  <li><a href="#create_project-aliased-as-flowerpower" id="toc-create_project-aliased-as-flowerpower" class="nav-link" data-scroll-target="#create_project-aliased-as-flowerpower">create_project (aliased as FlowerPower)</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -450,14 +440,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="flowerpower" class="level1">
 <h1>FlowerPower</h1>
-<p><strong>Module:</strong> <a href="src/flowerpower/flowerpower.py"><code>flowerpower.flowerpower</code></a></p>
-<p>The <code>FlowerPower</code> class is the main entry point for initializing and interacting with FlowerPower projects. It acts as a factory for <code>FlowerPowerProject</code> instances, allowing users to load existing projects or create new ones.</p>
+<p><strong>Module:</strong> <a href="../../../src/flowerpower/__init__.py"><code>flowerpower</code></a></p>
+<p>The <code>FlowerPower</code> name is an alias for the <code>create_project</code> function, which is the main entry point for initializing and interacting with FlowerPower projects. It acts as a factory for <code>FlowerPowerProject</code> instances, allowing users to load existing projects or create new ones.</p>
+<p><strong>Note:</strong> <code>FlowerPower</code> and <code>create_project</code> are functionally identical. <code>FlowerPower</code> is provided as an alias for convenience and backward compatibility.</p>
 <section id="initialization" class="level2">
 <h2 class="anchored" data-anchor-id="initialization">Initialization</h2>
-<section id="new__" class="level3">
-<h3 class="anchored" data-anchor-id="new__"><code>__new__</code></h3>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">__new__</span>(cls, name: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> {}, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, hooks_dir: <span class="bu">str</span> <span class="op">=</span> settings.HOOKS_DIR) <span class="op">-&gt;</span> FlowerPowerProject</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>This method is called when you instantiate <code>FlowerPower()</code>. It checks if a project already exists at the specified <code>base_dir</code> and either loads it or initializes a new one.</p>
+<section id="create_project-aliased-as-flowerpower" class="level3">
+<h3 class="anchored" data-anchor-id="create_project-aliased-as-flowerpower">create_project (aliased as FlowerPower)</h3>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>create_project(name: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> {}, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, hooks_dir: <span class="bu">str</span> <span class="op">=</span> settings.HOOKS_DIR) <span class="op">-&gt;</span> FlowerPowerProject</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>...</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This function is called when you use <code>FlowerPower()</code> or <code>create_project()</code>. It checks if a project already exists at the specified <code>base_dir</code> and either loads it or initializes a new one.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 28%">
@@ -495,7 +487,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td style="text-align: left;"><code>fs</code></td>
 <td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">An fsspec-compatible filesystem instance to use for file operations.</td>
+<td style="text-align: left;">An fsspec-compatible filesystem instance to use for file operations. If None, uses the <code>get_filesystem</code> helper.</td>
 <td style="text-align: left;"><code>None</code></td>
 </tr>
 <tr class="odd">
@@ -515,698 +507,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>Returns:</strong> <code>FlowerPowerProject</code> - An instance of <code>FlowerPowerProject</code> initialized with the new or loaded project.</p>
 <section id="example" class="level4">
 <h4 class="anchored" data-anchor-id="example">Example</h4>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPower</span>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPower, create_project</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize or load a project in the current directory</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize or load a project in the current directory using the alias</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPower()</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize or load a project with a specific name and job queue type</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPower(name<span class="op">=</span><span class="st">"my-data-project"</span>, job_queue_type<span class="op">=</span><span class="st">"rq"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-</section>
-<section id="flowerpowerproject" class="level2">
-<h2 class="anchored" data-anchor-id="flowerpowerproject">FlowerPowerProject</h2>
-<p><strong>Module:</strong> <a href="src/flowerpower/flowerpower.py"><code>flowerpower.flowerpower</code></a></p>
-<p>The <code>FlowerPowerProject</code> class represents an initialized FlowerPower project, providing an interface to manage pipelines, job queues, and project-level settings.</p>
-</section>
-<section id="initialization-1" class="level2">
-<h2 class="anchored" data-anchor-id="initialization-1">Initialization</h2>
-<section id="init__" class="level3">
-<h3 class="anchored" data-anchor-id="init__"><code>__init__</code></h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">__init__</span>(<span class="va">self</span>, pipeline_manager: PipelineManager, job_queue_manager: JobQueueManager <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Initializes a <code>FlowerPowerProject</code> instance. This constructor is typically called internally by <code>FlowerPowerProject.load()</code> or <code>FlowerPowerProject.init()</code>.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 36%">
-<col style="width: 20%">
-<col style="width: 43%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>pipeline_manager</code></td>
-<td style="text-align: left;"><code>PipelineManager</code></td>
-<td style="text-align: left;">An instance of <code>PipelineManager</code> to manage pipelines within this project.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>job_queue_manager</code></td>
-<td style="text-align: left;"><code>JobQueueManager \| None</code></td>
-<td style="text-align: left;">An optional instance of <code>JobQueueManager</code> to handle job queue operations.</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 36%">
-<col style="width: 20%">
-<col style="width: 43%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Attribute</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>pipeline_manager</code></td>
-<td style="text-align: left;"><code>PipelineManager</code></td>
-<td style="text-align: left;">Manages pipelines within the project.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>job_queue_manager</code></td>
-<td style="text-align: left;"><code>JobQueueManager \| None</code></td>
-<td style="text-align: left;">Manages job queue operations, if configured.</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The name of the current project.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>_base_dir</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The base directory of the project.</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>_fs</code></td>
-<td style="text-align: left;"><code>AbstractFileSystem</code></td>
-<td style="text-align: left;">The fsspec-compatible filesystem instance used by the project.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>_storage_options</code></td>
-<td style="text-align: left;"><code>dict \| Munch \| BaseStorageOptions</code></td>
-<td style="text-align: left;">Storage options for the filesystem.</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>job_queue_type</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The type of job queue configured for the project (e.g., “rq”).</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>job_queue_backend</code></td>
-<td style="text-align: left;"><code>Any \| None</code></td>
-<td style="text-align: left;">The backend instance for the job queue, if configured.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="methods" class="level2">
-<h2 class="anchored" data-anchor-id="methods">Methods</h2>
-<section id="run" class="level3">
-<h3 class="anchored" data-anchor-id="run"><code>run</code></h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>run(<span class="va">self</span>, name: <span class="bu">str</span>, inputs: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, final_vars: <span class="bu">list</span>[<span class="bu">str</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, config: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, cache: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, executor_cfg: <span class="bu">str</span> <span class="op">|</span> <span class="bu">dict</span> <span class="op">|</span> ExecutorConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, with_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> WithAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, pipeline_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> PipelineAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, project_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> ProjectAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, adapter: <span class="bu">dict</span>[<span class="bu">str</span>, Any] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, <span class="bu">reload</span>: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>, log_level: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, max_retries: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, retry_delay: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, jitter_factor: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, retry_exceptions: <span class="bu">tuple</span> <span class="op">|</span> <span class="bu">list</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, on_success: Callable <span class="op">|</span> <span class="bu">tuple</span>[Callable, <span class="bu">tuple</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, on_failure: Callable <span class="op">|</span> <span class="bu">tuple</span>[Callable, <span class="bu">tuple</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Execute a pipeline synchronously and return its results.</p>
-<p>This is a convenience method that delegates to the pipeline manager. It provides the same functionality as <code>self.pipeline_manager.run()</code>.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 15%">
-<col style="width: 33%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">Name of the pipeline to run. Must be a valid identifier.</td>
-<td style="text-align: left;"></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>inputs</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Override pipeline input values. Example: <code>{"data_date": "2025-04-28"}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>final_vars</code></td>
-<td style="text-align: left;"><code>list[str] \| None</code></td>
-<td style="text-align: left;">Specify which output variables to return. Example: <code>["model", "metrics"]</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>config</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Configuration for Hamilton pipeline executor. Example: <code>{"model": "LogisticRegression"}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>cache</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Cache configuration for results. Example: <code>{"recompute": ["node1", "final_node"]}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>executor_cfg</code></td>
-<td style="text-align: left;"><code>str \| dict \| ExecutorConfig \| None</code></td>
-<td style="text-align: left;">Execution configuration, can be: <br>- <code>str</code>: Executor name, e.g.&nbsp;“threadpool”, “local” <br>- <code>dict</code>: Raw config, e.g.&nbsp;<code>{"type": "threadpool", "max_workers": 4}</code> <br>- <code>ExecutorConfig</code>: Structured config object</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>with_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| WithAdapterConfig \| None</code></td>
-<td style="text-align: left;">Adapter settings for pipeline execution. Example: <code>{"opentelemetry": True, "tracker": False}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>pipeline_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| PipelineAdapterConfig \| None</code></td>
-<td style="text-align: left;">Pipeline-specific adapter settings. Example: <code>{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>project_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| ProjectAdapterConfig \| None</code></td>
-<td style="text-align: left;">Project-level adapter settings. Example: <code>{"opentelemetry": {"host": "http://localhost:4317"}}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>adapter</code></td>
-<td style="text-align: left;"><code>dict[str, Any] \| None</code></td>
-<td style="text-align: left;">Custom adapter instance for pipeline Example: <code>{"ray_graph_adapter": RayGraphAdapter()}</code></td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>reload</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">Force reload of pipeline configuration.</td>
-<td style="text-align: left;"><code>False</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Logging level for the execution. Valid values: “DEBUG”, “INFO”, “WARNING”, “ERROR”, “CRITICAL”</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>max_retries</code></td>
-<td style="text-align: left;"><code>int \| None</code></td>
-<td style="text-align: left;">Maximum number of retries for execution.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>retry_delay</code></td>
-<td style="text-align: left;"><code>float \| None</code></td>
-<td style="text-align: left;">Delay between retries in seconds.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>jitter_factor</code></td>
-<td style="text-align: left;"><code>float \| None</code></td>
-<td style="text-align: left;">Random jitter factor to add to retry delay</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>retry_exceptions</code></td>
-<td style="text-align: left;"><code>tuple \| list \| None</code></td>
-<td style="text-align: left;">Exceptions that trigger a retry.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>on_success</code></td>
-<td style="text-align: left;"><code>Callable \| tuple[Callable, tuple | None, dict | None] \| None</code></td>
-<td style="text-align: left;">Callback to run on successful pipeline execution.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>on_failure</code></td>
-<td style="text-align: left;"><code>Callable \| tuple[Callable, tuple | None, dict | None] \| None</code></td>
-<td style="text-align: left;">Callback to run on pipeline execution failure.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>dict[str, Any]</code> - Pipeline execution results, mapping output variable names to their computed values.</p>
-<p><strong>Raises:</strong></p>
-<ul>
-<li><code>ValueError</code>: If pipeline name doesn’t exist or configuration is invalid.</li>
-<li><code>ImportError</code>: If pipeline module cannot be imported.</li>
-<li><code>RuntimeError</code>: If execution fails due to pipeline or adapter errors.</li>
-</ul>
-<section id="example-1" class="level4">
-<h4 class="anchored" data-anchor-id="example-1">Example</h4>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple execution</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> project.run(<span class="st">"my_pipeline"</span>)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># With custom inputs</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> project.run(</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ml_pipeline"</span>,</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    inputs<span class="op">=</span>{<span class="st">"data_date"</span>: <span class="st">"2025-01-01"</span>},</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    final_vars<span class="op">=</span>[<span class="st">"model"</span>, <span class="st">"metrics"</span>]</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="enqueue" class="level3">
-<h3 class="anchored" data-anchor-id="enqueue"><code>enqueue</code></h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>enqueue(<span class="va">self</span>, name: <span class="bu">str</span>, <span class="op">*</span>args, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Enqueue a pipeline for execution via the job queue.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>enqueue_pipeline</code> method. It provides asynchronous pipeline execution.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 36%">
-<col style="width: 20%">
-<col style="width: 43%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">Name of the pipeline to enqueue.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>*args</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Additional positional arguments for job execution.</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>**kwargs</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Keyword arguments for pipeline execution and job queue options. Supports all parameters from <code>pipeline_manager.run()</code> plus job queue specific options: <br>- <code>run_in</code>: Schedule the job to run after a delay <br>- <code>run_at</code>: Schedule the job to run at a specific datetime <br>- <code>queue_name</code>: Queue to use (for RQ) <br>- <code>timeout</code>: Job execution timeout <br>- <code>retry</code>: Number of retries <br>- <code>result_ttl</code>: Result time to live <br>- <code>ttl</code>: Job time to live</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>Job</code> - Job ID or result depending on implementation, or <code>None</code> if job queue not configured.</p>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-2" class="level4">
-<h4 class="anchored" data-anchor-id="example-2">Example</h4>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Immediate execution via job queue</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>job_id <span class="op">=</span> project.enqueue(<span class="st">"my_pipeline"</span>, inputs<span class="op">=</span>{<span class="st">"date"</span>: <span class="st">"today"</span>})</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Delayed execution</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>job_id <span class="op">=</span> project.enqueue(<span class="st">"my_pipeline"</span>, inputs<span class="op">=</span>{<span class="st">"date"</span>: <span class="st">"today"</span>}, run_in<span class="op">=</span><span class="dv">300</span>)</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Scheduled execution</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>job_id <span class="op">=</span> project.enqueue(</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"my_pipeline"</span>,</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    inputs<span class="op">=</span>{<span class="st">"date"</span>: <span class="st">"today"</span>},</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    run_at<span class="op">=</span>datetime(<span class="dv">2025</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">9</span>, <span class="dv">0</span>)</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="schedule" class="level3">
-<h3 class="anchored" data-anchor-id="schedule"><code>schedule</code></h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>schedule(<span class="va">self</span>, name: <span class="bu">str</span>, <span class="op">*</span>args, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Schedule a pipeline for recurring or future execution.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>schedule_pipeline</code> method. It provides scheduled pipeline execution.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 36%">
-<col style="width: 20%">
-<col style="width: 43%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">Name of the pipeline to schedule.</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>*args</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Additional positional arguments for scheduling.</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>**kwargs</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Keyword arguments for pipeline execution and scheduling options. Supports all parameters from <code>pipeline_manager.run()</code> plus scheduling options: <br>- <code>cron</code>: Cron expression for recurring execution (e.g., “0 9 * * *“) <br>- <code>interval</code>: Time interval for recurring execution (int seconds or dict) <br>- <code>date</code>: Future date for one-time execution (datetime or ISO string) <br>- <code>schedule_id</code>: Unique identifier for the schedule <br>- <code>overwrite</code>: Whether to overwrite existing schedule with same ID</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>ScheduledJob</code> - Schedule ID or job ID depending on implementation, or <code>None</code> if job queue not configured.</p>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-3" class="level4">
-<h4 class="anchored" data-anchor-id="example-3">Example</h4>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime, timedelta</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Daily schedule with cron</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>schedule_id <span class="op">=</span> project.schedule(</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"daily_metrics"</span>,</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    cron<span class="op">=</span><span class="st">"0 9 * * *"</span>,  <span class="co"># 9 AM daily</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    inputs<span class="op">=</span>{<span class="st">"date"</span>: <span class="st">"</span><span class="sc">{{</span><span class="st"> execution_date </span><span class="sc">}}</span><span class="st">"</span>}</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Interval-based schedule</span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>schedule_id <span class="op">=</span> project.schedule(</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"monitoring"</span>,</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    interval<span class="op">=</span>{<span class="st">"minutes"</span>: <span class="dv">15</span>},</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    inputs<span class="op">=</span>{<span class="st">"check_type"</span>: <span class="st">"health"</span>}</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Future one-time execution</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>future_date <span class="op">=</span> datetime.now() <span class="op">+</span> timedelta(days<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>schedule_id <span class="op">=</span> project.schedule(</span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"batch_process"</span>,</span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    date<span class="op">=</span>future_date,</span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    inputs<span class="op">=</span>{<span class="st">"process_date"</span>: <span class="st">"tomorrow"</span>}</span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="start_worker" class="level3">
-<h3 class="anchored" data-anchor-id="start_worker"><code>start_worker</code></h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>start_worker(<span class="va">self</span>, background: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>, queue_names: <span class="bu">list</span>[<span class="bu">str</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, with_scheduler: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>, <span class="op">**</span>kwargs: Any) <span class="op">-&gt;</span> <span class="va">None</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Start a worker process for processing jobs from the queues.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>start_worker</code> method.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 15%">
-<col style="width: 33%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>background</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">If <code>True</code>, runs the worker in a non-blocking background mode. If <code>False</code>, runs in the current process and blocks until stopped.</td>
-<td style="text-align: left;"><code>False</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>queue_names</code></td>
-<td style="text-align: left;"><code>list[str] \| None</code></td>
-<td style="text-align: left;">List of queue names to process. If <code>None</code>, processes all queues defined in the backend configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>with_scheduler</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">Whether to include the scheduler queue for processing scheduled jobs (if supported by the backend).</td>
-<td style="text-align: left;"><code>True</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>**kwargs</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Additional worker configuration options specific to the job queue backend.</td>
-<td style="text-align: left;"></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-4" class="level4">
-<h4 class="anchored" data-anchor-id="example-4">Example</h4>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Start worker in foreground (blocks)</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>project.start_worker()</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Start worker in background</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>project.start_worker(background<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Start worker for specific queues</span></span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>project.start_worker(queue_names<span class="op">=</span>[<span class="st">"high_priority"</span>, <span class="st">"default"</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="stop_worker" class="level3">
-<h3 class="anchored" data-anchor-id="stop_worker"><code>stop_worker</code></h3>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>stop_worker(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Stop the worker process.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>stop_worker</code> method.</p>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-5" class="level4">
-<h4 class="anchored" data-anchor-id="example-5">Example</h4>
-<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>project.stop_worker()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="start_worker_pool" class="level3">
-<h3 class="anchored" data-anchor-id="start_worker_pool"><code>start_worker_pool</code></h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>start_worker_pool(<span class="va">self</span>, num_workers: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, background: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>, queue_names: <span class="bu">list</span>[<span class="bu">str</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, with_scheduler: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>, <span class="op">**</span>kwargs: Any) <span class="op">-&gt;</span> <span class="va">None</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Start a pool of worker processes to handle jobs in parallel.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>start_worker_pool</code> method.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 15%">
-<col style="width: 33%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>num_workers</code></td>
-<td style="text-align: left;"><code>int \| None</code></td>
-<td style="text-align: left;">Number of worker processes to start. If <code>None</code>, uses CPU count or backend-specific default.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>background</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">If <code>True</code>, runs the worker pool in a non-blocking background mode. If <code>False</code>, runs in the current process and blocks until stopped.</td>
-<td style="text-align: left;"><code>False</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>queue_names</code></td>
-<td style="text-align: left;"><code>list[str] \| None</code></td>
-<td style="text-align: left;">List of queue names to process. If <code>None</code>, processes all queues defined in the backend configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>with_scheduler</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">Whether to include the scheduler queue for processing scheduled jobs (if supported by the backend).</td>
-<td style="text-align: left;"><code>True</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>**kwargs</code></td>
-<td style="text-align: left;"><code>Any</code></td>
-<td style="text-align: left;">Additional worker pool configuration options specific to the job queue backend.</td>
-<td style="text-align: left;"></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-6" class="level4">
-<h4 class="anchored" data-anchor-id="example-6">Example</h4>
-<div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Start worker pool with default number of workers</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>project.start_worker_pool()</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Start 4 workers in background</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>project.start_worker_pool(num_workers<span class="op">=</span><span class="dv">4</span>, background<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Start worker pool for specific queues</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>project.start_worker_pool(</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    num_workers<span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    queue_names<span class="op">=</span>[<span class="st">"high_priority"</span>, <span class="st">"default"</span>]</span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="stop_worker_pool" class="level3">
-<h3 class="anchored" data-anchor-id="stop_worker_pool"><code>stop_worker_pool</code></h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>stop_worker_pool(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Stop all worker processes in the worker pool.</p>
-<p>This is a convenience method that delegates to the job queue manager’s <code>stop_worker_pool</code> method.</p>
-<p><strong>Raises:</strong> <code>RuntimeError</code>: If job queue manager is not configured.</p>
-<section id="example-7" class="level4">
-<h4 class="anchored" data-anchor-id="example-7">Example</h4>
-<div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>project.stop_worker_pool()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="load" class="level3">
-<h3 class="anchored" data-anchor-id="load"><code>load</code></h3>
-<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>load(cls, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> {}, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, log_level: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> <span class="st">"FlowerPowerProject"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Load an existing FlowerPower project.</p>
-<p>If the project does not exist, it will raise an error.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 15%">
-<col style="width: 33%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>base_dir</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The base directory of the project. If <code>None</code>, it defaults to the current working directory.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>storage_options</code></td>
-<td style="text-align: left;"><code>dict \| BaseStorageOptions \| None</code></td>
-<td style="text-align: left;">Storage options for the filesystem.</td>
-<td style="text-align: left;"><code>{}</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>fs</code></td>
-<td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">An instance of <code>AbstractFileSystem</code> to use for file operations.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The logging level to set for the project. If <code>None</code>, it uses the default log level.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>FlowerPowerProject</code> - An instance of <code>FlowerPowerProject</code> if the project exists, otherwise <code>None</code>.</p>
-<p><strong>Raises:</strong> <code>FileNotFoundError</code>: If the project does not exist at the specified base directory.</p>
-<section id="example-8" class="level4">
-<h4 class="anchored" data-anchor-id="example-8">Example</h4>
-<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load a project from the current directory</span></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"."</span>)</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Load a project from a specific path</span></span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.load(<span class="st">"/path/to/my/project"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="init" class="level3">
-<h3 class="anchored" data-anchor-id="init"><code>init</code></h3>
-<div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>init(cls, name: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> {}, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, hooks_dir: <span class="bu">str</span> <span class="op">=</span> settings.HOOKS_DIR, log_level: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> <span class="st">"FlowerPowerProject"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Initialize a new FlowerPower project.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 15%">
-<col style="width: 33%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The name of the project. If <code>None</code>, it defaults to the current directory name.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>base_dir</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The base directory where the project will be created. If <code>None</code>, it defaults to the current working directory.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>storage_options</code></td>
-<td style="text-align: left;"><code>dict \| BaseStorageOptions \| None</code></td>
-<td style="text-align: left;">Storage options for the filesystem.</td>
-<td style="text-align: left;"><code>{}</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>fs</code></td>
-<td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">An instance of <code>AbstractFileSystem</code> to use for file operations.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>job_queue_type</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The type of job queue to use for the project.</td>
-<td style="text-align: left;"><code>settings.JOB_QUEUE_TYPE</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><code>hooks_dir</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The directory where the project hooks will be stored.</td>
-<td style="text-align: left;"><code>settings.HOOKS_DIR</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The logging level to set for the project. If <code>None</code>, it uses the default log level.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>FlowerPowerProject</code> - An instance of <code>FlowerPowerProject</code> initialized with the new project.</p>
-<p><strong>Raises:</strong> <code>FileExistsError</code>: If the project already exists at the specified base directory.</p>
-<section id="example-9" class="level4">
-<h4 class="anchored" data-anchor-id="example-9">Example</h4>
-<div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> flowerpower <span class="im">import</span> FlowerPowerProject</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize a new project in the current directory</span></span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.init()</span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize a new project with a specific name and job queue type</span></span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPowerProject.init(name<span class="op">=</span><span class="st">"my-new-project"</span>, job_queue_type<span class="op">=</span><span class="st">"rq"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize or load a project in the current directory using the function name</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> create_project()</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize or load a project with a specific name and job queue type</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>project <span class="op">=</span> FlowerPower(name<span class="op">=</span><span class="st">"my-data-project"</span>, job_queue_type<span class="op">=</span><span class="st">"rq"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>For documentation on the <code>FlowerPowerProject</code> class and its methods, see <a href="../api/flowerpowerproject.html">FlowerPowerProject</a>.</p>
 
 
 </section>

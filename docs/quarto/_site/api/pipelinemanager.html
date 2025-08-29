@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.7.34">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,14 +71,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-befe23ebd2f54d8af2c8a89d1a1611f1.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-c35703f27e2ef84e2c700e09dd0c80cb.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-25d1f59e4cdacbef9b6532b1d1d47a9d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2217015ce604c348b7b34c00d3b14a3a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-5f8706c95598191c48b8372128f3d486.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -327,6 +327,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Overview</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../api/flowerpowerproject.html">
+ <span class="dropdown-text">FlowerPowerProject</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/initialize_project.html">
+ <span class="dropdown-text">initialize_project</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api/create_project.html">
+ <span class="dropdown-text">create_project</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api/flowerpower.html">
  <span class="dropdown-text">FlowerPower</span></a>
   </li>  
@@ -345,10 +357,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../api/configuration.html">
  <span class="dropdown-text">Configuration</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../api/init.html">
- <span class="dropdown-text">init</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../api/cli.html">
@@ -455,7 +463,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="init" class="level3">
 <h3 class="anchored" data-anchor-id="init"><strong>init</strong></h3>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">__init__</span>(<span class="va">self</span>, base_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, storage_options: <span class="bu">dict</span> <span class="op">|</span> Munch <span class="op">|</span> BaseStorageOptions <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, fs: AbstractFileSystem <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, cfg_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, pipelines_dir: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, job_queue_type: <span class="bu">str</span> <span class="op">=</span> settings.JOB_QUEUE_TYPE, log_level: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Initializes the <code>PipelineManager</code>.</p>
+<p>Initializes the <code>PipelineManager</code>, setting up project paths and loading configurations.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 28%">
@@ -481,7 +489,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td style="text-align: left;"><code>storage_options</code></td>
 <td style="text-align: left;"><code>dict \| Munch \| BaseStorageOptions \| None</code></td>
-<td style="text-align: left;">Storage options for the filesystem.</td>
+<td style="text-align: left;">Configuration options for filesystem access (e.g., S3, GCS).</td>
 <td style="text-align: left;"><code>{}</code></td>
 </tr>
 <tr class="odd">
@@ -493,13 +501,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td style="text-align: left;"><code>cfg_dir</code></td>
 <td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The directory for configuration files.</td>
+<td style="text-align: left;">Override the default configuration directory name.</td>
 <td style="text-align: left;"><code>settings.CONFIG_DIR</code></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>pipelines_dir</code></td>
 <td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">The directory for pipeline modules.</td>
+<td style="text-align: left;">Override the default pipelines directory name.</td>
 <td style="text-align: left;"><code>settings.PIPELINES_DIR</code></td>
 </tr>
 <tr class="even">
@@ -552,7 +560,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td style="text-align: left;"><code>io</code></td>
 <td style="text-align: left;"><code>PipelineIOManager</code></td>
-<td style="text-align: left;">Manages pipeline import/export operations.</td>
+<td style="text-align: left;">Handles pipeline import/export operations, consolidating common logic.</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>project_cfg</code></td>
@@ -617,7 +625,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="run" class="level3">
 <h3 class="anchored" data-anchor-id="run">run</h3>
 <div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>run(<span class="va">self</span>, name: <span class="bu">str</span>, inputs: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, final_vars: <span class="bu">list</span>[<span class="bu">str</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, config: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, cache: <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, executor_cfg: <span class="bu">str</span> <span class="op">|</span> <span class="bu">dict</span> <span class="op">|</span> ExecutorConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, with_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> WithAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, pipeline_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> PipelineAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, project_adapter_cfg: <span class="bu">dict</span> <span class="op">|</span> ProjectAdapterConfig <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, adapter: <span class="bu">dict</span>[<span class="bu">str</span>, Any] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, <span class="bu">reload</span>: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>, log_level: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, max_retries: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, retry_delay: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, jitter_factor: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, retry_exceptions: <span class="bu">tuple</span> <span class="op">|</span> <span class="bu">list</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, on_success: Callable <span class="op">|</span> <span class="bu">tuple</span>[Callable, <span class="bu">tuple</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, on_failure: Callable <span class="op">|</span> <span class="bu">tuple</span>[Callable, <span class="bu">tuple</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">dict</span> <span class="op">|</span> <span class="va">None</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Execute a pipeline synchronously and return its results.</p>
+<p>Execute a pipeline synchronously and return its results. Parameters related to retries (<code>max_retries</code>, <code>retry_delay</code>, <code>jitter_factor</code>, <code>retry_exceptions</code>) configure the internal retry mechanism.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 28%">

@@ -43,7 +43,9 @@ nav:
       - JobQueueManager: api/jobqueuemanager.md
       - RQManager: api/rqmanager.md
       - Configuration: api/configuration.md
-      - init: api/init.md
+      - FlowerPowerProject: api/flowerpowerproject.md
+      - initialize_project: api/initialize_project.md
+      - create_project: api/create_project.md
       - CLI:
           - CLI: api/cli.md
           - Job Queue CLI: api/cli_job_queue.md
