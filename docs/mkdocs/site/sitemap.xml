@@ -2,74 +2,82 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://legout.github.io/flowerpower/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/advanced/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/architecture/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/contributing/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/examples/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/installation/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/quickstart/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/cli/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/cli_job_queue/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/cli_mqtt/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/cli_pipeline/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/configuration/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
+    </url>
+    <url>
+         <loc>https://legout.github.io/flowerpower/api/create_project/</loc>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/flowerpower/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
-         <loc>https://legout.github.io/flowerpower/api/init/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <loc>https://legout.github.io/flowerpower/api/flowerpowerproject/</loc>
+         <lastmod>2025-08-29</lastmod>
+    </url>
+    <url>
+         <loc>https://legout.github.io/flowerpower/api/initialize_project/</loc>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/jobqueuemanager/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/pipelinemanager/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
     <url>
          <loc>https://legout.github.io/flowerpower/api/rqmanager/</loc>
-         <lastmod>2025-08-21</lastmod>
+         <lastmod>2025-08-29</lastmod>
     </url>
 </urlset>

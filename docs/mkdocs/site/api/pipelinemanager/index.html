@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
     
     
       
@@ -1136,12 +1136,58 @@
   
   
     <li class="md-nav__item">
-      <a href="../init/" class="md-nav__link">
+      <a href="../flowerpowerproject/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    init
+    FlowerPowerProject
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../initialize_project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    initialize_project
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../create_project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    create_project
     
   </span>
   
@@ -1170,10 +1216,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" >
         
           
-          <label class="md-nav__link" for="__nav_7_8" id="__nav_7_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="0">
             
   
   
@@ -1186,8 +1232,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_10">
             <span class="md-nav__icon md-icon"></span>
             CLI
           </label>
@@ -1719,7 +1765,7 @@
 <h3 id="init"><strong>init</strong><a class="headerlink" href="#init" title="Permanent link">&para;</a></h3>
 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">storage_options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">Munch</span> <span class="o">|</span> <span class="n">BaseStorageOptions</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">fs</span><span class="p">:</span> <span class="n">AbstractFileSystem</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cfg_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pipelines_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">job_queue_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">JOB_QUEUE_TYPE</span><span class="p">,</span> <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-<p>Initializes the <code>PipelineManager</code>.</p>
+<p>Initializes the <code>PipelineManager</code>, setting up project paths and loading configurations.</p>
 <table>
 <thead>
 <tr>
@@ -1737,7 +1783,7 @@
 <tr>
 <td><code>storage_options</code></td>
 <td><code>dict \| Munch \| BaseStorageOptions \| None</code></td>
-<td>Storage options for the filesystem.</td>
+<td>Configuration options for filesystem access (e.g., S3, GCS).</td>
 </tr>
 <tr>
 <td><code>fs</code></td>
@@ -1747,12 +1793,12 @@
 <tr>
 <td><code>cfg_dir</code></td>
 <td><code>str \| None</code></td>
-<td>The directory for configuration files.</td>
+<td>Override the default configuration directory name.</td>
 </tr>
 <tr>
 <td><code>pipelines_dir</code></td>
 <td><code>str \| None</code></td>
-<td>The directory for pipeline modules.</td>
+<td>Override the default pipelines directory name.</td>
 </tr>
 <tr>
 <td><code>job_queue_type</code></td>
@@ -1804,7 +1850,7 @@
 <tr>
 <td style="text-align: left;"><code>io</code></td>
 <td style="text-align: left;"><code>PipelineIOManager</code></td>
-<td style="text-align: left;">Manages pipeline import/export operations.</td>
+<td style="text-align: left;">Handles pipeline import/export operations, consolidating common logic.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>project_cfg</code></td>
@@ -1867,7 +1913,7 @@
 <h3 id="run">run<a class="headerlink" href="#run" title="Permanent link">&para;</a></h3>
 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">inputs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">final_vars</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">executor_cfg</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">ExecutorConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">with_adapter_cfg</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">WithAdapterConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pipeline_adapter_cfg</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">PipelineAdapterConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">project_adapter_cfg</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">ProjectAdapterConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">adapter</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">retry_delay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">jitter_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">retry_exceptions</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">on_success</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">on_failure</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-<p>Execute a pipeline synchronously and return its results.</p>
+<p>Execute a pipeline synchronously and return its results. Parameters related to retries (<code>max_retries</code>, <code>retry_delay</code>, <code>jitter_factor</code>, <code>retry_exceptions</code>) configure the internal retry mechanism.</p>
 <table>
 <thead>
 <tr>
@@ -2808,7 +2854,8 @@
   
 </div>
       
-        <div class="md-social">
+        
+<div class="md-social">
   
     
     
