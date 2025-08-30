@@ -25,7 +25,6 @@ flowerpower init [options]
 | project_name | str | Name of the FlowerPower project to create. If not provided, | Required |
 | base_dir | str | Base directory where the project will be created. If not provided, | Required |
 | storage_options | str | Storage options for filesystem access, as a JSON or dict string | Required |
-| job_queue_type | str | Type of job queue backend to use (rq) | Required |
 
 
 ### Examples
@@ -44,12 +43,6 @@ $ flowerpower init --name my-awesome-project
 
 ```bash
 $ flowerpower init --name my-project --base-dir /path/to/projects
-
-# Create a project with RQ as the job queue backend (default)
-```
-
-```bash
-$ flowerpower init --job-queue-type rq
 ```
 
 ---

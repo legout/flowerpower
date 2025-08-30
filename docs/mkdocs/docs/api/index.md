@@ -6,8 +6,7 @@ This section provides a detailed reference for the FlowerPower API.
 
 -   [FlowerPowerProject](./flowerpowerproject.md)
 -   [PipelineManager](./pipelinemanager.md)
--   [JobQueueManager](./jobqueuemanager.md)
--   [RQManager](./rqmanager.md)
+-   [RunConfig](./runconfig.md)
 
 ## Configuration
 
@@ -22,5 +21,4 @@ This section provides a detailed reference for the FlowerPower API.
 
 -   [CLI Overview](./cli.md)
 -   [CLI Pipeline Commands](./cli_pipeline.md)
--   [CLI Job Queue Commands](./cli_job_queue.md)
 -   [CLI MQTT Commands](./cli_mqtt.md)

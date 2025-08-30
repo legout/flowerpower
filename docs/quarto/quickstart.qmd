@@ -155,6 +155,75 @@ result = project.run('hello_world')
 print(result)
 ```
 
+### Advanced Pipeline Execution with RunConfig
+
+For more control over pipeline execution, you can use the `RunConfig` class to configure execution parameters.
+
+#### Using RunConfig Directly
+
+``` python
+from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfig
+
+project = FlowerPowerProject.load('.')
+
+# Create a configuration with custom parameters
+config = RunConfig(
+    inputs={"greeting_message": "Hi", "target_name": "FlowerPower"},
+    final_vars=["full_greeting"],
+    log_level="DEBUG"
+)
+
+result = project.run('hello_world', run_config=config)
+print(result)
+```
+
+#### Using RunConfigBuilder (Recommended)
+
+The `RunConfigBuilder` provides a fluent interface for building complex configurations:
+
+``` python
+from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfigBuilder
+
+project = FlowerPowerProject.load('.')
+
+# Build a configuration using the builder pattern
+config = (
+    RunConfigBuilder()
+    .with_inputs({"greeting_message": "Hello", "target_name": "World"})
+    .with_final_vars(["full_greeting"])
+    .with_log_level("DEBUG")
+    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .build()
+)
+
+result = project.run('hello_world', run_config=config)
+print(result)
+```
+
+#### Mixing RunConfig with Individual Parameters
+
+You can also combine `RunConfig` with individual parameters, where individual parameters take precedence:
+
+``` python
+from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfigBuilder
+
+project = FlowerPowerProject.load('.')
+
+# Create a base configuration
+base_config = RunConfigBuilder().with_log_level("INFO").build()
+
+# Run with base config but override specific parameters
+result = project.run(
+    'hello_world',
+    run_config=base_config,
+    inputs={"greeting_message": "Greetings", "target_name": "Universe"}
+)
+print(result)
+```
+
 ### Asynchronous Execution
 
 For asynchronous execution, you need a running Redis server.
@@ -208,4 +277,4 @@ project = FlowerPowerProject.load('.')
 project.start_worker(background=True)
 ```
 
-For more details on managing your project, refer to the API documentation for `FlowerPowerProject`, `PipelineManager`, and `JobQueueManager`.
+For more details on managing your project, refer to the API documentation for `FlowerPowerProject`, `PipelineManager`, `RunConfig`, and `JobQueueManager`.

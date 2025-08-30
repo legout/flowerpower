@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Welcome to the architectural overview of FlowerPower. This document provides a high-level look at the library's design, its core components, and the principles that guide its development. Our goal is to create a powerful, flexible, and easy-to-use platform for building data pipelines and managing asynchronous jobs.
+Welcome to the architectural overview of FlowerPower. This document provides a high-level look at the library's design, its core components, and the principles that guide its development. Our goal is to create a powerful, flexible, and easy-to-use platform for building data pipelines with optional job scheduling capabilities.
 
 ## Core Design Principles
 
@@ -10,7 +10,6 @@ FlowerPower is built on a foundation of modularity and clear separation of conce
 
 -   **Modular and Configuration-Driven:** Components are designed to be self-contained and configurable, allowing you to easily swap implementations and adapt the library to your needs.
 -   **Unified Interface:** A single, clean entry point (`FlowerPowerProject`) simplifies interaction with the library's powerful features.
--   **Separation of Concerns:** Pipeline execution (the "what") is decoupled from job queue management (the "how" and "when").
 -   **Extensibility:** The library is designed to be extended with custom plugins and adapters for I/O, messaging, and more.
 
 ## Key Components
@@ -20,26 +19,20 @@ The library's architecture is centered around a few key components that work tog
 ```mermaid
 graph TD
     A[FlowerPowerProject] -->|Manages| B(PipelineManager)
-    A -->|Manages| C(JobQueueManager)
-    B -->|Uses| D[Hamilton]
-    C -->|Uses| E[RQManager]
-    E -->|Uses| F[Redis]
+    B -->|Uses| C[Hamilton]
 
     subgraph "Core Components"
         B
-        C
-        E
     end
 
     subgraph "External Dependencies"
-        D
-        F
+        C
     end
 ```
 
 ### `FlowerPowerProject`
 
-The `FlowerPowerProject` class is the main entry point and public-facing API of the library. It acts as a facade, providing a unified interface to the underlying `PipelineManager` and `JobQueueManager`. This simplifies the user experience by abstracting away the complexities of the individual components.
+The `FlowerPowerProject` class is the main entry point and public-facing API of the library. It acts as a facade, providing a unified interface to the underlying `PipelineManager`. This simplifies the user experience by abstracting away the complexities of the individual components.
 
 ### `PipelineManager`
 
@@ -57,22 +50,15 @@ FlowerPower leverages Hamilton to define the logic of its data pipelines. Hamilt
 !!! note
     To learn more about Hamilton, visit the [official documentation](https://hamilton.dagworks.io/).
 
-### `JobQueueManager` and `RQManager`
+## Optional Job Scheduling
 
-The `JobQueueManager` is a factory responsible for creating and managing job queue backends. Currently, the primary implementation is the `RQManager`, which uses the powerful Redis Queue (RQ) library.
+FlowerPower provides optional job scheduling capabilities through the `flowerpower-scheduler` package. When installed, this package enables asynchronous processing and job scheduling features.
 
-The `RQManager` handles:
+The optional scheduler handles:
 
 -   **Asynchronous Processing:** It allows you to offload long-running tasks to background workers, keeping your application responsive.
 -   **Job Scheduling:** You can enqueue jobs to run at a specific time or on a recurring schedule.
--   **Distributed Workers:** RQ's worker-based architecture enables you to distribute tasks across multiple machines for parallel processing.
-
-#### RQ and Redis
-
-RQ uses Redis as its message broker and storage backend. This provides a robust and performant foundation for the job queueing system.
-
-!!! tip
-    You can monitor and manage your RQ queues using tools like `rq-dashboard`.
+-   **Distributed Workers:** The scheduler's worker-based architecture enables you to distribute tasks across multiple machines for parallel processing.
 
 ## Filesystem Abstraction
 
@@ -80,4 +66,4 @@ FlowerPower includes a filesystem abstraction layer that allows you to work with
 
 ## Conclusion
 
-FlowerPower's architecture is designed to be both powerful and flexible. By combining the strengths of Hamilton for dataflow definition and RQ for asynchronous processing, it provides a comprehensive solution for a wide range of data-intensive applications. The modular design and unified interface make it easy to get started, while the extensible nature of the library allows it to grow with your needs.
+FlowerPower's architecture is designed to be both powerful and flexible. By combining the strengths of Hamilton for dataflow definition with optional job scheduling capabilities, it provides a comprehensive solution for a wide range of data-intensive applications. The modular design and unified interface make it easy to get started, while the extensible nature of the library allows it to grow with your needs.

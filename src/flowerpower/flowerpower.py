@@ -2,7 +2,7 @@ import datetime as dt
 import os
 import posixpath
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional, TYPE_CHECKING
 from functools import wraps
 
 import rich
@@ -15,9 +15,14 @@ from .cfg import ProjectConfig
 from .cfg.pipeline import ExecutorConfig, WithAdapterConfig
 from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from .job_queue import JobQueueManager
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
+
+# Attempt to import JobQueueManager from the optional flowerpower-scheduler package
+try:
+    from flowerpower_scheduler import JobQueueManager
+except ImportError:
+    JobQueueManager = None
 
 setup_logging()
 
@@ -44,13 +49,13 @@ class FlowerPowerProject:
     def __init__(
         self,
         pipeline_manager: PipelineManager,
-        job_queue_manager: JobQueueManager | None = None,
+        job_queue_manager: Optional['JobQueueManager'] = None,
     ):
         """
         Initialize a FlowerPower project.
         Args:
             pipeline_manager (PipelineManager | None): Instance of PipelineManager to manage pipelines.
-            job_queue_manager (JobQueueManager | None): Instance of JobQueueManager to manage job queues.
+            job_queue_manager (Optional[JobQueueManager]): Instance of JobQueueManager to manage job queues.
         """
         self.pipeline_manager = pipeline_manager
         self.job_queue_manager = job_queue_manager
@@ -71,7 +76,7 @@ class FlowerPowerProject:
         if self.job_queue_manager is None:
             raise RuntimeError(
                 "Job queue manager is not configured. "
-                "Ensure the project was loaded with a job queue configuration."
+                "Please install 'flowerpower-scheduler' and ensure it is configured correctly."
             )
 
     def _validate_pipeline_name(self, name: str) -> None:
@@ -579,12 +584,17 @@ class FlowerPowerProject:
                 log_level=log_level,
             )
 
-            job_queue_manager = JobQueueManager(
-                name=f"{pipeline_manager.project_cfg.name}_job_queue",
-                base_dir=base_dir,
-                storage_options=storage_options,
-                fs=fs,
-            )
+            job_queue_manager = None
+            if JobQueueManager is not None:
+                try:
+                    job_queue_manager = JobQueueManager(
+                        name=f"{pipeline_manager.project_cfg.name}_job_queue",
+                        base_dir=base_dir,
+                        storage_options=storage_options,
+                        fs=fs,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to initialize JobQueueManager: {e}")
 
             # Create the project instance
             project = cls(
@@ -608,7 +618,6 @@ class FlowerPowerProject:
         base_dir: str | None = None,
         storage_options: dict | BaseStorageOptions | None = {},
         fs: AbstractFileSystem | None = None,
-        job_queue_type: str = settings.JOB_QUEUE_TYPE,
         hooks_dir: str = settings.HOOKS_DIR,
         log_level: str | None = None,
         overwrite: bool = False,
@@ -621,7 +630,6 @@ class FlowerPowerProject:
             base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
             storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
             fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
-            job_queue_type (str): The type of job queue to use for the project.
             hooks_dir (str): The directory where the project hooks will be stored.
             overwrite (bool): Whether to overwrite an existing project at the specified base directory.
         Returns:
@@ -658,11 +666,11 @@ class FlowerPowerProject:
                 pipelines_path = settings.PIPELINES_DIR
                 
                 if fs.exists(config_path):
-                    fs.rmdir(config_path, recursive=True)
+                    fs.rm(config_path, recursive=True)
                 if fs.exists(pipelines_path):
-                    fs.rmdir(pipelines_path, recursive=True)
+                    fs.rm(pipelines_path, recursive=True)
                 if fs.exists(hooks_dir):
-                    fs.rmdir(hooks_dir, recursive=True)
+                    fs.rm(hooks_dir, recursive=True)
                 
                 # Remove README.md file
                 if fs.exists("README.md"):
@@ -677,7 +685,8 @@ class FlowerPowerProject:
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
         fs.makedirs(hooks_dir, exist_ok=True)
 
-        cfg = ProjectConfig.load(name=name, job_queue_type=job_queue_type, fs=fs)
+        # Load project configuration without job_queue_type
+        cfg = ProjectConfig.load(name=name, fs=fs)
 
         with fs.open("README.md", "w") as f:
             f.write(
@@ -740,12 +749,12 @@ def initialize_project(
     base_dir: str | None = None,
     storage_options: dict | BaseStorageOptions | None = {},
     fs: AbstractFileSystem | None = None,
-    job_queue_type: str = settings.JOB_QUEUE_TYPE,
     hooks_dir: str = settings.HOOKS_DIR,
     log_level: str | None = None,
 ) -> FlowerPowerProject:
     """
     Initialize a new FlowerPower project.
+    
     
     This is a standalone function that directly calls FlowerPowerProject.new
     with the same arguments, providing easier, separately importable access.
@@ -755,7 +764,6 @@ def initialize_project(
         base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
         storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
         fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
-        job_queue_type (str): The type of job queue to use for the project.
         hooks_dir (str): The directory where the project hooks will be stored.
         log_level (str | None): The logging level to set for the project.
     
@@ -767,18 +775,15 @@ def initialize_project(
         base_dir=base_dir,
         storage_options=storage_options,
         fs=fs,
-        job_queue_type=job_queue_type,
         hooks_dir=hooks_dir,
         log_level=log_level,
     )
-
 
 def create_project(
     name: str | None = None,
     base_dir: str | None = None,
     storage_options: dict | BaseStorageOptions | None = {},
     fs: AbstractFileSystem | None = None,
-    job_queue_type: str = settings.JOB_QUEUE_TYPE,
     hooks_dir: str = settings.HOOKS_DIR,
 ) -> FlowerPowerProject:
     """
@@ -793,7 +798,6 @@ def create_project(
                                If None, it defaults to the current working directory.
         storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
         fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
-        job_queue_type (str): The type of job queue to use for the project.
         hooks_dir (str): The directory where the project hooks will be stored.
 
     Returns:

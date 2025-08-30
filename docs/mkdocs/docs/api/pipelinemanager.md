@@ -8,7 +8,7 @@ The `PipelineManager` is the central class for managing pipeline operations in F
 
 ### __init__
 ```python
-__init__(self, base_dir: str | None = None, storage_options: dict | Munch | BaseStorageOptions | None = None, fs: AbstractFileSystem | None = None, cfg_dir: str | None = None, pipelines_dir: str | None = None, job_queue_type: str = settings.JOB_QUEUE_TYPE, log_level: str | None = None)
+__init__(self, base_dir: str | None = None, storage_options: dict | Munch | BaseStorageOptions | None = None, fs: AbstractFileSystem | None = None, cfg_dir: str | None = None, pipelines_dir: str | None = None, log_level: str | None = None)
 ```
 
 Initializes the `PipelineManager`, setting up project paths and loading configurations.
@@ -20,7 +20,6 @@ Initializes the `PipelineManager`, setting up project paths and loading configur
 | `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance. | `None` |
 | `cfg_dir` | `str \| None` | Override the default configuration directory name. | `settings.CONFIG_DIR` |
 | `pipelines_dir` | `str \| None` | Override the default pipelines directory name. | `settings.PIPELINES_DIR` |
-| `job_queue_type` | `str` | The type of job queue to use for the project. | `settings.JOB_QUEUE_TYPE` |
 | `log_level` | `str \| None` | The logging level for the manager. | `None` |
 
 **Example:**
@@ -57,14 +56,21 @@ manager = PipelineManager()
 
 ### run
 ```python
-run(self, name: str, inputs: dict | None = None, final_vars: list[str] | None = None, config: dict | None = None, cache: dict | None = None, executor_cfg: str | dict | ExecutorConfig | None = None, with_adapter_cfg: dict | WithAdapterConfig | None = None, pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None, project_adapter_cfg: dict | ProjectAdapterConfig | None = None, adapter: dict[str, Any] | None = None, reload: bool = False, log_level: str | None = None, max_retries: int | None = None, retry_delay: float | None = None, jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None, on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None)
+run(self, name: str, run_config: RunConfig | None = None, inputs: dict | None = None, final_vars: list[str] | None = None, config: dict | None = None, cache: dict | None = None, executor_cfg: str | dict | ExecutorConfig | None = None, with_adapter_cfg: dict | WithAdapterConfig | None = None, pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None, project_adapter_cfg: dict | ProjectAdapterConfig | None = None, adapter: dict[str, Any] | None = None, reload: bool = False, log_level: str | None = None, max_retries: int | None = None, retry_delay: float | None = None, jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None, on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None)
 ```
 
 Execute a pipeline synchronously and return its results. Parameters related to retries (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) configure the internal retry mechanism.
 
+This method supports two ways of providing execution configuration:
+1. Using a `RunConfig` object (recommended) - provides a structured way to pass all execution parameters
+2. Using individual parameters (legacy) - allows specifying parameters individually
+
+When both `run_config` and individual parameters are provided, the individual parameters take precedence over the corresponding values in `run_config`.
+
 | Parameter | Type | Description | Default |
 |:----------|:-----|:------------|:--------|
 | `name` | `str` | Name of the pipeline to run. Must be a valid identifier. | |
+| `run_config` | `RunConfig \| None` | Configuration object containing all execution parameters. See [RunConfig](./runconfig.md) for details. | `None` |
 | `inputs` | `dict \| None` | Override pipeline input values. Example: `{"data_date": "2025-04-28"}` | `None` |
 | `final_vars` | `list[str] \| None` | Specify which output variables to return. Example: `["model", "metrics"]` | `None` |
 | `config` | `dict \| None` | Configuration for Hamilton pipeline executor. Example: `{"model": "LogisticRegression"}` | `None` |
@@ -95,17 +101,47 @@ Execute a pipeline synchronously and return its results. Parameters related to r
 
 ```python
 from flowerpower.pipeline import PipelineManager
+from flowerpower.run_config import RunConfig, RunConfigBuilder
 
 manager = PipelineManager()
 
 # Simple execution
 result = manager.run("my_pipeline")
 
-# With custom inputs
+# With custom inputs (legacy approach)
 result = manager.run(
     "ml_pipeline",
     inputs={"data_date": "2025-01-01"},
     final_vars=["model", "metrics"]
+)
+
+# Using RunConfig directly
+config = RunConfig(
+    inputs={"data_date": "2025-01-01"},
+    final_vars=["model", "metrics"],
+    log_level="DEBUG"
+)
+result = manager.run("ml_pipeline", run_config=config)
+
+# Using RunConfigBuilder (recommended)
+config = (
+    RunConfigBuilder()
+    .with_inputs({"data_date": "2025-01-01"})
+    .with_final_vars(["model", "metrics"])
+    .with_log_level("DEBUG")
+    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .build()
+)
+result = manager.run("ml_pipeline", run_config=config)
+
+# Mixing RunConfig with individual parameters
+# Individual parameters take precedence over RunConfig values
+base_config = RunConfigBuilder().with_log_level("INFO").build()
+result = manager.run(
+    "ml_pipeline",
+    run_config=base_config,
+    inputs={"data_date": "2025-01-01"},  # Overrides inputs in base_config
+    final_vars=["model"]  # Overrides final_vars in base_config
 )
 ```
 

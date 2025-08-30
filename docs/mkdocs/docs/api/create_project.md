@@ -5,7 +5,7 @@
 The `create_project` function either loads an existing FlowerPower project or raises an error if the project does not exist. It is a convenient top-level function.
 
 ```python
-create_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, job_queue_type: str = settings.JOB_QUEUE_TYPE, hooks_dir: str = settings.HOOKS_DIR) -> FlowerPowerProject
+create_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, hooks_dir: str = settings.HOOKS_DIR) -> FlowerPowerProject
 ```
 
 Loads an existing FlowerPower project.
@@ -16,7 +16,6 @@ Loads an existing FlowerPower project.
 | `base_dir` | `str` &#124; `None` | The base directory where the project will be created or loaded from. Defaults to the current working directory. |
 | `storage_options` | `dict` &#124; `BaseStorageOptions` &#124; `None` | Storage options for the filesystem. |
 | `fs` | `AbstractFileSystem` &#124; `None` | An instance of AbstractFileSystem to use for file operations. |
-| `job_queue_type` | `str` | The type of job queue to use for the project. |
 | `hooks_dir` | `str` | The directory where the project hooks will be stored. |
 
 **Returns:** A `FlowerPowerProject` instance.

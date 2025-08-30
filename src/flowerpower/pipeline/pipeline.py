@@ -57,7 +57,7 @@ else:
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, RunConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 
 if TYPE_CHECKING:
@@ -113,6 +113,7 @@ class Pipeline(msgspec.Struct):
         ),
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        run_config: RunConfig | None = None,
     ) -> dict[str, Any]:
         """Execute the pipeline with the given parameters.
 
@@ -134,25 +135,46 @@ class Pipeline(msgspec.Struct):
             retry_exceptions: Exceptions to catch for retries
             on_success: Callback for successful execution
             on_failure: Callback for failed execution
+            run_config: Run configuration object containing all execution parameters
 
         Returns:
             The result of executing the pipeline
         """
         start_time = dt.datetime.now()
 
-        # Reload module if requested
-        if reload:
-            self._reload_module()
+        # If run_config is provided, use it; otherwise, build from individual parameters
+        if run_config is not None:
+            # Use the provided RunConfig object
+            pass
+        else:
+            # Build RunConfig from individual parameters for backward compatibility
+            run_config = RunConfig(
+                inputs=inputs or self.config.run.inputs or {},
+                final_vars=final_vars or self.config.run.final_vars or [],
+                config={**(self.config.run.config or {}), **(config or {})},
+                cache=cache or self.config.run.cache or {},
+                executor_cfg=executor_cfg,
+                with_adapter_cfg=with_adapter_cfg,
+                pipeline_adapter_cfg=pipeline_adapter_cfg,
+                project_adapter_cfg=project_adapter_cfg,
+                adapter=adapter,
+                reload=reload,
+                log_level=log_level,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                jitter_factor=jitter_factor,
+                retry_exceptions=retry_exceptions,
+                on_success=on_success,
+                on_failure=on_failure,
+            )
 
-        # Set up configuration with defaults from pipeline config
-        inputs = inputs or self.config.run.inputs or {}
-        final_vars = final_vars or self.config.run.final_vars or []
-        config = {**(self.config.run.config or {}), **(config or {})}
-        cache = cache or self.config.run.cache or {}
+        # Reload module if requested
+        if run_config.reload:
+            self._reload_module()
 
         # Set up retry configuration
         retry_config = self._setup_retry_config(
-            max_retries, retry_delay, jitter_factor, retry_exceptions
+            run_config.max_retries, run_config.retry_delay, run_config.jitter_factor, run_config.retry_exceptions
         )
         max_retries = retry_config["max_retries"]
         retry_delay = retry_config["retry_delay"]
@@ -161,23 +183,23 @@ class Pipeline(msgspec.Struct):
 
         # Execute with retry logic
         return self._execute_with_retry(
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            log_level=log_level,
+            inputs=run_config.inputs,
+            final_vars=run_config.final_vars,
+            config=run_config.config,
+            cache=run_config.cache,
+            executor_cfg=run_config.executor_cfg,
+            with_adapter_cfg=run_config.with_adapter_cfg,
+            pipeline_adapter_cfg=run_config.pipeline_adapter_cfg,
+            project_adapter_cfg=run_config.project_adapter_cfg,
+            adapter=run_config.adapter,
+            log_level=run_config.log_level,
             max_retries=max_retries,
             retry_delay=retry_delay,
             jitter_factor=jitter_factor,
             retry_exceptions=retry_exceptions,
             start_time=start_time,
-            on_success=on_success,
-            on_failure=on_failure,
+            on_success=run_config.on_success,
+            on_failure=run_config.on_failure,
         )
 
     def _setup_retry_config(
@@ -257,18 +279,7 @@ class Pipeline(msgspec.Struct):
                     f"🚀 Running pipeline '{self.name}' (attempt {attempt + 1}/{max_retries + 1})"
                 )
 
-                result = self._execute_pipeline(
-                    inputs=inputs,
-                    final_vars=final_vars,
-                    config=config,
-                    cache=cache,
-                    executor_cfg=executor_cfg,
-                    with_adapter_cfg=with_adapter_cfg,
-                    pipeline_adapter_cfg=pipeline_adapter_cfg,
-                    project_adapter_cfg=project_adapter_cfg,
-                    adapter=adapter,
-                    log_level=log_level,
-                )
+                result = self._execute_pipeline(run_config=run_config)
 
                 end_time = dt.datetime.now()
                 duration = humanize.naturaldelta(end_time - start_time)
@@ -321,51 +332,32 @@ class Pipeline(msgspec.Struct):
 
     def _setup_execution_context(
         self,
-        executor_cfg: str | dict | ExecutorConfig | None,
-        with_adapter_cfg: dict | WithAdapterConfig | None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None,
-        adapter: dict[str, Any] | None,
+        run_config: RunConfig,
     ) -> tuple[executors.BaseExecutor, Callable | None, list]:
         """Set up executor and adapters for pipeline execution."""
         # Get executor and adapters
-        executor, shutdown_func = self._get_executor(executor_cfg)
+        executor, shutdown_func = self._get_executor(run_config.executor_cfg)
         adapters = self._get_adapters(
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
+            with_adapter_cfg=run_config.with_adapter_cfg,
+            pipeline_adapter_cfg=run_config.pipeline_adapter_cfg,
+            project_adapter_cfg=run_config.project_adapter_cfg,
+            adapter=run_config.adapter,
         )
         return executor, shutdown_func, adapters
 
     def _execute_pipeline(
         self,
-        inputs: dict,
-        final_vars: list[str],
-        config: dict,
-        cache: dict,
-        executor_cfg: str | dict | ExecutorConfig | None,
-        with_adapter_cfg: dict | WithAdapterConfig | None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None,
-        adapter: dict[str, Any] | None,
-        log_level: str | None,
+        run_config: RunConfig,
     ) -> dict[str, Any]:
         """Execute the pipeline with Hamilton."""
         # Set up execution context
-        executor, shutdown_func, adapters = self._setup_execution_context(
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-        )
+        executor, shutdown_func, adapters = self._setup_execution_context(run_config=run_config)
 
         try:
             # Create Hamilton driver
             dr = (
                 driver.Builder()
-                .with_config(config)
+                .with_config(run_config.config)
                 .with_modules(self.module)
                 .with_adapters(*adapters)
                 .build()
@@ -373,8 +365,8 @@ class Pipeline(msgspec.Struct):
 
             # Execute the pipeline
             result = dr.execute(
-                final_vars=final_vars,
-                inputs=inputs,
+                final_vars=run_config.final_vars,
+                inputs=run_config.inputs,
             )
 
             return result
