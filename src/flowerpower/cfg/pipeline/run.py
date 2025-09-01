@@ -39,8 +39,34 @@ class RunConfig(BaseConfig):
     project_adapter_cfg: dict | None = msgspec.field(default=None)
     adapter: dict[str, Any] | None = msgspec.field(default=None)
     reload: bool = msgspec.field(default=False)
-    on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = msgspec.field(default=None)
-    on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = msgspec.field(default=None)
+
+
+class CallbackSpec(msgspec.Struct):
+    """Specification for a callback function with optional arguments."""
+    func: Callable
+    args: tuple | None = None
+    kwargs: dict | None = None
+
+
+class RunConfig(BaseConfig):
+    inputs: dict | None = msgspec.field(default_factory=dict)
+    final_vars: list[str] | None = msgspec.field(default_factory=list)
+    config: dict | None = msgspec.field(default_factory=dict)
+    cache: dict | bool | None = msgspec.field(default=False)
+    with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
+    executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
+    log_level: str | None = msgspec.field(default="INFO")
+    max_retries: int = msgspec.field(default=3)
+    retry_delay: int | float = msgspec.field(default=1)
+    jitter_factor: float | None = msgspec.field(default=0.1)
+    retry_exceptions: list[str] = msgspec.field(default_factory=lambda: ["Exception"])
+    # New fields for comprehensive configuration
+    pipeline_adapter_cfg: dict | None = msgspec.field(default=None)
+    project_adapter_cfg: dict | None = msgspec.field(default=None)
+    adapter: dict[str, Any] | None = msgspec.field(default=None)
+    reload: bool = msgspec.field(default=False)
+    on_success: CallbackSpec | None = msgspec.field(default=None)
+    on_failure: CallbackSpec | None = msgspec.field(default=None)
 
     def __post_init__(self):
         if isinstance(self.inputs, dict):
@@ -81,3 +107,30 @@ class RunConfig(BaseConfig):
                 else:
                     converted_exceptions.append(Exception)
             self.retry_exceptions = converted_exceptions
+
+        # Handle callback conversions
+        if self.on_success is not None and not isinstance(self.on_success, CallbackSpec):
+            if callable(self.on_success):
+                self.on_success = CallbackSpec(func=self.on_success)
+            elif isinstance(self.on_success, tuple) and len(self.on_success) == 3:
+                func, args, kwargs = self.on_success
+                self.on_success = CallbackSpec(func=func, args=args, kwargs=kwargs)
+            else:
+                self.on_success = None
+                warnings.warn(
+                    "Invalid on_success format, must be Callable or (Callable, args, kwargs)",
+                    RuntimeWarning
+                )
+
+        if self.on_failure is not None and not isinstance(self.on_failure, CallbackSpec):
+            if callable(self.on_failure):
+                self.on_failure = CallbackSpec(func=self.on_failure)
+            elif isinstance(self.on_failure, tuple) and len(self.on_failure) == 3:
+                func, args, kwargs = self.on_failure
+                self.on_failure = CallbackSpec(func=func, args=args, kwargs=kwargs)
+            else:
+                self.on_failure = None
+                warnings.warn(
+                    "Invalid on_failure format, must be Callable or (Callable, args, kwargs)",
+                    RuntimeWarning
+                )
