@@ -21,7 +21,7 @@ from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from ..settings import CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from ..cfg.pipeline.run import ExecutorConfig, RunConfig, WithAdapterConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..utils.logging import setup_logging
 from .io import PipelineIOManager
@@ -425,6 +425,7 @@ class PipelineManager:
         retry_exceptions: tuple | list | None = None,
         on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        run_config: RunConfig | None = None,
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -460,6 +461,7 @@ class PipelineManager:
             retry_exceptions (tuple): Exceptions that trigger a retry.
             on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
             on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
+            run_config (RunConfig | None): Run configuration object containing all execution parameters.
 
         Returns:
             dict[str, Any]: Pipeline execution results, mapping output variable names
@@ -491,9 +493,35 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
+        # If run_config is provided, use it; otherwise, build from individual parameters
+        if run_config is not None:
+            # Use the provided RunConfig object
+            pass
+        else:
+            # Build RunConfig from individual parameters for backward compatibility
+            run_config = RunConfig(
+                inputs=inputs,
+                final_vars=final_vars,
+                config=config,
+                cache=cache,
+                executor_cfg=executor_cfg,
+                with_adapter_cfg=with_adapter_cfg,
+                pipeline_adapter_cfg=pipeline_adapter_cfg,
+                project_adapter_cfg=project_adapter_cfg,
+                adapter=adapter,
+                reload=reload,
+                log_level=log_level,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                jitter_factor=jitter_factor,
+                retry_exceptions=retry_exceptions,
+                on_success=on_success,
+                on_failure=on_failure,
+            )
+
         # Set up logging for this specific run if log_level is provided
-        if log_level is not None:
-            setup_logging(level=log_level)
+        if run_config.log_level is not None:
+            setup_logging(level=run_config.log_level)
         else:
             # Ensure logging is reset to default if no specific level is provided for this run
             setup_logging()
@@ -503,28 +531,12 @@ class PipelineManager:
 
         # Get Pipeline instance from registry
         pipeline = self.registry.get_pipeline(
-            name=name, project_context=project_context, reload=reload
+            name=name, project_context=project_context, reload=run_config.reload
         )
 
         # Execute pipeline using its own run method
         return pipeline.run(
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=reload,
-            log_level=log_level,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-            on_success=on_success,
-            on_failure=on_failure,
+            run_config=run_config,
         )
 
     # --- Delegated Methods ---

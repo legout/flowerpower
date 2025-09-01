@@ -8,16 +8,13 @@ This section provides an overview of various example projects built with FlowerP
 This example demonstrates a typical Extract, Transform, Load (ETL) pipeline, showcasing how FlowerPower can be used to process and move data between different systems.
 
 ### `hello-world/`
-A basic "Hello World" example illustrating the fundamental structure of a FlowerPower project and how to define and run a simple pipeline or job.
-
-### `job-queue-only-example/`
-This example focuses specifically on the job queuing capabilities of FlowerPower, demonstrating how to use the built-in job queue to manage and execute background tasks independently of pipelines.
+A basic "Hello World" example illustrating the fundamental structure of a FlowerPower project and how to define and run a simple pipeline.
 
 ### `ml-training-pipeline/`
 Showcases how to build a machine learning training pipeline with FlowerPower, including data preparation, model training, and evaluation steps.
 
 ### `pipeline-only-example/`
-This example highlights the core pipeline functionality of FlowerPower, demonstrating how to define and execute a sequence of interconnected tasks without relying on a job queue.
+This example highlights the core pipeline functionality of FlowerPower, demonstrating how to define and execute a sequence of interconnected tasks.
 
 ### `scheduled-reports/`
 Demonstrates how to use FlowerPower to automate the generation and distribution of scheduled reports, leveraging its scheduling and task management features.

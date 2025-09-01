@@ -6,6 +6,7 @@ This section provides a detailed reference for the FlowerPower API.
 
 -   [FlowerPowerProject](./flowerpowerproject.qmd)
 -   [PipelineManager](./pipelinemanager.qmd)
+-   [RunConfig](./runconfig.qmd)
 -   [JobQueueManager](./jobqueuemanager.qmd)
 -   [RQManager](./rqmanager.qmd)
 

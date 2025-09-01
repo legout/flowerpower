@@ -11,8 +11,8 @@ First, ensure you have FlowerPower installed. We recommend using `uv` for a fast
 uv venv
 source .venv/bin/activate
 
-# Install FlowerPower with RQ for job queue support
-uv pip install flowerpower[rq]
+# Install FlowerPower
+uv pip install flowerpower
 ```
 
 ## 1. Initialize Your Project
@@ -22,7 +22,7 @@ You can create a new project using either the CLI or the Python API.
 ### Using the CLI
 
 ```bash
-flowerpower init --name hello-flowerpower --job_queue_type rq
+flowerpower init --name hello-flowerpower
 cd hello-flowerpower
 ```
 
@@ -31,10 +31,9 @@ cd hello-flowerpower
 ```python
 from flowerpower import FlowerPowerProject
 
-# Initialize a new project with RQ job queue support
+# Initialize a new project
 project = FlowerPowerProject.init(
-    name='hello-flowerpower',
-    job_queue_type='rq'
+    name='hello-flowerpower'
 )
 ```
 
@@ -42,21 +41,11 @@ This creates a standard project structure with `conf/` and `pipelines/` director
 
 ## 2. Configure Your Project
 
-The `conf/project.yml` file contains global settings for your project, including the job queue configuration.
+The `conf/project.yml` file contains global settings for your project.
 
 ```yaml
 # conf/project.yml
 name: hello-flowerpower
-job_queue:
-  type: rq
-  backend:
-    type: redis
-    host: localhost
-    port: 6379
-    queues:
-      - default
-      - high
-      - low
 ```
 
 ## 3. Create a Pipeline
@@ -131,7 +120,7 @@ schedule:
 
 ## 6. Run the Pipeline
 
-You can run your pipeline synchronously for quick tests or asynchronously for scheduled and background jobs.
+You can run your pipeline synchronously for quick tests.
 
 ### Synchronous Execution
 
@@ -153,55 +142,73 @@ result = project.run('hello_world')
 print(result)
 ```
 
-### Asynchronous Execution
+### Advanced Pipeline Execution with RunConfig
 
-For asynchronous execution, you need a running Redis server.
+For more control over pipeline execution, you can use the `RunConfig` class to configure execution parameters.
 
-!!! note
-    Ensure Redis is running before proceeding with asynchronous execution. You can use the provided Docker setup for a quick start:
-    ```bash
-    cd docker
-    docker-compose up -d redis
-    ```
-
-#### Enqueue a Job
-
-Add your pipeline to the job queue for background processing.
-
-##### Using the CLI
-
-```bash
-flowerpower job-queue enqueue-pipeline hello_world
-```
-
-##### Using the Python API
+#### Using RunConfig Directly
 
 ```python
 from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfig
 
 project = FlowerPowerProject.load('.')
-job_id = project.enqueue('hello_world')
-print(f"Job enqueued with ID: {job_id}")
+
+# Create a configuration with custom parameters
+config = RunConfig(
+    inputs={"greeting_message": "Hi", "target_name": "FlowerPower"},
+    final_vars=["full_greeting"],
+    log_level="DEBUG"
+)
+
+result = project.run('hello_world', run_config=config)
+print(result)
 ```
 
-#### Start a Worker
+#### Using RunConfigBuilder (Recommended)
 
-Workers are required to process jobs from the queue.
-
-##### Using the CLI
-
-```bash
-flowerpower job-queue start-worker
-```
-
-##### Using the Python API
+The `RunConfigBuilder` provides a fluent interface for building complex configurations:
 
 ```python
 from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfigBuilder
 
 project = FlowerPowerProject.load('.')
-# Start a worker in the background
-project.start_worker(background=True)
+
+# Build a configuration using the builder pattern
+config = (
+    RunConfigBuilder()
+    .with_inputs({"greeting_message": "Hello", "target_name": "World"})
+    .with_final_vars(["full_greeting"])
+    .with_log_level("DEBUG")
+    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .build()
+)
+
+result = project.run('hello_world', run_config=config)
+print(result)
 ```
 
-For more details on managing your project, refer to the API documentation for `FlowerPowerProject`, `PipelineManager`, and `JobQueueManager`.
+#### Mixing RunConfig with Individual Parameters
+
+You can also combine `RunConfig` with individual parameters, where individual parameters take precedence:
+
+```python
+from flowerpower import FlowerPowerProject
+from flowerpower.run_config import RunConfigBuilder
+
+project = FlowerPowerProject.load('.')
+
+# Create a base configuration
+base_config = RunConfigBuilder().with_log_level("INFO").build()
+
+# Run with base config but override specific parameters
+result = project.run(
+    'hello_world',
+    run_config=base_config,
+    inputs={"greeting_message": "Greetings", "target_name": "Universe"}
+)
+print(result)
+```
+
+For more details on managing your project, refer to the API documentation for `FlowerPowerProject`, `PipelineManager`, and `RunConfig`.

@@ -19,10 +19,14 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to dark mode
+        color: teal
+        accent: teal
     - scheme: slate
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
+        color: teal
+        accent: teal
   font:
     text: Roboto
     code: Roboto Mono
@@ -40,15 +44,12 @@ nav:
       - Overview: api/index.md
       - FlowerPower: api/flowerpower.md
       - PipelineManager: api/pipelinemanager.md
-      - JobQueueManager: api/jobqueuemanager.md
-      - RQManager: api/rqmanager.md
       - Configuration: api/configuration.md
       - FlowerPowerProject: api/flowerpowerproject.md
       - initialize_project: api/initialize_project.md
       - create_project: api/create_project.md
       - CLI:
           - CLI: api/cli.md
-          - Job Queue CLI: api/cli_job_queue.md
           - MQTT CLI: api/cli_mqtt.md
           - Pipeline CLI: api/cli_pipeline.md
   - Contributing: contributing.md

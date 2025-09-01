@@ -38,10 +38,10 @@ This will install the core FlowerPower library with all the essential features t
 
 FlowerPower offers optional dependencies that you can install to enable additional functionality.
 
-*   **RQ Job Queue Support:** To use FlowerPower with the Redis Queue (RQ) job queue, install the `[rq]` extra:
+*   **Scheduler Support:** To use FlowerPower with job scheduling capabilities, install the `[scheduler]` extra:
 
     ```bash
-    uv pip install 'flowerpower[rq]'
+    uv pip install 'flowerpower[scheduler]'
     ```
 
 *   **I/O Plugins:** For additional I/O capabilities, install the `[io]` extra:

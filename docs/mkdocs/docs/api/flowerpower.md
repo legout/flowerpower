@@ -11,7 +11,7 @@ The `FlowerPower` name is an alias for the `create_project` function, which is t
 ### create_project (aliased as FlowerPower)
 
 ```python
-create_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, job_queue_type: str = settings.JOB_QUEUE_TYPE, hooks_dir: str = settings.HOOKS_DIR) -> FlowerPowerProject
+create_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, hooks_dir: str = settings.HOOKS_DIR) -> FlowerPowerProject
 ...
 ```
 
@@ -23,7 +23,6 @@ This function is called when you use `FlowerPower()` or `create_project()`. It c
 | `base_dir` | `str \| None` | The base directory where the project will be created or loaded. If `None`, it defaults to the current working directory. | `None` |
 | `storage_options` | `dict \| BaseStorageOptions \| None` | Storage options for the filesystem. | `{}` |
 | `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance to use for file operations. If None, uses the `get_filesystem` helper. | `None` |
-| `job_queue_type` | `str` | The type of job queue to use for the project (e.g., "rq"). | `settings.JOB_QUEUE_TYPE` |
 | `hooks_dir` | `str` | The directory where the project hooks will be stored. | `settings.HOOKS_DIR` |
 
 **Returns:** `FlowerPowerProject` - An instance of `FlowerPowerProject` initialized with the new or loaded project.
@@ -39,8 +38,8 @@ project = FlowerPower()
 # Initialize or load a project in the current directory using the function name
 project = create_project()
 
-# Initialize or load a project with a specific name and job queue type
-project = FlowerPower(name="my-data-project", job_queue_type="rq")
+# Initialize or load a project with a specific name
+project = FlowerPower(name="my-data-project")
 ```
 
 For documentation on the `FlowerPowerProject` class and its methods, see [FlowerPowerProject](./flowerpowerproject.md).

@@ -1,12 +1,8 @@
-from .cfg import MqttConfig
-from .manager import MqttManager, run_pipeline_on_message, start_listener
+import warnings
 
-MQTTManager = MqttManager
-
-__all__ = [
-    "MqttConfig",
-    "MqttManager",
-    "MQTTManager",
-    "start_listener",
-    "run_pipeline_on_message",
-]
+warnings.warn(
+    "The flowerpower.plugins.mqtt module is deprecated. "
+    "Please use 'flowerpower-mqtt' instead. Install it with 'pip install flowerpower-mqtt'.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -61,3 +61,5 @@ CLAUDE.md
 anypath.yaml
 .dev_docs/
 package-lock.json
+docs/mkdocs/mkdocs.yml
+RUN_METHOD_ANALYSIS.md

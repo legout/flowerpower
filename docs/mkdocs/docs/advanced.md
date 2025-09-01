@@ -27,14 +27,14 @@ settings.set('pipelines.my_pipeline.retries', 3)
 
 ## Direct Module Usage
 
-For fine-grained control, you can work directly with `PipelineManager` and `JobQueueManager`.
+For fine-grained control, you can work directly with `PipelineManager`.
 
 ### `PipelineManager`
 
 The `PipelineManager` is responsible for loading, validating, and executing data pipelines.
 
 ```python
-from flowerpower.core.pipeline import PipelineManager
+from flowerpower.pipeline import PipelineManager
 
 # Initialize the manager
 pipeline_manager = PipelineManager()
@@ -45,24 +45,6 @@ pipeline = pipeline_manager.get_pipeline("sales_etl")
 # Execute the pipeline
 result = pipeline.run(input_data="path/to/data.csv")
 print(result)
-```
-
-### `JobQueueManager`
-
-The `JobQueueManager` handles job queuing, scheduling, and worker management.
-
-```python
-from flowerpower.core.job_queue import JobQueueManager
-
-# Initialize the manager
-job_queue_manager = JobQueueManager()
-
-# Enqueue a job
-job = job_queue_manager.enqueue("my_task", arg1="value1", arg2="value2")
-print(f"Job {job.id} enqueued.")
-
-# Schedule a job to run at a specific time
-job_queue_manager.schedule("my_task", cron="0 0 * * *") # Daily at midnight
 ```
 
 ## Adapters
@@ -76,41 +58,6 @@ Integrate with popular MLOps and observability tools using adapters.
 ## Filesystem Abstraction
 
 FlowerPower uses the library [`fsspec-utils`](https://legout.github.io/fsspec-utils) to provide a unified interface for interacting with different filesystems, including local storage, S3, and GCS. This allows you to switch between storage backends without changing your code.
-
-## Worker Management
-
-You can manage workers to process your queued jobs.
-
-### Single Worker
-
-Start a single worker in the foreground:
-
-```bash
-flowerpower job-queue start-worker
-```
-
-### Worker Pool
-
-Start a pool of workers in the background:
-```bash
-flowerpower job-queue start-worker --pool-size 5 --background
-```
-
-To stop background workers:
-```bash
-flowerpower job-queue stop-worker
-
-```bash
-flowerpower job-queue start-worker stop
-```
-
-## Scheduling Options
-
-FlowerPower supports several scheduling strategies for your jobs:
-
-*   **Cron**: For recurring jobs at specific times (e.g., `0 2 * * *`).
-*   **Interval**: For jobs that run at regular intervals (e.g., every 30 minutes).
-*   **Date**: For jobs that run once at a specific date and time.
 
 ## Extensible I/O Plugins
 

@@ -5,7 +5,7 @@
 The `initialize_project` function initializes a new FlowerPower project. It is a convenient top-level function that wraps `FlowerPowerProject.new()`.
 
 ```python
-initialize_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, job_queue_type: str = settings.JOB_QUEUE_TYPE, hooks_dir: str = settings.HOOKS_DIR, log_level: str | None = None, overwrite: bool = False) -> FlowerPowerProject
+initialize_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, hooks_dir: str = settings.HOOKS_DIR, log_level: str | None = None, overwrite: bool = False) -> FlowerPowerProject
 ```
 
 Initializes a new FlowerPower project.
@@ -16,7 +16,6 @@ Initializes a new FlowerPower project.
 | `base_dir` | `str` &#124; `None` | The base directory where the project will be created. Defaults to the current working directory. |
 | `storage_options` | `dict` &#124; `BaseStorageOptions` &#124; `None` | Storage options for the filesystem. |
 | `fs` | `AbstractFileSystem` &#124; `None` | An instance of AbstractFileSystem to use for file operations. |
-| `job_queue_type` | `str` | The type of job queue to use for the project. |
 | `hooks_dir` | `str` | The directory where the project hooks will be stored. |
 | `log_level` | `str` &#124; `None` | The logging level to set for the project. If None, it uses the default log level. |
 | `overwrite` | `bool` | If True, deletes existing project files and creates a new plain project. |
@@ -31,7 +30,7 @@ Initializes a new FlowerPower project.
 from flowerpower import initialize_project
 
 # Initialize a new project
-project = initialize_project(name="my-new-project", job_queue_type="rq")
+project = initialize_project(name="my-new-project")
 
 # Overwrite an existing project
 project = initialize_project(name="my-existing-project", overwrite=True)

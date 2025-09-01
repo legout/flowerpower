@@ -80,14 +80,13 @@ config.save(project=True, pipeline=True)
 ### ProjectConfig
 **Module:** `flowerpower.cfg.ProjectConfig`
 
-The `ProjectConfig` class manages project-level settings, including job queue and adapter configurations.
+The `ProjectConfig` class manages project-level settings, including adapter configurations.
 
 **Attributes:**
 
 | Attribute | Type | Description |
 |:----------|:-----|:------------|
 | `name` | `str` | The name of the project. |
-| `job_queue` | `JobQueueConfig` | A `JobQueueConfig` object for the job queue settings. |
 | `adapter` | `AdapterConfig` | An `AdapterConfig` object for the project-level adapter settings. |
 
 #### Example
@@ -100,7 +99,6 @@ project_config = ProjectConfig()
 
 # Access project settings
 print(project_config.name)
-print(project_config.job_queue.type)
 ```
 
 ### PipelineConfig

@@ -18,14 +18,6 @@ app.add_typer(
     pipeline_app, name="pipeline", help="Manage and execute FlowerPower pipelines"
 )
 
-if importlib.util.find_spec("rq"):
-    from .job_queue import app as job_queue_app
-
-    app.add_typer(
-        job_queue_app,
-        name="job-queue",
-        help="Manage job queue workers and scheduled tasks",
-    )
 
 if importlib.util.find_spec("paho"):
     from .mqtt import app as mqtt_app
@@ -49,12 +41,6 @@ def init(
     storage_options: str = typer.Option(
         None, "--storage-options", "-s", help="Storage options as a JSON or dict string"
     ),
-    job_queue_type: str = typer.Option(
-        "rq",
-        "--job-queue-type",
-        "-q",
-        help="Job queue backend type to use (rq)",
-    ),
 ):
     """
     Initialize a new FlowerPower project.
@@ -69,7 +55,6 @@ def init(
         base_dir: Base directory where the project will be created. If not provided,
                   the current directory's parent will be used
         storage_options: Storage options for filesystem access, as a JSON or dict string
-        job_queue_type: Type of job queue backend to use (rq)
 
     Examples:
         # Create a project in the current directory using its name
@@ -80,9 +65,6 @@ def init(
 
         # Create a project in a specific location
         $ flowerpower init --name my-project --base-dir /path/to/projects
-
-        # Create a project with RQ as the job queue backend (default)
-        $ flowerpower init --job-queue-type rq
     """
     parsed_storage_options = {}
     if storage_options:
@@ -99,7 +81,6 @@ def init(
             name=project_name,
             base_dir=base_dir,
             storage_options=parsed_storage_options,
-            job_queue_type=job_queue_type,
         )
     except Exception as e:
         logger.error(f"Error initializing project: {e}")
