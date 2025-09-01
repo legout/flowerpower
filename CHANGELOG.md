@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.21.0] - 2025-09-01
+
+### Changes
+- IMPORTANT: BREAKING CHANGES Remove job queue feature entirely from the codebase
+  - Removed job queue configuration files and settings
+  - Removed job queue logic from core modules
+  - Removed RQ-related dependencies from pyproject.toml
+  - Removed Redis and RQ services from Docker configuration
+  - Updated all tests to remove job queue functionality
+  - Updated all documentation to remove job queue references
+  - Removed job queue examples and refactored existing examples
+  - Simplified pipeline execution to direct execution only
+
 ## [0.20.0] - 2025-08-21
 
 ### Changes

@@ -99,5 +99,4 @@ Running the pipeline generates a comprehensive text analysis report including wo
 ## Related Examples
 
 - [`data-etl-pipeline`](../data-etl-pipeline/): More complex data processing patterns
-- [`job-queue-only-example`](../job-queue-only-example/): Job queue without pipelines
-- [`scheduled-reports`](../scheduled-reports/): Combining pipelines with scheduling
+- [`scheduled-reports`](../scheduled-reports/): Scheduled report generation

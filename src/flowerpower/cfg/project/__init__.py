@@ -5,18 +5,16 @@ import posixpath
 from ...settings import CONFIG_DIR
 from ..base import BaseConfig
 from .adapter import AdapterConfig
-from .job_queue import JobQueueConfig
 
 
 class ProjectConfig(BaseConfig):
     """A configuration class for managing project-level settings in FlowerPower.
 
-    This class handles project-wide configuration including job queue and adapter settings.
+    This class handles project-wide configuration including adapter settings.
     It supports loading from and saving to YAML files, with filesystem abstraction.
 
     Attributes:
         name (str | None): The name of the project.
-        job_queue (JobQueueConfig): Configuration for the job queue component.
         adapter (AdapterConfig): Configuration for the adapter component.
 
     Example:
@@ -33,12 +31,9 @@ class ProjectConfig(BaseConfig):
     """
 
     name: str | None = msgspec.field(default=None)
-    job_queue: JobQueueConfig = msgspec.field(default_factory=JobQueueConfig)
     adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
 
     def __post_init__(self):
-        if isinstance(self.job_queue, dict):
-            self.job_queue = JobQueueConfig.from_dict(self.job_queue)
         if isinstance(self.adapter, dict):
             self.adapter = AdapterConfig.from_dict(self.adapter)
 
@@ -47,7 +42,6 @@ class ProjectConfig(BaseConfig):
         cls,
         base_dir: str = ".",
         name: str | None = None,
-        job_queue_type: str | None = None,
         fs: AbstractFileSystem | None = None,
         storage_options: dict | BaseStorageOptions | None = {},
     ):
@@ -56,7 +50,6 @@ class ProjectConfig(BaseConfig):
         Args:
             base_dir (str, optional): Base directory for the project. Defaults to ".".
             name (str | None, optional): Project name. Defaults to None.
-            job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -67,8 +60,7 @@ class ProjectConfig(BaseConfig):
             ```python
             project = ProjectConfig.load(
                 base_dir="my_project",
-                name="pipeline1",
-                job_queue_type="rq"
+                name="pipeline1"
                 )
             ```
         """
@@ -80,9 +72,6 @@ class ProjectConfig(BaseConfig):
             project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
         else:
             project = ProjectConfig(name=name)
-        if job_queue_type is not None:
-            if job_queue_type != project.job_queue.type:
-                project.job_queue.update_type(job_queue_type)
 
         return project
 
@@ -116,7 +105,6 @@ class ProjectConfig(BaseConfig):
 def init_project_config(
     base_dir: str = ".",
     name: str | None = None,
-    job_queue_type: str | None = None,
     fs: AbstractFileSystem | None = None,
     storage_options: dict | BaseStorageOptions | None = {},
 ):
@@ -127,7 +115,6 @@ def init_project_config(
     Args:
         base_dir (str, optional): Base directory for the project. Defaults to ".".
         name (str | None, optional): Project name. Defaults to None.
-        job_queue_type (str | None, optional): Type of job queue to use. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
         storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
 
@@ -138,15 +125,13 @@ def init_project_config(
         ```python
         project = init_project_config(
             base_dir="my_project",
-            name="test_project",
-            job_queue_type="rq"
+            name="test_project"
         )
         ```
     """
     project = ProjectConfig.load(
         base_dir=base_dir,
         name=name,
-        job_queue_type=job_queue_type,
         fs=fs,
         storage_options=storage_options,
     )

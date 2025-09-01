@@ -1,12 +1,1 @@
 name: data-etl-pipeline
-job_queue:
-  type: rq
-  backend:
-    type: redis
-    host: localhost
-    port: 6379
-    database: 0
-    queues:
-      - default
-      - high
-      - low

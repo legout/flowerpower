@@ -38,12 +38,6 @@ This will install the core FlowerPower library with all the essential features t
 
 FlowerPower offers optional dependencies that you can install to enable additional functionality.
 
-*   **Scheduler Support:** To use FlowerPower with job scheduling capabilities, install the `[scheduler]` extra:
-
-    ```bash
-    uv pip install 'flowerpower[scheduler]'
-    ```
-
 *   **I/O Plugins:** For additional I/O capabilities, install the `[io]` extra:
 
     ```bash

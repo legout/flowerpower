@@ -12,17 +12,11 @@ from loguru import logger
 
 from . import settings
 from .cfg import ProjectConfig
-from .cfg.pipeline import ExecutorConfig, WithAdapterConfig
+from .cfg.pipeline import ExecutorConfig, WithAdapterConfig, RunConfig
 from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
-
-# Attempt to import JobQueueManager from the optional flowerpower-scheduler package
-try:
-    from flowerpower_scheduler import JobQueueManager
-except ImportError:
-    JobQueueManager = None
 
 setup_logging()
 
@@ -35,8 +29,8 @@ def handle_errors(func):
         except Exception as e:
             # Extract operation name from function name for better logging
             operation_name = func.__name__.replace('_', ' ').title()
-            # For methods like 'run', 'enqueue', 'schedule', we want to log the pipeline name if available
-            if 'name' in kwargs and func.__name__ in ['run', 'enqueue', 'schedule']:
+            # For methods like 'run', we want to log the pipeline name if available
+            if 'name' in kwargs and func.__name__ in ['run']:
                 logger.error(f"Failed to {operation_name.lower()} pipeline '{kwargs.get('name')}': {e}")
                 raise RuntimeError(f"Pipeline {operation_name.lower()} failed for '{kwargs.get('name')}': {e}") from e
             else:
@@ -49,35 +43,14 @@ class FlowerPowerProject:
     def __init__(
         self,
         pipeline_manager: PipelineManager,
-        job_queue_manager: Optional['JobQueueManager'] = None,
     ):
         """
         Initialize a FlowerPower project.
         Args:
             pipeline_manager (PipelineManager | None): Instance of PipelineManager to manage pipelines.
-            job_queue_manager (Optional[JobQueueManager]): Instance of JobQueueManager to manage job queues.
         """
         self.pipeline_manager = pipeline_manager
-        self.job_queue_manager = job_queue_manager
         self.name = self.pipeline_manager.project_cfg.name
-        self.job_queue_type = (
-            self.job_queue_manager.cfg.type
-            if self.job_queue_manager is not None
-            else None
-        )
-        self.job_queue_backend = (
-            self.job_queue_manager.cfg.backend
-            if self.job_queue_manager is not None
-            else None
-        )
-
-    def _validate_job_queue_manager(self) -> None:
-        """Validate that the job queue manager is configured."""
-        if self.job_queue_manager is None:
-            raise RuntimeError(
-                "Job queue manager is not configured. "
-                "Please install 'flowerpower-scheduler' and ensure it is configured correctly."
-            )
 
     def _validate_pipeline_name(self, name: str) -> None:
         """Validate the pipeline name argument."""
@@ -88,35 +61,86 @@ class FlowerPowerProject:
                 "Pipeline 'name' cannot have leading or trailing whitespace"
             )
 
-    def _validate_queue_names(self, queue_names: list[str] | None) -> None:
-        """Validate the queue_names argument."""
-        if queue_names is not None and not isinstance(queue_names, list):
-            raise TypeError("'queue_names' must be a list of strings")
-        if queue_names is not None:
-            for queue_name in queue_names:
-                if not isinstance(queue_name, str):
-                    raise TypeError("All items in 'queue_names' must be strings")
-
-    def _validate_worker_args(self, background: bool, with_scheduler: bool) -> None:
-        """Validate boolean arguments for worker methods."""
-        if not isinstance(background, bool):
-            raise TypeError("'background' must be a boolean")
-        if not isinstance(with_scheduler, bool):
-            raise TypeError("'with_scheduler' must be a boolean")
-
     def _inject_dependencies(self):
         """Inject dependencies between managers for proper architecture.
 
         This method establishes the correct dependency flow:
         - Project context is properly established for pipeline execution
-        - JobQueueManager automatically creates its own PipelineRegistry via property
         """
         # Store project reference for pipeline context
         # This will be used when creating Pipeline instances
         self.pipeline_manager._project_context = self
 
-        # Note: JobQueueManager now creates its own PipelineRegistry automatically
-        # via the pipeline_registry property, so no manual injection needed
+    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
+        """Merge kwargs into a RunConfig object.
+        
+        This helper method updates the RunConfig object with values from kwargs,
+        handling different types of attributes appropriately.
+        
+        Args:
+            run_config: The RunConfig object to update
+            kwargs: Dictionary of additional parameters to merge
+            
+        Returns:
+            RunConfig: Updated RunConfig object
+        """
+        # Handle dictionary-like attributes with update or deep merge
+        if 'inputs' in kwargs and kwargs['inputs'] is not None:
+            if run_config.inputs is None:
+                run_config.inputs = kwargs['inputs']
+            else:
+                run_config.inputs.update(kwargs['inputs'])
+                
+        if 'config' in kwargs and kwargs['config'] is not None:
+            if run_config.config is None:
+                run_config.config = kwargs['config']
+            else:
+                run_config.config.update(kwargs['config'])
+                
+        if 'cache' in kwargs and kwargs['cache'] is not None:
+            run_config.cache = kwargs['cache']
+            
+        if 'adapter' in kwargs and kwargs['adapter'] is not None:
+            if run_config.adapter is None:
+                run_config.adapter = kwargs['adapter']
+            else:
+                run_config.adapter.update(kwargs['adapter'])
+        
+        # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
+        if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
+            executor_cfg = kwargs['executor_cfg']
+            if isinstance(executor_cfg, str):
+                run_config.executor = ExecutorConfig(type=executor_cfg)
+            elif isinstance(executor_cfg, dict):
+                run_config.executor = ExecutorConfig.from_dict(executor_cfg)
+            elif isinstance(executor_cfg, ExecutorConfig):
+                run_config.executor = executor_cfg
+        
+        # Handle adapter configurations
+        if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
+            with_adapter_cfg = kwargs['with_adapter_cfg']
+            if isinstance(with_adapter_cfg, dict):
+                run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
+            elif isinstance(with_adapter_cfg, WithAdapterConfig):
+                run_config.with_adapter = with_adapter_cfg
+                
+        if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
+            run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
+            
+        if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
+            run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
+        
+        # Handle simple attributes
+        simple_attrs = [
+            'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
+            'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
+        ]
+        
+        for attr in simple_attrs:
+            if attr in kwargs and kwargs[attr] is not None:
+                setattr(run_config, attr, kwargs[attr])
+        
+        return run_config
 
     # --- Convenience Methods for Pipeline Operations ---
 
@@ -124,23 +148,8 @@ class FlowerPowerProject:
     def run(
         self,
         name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: dict | None = None,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
-        log_level: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple | list | None = None,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+        run_config: RunConfig | None = None,
+        **kwargs
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -149,30 +158,36 @@ class FlowerPowerProject:
 
         Args:
             name: Name of the pipeline to run. Must be a valid identifier.
-            inputs: Override pipeline input values. Example: {"data_date": "2025-04-28"}
-            final_vars: Specify which output variables to return. Example: ["model", "metrics"]
-            config: Configuration for Hamilton pipeline executor. Example: {"model": "LogisticRegression"}
-            cache: Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
-            executor_cfg: Execution configuration, can be:
-                - str: Executor name, e.g. "threadpool", "local"
-                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
-                - ExecutorConfig: Structured config object
-            with_adapter_cfg: Adapter settings for pipeline execution.
-                Example: {"opentelemetry": True, "tracker": False}
-            pipeline_adapter_cfg: Pipeline-specific adapter settings.
-                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg: Project-level adapter settings.
-                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
-            adapter: Custom adapter instance for pipeline
-                Example: {"ray_graph_adapter": RayGraphAdapter()}
-            reload: Force reload of pipeline configuration.
-            log_level: Logging level for the execution. Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-            max_retries: Maximum number of retries for execution.
-            retry_delay: Delay between retries in seconds.
-            jitter_factor: Random jitter factor to add to retry delay
-            retry_exceptions: Exceptions that trigger a retry.
-            on_success: Callback to run on successful pipeline execution.
-            on_failure: Callback to run on pipeline execution failure.
+            run_config: Run configuration object containing all execution parameters.
+                If None, the default configuration from the pipeline will be used.
+            **kwargs: Additional parameters to override the run_config. Supported parameters include:
+                inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
+                final_vars (list[str] | None): Specify which output variables to return.
+                    Example: ["model", "metrics"]
+                config (dict | None): Configuration for Hamilton pipeline executor.
+                    Example: {"model": "LogisticRegression"}
+                cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
+                executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
+                    - str: Executor name, e.g. "threadpool", "local"
+                    - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
+                    - ExecutorConfig: Structured config object
+                with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
+                    Example: {"opentelemetry": True, "tracker": False}
+                pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
+                    Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+                project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
+                    Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+                adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+                    Example: {"ray_graph_adapter": RayGraphAdapter()}
+                reload (bool): Force reload of pipeline configuration.
+                log_level (str | None): Logging level for the execution. Default None uses project config.
+                    Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+                max_retries (int): Maximum number of retries for execution.
+                retry_delay (float): Delay between retries in seconds.
+                jitter_factor (float): Random jitter factor to add to retry delay
+                retry_exceptions (tuple): Exceptions that trigger a retry.
+                on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+                on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
 
         Returns:
             dict[str, Any]: Pipeline execution results, mapping output variable names to their computed values.
@@ -189,11 +204,19 @@ class FlowerPowerProject:
             # Simple execution
             result = project.run("my_pipeline")
 
-            # With custom inputs
+            # Run with custom RunConfig
+            from flowerpower.cfg.pipeline.run import RunConfig
+            config = RunConfig(inputs={"date": "2025-04-28"}, final_vars=["result"])
+            result = project.run("ml_pipeline", run_config=config)
+
+            # Complex run with kwargs overrides
             result = project.run(
                 "ml_pipeline",
-                inputs={"data_date": "2025-01-01"},
-                final_vars=["model", "metrics"]
+                inputs={"training_date": "2025-04-28"},
+                final_vars=["model", "metrics"],
+                executor_cfg={"type": "threadpool", "max_workers": 4},
+                with_adapter_cfg={"tracker": True},
+                reload=True
             )
             ```
         """
@@ -207,304 +230,17 @@ class FlowerPowerProject:
         # Validate required arguments
         self._validate_pipeline_name(name)
 
+        # Initialize run_config - use provided config or create empty one
+        run_config = run_config or RunConfig()
+        
+        # Merge kwargs into run_config
+        if kwargs:
+            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
+
         return self.pipeline_manager.run(
             name=name,
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=reload,
-            log_level=log_level,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
-            retry_exceptions=retry_exceptions,
-            on_success=on_success,
-            on_failure=on_failure,
+            run_config=run_config,
         )
-
-    @handle_errors
-    def enqueue(
-        self,
-        name: str,
-        *args,
-        **kwargs,
-    ):
-        """Enqueue a pipeline for execution via the job queue.
-
-        This is a convenience method that delegates to the job queue manager's
-        enqueue_pipeline method. It provides asynchronous pipeline execution.
-
-        Args:
-            name: Name of the pipeline to enqueue
-            *args: Additional positional arguments for job execution
-            **kwargs: Keyword arguments for pipeline execution and job queue options.
-                Supports all parameters from pipeline_manager.run() plus job queue specific options:
-                - run_in: Schedule the job to run after a delay
-                - run_at: Schedule the job to run at a specific datetime
-                - queue_name: Queue to use (for RQ)
-                - timeout: Job execution timeout
-                - retry: Number of retries
-                - result_ttl: Result time to live
-                - ttl: Job time to live
-
-        Returns:
-            Job ID or result depending on implementation, or None if job queue not configured
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-
-            # Immediate execution via job queue
-            job_id = project.enqueue("my_pipeline", inputs={"date": "today"})
-
-            # Delayed execution
-            job_id = project.enqueue("my_pipeline", inputs={"date": "today"}, run_in=300)
-
-            # Scheduled execution
-            from datetime import datetime
-            job_id = project.enqueue(
-                "my_pipeline",
-                inputs={"date": "today"},
-                run_at=datetime(2025, 1, 1, 9, 0)
-            )
-            ```
-        """
-        # Validate job queue manager and arguments
-        self._validate_job_queue_manager()
-        self._validate_pipeline_name(name)
-
-        return self.job_queue_manager.enqueue_pipeline(
-            name=name, project_context=self, *args, **kwargs
-        )
-
-    @handle_errors
-    def schedule(
-        self,
-        name: str,
-        *args,
-        **kwargs,
-    ):
-        """Schedule a pipeline for recurring or future execution.
-
-        This is a convenience method that delegates to the job queue manager's
-        schedule_pipeline method. It provides scheduled pipeline execution.
-
-        Args:
-            name: Name of the pipeline to schedule
-            *args: Additional positional arguments for scheduling
-            **kwargs: Keyword arguments for pipeline execution and scheduling options.
-                Supports all parameters from pipeline_manager.run() plus scheduling options:
-                - cron: Cron expression for recurring execution (e.g., "0 9 * * *")
-                - interval: Time interval for recurring execution (int seconds or dict)
-                - date: Future date for one-time execution (datetime or ISO string)
-                - schedule_id: Unique identifier for the schedule
-                - overwrite: Whether to overwrite existing schedule with same ID
-
-        Returns:
-            Schedule ID or job ID depending on implementation, or None if job queue not configured
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-
-            # Daily schedule with cron
-            schedule_id = project.schedule(
-                "daily_metrics",
-                cron="0 9 * * *",  # 9 AM daily
-                inputs={"date": "{{ execution_date }}"}
-            )
-
-            # Interval-based schedule
-            schedule_id = project.schedule(
-                "monitoring",
-                interval={"minutes": 15},
-                inputs={"check_type": "health"}
-            )
-
-            # Future one-time execution
-            from datetime import datetime, timedelta
-            future_date = datetime.now() + timedelta(days=1)
-            schedule_id = project.schedule(
-                "batch_process",
-                date=future_date,
-                inputs={"process_date": "tomorrow"}
-            )
-            ```
-        """
-        # Validate job queue manager and arguments
-        self._validate_job_queue_manager()
-        self._validate_pipeline_name(name)
-
-        return self.job_queue_manager.schedule_pipeline(
-            name=name, project_context=self, *args, **kwargs
-        )
-
-    @handle_errors
-    def start_worker(
-        self,
-        background: bool = False,
-        queue_names: list[str] | None = None,
-        with_scheduler: bool = True,
-        **kwargs: Any,
-    ) -> None:
-        """Start a worker process for processing jobs from the queues.
-
-        This is a convenience method that delegates to the job queue manager's
-        start_worker method.
-
-        Args:
-            background: If True, runs the worker in a non-blocking background mode.
-                If False, runs in the current process and blocks until stopped.
-            queue_names: List of queue names to process. If None, processes all
-                queues defined in the backend configuration.
-            with_scheduler: Whether to include the scheduler queue for processing
-                scheduled jobs (if supported by the backend).
-            **kwargs: Additional worker configuration options specific to the job queue backend.
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-
-            # Start worker in foreground (blocks)
-            project.start_worker()
-
-            # Start worker in background
-            project.start_worker(background=True)
-
-            # Start worker for specific queues
-            project.start_worker(queue_names=["high_priority", "default"])
-            ```
-        """
-        # Validate job queue manager and arguments
-        self._validate_job_queue_manager()
-        self._validate_queue_names(queue_names)
-        self._validate_worker_args(background, with_scheduler)
-
-        return self.job_queue_manager.start_worker(
-            background=background,
-            queue_names=queue_names,
-            with_scheduler=with_scheduler,
-            **kwargs,
-        )
-
-    @handle_errors
-    def stop_worker(self) -> None:
-        """Stop the worker process.
-
-        This is a convenience method that delegates to the job queue manager's
-        stop_worker method.
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-            project.stop_worker()
-            ```
-        """
-        # Validate job queue manager is available
-        self._validate_job_queue_manager()
-
-        return self.job_queue_manager.stop_worker()
-
-    @handle_errors
-    def start_worker_pool(
-        self,
-        num_workers: int | None = None,
-        background: bool = False,
-        queue_names: list[str] | None = None,
-        with_scheduler: bool = True,
-        **kwargs: Any,
-    ) -> None:
-        """Start a pool of worker processes to handle jobs in parallel.
-
-        This is a convenience method that delegates to the job queue manager's
-        start_worker_pool method.
-
-        Args:
-            num_workers: Number of worker processes to start. If None, uses CPU
-                count or backend-specific default.
-            background: If True, runs the worker pool in a non-blocking background mode.
-                If False, runs in the current process and blocks until stopped.
-            queue_names: List of queue names to process. If None, processes all
-                queues defined in the backend configuration.
-            with_scheduler: Whether to include the scheduler queue for processing
-                scheduled jobs (if supported by the backend).
-            **kwargs: Additional worker pool configuration options specific to the job queue backend.
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-
-            # Start worker pool with default number of workers
-            project.start_worker_pool()
-
-            # Start 4 workers in background
-            project.start_worker_pool(num_workers=4, background=True)
-
-            # Start worker pool for specific queues
-            project.start_worker_pool(
-                num_workers=2,
-                queue_names=["high_priority", "default"]
-            )
-            ```
-        """
-        # Validate job queue manager and arguments
-        self._validate_job_queue_manager()
-        if num_workers is not None and (
-            not isinstance(num_workers, int) or num_workers <= 0
-        ):
-            raise ValueError("'num_workers' must be a positive integer")
-        self._validate_queue_names(queue_names)
-        self._validate_worker_args(background, with_scheduler)
-
-        return self.job_queue_manager.start_worker_pool(
-            num_workers=num_workers,
-            background=background,
-            queue_names=queue_names,
-            with_scheduler=with_scheduler,
-            **kwargs,
-        )
-
-    @handle_errors
-    def stop_worker_pool(self) -> None:
-        """Stop all worker processes in the worker pool.
-
-        This is a convenience method that delegates to the job queue manager's
-        stop_worker_pool method.
-
-        Raises:
-            RuntimeError: If job queue manager is not configured
-
-        Example:
-            ```python
-            project = FlowerPowerProject.load(".")
-            project.stop_worker_pool()
-            ```
-        """
-        # Validate job queue manager is available
-        self._validate_job_queue_manager()
-
-        return self.job_queue_manager.stop_worker_pool()
 
     @staticmethod
     def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None) -> tuple[bool, str]:
@@ -584,22 +320,9 @@ class FlowerPowerProject:
                 log_level=log_level,
             )
 
-            job_queue_manager = None
-            if JobQueueManager is not None:
-                try:
-                    job_queue_manager = JobQueueManager(
-                        name=f"{pipeline_manager.project_cfg.name}_job_queue",
-                        base_dir=base_dir,
-                        storage_options=storage_options,
-                        fs=fs,
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to initialize JobQueueManager: {e}")
-
             # Create the project instance
             project = cls(
                 pipeline_manager=pipeline_manager,
-                job_queue_manager=job_queue_manager,
             )
 
             # Inject dependencies after creation to avoid circular imports
@@ -685,7 +408,7 @@ class FlowerPowerProject:
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
         fs.makedirs(hooks_dir, exist_ok=True)
 
-        # Load project configuration without job_queue_type
+        # Load project configuration
         cfg = ProjectConfig.load(name=name, fs=fs)
 
         with fs.open("README.md", "w") as f:

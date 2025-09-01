@@ -5,7 +5,6 @@ This example demonstrates a standard ETL (Extract, Transform, Load) workflow usi
 ## Prerequisites
 
 - Python 3.11+
-- Redis (for job queue functionality)
 
 ## Quick Start
 
@@ -32,61 +31,6 @@ project = FlowerPowerProject.load()
 project.run("sales_etl")
 ```
 
-### 2. Run with the Job Queue
-
-Add the pipeline run as a job to be processed asynchronously.
-
-**Terminal 1: Enqueue Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py queue
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue enqueue-pipeline sales_etl
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.enqueue("sales_etl")
-```
-
-**Terminal 2: Start Worker**
-```bash
-uv run flowerpower job-queue start-worker
-```
-
-### 3. Schedule a Pipeline Run
-
-Schedule the pipeline to run at a predefined time (e.g., daily at 6 AM).
-
-**Terminal 1: Schedule Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py schedule
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue schedule-pipeline sales_etl --cron "0 6 * * *"
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.schedule("sales_etl", cron="0 6 * * *")
-```
-
-**Terminal 2: Start Worker with Scheduler**
-```bash
-uv run flowerpower job-queue start-worker --with-scheduler
-```
 
 ## Project Structure
 
@@ -125,7 +69,7 @@ Running the pipeline generates a validation report, a cleaned dataset, and a sal
 ## FlowerPower Features Demonstrated
 
 - **Configuration-Driven Pipelines**: Customize pipeline behavior without changing code.
-- **Multiple Execution Modes**: Run pipelines synchronously, via a job queue, or on a schedule.
+- **Synchronous Execution**: Run pipelines directly for development and testing.
 - **Data-Centric Functions**: Use Hamilton's features for clear and modular data transformations.
 
 ## Customizing the Example
@@ -137,5 +81,4 @@ Running the pipeline generates a validation report, a cleaned dataset, and a sal
 ## Troubleshooting
 
 - **`FileNotFoundError`**: Ensure you are in the correct directory and the `data/sales_data.csv` file exists.
-- **Redis Connection Error**: Make sure the Redis server is running before using the job queue.
 - **Permission Denied**: Check write permissions for the `data/processed/` directory.

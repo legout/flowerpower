@@ -33,15 +33,6 @@ class TestFlowerPowerProject(unittest.TestCase):
         self.assertEqual(project.pipeline_manager, self.mock_pipeline_manager)
         self.assertEqual(project.name, "test_project")
 
-    def test_flowerpower_project_creation_no_job_queue(self):
-        """Test FlowerPowerProject creation without job queue manager."""
-        project = FlowerPowerProject(
-            pipeline_manager=self.mock_pipeline_manager
-        )
-
-        self.assertEqual(project.pipeline_manager, self.mock_pipeline_manager)
-        self.assertEqual(project.name, "test_project")
-
     def test_run_method_delegates_to_pipeline_manager(self):
         """Test that run() method properly delegates to pipeline manager."""
         project = FlowerPowerProject(
@@ -55,27 +46,12 @@ class TestFlowerPowerProject(unittest.TestCase):
         # Call the project's run method
         result = project.run("test_pipeline", inputs={"x": 1, "y": 2})
 
-        # Verify delegation
-        self.mock_pipeline_manager.run.assert_called_once_with(
-            name="test_pipeline",
-            inputs={"x": 1, "y": 2},
-            final_vars=None,
-            config=None,
-            cache=None,
-            executor_cfg=None,
-            with_adapter_cfg=None,
-            pipeline_adapter_cfg=None,
-            project_adapter_cfg=None,
-            adapter=None,
-            reload=False,
-            log_level=None,
-            max_retries=None,
-            retry_delay=None,
-            jitter_factor=None,
-            retry_exceptions=None,
-            on_success=None,
-            on_failure=None,
-        )
+        # Verify delegation - check that it was called with name and run_config
+        self.mock_pipeline_manager.run.assert_called_once()
+        call_args = self.mock_pipeline_manager.run.call_args
+        self.assertEqual(call_args[1]['name'], "test_pipeline")
+        self.assertIn('run_config', call_args[1])
+        self.assertEqual(call_args[1]['run_config'].inputs, {"x": 1, "y": 2})
         self.assertEqual(result, expected_result)
 
     def test_run_method_validation_empty_name(self):
@@ -88,43 +64,6 @@ class TestFlowerPowerProject(unittest.TestCase):
             RuntimeError, match="Run failed: Pipeline 'name' must be a non-empty string"
         ):
             project.run("")
-
-    def test_enqueue_method_raises_error_when_no_job_queue_manager(self):
-        """Test that enqueue() method raises error when no job queue manager is configured."""
-        project = FlowerPowerProject(
-            pipeline_manager=self.mock_pipeline_manager,
-            job_queue_manager=None
-        )
-
-        with pytest.raises(
-            RuntimeError, match="Job queue manager is not configured"
-        ):
-            project.enqueue("test_pipeline")
-
-    def test_schedule_method_raises_error_when_no_job_queue_manager(self):
-        """Test that schedule() method raises error when no job queue manager is configured."""
-        project = FlowerPowerProject(
-            pipeline_manager=self.mock_pipeline_manager,
-            job_queue_manager=None
-        )
-
-        with pytest.raises(
-            RuntimeError, match="Job queue manager is not configured"
-        ):
-            project.schedule("test_pipeline", cron="0 9 * * *")
-
-    def test_start_worker_method_raises_error_when_no_job_queue_manager(self):
-        """Test that start_worker() method raises error when no job queue manager is configured."""
-        project = FlowerPowerProject(
-            pipeline_manager=self.mock_pipeline_manager,
-            job_queue_manager=None
-        )
-
-        with pytest.raises(
-            RuntimeError, match="Job queue manager is not configured"
-        ):
-            project.start_worker()
-
 
 
     def test_dependency_injection(self):

@@ -1,9 +1,0 @@
-name: job-queue-only-example
-job_queue:
-  type: rq
-  backend:
-    type: redis
-    host: localhost
-    port: 6379
-    db: 0
-# Note: No pipeline configuration - this example demonstrates job queue only usage

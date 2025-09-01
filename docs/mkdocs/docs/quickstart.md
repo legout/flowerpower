@@ -114,8 +114,6 @@ run:
   final_vars:
     - full_greeting
 
-schedule:
-  cron: "0 * * * *" # Run hourly
 ```
 
 ## 6. Run the Pipeline
@@ -128,8 +126,29 @@ This is useful for debugging and local development.
 
 #### Using the CLI
 
+The `run` command now primarily accepts a `RunConfig` object, but also allows individual parameters to be passed via `**kwargs` which override `RunConfig` attributes.
+
 ```bash
+# Basic pipeline execution
 flowerpower pipeline run hello_world
+
+# Run with individual parameters (kwargs)
+flowerpower pipeline run hello_world --inputs '{"greeting_message": "Hi", "target_name": "FlowerPower"}' --final-vars '["full_greeting"]' --log-level DEBUG
+
+# Run using a RunConfig from a YAML file
+# Assuming you have a run_config.yaml like:
+# inputs:
+#   greeting_message: "Hola"
+#   target_name: "Amigo"
+# log_level: "INFO"
+flowerpower pipeline run hello_world --run-config ./run_config.yaml
+
+# Run using a RunConfig provided as a JSON string
+flowerpower pipeline run hello_world --run-config '{"inputs": {"greeting_message": "Bonjour", "target_name": "Monde"}, "log_level": "INFO"}'
+
+# Mixing RunConfig with individual parameters (kwargs overrides RunConfig)
+# This will run with log_level="DEBUG" and inputs={"greeting_message": "Howdy", "target_name": "Partner"}
+flowerpower pipeline run hello_world --run-config '{"inputs": {"greeting_message": "Original", "target_name": "Value"}, "log_level": "INFO"}' --inputs '{"greeting_message": "Howdy", "target_name": "Partner"}' --log-level DEBUG
 ```
 
 #### Using the Python API
@@ -150,7 +169,7 @@ For more control over pipeline execution, you can use the `RunConfig` class to c
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.run_config import RunConfig
+from flowerpower.cfg.pipeline.run import RunConfig
 
 project = FlowerPowerProject.load('.')
 
@@ -171,17 +190,17 @@ The `RunConfigBuilder` provides a fluent interface for building complex configur
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 project = FlowerPowerProject.load('.')
 
 # Build a configuration using the builder pattern
 config = (
-    RunConfigBuilder()
+    RunConfigBuilder(pipeline_name='hello_world')
     .with_inputs({"greeting_message": "Hello", "target_name": "World"})
     .with_final_vars(["full_greeting"])
     .with_log_level("DEBUG")
-    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .with_retries(max_attempts=3, delay=1.0)
     .build()
 )
 
@@ -195,7 +214,7 @@ You can also combine `RunConfig` with individual parameters, where individual pa
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 project = FlowerPowerProject.load('.')
 

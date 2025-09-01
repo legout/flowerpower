@@ -41,14 +41,14 @@ class BasePipeline:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions = {},
         fs: AbstractFileSystem | None = None,
-        job_queue_type: str | None = None,
+        
     ):
         self._base_dir = base_dir
         self._storage_options = storage_options
         if fs is None:
             fs = filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
-        self._job_queue_type = job_queue_type
+        
 
         self._setup_paths()
         self._setup_directories()
@@ -108,7 +108,6 @@ class BasePipeline:
         """
         return ProjectConfig.load(
             base_dir=self._base_dir,
-            job_queue_type=self._job_queue_type,
             fs=self._fs,
             storage_options=self._storage_options,
         )

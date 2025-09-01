@@ -53,7 +53,7 @@ Start the Hamilton UI web application.
 
 This command launches the Hamilton UI, which provides a web interface for
 visualizing and interacting with your FlowerPower pipelines. The UI allows you
-to explore pipeline execution graphs, view results, and manage jobs.
+to explore pipeline execution graphs and view results.
 
 ### Usage
 

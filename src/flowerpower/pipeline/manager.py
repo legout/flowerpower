@@ -64,7 +64,6 @@ class PipelineManager:
         >>> # Create manager with custom settings
         >>> manager = PipelineManager(
         ...     base_dir="/path/to/project",
-        ...     job_queue_type="rq",
         ...     log_level="DEBUG"
         ... )
     """
@@ -76,7 +75,7 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str | None = CONFIG_DIR,
         pipelines_dir: str | None = PIPELINES_DIR,
-        job_queue_type: str | None = None,
+        
         log_level: str | None = None,
     ) -> None:
         """Initialize the PipelineManager.
@@ -95,8 +94,7 @@ class PipelineManager:
                 Example: "config" or "settings".
             pipelines_dir: Override default pipelines directory name ('pipelines').
                 Example: "flows" or "dags".
-            job_queue_type: Override worker type from project config/settings.
-                Valid values: "rq".
+            
             log_level: Set logging level for the manager.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
@@ -116,7 +114,7 @@ class PipelineManager:
             ...         "key": "ACCESS_KEY",
             ...         "secret": "SECRET_KEY"
             ...     },
-            ...     job_queue_type="rq",
+            
             ...     log_level="DEBUG"
             ... )
         """
@@ -154,9 +152,9 @@ class PipelineManager:
         self._pipelines_dir = pipelines_dir
 
         self._load_project_cfg(
-            reload=True, job_queue_type=job_queue_type
+            reload=True
         )  # Load project config
-        self._job_queue_type = job_queue_type or self.project_cfg.job_queue.type
+        
 
         # Ensure essential directories exist (using paths from loaded project_cfg)
         try:
@@ -266,7 +264,7 @@ class PipelineManager:
             sys.path.insert(0, modules_path)
 
     def _load_project_cfg(
-        self, reload: bool = False, job_queue_type: str | None = None
+        self, reload: bool = False
     ) -> ProjectConfig:
         """Load or reload the project configuration.
 
@@ -290,8 +288,8 @@ class PipelineManager:
             >>> # Internal usage
             >>> manager = PipelineManager()
             >>> project_cfg = manager._load_project_cfg(reload=True)
-            >>> print(project_cfg.worker.type)
-            'rq'
+            >>> print(project_cfg.name)
+            'my_project'
         """
         if hasattr(self, "_project_cfg") and not reload:
             return self._project_cfg
@@ -299,7 +297,6 @@ class PipelineManager:
         # Pass overrides to ProjectConfig.load
         self._project_cfg = ProjectConfig.load(
             base_dir=self._base_dir,
-            job_queue_type=job_queue_type,
             fs=self._fs,  # Pass pre-configured fs if provided
             storage_options=self._storage_options,
         )
@@ -374,8 +371,8 @@ class PipelineManager:
         Example:
             >>> manager = PipelineManager()
             >>> cfg = manager.project_cfg
-            >>> print(cfg.worker.type)
-            'rq'
+            >>> print(cfg.name)
+            'my_project'
         """
         if not hasattr(self, "_project_cfg"):
             self._load_project_cfg()
@@ -405,27 +402,82 @@ class PipelineManager:
 
     # --- Core Execution Method ---
 
+    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
+        """Merge kwargs into a RunConfig object.
+        
+        This helper method updates the RunConfig object with values from kwargs,
+        handling different types of attributes appropriately.
+        
+        Args:
+            run_config: The RunConfig object to update
+            kwargs: Dictionary of additional parameters to merge
+            
+        Returns:
+            RunConfig: Updated RunConfig object
+        """
+        # Handle dictionary-like attributes with update or deep merge
+        if 'inputs' in kwargs and kwargs['inputs'] is not None:
+            if run_config.inputs is None:
+                run_config.inputs = kwargs['inputs']
+            else:
+                run_config.inputs.update(kwargs['inputs'])
+                
+        if 'config' in kwargs and kwargs['config'] is not None:
+            if run_config.config is None:
+                run_config.config = kwargs['config']
+            else:
+                run_config.config.update(kwargs['config'])
+                
+        if 'cache' in kwargs and kwargs['cache'] is not None:
+            run_config.cache = kwargs['cache']
+            
+        if 'adapter' in kwargs and kwargs['adapter'] is not None:
+            if run_config.adapter is None:
+                run_config.adapter = kwargs['adapter']
+            else:
+                run_config.adapter.update(kwargs['adapter'])
+        
+        # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
+        if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
+            executor_cfg = kwargs['executor_cfg']
+            if isinstance(executor_cfg, str):
+                run_config.executor = ExecutorConfig(type=executor_cfg)
+            elif isinstance(executor_cfg, dict):
+                run_config.executor = ExecutorConfig.from_dict(executor_cfg)
+            elif isinstance(executor_cfg, ExecutorConfig):
+                run_config.executor = executor_cfg
+        
+        # Handle adapter configurations
+        if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
+            with_adapter_cfg = kwargs['with_adapter_cfg']
+            if isinstance(with_adapter_cfg, dict):
+                run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
+            elif isinstance(with_adapter_cfg, WithAdapterConfig):
+                run_config.with_adapter = with_adapter_cfg
+                
+        if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
+            run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
+            
+        if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
+            run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
+        
+        # Handle simple attributes
+        simple_attrs = [
+            'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
+            'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
+        ]
+        
+        for attr in simple_attrs:
+            if attr in kwargs and kwargs[attr] is not None:
+                setattr(run_config, attr, kwargs[attr])
+        
+        return run_config
+
     def run(
         self,
         name: str,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: dict | None = None,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
-        log_level: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple | list | None = None,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         run_config: RunConfig | None = None,
+        **kwargs
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -434,34 +486,36 @@ class PipelineManager:
 
         Args:
             name (str): Name of the pipeline to run. Must be a valid identifier.
-            inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
-            final_vars (list[str] | None): Specify which output variables to return.
-                Example: ["model", "metrics"]
-            config (dict | None): Configuration for Hamilton pipeline executor.
-                Example: {"model": "LogisticRegression"}
-            cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
-            executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
-                - str: Executor name, e.g. "threadpool", "local"
-                - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
-                - ExecutorConfig: Structured config object
-            with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
-                Example: {"opentelemetry": True, "tracker": False}
-             pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
-                Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
-            project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
-                Example: {"opentelemetry": {"host": "http://localhost:4317"}}
-            adapter (dict[str, Any] | None): Custom adapter instance for pipeline
-                Example: {"ray_graph_adapter": RayGraphAdapter()}
-            reload (bool): Force reload of pipeline configuration.
-            log_level (str | None): Logging level for the execution. Default None uses project config.
-                Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-            max_retries (int): Maximum number of retries for execution.
-            retry_delay (float): Delay between retries in seconds.
-            jitter_factor (float): Random jitter factor to add to retry delay
-            retry_exceptions (tuple): Exceptions that trigger a retry.
-            on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
-            on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
             run_config (RunConfig | None): Run configuration object containing all execution parameters.
+                If None, the default configuration from the pipeline will be used.
+            **kwargs: Additional parameters to override the run_config. Supported parameters include:
+                inputs (dict | None): Override pipeline input values. Example: {"data_date": "2025-04-28"}
+                final_vars (list[str] | None): Specify which output variables to return.
+                    Example: ["model", "metrics"]
+                config (dict | None): Configuration for Hamilton pipeline executor.
+                    Example: {"model": "LogisticRegression"}
+                cache (dict | None): Cache configuration for results. Example: {"recompute": ["node1", "final_node"]}
+                executor_cfg (str | dict | ExecutorConfig | None): Execution configuration, can be:
+                    - str: Executor name, e.g. "threadpool", "local"
+                    - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
+                    - ExecutorConfig: Structured config object
+                with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
+                    Example: {"opentelemetry": True, "tracker": False}
+                pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
+                    Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+                project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
+                    Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+                adapter (dict[str, Any] | None): Custom adapter instance for pipeline
+                    Example: {"ray_graph_adapter": RayGraphAdapter()}
+                reload (bool): Force reload of pipeline configuration.
+                log_level (str | None): Logging level for the execution. Default None uses project config.
+                    Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+                max_retries (int): Maximum number of retries for execution.
+                retry_delay (float): Delay between retries in seconds.
+                jitter_factor (float): Random jitter factor to add to retry delay
+                retry_exceptions (tuple): Exceptions that trigger a retry.
+                on_success (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on successful pipeline execution.
+                on_failure (Callable | tuple[Callable, tuple | None, dict | None] | None): Callback to run on pipeline execution failure.
 
         Returns:
             dict[str, Any]: Pipeline execution results, mapping output variable names
@@ -480,44 +534,28 @@ class PipelineManager:
             >>> # Basic pipeline run
             >>> results = manager.run("data_pipeline")
             >>>
-            >>> # Complex run with overrides
+            >>> # Run with custom RunConfig
+            >>> from flowerpower.cfg.pipeline.run import RunConfig
+            >>> config = RunConfig(inputs={"date": "2025-04-28"}, final_vars=["result"])
+            >>> results = manager.run("ml_pipeline", run_config=config)
+            >>>
+            >>> # Complex run with kwargs overrides
             >>> results = manager.run(
-            ...     name="ml_pipeline",
-            ...     inputs={
-            ...         "training_date": "2025-04-28",
-            ...         "model_params": {"n_estimators": 100}
-            ...     },
+            ...     "ml_pipeline",
+            ...     inputs={"training_date": "2025-04-28"},
             ...     final_vars=["model", "metrics"],
             ...     executor_cfg={"type": "threadpool", "max_workers": 4},
             ...     with_adapter_cfg={"tracker": True},
             ...     reload=True
             ... )
         """
-        # If run_config is provided, use it; otherwise, build from individual parameters
-        if run_config is not None:
-            # Use the provided RunConfig object
-            pass
-        else:
-            # Build RunConfig from individual parameters for backward compatibility
-            run_config = RunConfig(
-                inputs=inputs,
-                final_vars=final_vars,
-                config=config,
-                cache=cache,
-                executor_cfg=executor_cfg,
-                with_adapter_cfg=with_adapter_cfg,
-                pipeline_adapter_cfg=pipeline_adapter_cfg,
-                project_adapter_cfg=project_adapter_cfg,
-                adapter=adapter,
-                reload=reload,
-                log_level=log_level,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                jitter_factor=jitter_factor,
-                retry_exceptions=retry_exceptions,
-                on_success=on_success,
-                on_failure=on_failure,
-            )
+        # Initialize run_config - use provided config or load pipeline default
+        if run_config is None:
+            run_config = self.load_pipeline(name=name).run
+        
+        # Merge kwargs into run_config
+        if kwargs:
+            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
 
         # Set up logging for this specific run if log_level is provided
         if run_config.log_level is not None:

@@ -47,14 +47,6 @@ BACKEND_PROPERTIES = {
         "default_password": None,
         "is_sqla_type": False,
     },
-    "redis": {
-        "uri_prefix": "redis://",
-        "default_port": 6379,
-        "default_host": "localhost",
-        "default_database": 0,
-        "default_username": None,
-        "default_password": None,
-    },
     "nats_kv": {
         "uri_prefix": "nats://",
         "default_port": 4222,
@@ -73,17 +65,6 @@ BACKEND_PROPERTIES = {
     },
 }
 
-# # REDIS ENVIRONMENT VARIABLES
-# REDIS_HOST = os.getenv("FP_REDIS_HOST", BACKEND_PROPERTIES["redis"]["default_host"])
-# REDIS_PORT = int(
-#     os.getenv("FP_REDIS_PORT", BACKEND_PROPERTIES["redis"]["default_port"])
-# )
-# REDIS_DB = int(
-#     os.getenv("FP_REDIS_DB", BACKEND_PROPERTIES["redis"]["default_database"])
-# )
-# REDIS_PASSWORD = os.getenv("FP_REDIS_PASSWORD", None)
-# REDIS_USERNAME = os.getenv("FP_REDIS_USERNAME", None)
-# REDIS_SSL = bool(os.getenv("FP_REDIS_SSL", False))
 
 # # POSTGRES ENVIRONMENT VARIABLES
 # POSTGRES_HOST = os.getenv(

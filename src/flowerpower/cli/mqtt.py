@@ -69,7 +69,6 @@ def run_pipeline_on_message(
     with_opentelemetry: bool = False,
     with_progressbar: bool = False,
     storage_options: str | None = None,
-    as_job: bool = False,
     host: str | None = None,
     port: int | None = None,
     username: str | None = None,
@@ -107,7 +106,6 @@ def run_pipeline_on_message(
         with_opentelemetry: Enable OpenTelemetry tracing
         with_progressbar: Enable progress bar
         storage_options: Storage options as JSON, dict string or key=value pairs
-        as_job: Run as a job in the scheduler
         host: MQTT broker host
         port: MQTT broker port
         username: MQTT broker username
@@ -127,9 +125,6 @@ def run_pipeline_on_message(
 
         # Configure retries for resilience
         $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic sensors/data --max-retries 5 --retry-delay 2.0
-
-        # Run as a job with custom MQTT settings
-        $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic events/process --as-job --qos 2 --host mqtt.example.com
 
         # Use a config hook to process messages
         $ flowerpower mqtt run-pipeline-on-message my_pipeline --topic data/incoming --config-hook process_message
@@ -158,7 +153,6 @@ def run_pipeline_on_message(
         with_opentelemetry=with_opentelemetry,
         with_progressbar=with_progressbar,
         storage_options=parsed_storage_options,
-        as_job=as_job,
         host=host,
         port=port,
         username=username,

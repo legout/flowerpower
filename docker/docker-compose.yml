@@ -8,7 +8,6 @@ version: "3.8"
 ## - Code-Server
 ## - Minio
 ## - MQTT (Nanomq and Mosquitto)
-## - Redis
 ## - Dragonfly
 ## - MongoDB
 ## - NodeRed
@@ -95,13 +94,6 @@ services:
     networks:
       - flowerpower-net
 
-  # Redis
-  redis:
-    image: redis
-    ports:
-     - 6379:6379
-    networks:
-      - flowerpower-net
 
   # Valkey - a Redis compatible key-value store
   valkey:
@@ -236,33 +228,6 @@ services:
       - HOSTNAME=flowerpower.local
 
 
-  rq-exporter:
-    container_name: rq-exporter
-    image: mdawar/rq-exporter:latest
-    # You can also configure the exporter using command line options
-    # command: --redis-host redis --redis-pass 123456
-    ports:
-      - 9726:9726
-    environment:
-      RQ_REDIS_HOST: 'redis'
-      #RQ_REDIS_PASS: 123456
-    # volumes:
-    #   # Mount the package for development
-    #   - type: bind
-    #     source: ./rq_exporter
-    #     target: /app/rq_exporter
-    networks:
-      - flowerpower-net
-    restart: unless-stopped
-    
-  # rq-dashboard:
-  #   image: eoranged/rq-dashboard
-  #   command: -u redis://redis:6379/0
-  #   ports:
-  #     - 9181:9181
-  #   networks:
-  #     - flowerpower-net
-  #   restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.55.1
@@ -285,7 +250,6 @@ services:
     volumes:
       - ./conf/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./conf/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yaml
-      - ./conf/rq-dashboard.json:/etc/grafana/dashboards/rq-dashboard.json
       - grafana_data:/var/lib/grafana
     networks:
       - flowerpower-net

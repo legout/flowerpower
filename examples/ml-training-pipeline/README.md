@@ -5,7 +5,6 @@ This example demonstrates a machine learning training workflow using FlowerPower
 ## Prerequisites
 
 - Python 3.11+
-- Redis (for job queue functionality)
 
 ## Quick Start
 
@@ -32,61 +31,6 @@ project = FlowerPowerProject.load()
 project.run("customer_churn")
 ```
 
-### 2. Run with the Job Queue
-
-Add the pipeline run as a job to be processed asynchronously.
-
-**Terminal 1: Enqueue Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py queue
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue enqueue-pipeline customer_churn
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.enqueue("customer_churn")
-```
-
-**Terminal 2: Start Worker**
-```bash
-uv run flowerpower job-queue start-worker
-```
-
-### 3. Schedule a Pipeline Run
-
-Schedule the pipeline to run at a predefined time (e.g., weekly for model retraining).
-
-**Terminal 1: Schedule Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py schedule
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue schedule-pipeline customer_churn --cron "0 2 * * 0"
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.schedule("customer_churn", cron="0 2 * * 0")
-```
-
-**Terminal 2: Start Worker with Scheduler**
-```bash
-uv run flowerpower job-queue start-worker --with-scheduler
-```
 
 ## Project Structure
 
@@ -126,7 +70,7 @@ Running the pipeline generates a trained model, evaluation metrics, feature impo
 ## FlowerPower Features Demonstrated
 
 - **Configuration-Driven ML Pipelines**: Customize model training without changing code.
-- **Multiple Execution Modes**: Run training synchronously, via a job queue, or on a schedule.
+- **Synchronous Execution**: Run training pipelines directly for development and testing.
 - **ML-Specific Functions**: Use Hamilton's features for clear and modular ML workflows.
 
 ## Customizing the Example
@@ -138,11 +82,9 @@ Running the pipeline generates a trained model, evaluation metrics, feature impo
 ## Troubleshooting
 
 - **`FileNotFoundError`**: Ensure you are in the correct directory and the `data/customer_data.csv` file exists.
-- **Redis Connection Error**: Make sure the Redis server is running before using the job queue.
 - **Model Training Issues**: Check that all required ML dependencies are installed.
 
 ## Learning Path & Related Examples
 
 - [`data-etl-pipeline`](../data-etl-pipeline/): Data preprocessing and validation patterns.
-- [`scheduled-reports`](../scheduled-reports/): Automated ML model reporting.
 - [`pipeline-only-example`](../pipeline-only-example/): Lightweight ML experimentation.

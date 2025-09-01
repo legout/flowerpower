@@ -37,7 +37,6 @@ manager = PipelineManager()
 | Attribute | Type | Description |
 |:----------|:-----|:------------|
 | `registry` | `PipelineRegistry` | Handles pipeline registration and discovery. |
-| `scheduler` | `PipelineScheduler` | Manages job scheduling and execution. |
 | `visualizer` | `PipelineVisualizer` | Handles pipeline visualization. |
 | `io` | `PipelineIOManager` | Handles pipeline import/export operations, consolidating common logic. |
 | `project_cfg` | `ProjectConfig` | Current project configuration. |
@@ -61,11 +60,11 @@ run(self, name: str, run_config: RunConfig | None = None, inputs: dict | None = 
 
 Execute a pipeline synchronously and return its results. Parameters related to retries (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) configure the internal retry mechanism.
 
-This method supports two ways of providing execution configuration:
-1. Using a `RunConfig` object (recommended) - provides a structured way to pass all execution parameters
-2. Using individual parameters (legacy) - allows specifying parameters individually
+This method supports two primary ways of providing execution configuration:
+1. Using a `RunConfig` object (recommended): Provides a structured way to pass all execution parameters.
+2. Using individual parameters (`**kwargs`): Allows specifying parameters directly, which will override corresponding values in the `RunConfig` if both are provided.
 
-When both `run_config` and individual parameters are provided, the individual parameters take precedence over the corresponding values in `run_config`.
+When both `run_config` and individual parameters (`**kwargs`) are provided, the individual parameters take precedence over the corresponding values in `run_config`.
 
 | Parameter | Type | Description | Default |
 |:----------|:-----|:------------|:--------|
@@ -101,14 +100,15 @@ When both `run_config` and individual parameters are provided, the individual pa
 
 ```python
 from flowerpower.pipeline import PipelineManager
-from flowerpower.run_config import RunConfig, RunConfigBuilder
+from flowerpower.cfg.pipeline.run import RunConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 manager = PipelineManager()
 
 # Simple execution
 result = manager.run("my_pipeline")
 
-# With custom inputs (legacy approach)
+# Using individual parameters (kwargs)
 result = manager.run(
     "ml_pipeline",
     inputs={"data_date": "2025-01-01"},
@@ -123,7 +123,7 @@ config = RunConfig(
 )
 result = manager.run("ml_pipeline", run_config=config)
 
-# Using RunConfigBuilder (recommended)
+# Using RunConfigBuilder from flowerpower.cfg.pipeline.builder (recommended)
 config = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01"})
@@ -134,7 +134,7 @@ config = (
 )
 result = manager.run("ml_pipeline", run_config=config)
 
-# Mixing RunConfig with individual parameters
+# Mixing RunConfig with individual parameters (kwargs)
 # Individual parameters take precedence over RunConfig values
 base_config = RunConfigBuilder().with_log_level("INFO").build()
 result = manager.run(

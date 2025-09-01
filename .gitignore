@@ -63,3 +63,4 @@ anypath.yaml
 package-lock.json
 docs/mkdocs/mkdocs.yml
 RUN_METHOD_ANALYSIS.md
+docs/mkdocs/site/**

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # dependencies = [
-#     "flowerpower[rq]",
+#     "flowerpower",
 #     "pandas>=2.0.0",
 #     "plotly>=5.15.0",
 #     "typer>=0.9.0",
@@ -31,16 +31,6 @@ def run_synchronous():
     return project.run("sales_etl")
 
 
-def run_with_job_queue():
-    """Run the ETL pipeline using the job queue."""
-    project = FlowerPowerProject.load(str(project_root))
-    return project.enqueue("sales_etl")
-
-
-def schedule_pipeline():
-    """Schedule the ETL pipeline for recurring execution."""
-    project = FlowerPowerProject.load(str(project_root))
-    return project.schedule("sales_etl")
 
 
 @app.command()
@@ -49,16 +39,6 @@ def sync():
     run_synchronous()
 
 
-@app.command()
-def queue():
-    """Run the ETL pipeline using the job queue."""
-    run_with_job_queue()
-
-
-@app.command()
-def schedule():
-    """Schedule the ETL pipeline for recurring execution."""
-    schedule_pipeline()
 
 
 def main():

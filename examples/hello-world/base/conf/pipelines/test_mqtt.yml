@@ -32,7 +32,3 @@ run:
     progressbar: false
     ray: false
     tracker: false
-schedule:
-  cron: null
-  date: null
-  interval: null
