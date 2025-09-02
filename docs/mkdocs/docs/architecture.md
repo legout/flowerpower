@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Welcome to the architectural overview of FlowerPower. This document provides a high-level look at the library's design, its core components, and the principles that guide its development. Our goal is to create a powerful, flexible, and easy-to-use platform for building data pipelines with optional job scheduling capabilities.
+Welcome to the architectural overview of FlowerPower. This document provides a high-level look at the library's design, its core components, and the principles that guide its development. Our goal is to create a powerful, flexible, and easy-to-use platform for building data pipelines.
 
 ## Core Design Principles
 
@@ -50,20 +50,10 @@ FlowerPower leverages Hamilton to define the logic of its data pipelines. Hamilt
 !!! note
     To learn more about Hamilton, visit the [official documentation](https://hamilton.dagworks.io/).
 
-## Optional Job Scheduling
-
-FlowerPower provides optional job scheduling capabilities through the `flowerpower-scheduler` package. When installed, this package enables asynchronous processing and job scheduling features.
-
-The optional scheduler handles:
-
--   **Asynchronous Processing:** It allows you to offload long-running tasks to background workers, keeping your application responsive.
--   **Job Scheduling:** You can enqueue jobs to run at a specific time or on a recurring schedule.
--   **Distributed Workers:** The scheduler's worker-based architecture enables you to distribute tasks across multiple machines for parallel processing.
-
 ## Filesystem Abstraction
 
 FlowerPower includes a filesystem abstraction layer that allows you to work with local and remote filesystems (e.g., S3, GCS) using a consistent API. This makes it easy to build pipelines that can read from and write to various storage backends without changing your core logic.
 
 ## Conclusion
 
-FlowerPower's architecture is designed to be both powerful and flexible. By combining the strengths of Hamilton for dataflow definition with optional job scheduling capabilities, it provides a comprehensive solution for a wide range of data-intensive applications. The modular design and unified interface make it easy to get started, while the extensible nature of the library allows it to grow with your needs.
+FlowerPower's architecture is designed to be both powerful and flexible. By leveraging Hamilton for dataflow definition, it provides a comprehensive solution for a wide range of data-intensive applications. The modular design and unified interface make it easy to get started, while the extensible nature of the library allows it to grow with your needs.

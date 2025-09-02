@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # dependencies = [
-#     "flowerpower[rq]",
+#     "flowerpower",
 #     "requests>=2.28.0",
 #     "beautifulsoup4>=4.11.0",
 #     "pandas>=2.0.0",
@@ -13,8 +13,6 @@ Web Scraping Pipeline Example Runner
 
 This script demonstrates different ways to run the news scraping pipeline:
 - Synchronous execution for immediate scraping
-- Job queue execution for background scraping
-- Scheduled execution for recurring scraping
 - Custom configuration for different scraping scenarios
 """
 
@@ -57,55 +55,6 @@ def run_sync_scraping():
         print(f"📈 Average length: {scraping_info['average_content_length']:.0f} chars")
 
     return result
-
-
-def run_queue_scraping():
-    """Enqueue the news scraping for background processing."""
-    print("📥 Enqueuing news scraping for background processing...")
-
-    # Initialize FlowerPower project
-    project = FlowerPowerProject.from_config(".")
-
-    # Enqueue the pipeline
-    job = project.pipeline_manager.enqueue(
-        "news_scraper",
-        inputs={"scrape_timestamp": datetime.now().isoformat()},
-        final_vars=["processed_articles"],
-        queue_name="scraping",
-    )
-
-    print(f"✅ Scraping job enqueued successfully!")
-    print(f"🔧 Job ID: {job.id}")
-    print(f"📋 Queue: {job.origin}")
-    print("\n🚀 To process this job, start a worker:")
-    print("   flowerpower job-queue start-worker --queue-names scraping")
-
-    return job
-
-
-def run_scheduled_scraping():
-    """Schedule the news scraping for recurring execution."""
-    print("📅 Scheduling news scraping for recurring execution...")
-
-    # Initialize FlowerPower project
-    project = FlowerPowerProject.from_config(".")
-
-    # Schedule hourly scraping
-    job = project.pipeline_manager.schedule(
-        "news_scraper",
-        cron="0 * * * *",  # Every hour
-        inputs={"scrape_timestamp": datetime.now().isoformat()},
-        final_vars=["processed_articles"],
-        queue_name="scraping",
-    )
-
-    print("✅ Scraping scheduled successfully!")
-    print(f"🔧 Job ID: {job.id}")
-    print(f"📅 Schedule: Every hour")
-    print("\n🚀 To process scheduled jobs, start a worker with scheduler:")
-    print("   flowerpower job-queue start-worker --with-scheduler")
-
-    return job
 
 
 def run_custom_scraping_config():
@@ -174,7 +123,7 @@ def run_batch_scraping():
         },
     ]
 
-    batch_jobs = []
+    batch_results = []
     for config_set in configurations:
         name = config_set["name"]
         config = config_set["config"]
@@ -182,56 +131,19 @@ def run_batch_scraping():
         # Add timestamp to config
         config["scrape_timestamp"] = datetime.now().isoformat()
 
-        # Enqueue job
-        job = project.pipeline_manager.enqueue(
+        # Run pipeline with config
+        result = project.pipeline_manager.run(
             "news_scraper",
             inputs=config,
             final_vars=["processed_articles"],
-            queue_name="scraping",
-            job_id=f"scrape_{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         )
 
-        batch_jobs.append((name, job))
-        print(f"✅ Enqueued {name} scraping job: {job.id}")
+        batch_results.append((name, result))
+        print(f"✅ Completed {name} scraping run")
 
-    print(f"\n📋 Total batch jobs: {len(batch_jobs)}")
-    print("🚀 Start workers to process these jobs:")
-    print("   flowerpower job-queue start-worker --queue-names scraping")
+    print(f"\n📋 Total batch runs: {len(batch_results)}")
 
-    return batch_jobs
-
-
-def demo_multiple_schedules():
-    """Demonstrate different scraping scheduling patterns."""
-    print("📅 Demonstrating different scraping schedules...")
-
-    project = FlowerPowerProject.from_config(".")
-
-    schedules = [
-        ("hourly", "0 * * * *", "Every hour"),
-        ("daily", "0 8 * * *", "Daily at 8 AM"),
-        ("weekly", "0 8 * * 1", "Weekly on Mondays at 8 AM"),
-        ("custom", "*/15 * * * *", "Every 15 minutes"),
-    ]
-
-    scheduled_jobs = []
-    for name, cron, description in schedules:
-        job = project.pipeline_manager.schedule(
-            "news_scraper",
-            cron=cron,
-            inputs={"scrape_timestamp": datetime.now().isoformat()},
-            final_vars=["processed_articles"],
-            queue_name="scraping",
-            job_id=f"scraper_{name}",
-        )
-        scheduled_jobs.append((name, job, description))
-        print(f"✅ Scheduled {name} scraping: {description}")
-
-    print(f"\n📋 Total scheduled jobs: {len(scheduled_jobs)}")
-    print("🚀 Start worker with scheduler to process these jobs:")
-    print("   flowerpower job-queue start-worker --with-scheduler")
-
-    return scheduled_jobs
+    return batch_results
 
 
 def _setup_working_directory():
@@ -250,44 +162,6 @@ def sync():
 
     try:
         result = run_sync_scraping()
-        print("\n" + "=" * 60)
-        print("🎉 Example completed successfully!")
-        return result
-    except Exception as e:
-        print(f"\n❌ Error running example: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise typer.Exit(1)
-
-
-@app.command()
-def queue():
-    """Enqueue news scraping for background processing."""
-    _setup_working_directory()
-    print("🎯 Mode: queue")
-
-    try:
-        result = run_queue_scraping()
-        print("\n" + "=" * 60)
-        print("🎉 Example completed successfully!")
-        return result
-    except Exception as e:
-        print(f"\n❌ Error running example: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise typer.Exit(1)
-
-
-@app.command()
-def schedule():
-    """Schedule news scraping for recurring execution."""
-    _setup_working_directory()
-    print("🎯 Mode: schedule")
-
-    try:
-        result = run_scheduled_scraping()
         print("\n" + "=" * 60)
         print("🎉 Example completed successfully!")
         return result
@@ -326,25 +200,6 @@ def batch():
 
     try:
         result = run_batch_scraping()
-        print("\n" + "=" * 60)
-        print("🎉 Example completed successfully!")
-        return result
-    except Exception as e:
-        print(f"\n❌ Error running example: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise typer.Exit(1)
-
-
-@app.command()
-def demo_schedules():
-    """Demonstrate different scraping scheduling patterns."""
-    _setup_working_directory()
-    print("🎯 Mode: demo-schedules")
-
-    try:
-        result = demo_multiple_schedules()
         print("\n" + "=" * 60)
         print("🎉 Example completed successfully!")
         return result

@@ -1,6 +1,6 @@
 # RunConfig
 
-**Module:** `flowerpower.run_config`
+**Module:** [`flowerpower.cfg.pipeline.run`](../../../../src/flowerpower/cfg/pipeline/run.py)
 
 The `RunConfig` class encapsulates all configuration parameters for pipeline execution in FlowerPower. It provides a structured way to pass execution settings to both `Pipeline.run()` and `PipelineManager.run()` methods.
 
@@ -69,7 +69,7 @@ Create a shallow copy of the RunConfig instance.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfig
+from flowerpower.cfg.pipeline.run import RunConfig
 
 # Create a base configuration
 base_config = RunConfig(
@@ -98,7 +98,7 @@ Update the RunConfig with new values and return self for method chaining.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfig
+from flowerpower.cfg.pipeline.run import RunConfig
 
 # Create a base configuration
 config = RunConfig()
@@ -113,7 +113,7 @@ config.update(
 
 # RunConfigBuilder
 
-**Module:** `flowerpower.run_config`
+**Module:** [`flowerpower.cfg.pipeline.builder`](../../../../src/flowerpower/cfg/pipeline/builder.py)
 
 The `RunConfigBuilder` class provides a fluent interface for constructing `RunConfig` instances. It allows for method chaining and provides a more readable way to build complex configurations.
 
@@ -144,7 +144,7 @@ Set the input values for the pipeline execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_inputs({"data_date": "2025-01-01", "batch_size": 32})
@@ -166,7 +166,7 @@ Set the output variables to return from the pipeline execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_final_vars(["model", "metrics", "predictions"])
@@ -188,7 +188,7 @@ Set the configuration for the Hamilton pipeline executor.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_config({"model": "LogisticRegression", "params": {"C": 1.0}})
@@ -210,7 +210,7 @@ Set the cache configuration for the pipeline execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_cache({"recompute": ["node1", "final_node"]})
@@ -232,7 +232,7 @@ Set the execution configuration for the pipeline.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 # Using a string
 builder = RunConfigBuilder()
@@ -259,7 +259,7 @@ Set the adapter settings for pipeline execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_adapter_config({"opentelemetry": True, "tracker": False})
@@ -281,7 +281,7 @@ Set the pipeline-specific adapter settings.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_pipeline_adapter_config({
@@ -305,7 +305,7 @@ Set the project-level adapter settings.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_project_adapter_config({
@@ -329,7 +329,7 @@ Set custom adapter instances for the pipeline.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from some_module import RayGraphAdapter
 
 builder = RunConfigBuilder()
@@ -352,7 +352,7 @@ Set whether to force reload of pipeline configuration.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_reload(True)
@@ -374,7 +374,7 @@ Set the logging level for the execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_log_level("DEBUG")
@@ -399,7 +399,7 @@ Set the retry configuration for the execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_retry_config(
@@ -425,7 +425,7 @@ Set the callback to run on successful pipeline execution.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 def success_handler(result):
     print(f"Pipeline succeeded with result: {result}")
@@ -450,7 +450,7 @@ Set the callback to run on pipeline execution failure.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 def failure_handler(error):
     print(f"Pipeline failed with error: {error}")
@@ -471,7 +471,7 @@ Build and return a `RunConfig` instance with the configured parameters.
 #### Example
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 # Build a configuration
 config = (
@@ -489,7 +489,8 @@ config = (
 ### Basic Usage
 
 ```python
-from flowerpower.run_config import RunConfig, RunConfigBuilder
+from flowerpower.cfg.pipeline.run import RunConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from flowerpower.pipeline import PipelineManager
 
 # Using RunConfig directly
@@ -517,7 +518,7 @@ result = manager.run("my_pipeline", run_config=config)
 ### Complex Configuration
 
 ```python
-from flowerpower.run_config import RunConfigBuilder
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from flowerpower.pipeline import PipelineManager
 
 def success_handler(result):
@@ -551,7 +552,8 @@ result = manager.run("ml_pipeline", run_config=config)
 ### Reusing Configurations
 
 ```python
-from flowerpower.run_config import RunConfig, RunConfigBuilder
+from flowerpower.cfg.pipeline.run import RunConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from flowerpower.pipeline import PipelineManager
 
 # Create a base configuration

@@ -19,67 +19,60 @@ flowerpower pipeline run [options]
 
 | Name | Type | Description | Default |
 |---|---|---|---|
-| name | str | Name of the pipeline to run | Required |
-| executor | str | Type of executor to use | Required |
-| base_dir | str | Base directory containing pipelines and configurations | Required |
-| inputs | str | Input parameters for the pipeline | Required |
-| final_vars | str | Final variables to request from the pipeline | Required |
-| config | str | Configuration for the Hamilton executor | Required |
-| cache | str | Cache configuration for improved performance | Required |
-| storage_options | str | Options for storage backends | Required |
-| log_level | str | Set the logging level | Required |
-| with_adapter | str | Configuration for adapters like trackers or monitors | Required |
-| max_retries | str | Maximum number of retry attempts on failure | Required |
-| retry_delay | str | Base delay between retries in seconds | Required |
-| jitter_factor | str | Random factor applied to delay for jitter (0-1) | Required |
+| name | str | Name of the pipeline to run. | Required |
+| --run-config | str | Path to a YAML file containing `RunConfig` parameters, or a JSON string. | None |
+| --inputs | str | JSON string of input parameters for the pipeline. | None |
+| --final-vars | str | JSON string of final variables to request from the pipeline. | None |
+| --config | str | JSON string of configuration for the Hamilton executor. | None |
+| --cache | str | JSON string of cache configuration for improved performance. | None |
+| --executor-cfg | str | JSON string or name of executor to use (e.g., "threadpool", "local"). | None |
+| --with-adapter-cfg | str | JSON string of configuration for adapters like trackers or monitors. | None |
+| --pipeline-adapter-cfg | str | JSON string of pipeline-specific adapter settings. | None |
+| --project-adapter-cfg | str | JSON string of project-level adapter settings. | None |
+| --adapter | str | JSON string of custom adapter instance for pipeline. | None |
+| --reload | bool | Force reload of pipeline configuration. | False |
+| --log-level | str | Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). | None |
+| --max-retries | int | Maximum number of retry attempts on failure. | None |
+| --retry-delay | float | Base delay between retries in seconds. | None |
+| --jitter-factor | float | Random factor applied to delay for jitter (0-1). | None |
+| --retry-exceptions | str | Comma-separated list of exception types that trigger a retry. | None |
+| --on-success | str | Path to a Python function or module:function for success callback. | None |
+| --on-failure | str | Path to a Python function or module:function for failure callback. | None |
 
 
 ### Examples
 
 ```bash
-$ pipeline run my_pipeline
+# Basic pipeline execution
+$ flowerpower pipeline run my_pipeline
 
-# Run with custom inputs
-```
+# Run with individual parameters (kwargs)
+$ flowerpower pipeline run my_pipeline --inputs '{"data_path": "data/myfile.csv"}' --final-vars '["output_table", "summary_metrics"]'
 
-```bash
-$ pipeline run my_pipeline --inputs '{"data_path": "data/myfile.csv", "limit": 100}'
+# Run using a RunConfig from a YAML file
+# Assuming you have a run_config.yaml like:
+# inputs:
+#   data_path: "data/myfile.csv"
+# log_level: "INFO"
+$ flowerpower pipeline run my_pipeline --run-config ./run_config.yaml
 
-# Specify which final variables to calculate
-```
+# Run using a RunConfig provided as a JSON string
+$ flowerpower pipeline run my_pipeline --run-config '{"inputs": {"data_path": "data/myfile.csv"}, "log_level": "INFO"}'
 
-```bash
-$ pipeline run my_pipeline --final-vars '["output_table", "summary_metrics"]'
+# Mixing RunConfig with individual parameters (kwargs overrides RunConfig)
+# This will run with log_level="DEBUG" and inputs={"data_path": "new_data.csv"}
+$ flowerpower pipeline run my_pipeline --run-config '{"inputs": {"data_path": "original_data.csv"}, "log_level": "INFO"}' --inputs '{"data_path": "new_data.csv"}' --log-level DEBUG
 
-# Configure caching
-```
+# Configure automatic retries on failure using kwargs
+$ flowerpower pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
 
-```bash
-$ pipeline run my_pipeline --cache '{"type": "memory", "ttl": 3600}'
-
-# Use a different executor
-```
-
-```bash
-$ pipeline run my_pipeline --executor distributed
-
-# Enable adapters for monitoring/tracking
-```
-
-```bash
-$ pipeline run my_pipeline --with-adapter '{"tracker": true, "opentelemetry": true}'
-
-# Set a specific logging level
-```
-
-```bash
-$ pipeline run my_pipeline --log-level debug
-
-# Configure automatic retries on failure
-```
-
-```bash
-$ pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
+# Configure automatic retries on failure using RunConfig
+# Assuming run_config_retries.yaml contains:
+# retry_config:
+#   max_retries: 3
+#   retry_delay: 2.0
+#   jitter_factor: 0.2
+$ flowerpower pipeline run my_pipeline --run-config ./run_config_retries.yaml
 ```
 
 ---
@@ -268,7 +261,7 @@ $ pipeline save-dag my_pipeline --output-path ./visualizations/my_graph.png
 List all available pipelines in the project.
 
 This command displays a list of all pipelines defined in the project,
-providing an overview of what pipelines are available to run or schedule.
+providing an overview of what pipelines are available to run.
 
 ### Usage
 

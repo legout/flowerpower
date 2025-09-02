@@ -90,83 +90,99 @@ class Pipeline(msgspec.Struct):
         if not settings.HAMILTON_AUTOLOAD_EXTENSIONS:
             disable_autoload()
 
+    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
+        """Merge kwargs into the run_config object.
+        
+        Args:
+            run_config: The base RunConfig object to merge into
+            kwargs: Additional parameters to merge into the run_config
+            
+        Returns:
+            Updated RunConfig object with merged kwargs
+        """
+        from copy import deepcopy
+        
+        # Create a deep copy of the run_config to avoid modifying the original
+        merged_config = deepcopy(run_config)
+        
+        # Handle each possible kwarg
+        for key, value in kwargs.items():
+            if key == 'inputs' and value is not None:
+                if merged_config.inputs is None:
+                    merged_config.inputs = {}
+                merged_config.inputs.update(value)
+            elif key == 'final_vars' and value is not None:
+                if merged_config.final_vars is None:
+                    merged_config.final_vars = []
+                merged_config.final_vars = value
+            elif key == 'config' and value is not None:
+                if merged_config.config is None:
+                    merged_config.config = {}
+                merged_config.config.update(value)
+            elif key == 'cache' and value is not None:
+                merged_config.cache = value
+            elif key == 'executor_cfg' and value is not None:
+                if isinstance(value, str):
+                    merged_config.executor = ExecutorConfig(type=value)
+                elif isinstance(value, dict):
+                    merged_config.executor = ExecutorConfig.from_dict(value)
+                elif isinstance(value, ExecutorConfig):
+                    merged_config.executor = value
+            elif key == 'with_adapter_cfg' and value is not None:
+                if isinstance(value, dict):
+                    merged_config.with_adapter = WithAdapterConfig.from_dict(value)
+                elif isinstance(value, WithAdapterConfig):
+                    merged_config.with_adapter = value
+            elif key == 'pipeline_adapter_cfg' and value is not None:
+                merged_config.pipeline_adapter_cfg = value
+            elif key == 'project_adapter_cfg' and value is not None:
+                merged_config.project_adapter_cfg = value
+            elif key == 'adapter' and value is not None:
+                if merged_config.adapter is None:
+                    merged_config.adapter = {}
+                merged_config.adapter.update(value)
+            elif key == 'reload' and value is not None:
+                merged_config.reload = value
+            elif key == 'log_level' and value is not None:
+                merged_config.log_level = value
+            elif key == 'max_retries' and value is not None:
+                merged_config.max_retries = value
+            elif key == 'retry_delay' and value is not None:
+                merged_config.retry_delay = value
+            elif key == 'jitter_factor' and value is not None:
+                merged_config.jitter_factor = value
+            elif key == 'retry_exceptions' and value is not None:
+                merged_config.retry_exceptions = value
+            elif key == 'on_success' and value is not None:
+                merged_config.on_success = value
+            elif key == 'on_failure' and value is not None:
+                merged_config.on_failure = value
+        
+        return merged_config
+
     def run(
         self,
-        inputs: dict | None = None,
-        final_vars: list[str] | None = None,
-        config: dict | None = None,
-        cache: dict | None = None,
-        executor_cfg: str | dict | ExecutorConfig | None = None,
-        with_adapter_cfg: dict | WithAdapterConfig | None = None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None = None,
-        adapter: dict[str, Any] | None = None,
-        reload: bool = False,
-        log_level: str | None = None,
-        max_retries: int | None = None,
-        retry_delay: float | None = None,
-        jitter_factor: float | None = None,
-        retry_exceptions: tuple = (
-            Exception,
-            HTTPError,
-            UnauthorizedException,
-        ),
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
         run_config: RunConfig | None = None,
+        **kwargs
     ) -> dict[str, Any]:
         """Execute the pipeline with the given parameters.
 
         Args:
-            inputs: Override pipeline input values
-            final_vars: Specify which output variables to return
-            config: Configuration for Hamilton pipeline executor
-            cache: Cache configuration for results
-            executor_cfg: Execution configuration
-            with_adapter_cfg: Adapter settings for pipeline execution
-            pipeline_adapter_cfg: Pipeline-specific adapter configuration
-            project_adapter_cfg: Project-wide adapter configuration
-            adapter: Additional Hamilton adapters
-            reload: Whether to reload the module
-            log_level: Log level for execution
-            max_retries: Maximum number of retry attempts
-            retry_delay: Base delay between retries in seconds
-            jitter_factor: Factor to apply for jitter
-            retry_exceptions: Exceptions to catch for retries
-            on_success: Callback for successful execution
-            on_failure: Callback for failed execution
-            run_config: Run configuration object containing all execution parameters
+            run_config: Run configuration object containing all execution parameters.
+                       If None, uses the pipeline's default configuration.
+            **kwargs: Additional parameters to override or extend the run_config.
 
         Returns:
             The result of executing the pipeline
         """
         start_time = dt.datetime.now()
 
-        # If run_config is provided, use it; otherwise, build from individual parameters
-        if run_config is not None:
-            # Use the provided RunConfig object
-            pass
-        else:
-            # Build RunConfig from individual parameters for backward compatibility
-            run_config = RunConfig(
-                inputs=inputs or self.config.run.inputs or {},
-                final_vars=final_vars or self.config.run.final_vars or [],
-                config={**(self.config.run.config or {}), **(config or {})},
-                cache=cache or self.config.run.cache or {},
-                executor_cfg=executor_cfg,
-                with_adapter_cfg=with_adapter_cfg,
-                pipeline_adapter_cfg=pipeline_adapter_cfg,
-                project_adapter_cfg=project_adapter_cfg,
-                adapter=adapter,
-                reload=reload,
-                log_level=log_level,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                jitter_factor=jitter_factor,
-                retry_exceptions=retry_exceptions,
-                on_success=on_success,
-                on_failure=on_failure,
-            )
+        # Initialize run_config with pipeline defaults if not provided
+        run_config = run_config or self.config.run
+        
+        # Merge kwargs into the run_config
+        if kwargs:
+            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
 
         # Reload module if requested
         if run_config.reload:
@@ -183,23 +199,12 @@ class Pipeline(msgspec.Struct):
 
         # Execute with retry logic
         return self._execute_with_retry(
-            inputs=run_config.inputs,
-            final_vars=run_config.final_vars,
-            config=run_config.config,
-            cache=run_config.cache,
-            executor_cfg=run_config.executor_cfg,
-            with_adapter_cfg=run_config.with_adapter_cfg,
-            pipeline_adapter_cfg=run_config.pipeline_adapter_cfg,
-            project_adapter_cfg=run_config.project_adapter_cfg,
-            adapter=run_config.adapter,
-            log_level=run_config.log_level,
+            run_config=run_config,
             max_retries=max_retries,
             retry_delay=retry_delay,
             jitter_factor=jitter_factor,
             retry_exceptions=retry_exceptions,
             start_time=start_time,
-            on_success=run_config.on_success,
-            on_failure=run_config.on_failure,
         )
 
     def _setup_retry_config(
@@ -254,23 +259,12 @@ class Pipeline(msgspec.Struct):
 
     def _execute_with_retry(
         self,
-        inputs: dict,
-        final_vars: list[str],
-        config: dict,
-        cache: dict,
-        executor_cfg: str | dict | ExecutorConfig | None,
-        with_adapter_cfg: dict | WithAdapterConfig | None,
-        pipeline_adapter_cfg: dict | PipelineAdapterConfig | None,
-        project_adapter_cfg: dict | ProjectAdapterConfig | None,
-        adapter: dict[str, Any] | None,
-        log_level: str | None,
+        run_config: RunConfig,
         max_retries: int,
         retry_delay: float,
         jitter_factor: float,
         retry_exceptions: tuple,
         start_time: dt.datetime,
-        on_success: Callable | tuple[Callable, tuple | None, dict | None] | None,
-        on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None,
     ) -> dict[str, Any]:
         """Execute pipeline with retry logic."""
         for attempt in range(max_retries + 1):
@@ -289,8 +283,8 @@ class Pipeline(msgspec.Struct):
                 )
 
                 # Execute success callback if provided
-                if on_success:
-                    self._execute_callback(on_success, result, None)
+                if run_config.on_success:
+                    self._execute_callback(run_config.on_success, result, None)
 
                 return result
 
@@ -314,8 +308,8 @@ class Pipeline(msgspec.Struct):
                     )
 
                     # Execute failure callback if provided
-                    if on_failure:
-                        self._execute_callback(on_failure, None, e)
+                    if run_config.on_failure:
+                        self._execute_callback(run_config.on_failure, None, e)
 
                     raise
             except Exception as e:
@@ -325,8 +319,8 @@ class Pipeline(msgspec.Struct):
                 logger.error(f"❌ Pipeline '{self.name}' failed in {duration}: {e}")
 
                 # Execute failure callback if provided
-                if on_failure:
-                    self._execute_callback(on_failure, None, e)
+                if run_config.on_failure:
+                    self._execute_callback(run_config.on_failure, None, e)
 
                 raise
 
@@ -336,9 +330,9 @@ class Pipeline(msgspec.Struct):
     ) -> tuple[executors.BaseExecutor, Callable | None, list]:
         """Set up executor and adapters for pipeline execution."""
         # Get executor and adapters
-        executor, shutdown_func = self._get_executor(run_config.executor_cfg)
+        executor, shutdown_func = self._get_executor(run_config.executor)
         adapters = self._get_adapters(
-            with_adapter_cfg=run_config.with_adapter_cfg,
+            with_adapter_cfg=run_config.with_adapter,
             pipeline_adapter_cfg=run_config.pipeline_adapter_cfg,
             project_adapter_cfg=run_config.project_adapter_cfg,
             adapter=run_config.adapter,

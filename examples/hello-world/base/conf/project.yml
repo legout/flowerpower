@@ -1,15 +1,4 @@
 name: null
-job_queue:
-  type: apscheduler
-  num_workers: 100
-  backend:
-    data_store:
-      type: memory
-    event_broker:
-      type: memory
-    cleanup_interval: 300
-    max_concurrent_jobs: 10
-    default_job_executor: threadpool
 adapter:
   hamilton_tracker:
     username: null

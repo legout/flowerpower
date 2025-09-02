@@ -1,16 +1,15 @@
 [project]
 name = "FlowerPower"
-description = "A simple workflow framework. Hamilton + RQ = FlowerPower"
+description = "A simple workflow framework for building and managing data processing pipelines"
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.20.0"
+version = "0.21.0"
 keywords = [
   "hamilton",
   "workflow",
   "pipeline",
   "scheduler",
-  "rq",
   "dask",
   "ray",
 ]
@@ -53,8 +52,6 @@ opentelemetry = [
   "opentelemetry-exporter-jaeger>=1.21.0", #"sf-hamilton[opentelemetry]>=1.83.3"
 ]
 ray = ["ray>=2.34.0"]
-redis = ["redis>=5.0.4"]
-rq = ["rq>=2.3.1", "rq-scheduler>=0.14.0", "cron-descriptor>=1.4.5"]
 tui = ["textual>=0.85.2"]
 ui = ["sf-hamilton-ui>=0.0.11"]
 webserver = ["sanic>=24.6.0", "sanic-ext>=23.12.0", "orjson>=3.10.11"]
@@ -72,7 +69,6 @@ dev-dependencies = [
   "pytest-cov>=4.1.0",
   "marimo>=0.10.19",
   "pre-commit>=4.2.0",
-  "rq-dashboard>=0.8.2.2",
   "mkdocs>=1.6.1",
   "mkdocs-material>=9.6.17",
   "quarto>=0.1.0",

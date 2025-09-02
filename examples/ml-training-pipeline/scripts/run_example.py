@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # dependencies = [
-#     "flowerpower[rq]",
+#     "flowerpower",
 #     "pandas>=2.0.0",
 #     "plotly>=5.15.0",
 #     "typer>=0.9.0",
@@ -14,8 +14,7 @@ Example runner script for the ml-training-pipeline FlowerPower project.
 
 This script demonstrates different ways to run the ML training pipeline:
 1. Synchronous execution
-2. Job queue execution
-3. Scheduled execution (for retraining)
+2. Custom hyperparameter training
 """
 
 import sys
@@ -76,41 +75,6 @@ def run_synchronous():
     return result
 
 
-def run_with_job_queue():
-    """Run the ML training pipeline using the job queue."""
-    print("🤖 Running ML training pipeline via job queue...")
-
-    # Load the FlowerPower project
-    project = FlowerPowerProject.load(str(project_root))
-
-    # Enqueue the pipeline on the training queue for long-running ML jobs
-    job_id = project.enqueue("customer_churn", queue_name="training")
-    print(f"📋 Training job queued with ID: {job_id}")
-
-    # Note: You would need to start a worker separately to process this job
-    print("⚠️  Remember to start a worker to process the training job:")
-    print("   flowerpower job-queue start-worker --queue-names training")
-
-    return job_id
-
-
-def schedule_retraining():
-    """Schedule the ML training pipeline for regular retraining."""
-    print("📅 Scheduling ML model retraining...")
-
-    # Load the FlowerPower project
-    project = FlowerPowerProject.load(str(project_root))
-
-    # Schedule the pipeline (uses cron from config: weekly on Sundays at 2 AM)
-    schedule_id = project.schedule("customer_churn")
-    print(f"⏰ Model retraining scheduled with ID: {schedule_id}")
-    print("📈 Model will retrain weekly on Sundays at 2 AM")
-
-    # Note: You would need to start a worker with scheduler to process scheduled jobs
-    print("⚠️  Remember to start a worker with scheduler:")
-    print("   flowerpower job-queue start-worker --with-scheduler")
-
-    return schedule_id
 
 
 def train_with_hyperparameters():
@@ -161,16 +125,6 @@ def sync():
     run_synchronous()
 
 
-@app.command()
-def queue():
-    """Run training pipeline via job queue."""
-    run_with_job_queue()
-
-
-@app.command()
-def schedule():
-    """Schedule pipeline for regular retraining."""
-    schedule_retraining()
 
 
 @app.command()

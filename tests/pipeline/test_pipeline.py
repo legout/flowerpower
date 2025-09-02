@@ -7,7 +7,6 @@ from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
 from flowerpower.cfg.pipeline.run import ExecutorConfig
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
-from flowerpower.cfg.project.job_queue import JobQueueConfig
 from flowerpower.flowerpower import FlowerPowerProject
 from flowerpower.pipeline.pipeline import Pipeline
 
@@ -16,10 +15,9 @@ class TestPipeline(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures for Pipeline tests."""
         # Create mock project configuration
-        job_queue_cfg = JobQueueConfig(type="rq", backend={"type": "redis"})
         adapter_cfg = AdapterConfig()
         self.project_cfg = ProjectConfig(
-            name="test_project", job_queue=job_queue_cfg, adapter=adapter_cfg
+            name="test_project", adapter=adapter_cfg
         )
 
         # Create mock project context

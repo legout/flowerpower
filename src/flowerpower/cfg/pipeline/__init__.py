@@ -9,7 +9,7 @@ from .adapter import AdapterConfig
 from .run import ExecutorConfig as ExecutorConfig
 from .run import RunConfig
 from .run import WithAdapterConfig as WithAdapterConfig
-from .schedule import ScheduleConfig
+#from .schedule import ScheduleConfig
 
 
 class PipelineConfig(BaseConfig):
@@ -22,7 +22,7 @@ class PipelineConfig(BaseConfig):
     Attributes:
         name (str | None): The name of the pipeline.
         run (RunConfig): Configuration for pipeline execution.
-        schedule (ScheduleConfig): Configuration for pipeline scheduling.
+        schedule (ScheduleConfig): Configuration for pipeline scheduling. DEPRECATED.
         params (dict): Pipeline parameters.
         adapter (AdapterConfig): Configuration for the pipeline adapter.
         h_params (dict): Hamilton-formatted parameters.
@@ -45,7 +45,7 @@ class PipelineConfig(BaseConfig):
 
     name: str | None = msgspec.field(default=None)
     run: RunConfig = msgspec.field(default_factory=RunConfig)
-    schedule: ScheduleConfig = msgspec.field(default_factory=ScheduleConfig)
+    #: ScheduleConfig = msgspec.field(default_factory=ScheduleConfig)
     params: dict = msgspec.field(default_factory=dict)
     adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
     h_params: dict = msgspec.field(default_factory=dict)

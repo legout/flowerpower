@@ -9,7 +9,7 @@ The `FlowerPowerProject` class represents an initialized FlowerPower project, pr
 ### __init__
 
 ```python
-__init__(self, pipeline_manager: PipelineManager, job_queue_manager: 'JobQueueManager' | None = None)
+__init__(self, pipeline_manager: PipelineManager)
 ...
 ```
 
@@ -18,20 +18,16 @@ Initializes a `FlowerPowerProject` instance. This constructor is typically calle
 | Parameter | Type | Description |
 |:----------|:-----|:------------|
 | `pipeline_manager` | `PipelineManager` | An instance of `PipelineManager` to manage pipelines within this project. |
-| `job_queue_manager` | `JobQueueManager \| None` | An optional instance of `JobQueueManager` to handle job queue operations (requires flowerpower-scheduler package). |
 
 ## Attributes
 
 | Attribute | Type | Description |
 |:----------|:-----|:------------|
 | `pipeline_manager` | `PipelineManager` | Manages pipelines within the project. |
-| `job_queue_manager` | `JobQueueManager \| None` | Manages job queue operations, if configured. |
 | `name` | `str` | The name of the current project. |
 | `_base_dir` | `str` | The base directory of the project. |
 | `_fs` | `AbstractFileSystem` | The fsspec-compatible filesystem instance used by the project. |
 | `_storage_options` | `dict \| Munch \| BaseStorageOptions` | Storage options for the filesystem. |
-| `job_queue_type` | `str \| None` | The type of job queue configured for the project (e.g., "rq"). |
-| `job_queue_backend` | `Any \| None` | The backend instance for the job queue, if configured. |
 
 ## Methods
 
@@ -46,11 +42,11 @@ Execute a pipeline synchronously and return its results.
 
 This is a convenience method that delegates to the pipeline manager. It provides the same functionality as `self.pipeline_manager.run()`.
 
-This method supports two ways of providing execution configuration:
-1. Using a `RunConfig` object (recommended) - provides a structured way to pass all execution parameters
-2. Using individual parameters (legacy) - allows specifying parameters individually
+This method supports two primary ways of providing execution configuration:
+1. Using a `RunConfig` object (recommended): Provides a structured way to pass all execution parameters.
+2. Using individual parameters (`**kwargs`): Allows specifying parameters directly, which will override corresponding values in the `RunConfig` if both are provided.
 
-When both `run_config` and individual parameters are provided, the individual parameters take precedence over the corresponding values in `run_config`.
+When both `run_config` and individual parameters (`**kwargs`) are provided, the individual parameters take precedence over the corresponding values in `run_config`.
 
 | Parameter | Type | Description | Default |
 |:----------|:-----|:------------|:--------|
@@ -86,14 +82,15 @@ When both `run_config` and individual parameters are provided, the individual pa
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.run_config import RunConfig, RunConfigBuilder
+from flowerpower.cfg.pipeline.run import RunConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 project = FlowerPowerProject.load(".")
 
 # Simple execution
 result = project.run("my_pipeline")
 
-# With custom inputs (legacy approach)
+# Using individual parameters (kwargs)
 result = project.run(
     "ml_pipeline",
     inputs={"data_date": "2025-01-01"},
@@ -108,7 +105,7 @@ config = RunConfig(
 )
 result = project.run("ml_pipeline", run_config=config)
 
-# Using RunConfigBuilder (recommended)
+# Using RunConfigBuilder from flowerpower.cfg.pipeline.builder (recommended)
 config = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01"})
@@ -119,7 +116,7 @@ config = (
 )
 result = project.run("ml_pipeline", run_config=config)
 
-# Mixing RunConfig with individual parameters
+# Mixing RunConfig with individual parameters (kwargs)
 # Individual parameters take precedence over RunConfig values
 base_config = RunConfigBuilder().with_log_level("INFO").build()
 result = project.run(

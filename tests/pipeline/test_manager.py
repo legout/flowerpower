@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch, MagicMock
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
 from flowerpower.cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
-from flowerpower.cfg.project.job_queue import JobQueueConfig
 from flowerpower.pipeline.manager import PipelineManager
 from flowerpower.pipeline.pipeline import Pipeline
 
@@ -17,10 +17,9 @@ class TestPipelineManager(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures for PipelineManager tests."""
         # Create mock project configuration
-        job_queue_cfg = JobQueueConfig(type="rq", backend={"type": "redis"})
         adapter_cfg = AdapterConfig()
         self.project_cfg = ProjectConfig(
-            name="test_project", job_queue=job_queue_cfg, adapter=adapter_cfg
+            name="test_project", adapter=adapter_cfg
         )
 
         # Create mock module with Hamilton functions
@@ -54,6 +53,12 @@ class TestPipelineManager(unittest.TestCase):
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
         
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+        
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
@@ -71,7 +76,7 @@ class TestPipelineManager(unittest.TestCase):
             inputs={"x": 10, "y": 20},
             final_vars=["add_numbers"],
             config={"test_param": "test_value"},
-            executor_cfg={"type": "synchronous"},
+            executor=ExecutorConfig(type="synchronous"),
             max_retries=2,
             retry_delay=1.0,
             log_level="DEBUG"
@@ -107,6 +112,12 @@ class TestPipelineManager(unittest.TestCase):
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
         
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+        
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
@@ -121,13 +132,12 @@ class TestPipelineManager(unittest.TestCase):
         
         # Create RunConfig using builder
         run_config = (
-            RunConfigBuilder()
+            RunConfigBuilder(pipeline_name="test_pipeline")
             .with_inputs({"x": 5, "y": 15})
             .with_final_vars(["multiply_numbers"])
             .with_config({"builder_test": True})
-            .with_executor_cfg("synchronous")
-            .with_max_retries(3)
-            .with_retry_delay(2.0)
+            .with_executor("synchronous")
+            .with_retries(max_attempts=3, delay=2.0)
             .with_log_level("INFO")
             .build()
         )
@@ -160,6 +170,12 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
+        
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
         
         # Setup mock registry
         mock_registry = MagicMock()
@@ -214,6 +230,12 @@ class TestPipelineManager(unittest.TestCase):
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
         
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+        
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
@@ -265,6 +287,18 @@ class TestPipelineManager(unittest.TestCase):
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
         
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+        
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+        
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
@@ -301,6 +335,12 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
+        
+        # Mock the file operations for YAML loading
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
         
         # Setup mock registry
         mock_registry = MagicMock()

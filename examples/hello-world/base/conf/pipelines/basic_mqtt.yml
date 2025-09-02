@@ -37,7 +37,3 @@ run:
     opentelemetry: false
     progressbar: false
     ray: false
-schedule:
-  cron: null
-  date: null
-  interval: null

@@ -5,6 +5,7 @@ from typing_extensions import Annotated
 
 from ..flowerpower import FlowerPowerProject
 from ..pipeline.manager import HookType, PipelineManager
+from ..cfg.pipeline.run import RunConfig
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param
 
@@ -114,18 +115,23 @@ def run(
         raise typer.Exit(1)
 
     try:
-        _ = project.run(
-            name=name,
+        # Construct RunConfig object from parsed CLI arguments
+        run_config = RunConfig(
             inputs=parsed_inputs,
             final_vars=parsed_final_vars,
             config=parsed_config,
             cache=parsed_cache,
-            executor_cfg=executor,
-            with_adapter_cfg=parsed_with_adapter,
+            with_adapter=parsed_with_adapter,
             max_retries=max_retries,
             retry_delay=retry_delay,
             jitter_factor=jitter_factor,
         )
+        
+        # Handle executor configuration
+        if executor is not None:
+            run_config.executor.type = executor
+
+        _ = project.run(name=name, run_config=run_config)
         logger.info(f"Pipeline '{name}' finished running.")
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}")

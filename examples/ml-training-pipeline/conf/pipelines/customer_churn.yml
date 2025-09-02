@@ -38,7 +38,3 @@ run:
   executor:
     type: threadpool
     max_workers: 4
-
-schedule:
-  # Retrain model weekly on Sundays at 2 AM
-  cron: "0 2 * * 0"
