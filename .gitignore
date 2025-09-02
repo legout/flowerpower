@@ -64,3 +64,9 @@ package-lock.json
 docs/mkdocs/mkdocs.yml
 RUN_METHOD_ANALYSIS.md
 docs/mkdocs/site/**
+flowerpower_llm_context_1.md
+flowerpower_llm_context_2.md
+flowerpower_llm_context3.md
+flowerpower_llm_doc_1.md
+flowerpower_llm_doc_2.md
+flowerpower_llm_doc_3.md
