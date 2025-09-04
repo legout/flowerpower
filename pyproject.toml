@@ -74,5 +74,6 @@ dev-dependencies = [
   "pymdown-extensions>=10.16.1",
   "mkdocstrings>=0.30.0",
   "mkdocstrings-python>=1.17.0",
+  "repomix>=0.3.4",
 ]
 package = true

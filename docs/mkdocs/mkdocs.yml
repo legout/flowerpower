@@ -50,7 +50,6 @@ nav:
       - create_project: api/create_project.md
       - CLI:
           - CLI: api/cli.md
-          - MQTT CLI: api/cli_mqtt.md
           - Pipeline CLI: api/cli_pipeline.md
   - Contributing: contributing.md
 

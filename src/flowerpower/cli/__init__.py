@@ -19,13 +19,6 @@ app.add_typer(
 )
 
 
-# if importlib.util.find_spec("paho"):
-#     from ._mqtt import app as mqtt_app
-
-#     app.add_typer(
-#         mqtt_app, name="mqtt", help="Connect pipelines to MQTT message brokers"
-#     )
-
 
 @app.command()
 def init(
