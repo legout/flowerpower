@@ -40,13 +40,11 @@ class PipelineManager:
     - Configuration management and loading
     - Pipeline creation, deletion, and discovery
     - Pipeline execution via PipelineRunner
-    - Job scheduling via PipelineScheduler
     - Visualization via PipelineVisualizer
     - Import/export operations via PipelineIOManager
 
     Attributes:
         registry (PipelineRegistry): Handles pipeline registration and discovery
-        scheduler (PipelineScheduler): Manages job scheduling and execution
         visualizer (PipelineVisualizer): Handles pipeline visualization
         io (PipelineIOManager): Manages pipeline import/export operations
         project_cfg (ProjectConfig): Current project configuration
