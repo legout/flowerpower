@@ -78,12 +78,14 @@ class PipelineConfig(BaseConfig):
     @classmethod
     def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem):
         with fs.open(path) as f:
-            data = yaml.full_load(f)
+            data = yaml.safe_load(f)
             return cls.from_dict(name=name, data=data)
 
     def update(self, d: dict | Munch):
         for k, v in d.items():
-            eval(f"self.{k}.update({v})")
+            # Safe attribute access instead of eval()
+            if hasattr(self, k) and hasattr(getattr(self, k), 'update'):
+                getattr(self, k).update(v)
             if k == "params":
                 self.params.update(munchify(v))
                 self.h_params = munchify(self.to_h_params(self.params))

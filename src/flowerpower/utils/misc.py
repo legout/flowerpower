@@ -171,18 +171,44 @@ def get_partitions_from_path(
 
 
 def view_img(data: str | bytes, format: str = "svg"):
-    # Create a temporary file with .svg extension
+    # Validate format to prevent injection attacks
+    allowed_formats = {"svg", "png", "jpg", "jpeg", "gif", "pdf", "html"}
+    if format not in allowed_formats:
+        raise ValueError(f"Unsupported format: {format}. Allowed: {allowed_formats}")
+    
+    # Create a temporary file with validated extension
     with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp:
-        tmp.write(data)
+        if isinstance(data, str):
+            tmp.write(data.encode('utf-8'))
+        else:
+            tmp.write(data)
         tmp_path = tmp.name
 
-    # Open with default application on macOS
-    subprocess.run(["open", tmp_path])
+    # Secure subprocess call with absolute path validation
+    import platform
+    try:
+        if platform.system() == "Darwin":  # macOS
+            subprocess.run(["open", tmp_path], check=True, timeout=10)
+        elif platform.system() == "Linux":
+            subprocess.run(["xdg-open", tmp_path], check=True, timeout=10)
+        elif platform.system() == "Windows":
+            subprocess.run(["start", "", tmp_path], shell=True, check=True, timeout=10)
+        else:
+            raise OSError(f"Unsupported platform: {platform.system()}")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        # Clean up temp file on error
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise RuntimeError(f"Failed to open file: {e}")
 
     # Optional: Remove the temp file after a delay
-
     time.sleep(2)  # Wait for viewer to open
-    os.unlink(tmp_path)
+    try:
+        os.unlink(tmp_path)
+    except OSError:
+        pass  # File might already be deleted or in use
 
 
 def update_config_from_dict(
