@@ -4,15 +4,8 @@ description = "A simple workflow framework for building and managing data proces
 authors = [{ name = "Volker L.", email = "ligno.blades@gmail.com" }]
 readme = "README.md"
 requires-python = ">= 3.11"
-version = "0.21.0"
-keywords = [
-  "hamilton",
-  "workflow",
-  "pipeline",
-  "scheduler",
-  "dask",
-  "ray",
-]
+version = "0.30.0"
+keywords = ["hamilton", "workflow", "pipeline", "scheduler", "dask", "ray"]
 
 dependencies = [
   #'dill>=0.3.8',
