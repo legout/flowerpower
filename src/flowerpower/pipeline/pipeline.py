@@ -58,8 +58,9 @@ else:
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, RunConfig, WithAdapterConfig
+from ..cfg.pipeline.run import RunConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from ..utils.config import merge_run_config_with_kwargs
 
 if TYPE_CHECKING:
     from ..flowerpower import FlowerPowerProject
@@ -91,75 +92,6 @@ class Pipeline(msgspec.Struct):
         if not settings.HAMILTON_AUTOLOAD_EXTENSIONS:
             disable_autoload()
 
-    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
-        """Merge kwargs into the run_config object.
-        
-        Args:
-            run_config: The base RunConfig object to merge into
-            kwargs: Additional parameters to merge into the run_config
-            
-        Returns:
-            Updated RunConfig object with merged kwargs
-        """
-        from copy import deepcopy
-        
-        # Create a deep copy of the run_config to avoid modifying the original
-        merged_config = deepcopy(run_config)
-        
-        # Handle each possible kwarg
-        for key, value in kwargs.items():
-            if key == 'inputs' and value is not None:
-                if merged_config.inputs is None:
-                    merged_config.inputs = {}
-                merged_config.inputs.update(value)
-            elif key == 'final_vars' and value is not None:
-                if merged_config.final_vars is None:
-                    merged_config.final_vars = []
-                merged_config.final_vars = value
-            elif key == 'config' and value is not None:
-                if merged_config.config is None:
-                    merged_config.config = {}
-                merged_config.config.update(value)
-            elif key == 'cache' and value is not None:
-                merged_config.cache = value
-            elif key == 'executor_cfg' and value is not None:
-                if isinstance(value, str):
-                    merged_config.executor = ExecutorConfig(type=value)
-                elif isinstance(value, dict):
-                    merged_config.executor = ExecutorConfig.from_dict(value)
-                elif isinstance(value, ExecutorConfig):
-                    merged_config.executor = value
-            elif key == 'with_adapter_cfg' and value is not None:
-                if isinstance(value, dict):
-                    merged_config.with_adapter = WithAdapterConfig.from_dict(value)
-                elif isinstance(value, WithAdapterConfig):
-                    merged_config.with_adapter = value
-            elif key == 'pipeline_adapter_cfg' and value is not None:
-                merged_config.pipeline_adapter_cfg = value
-            elif key == 'project_adapter_cfg' and value is not None:
-                merged_config.project_adapter_cfg = value
-            elif key == 'adapter' and value is not None:
-                if merged_config.adapter is None:
-                    merged_config.adapter = {}
-                merged_config.adapter.update(value)
-            elif key == 'reload' and value is not None:
-                merged_config.reload = value
-            elif key == 'log_level' and value is not None:
-                merged_config.log_level = value
-            elif key == 'max_retries' and value is not None:
-                merged_config.max_retries = value
-            elif key == 'retry_delay' and value is not None:
-                merged_config.retry_delay = value
-            elif key == 'jitter_factor' and value is not None:
-                merged_config.jitter_factor = value
-            elif key == 'retry_exceptions' and value is not None:
-                merged_config.retry_exceptions = value
-            elif key == 'on_success' and value is not None:
-                merged_config.on_success = value
-            elif key == 'on_failure' and value is not None:
-                merged_config.on_failure = value
-        
-        return merged_config
 
     def run(
         self,
@@ -183,7 +115,7 @@ class Pipeline(msgspec.Struct):
         
         # Merge kwargs into the run_config
         if kwargs:
-            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
+            run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
         # Reload module if requested
         if run_config.reload:

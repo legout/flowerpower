@@ -8,7 +8,19 @@ from ..utils.misc import get_filesystem
 
 class BaseConfig(msgspec.Struct, kw_only=True):
     def to_dict(self) -> dict[str, Any]:
-        return msgspec.to_builtins(self)
+        # Convert to dictionary, handling special cases like type objects
+        result = {}
+        for field in self.__struct_fields__:
+            value = getattr(self, field)
+            if isinstance(value, type):
+                # Convert type objects to string representation
+                result[field] = str(value)
+            elif hasattr(value, '__struct_fields__'):
+                # Recursively convert nested msgspec structs
+                result[field] = value.to_dict()
+            else:
+                result[field] = value
+        return result
 
     def to_yaml(self, path: str, fs: AbstractFileSystem | None = None) -> None:
         """

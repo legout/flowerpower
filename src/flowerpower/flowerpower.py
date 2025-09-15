@@ -17,7 +17,8 @@ from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
-from .utils.security import validate_pipeline_name, validate_config_dict, validate_callback_function
+from .utils.security import validate_pipeline_name
+from .utils.config import merge_run_config_with_kwargs
 
 setup_logging()
 
@@ -67,82 +68,6 @@ class FlowerPowerProject:
         # This will be used when creating Pipeline instances
         self.pipeline_manager._project_context = self
 
-    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
-        """Merge kwargs into a RunConfig object.
-        
-        This helper method updates the RunConfig object with values from kwargs,
-        handling different types of attributes appropriately.
-        
-        Args:
-            run_config: The RunConfig object to update
-            kwargs: Dictionary of additional parameters to merge
-            
-        Returns:
-            RunConfig: Updated RunConfig object
-        """
-        # Handle dictionary-like attributes with update or deep merge
-        if 'inputs' in kwargs and kwargs['inputs'] is not None:
-            validate_config_dict(kwargs['inputs'])  # Validate inputs
-            if run_config.inputs is None:
-                run_config.inputs = kwargs['inputs']
-            else:
-                run_config.inputs.update(kwargs['inputs'])
-                
-        if 'config' in kwargs and kwargs['config'] is not None:
-            validate_config_dict(kwargs['config'])  # Validate config
-            if run_config.config is None:
-                run_config.config = kwargs['config']
-            else:
-                run_config.config.update(kwargs['config'])
-                
-        if 'cache' in kwargs and kwargs['cache'] is not None:
-            run_config.cache = kwargs['cache']
-            
-        if 'adapter' in kwargs and kwargs['adapter'] is not None:
-            if run_config.adapter is None:
-                run_config.adapter = kwargs['adapter']
-            else:
-                run_config.adapter.update(kwargs['adapter'])
-        
-        # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
-        if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
-            executor_cfg = kwargs['executor_cfg']
-            if isinstance(executor_cfg, str):
-                run_config.executor = ExecutorConfig(type=executor_cfg)
-            elif isinstance(executor_cfg, dict):
-                run_config.executor = ExecutorConfig.from_dict(executor_cfg)
-            elif isinstance(executor_cfg, ExecutorConfig):
-                run_config.executor = executor_cfg
-        
-        # Handle adapter configurations
-        if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
-            with_adapter_cfg = kwargs['with_adapter_cfg']
-            if isinstance(with_adapter_cfg, dict):
-                run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
-            elif isinstance(with_adapter_cfg, WithAdapterConfig):
-                run_config.with_adapter = with_adapter_cfg
-                
-        if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
-            run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
-            
-        if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
-            run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
-        
-        # Handle simple attributes
-        simple_attrs = [
-            'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
-            'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
-        ]
-        
-        for attr in simple_attrs:
-            if attr in kwargs and kwargs[attr] is not None:
-                value = kwargs[attr]
-                # Validate callbacks for security
-                if attr in ['on_success', 'on_failure']:
-                    validate_callback_function(value)
-                setattr(run_config, attr, value)
-        
-        return run_config
 
     # --- Convenience Methods for Pipeline Operations ---
 
@@ -237,7 +162,7 @@ class FlowerPowerProject:
         
         # Merge kwargs into run_config
         if kwargs:
-            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
+            run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
         return self.pipeline_manager.run(
             name=name,

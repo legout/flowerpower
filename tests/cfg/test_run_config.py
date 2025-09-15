@@ -1,7 +1,9 @@
 import pytest
+import warnings
 from unittest.mock import Mock, patch
 
-from flowerpower.cfg.pipeline.run import RunConfig, RunConfigBuilder, ExecutorConfig, WithAdapterConfig
+from flowerpower.cfg.pipeline.run import RunConfig, ExecutorConfig, WithAdapterConfig, CallbackSpec
+from flowerpower.utils.config import RunConfigBuilder
 from flowerpower.cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 
@@ -17,18 +19,18 @@ class TestRunConfig:
         assert run_config.inputs == {}
         assert run_config.final_vars == []
         assert run_config.config == {}
-        assert run_config.cache == {}
-        assert run_config.executor_cfg is None
-        assert run_config.with_adapter_cfg is None
+        assert run_config.cache is False
+        assert run_config.executor.type == "threadpool"
+        assert run_config.with_adapter.hamilton_tracker is False
         assert run_config.pipeline_adapter_cfg is None
         assert run_config.project_adapter_cfg is None
         assert run_config.adapter is None
         assert run_config.reload is False
-        assert run_config.log_level is None
-        assert run_config.max_retries is None
-        assert run_config.retry_delay is None
-        assert run_config.jitter_factor is None
-        assert run_config.retry_exceptions is None
+        assert run_config.log_level == "INFO"
+        assert run_config.max_retries == 3
+        assert run_config.retry_delay == 1
+        assert run_config.jitter_factor == 0.1
+        assert run_config.retry_exceptions == [Exception]
         assert run_config.on_success is None
         assert run_config.on_failure is None
 
@@ -38,12 +40,12 @@ class TestRunConfig:
         final_vars = ["result1", "result2"]
         config = {"param": "value"}
         cache = {"recompute": ["node1"]}
-        executor_cfg = ExecutorConfig(type="threadpool", max_workers=4)
-        with_adapter_cfg = WithAdapterConfig(hamilton_tracker=True)
+        executor = ExecutorConfig(type="threadpool", max_workers=4)
+        with_adapter = WithAdapterConfig(hamilton_tracker=True)
         pipeline_adapter_cfg = PipelineAdapterConfig()
         project_adapter_cfg = ProjectAdapterConfig()
         adapter = {"custom": Mock()}
-        retry_exceptions = (ValueError, TypeError)
+        retry_exceptions = [ValueError, TypeError]
         on_success = Mock()
         on_failure = Mock()
 
@@ -52,8 +54,8 @@ class TestRunConfig:
             final_vars=final_vars,
             config=config,
             cache=cache,
-            executor_cfg=executor_cfg,
-            with_adapter_cfg=with_adapter_cfg,
+            executor=executor,
+            with_adapter=with_adapter,
             pipeline_adapter_cfg=pipeline_adapter_cfg,
             project_adapter_cfg=project_adapter_cfg,
             adapter=adapter,
@@ -71,8 +73,8 @@ class TestRunConfig:
         assert run_config.final_vars == final_vars
         assert run_config.config == config
         assert run_config.cache == cache
-        assert run_config.executor_cfg == executor_cfg
-        assert run_config.with_adapter_cfg == with_adapter_cfg
+        assert run_config.executor == executor
+        assert run_config.with_adapter == with_adapter
         assert run_config.pipeline_adapter_cfg == pipeline_adapter_cfg
         assert run_config.project_adapter_cfg == project_adapter_cfg
         assert run_config.adapter == adapter
@@ -82,21 +84,21 @@ class TestRunConfig:
         assert run_config.retry_delay == 2.0
         assert run_config.jitter_factor == 0.2
         assert run_config.retry_exceptions == retry_exceptions
-        assert run_config.on_success == on_success
-        assert run_config.on_failure == on_failure
+        assert run_config.on_success.func == on_success
+        assert run_config.on_failure.func == on_failure
 
     def test_run_config_to_dict(self):
         """Test RunConfig to_dict conversion."""
         inputs = {"x": 1}
         final_vars = ["result"]
         config = {"param": "value"}
-        executor_cfg = ExecutorConfig(type="synchronous")
+        executor = ExecutorConfig(type="synchronous")
         
         run_config = RunConfig(
             inputs=inputs,
             final_vars=final_vars,
             config=config,
-            executor_cfg=executor_cfg,
+            executor=executor,
         )
         
         result_dict = run_config.to_dict()
@@ -104,7 +106,7 @@ class TestRunConfig:
         assert result_dict["inputs"] == inputs
         assert result_dict["final_vars"] == final_vars
         assert result_dict["config"] == config
-        assert result_dict["executor_cfg"] == executor_cfg.to_dict()
+        assert result_dict["executor"]["type"] == "synchronous"
 
     def test_run_config_from_dict(self):
         """Test RunConfig from_dict creation."""
@@ -113,8 +115,8 @@ class TestRunConfig:
             "final_vars": ["result1", "result2"],
             "config": {"param": "value"},
             "cache": {"recompute": ["node1"]},
-            "executor_cfg": {"type": "threadpool", "max_workers": 4},
-            "with_adapter_cfg": {"hamilton_tracker": True},
+            "executor": {"type": "threadpool", "max_workers": 4},
+            "with_adapter": {"hamilton_tracker": True},
             "reload": True,
             "log_level": "DEBUG",
             "max_retries": 3,
@@ -128,9 +130,9 @@ class TestRunConfig:
         assert run_config.final_vars == ["result1", "result2"]
         assert run_config.config == {"param": "value"}
         assert run_config.cache == {"recompute": ["node1"]}
-        assert run_config.executor_cfg.type == "threadpool"
-        assert run_config.executor_cfg.max_workers == 4
-        assert run_config.with_adapter_cfg.hamilton_tracker is True
+        assert run_config.executor.type == "threadpool"
+        assert run_config.executor.max_workers == 4
+        assert run_config.with_adapter.hamilton_tracker is True
         assert run_config.reload is True
         assert run_config.log_level == "DEBUG"
         assert run_config.max_retries == 3
@@ -146,11 +148,11 @@ class TestRunConfig:
         assert run_config.inputs == {"x": 1}
         assert run_config.final_vars == []
         assert run_config.config == {}
-        assert run_config.cache == {}
-        assert run_config.executor_cfg is None
+        assert run_config.cache is False
+        assert run_config.executor.type == "threadpool"  # Has default
         assert run_config.reload is False
-        assert run_config.log_level is None
-        assert run_config.max_retries is None
+        assert run_config.log_level == "INFO"  # Has default
+        assert run_config.max_retries == 3  # Has default
 
 
 class TestRunConfigBuilder:
@@ -165,18 +167,18 @@ class TestRunConfigBuilder:
         assert run_config.inputs == {}
         assert run_config.final_vars == []
         assert run_config.config == {}
-        assert run_config.cache == {}
-        assert run_config.executor_cfg is None
-        assert run_config.with_adapter_cfg is None
+        assert run_config.cache is False
+        assert run_config.executor.type == "threadpool"
+        assert run_config.with_adapter.hamilton_tracker is False
         assert run_config.pipeline_adapter_cfg is None
         assert run_config.project_adapter_cfg is None
         assert run_config.adapter is None
         assert run_config.reload is False
-        assert run_config.log_level is None
-        assert run_config.max_retries is None
-        assert run_config.retry_delay is None
-        assert run_config.jitter_factor is None
-        assert run_config.retry_exceptions is None
+        assert run_config.log_level == "INFO"
+        assert run_config.max_retries == 3
+        assert run_config.retry_delay == 1
+        assert run_config.jitter_factor == 0.1
+        assert run_config.retry_exceptions == [Exception]
         assert run_config.on_success is None
         assert run_config.on_failure is None
 
@@ -185,12 +187,12 @@ class TestRunConfigBuilder:
         inputs = {"x": 1, "y": 2}
         final_vars = ["result1", "result2"]
         config = {"param": "value"}
-        executor_cfg = ExecutorConfig(type="threadpool")
-        with_adapter_cfg = WithAdapterConfig(hamilton_tracker=True)
+        executor = ExecutorConfig(type="threadpool")
+        with_adapter = WithAdapterConfig(hamilton_tracker=True)
         pipeline_adapter_cfg = PipelineAdapterConfig()
         project_adapter_cfg = ProjectAdapterConfig()
         adapter = {"custom": Mock()}
-        retry_exceptions = (ValueError, TypeError)
+        retry_exceptions = [ValueError, TypeError]
         on_success = Mock()
         on_failure = Mock()
 
@@ -200,8 +202,8 @@ class TestRunConfigBuilder:
             .with_final_vars(final_vars)
             .with_config(config)
             .with_cache(cache={"recompute": ["node1"]})
-            .with_executor_cfg(executor_cfg)
-            .with_with_adapter_cfg(with_adapter_cfg)
+            .with_executor(executor)
+            .with_with_adapter_cfg(with_adapter)
             .with_pipeline_adapter_cfg(pipeline_adapter_cfg)
             .with_project_adapter_cfg(project_adapter_cfg)
             .with_adapter(adapter)
@@ -220,8 +222,8 @@ class TestRunConfigBuilder:
         assert run_config.final_vars == final_vars
         assert run_config.config == config
         assert run_config.cache == {"recompute": ["node1"]}
-        assert run_config.executor_cfg == executor_cfg
-        assert run_config.with_adapter_cfg == with_adapter_cfg
+        assert run_config.executor == executor
+        assert run_config.with_adapter == with_adapter
         assert run_config.pipeline_adapter_cfg == pipeline_adapter_cfg
         assert run_config.project_adapter_cfg == project_adapter_cfg
         assert run_config.adapter == adapter
@@ -231,33 +233,33 @@ class TestRunConfigBuilder:
         assert run_config.retry_delay == 2.0
         assert run_config.jitter_factor == 0.2
         assert run_config.retry_exceptions == retry_exceptions
-        assert run_config.on_success == on_success
-        assert run_config.on_failure == on_failure
+        assert run_config.on_success.func == on_success
+        assert run_config.on_failure.func == on_failure
 
-    def test_builder_with_dict_executor_cfg(self):
+    def test_builder_with_dict_executor(self):
         """Test RunConfigBuilder with dictionary executor config."""
         executor_dict = {"type": "threadpool", "max_workers": 4}
         
         run_config = (
             RunConfigBuilder()
-            .with_executor_cfg(executor_dict)
+            .with_executor(executor_dict)
             .build()
         )
         
-        assert run_config.executor_cfg.type == "threadpool"
-        assert run_config.executor_cfg.max_workers == 4
+        assert run_config.executor.type == "threadpool"
+        assert run_config.executor.max_workers == 4
 
-    def test_builder_with_string_executor_cfg(self):
+    def test_builder_with_string_executor(self):
         """Test RunConfigBuilder with string executor config."""
         run_config = (
             RunConfigBuilder()
-            .with_executor_cfg("threadpool")
+            .with_executor("threadpool")
             .build()
         )
         
-        assert run_config.executor_cfg.type == "threadpool"
+        assert run_config.executor.type == "threadpool"
 
-    def test_builder_with_dict_with_adapter_cfg(self):
+    def test_builder_with_dict_with_adapter(self):
         """Test RunConfigBuilder with dictionary with_adapter config."""
         adapter_dict = {"hamilton_tracker": True, "mlflow": False}
         
@@ -267,8 +269,8 @@ class TestRunConfigBuilder:
             .build()
         )
         
-        assert run_config.with_adapter_cfg.hamilton_tracker is True
-        assert run_config.with_adapter_cfg.mlflow is False
+        assert run_config.with_adapter.hamilton_tracker is True
+        assert run_config.with_adapter.mlflow is False
 
     def test_builder_partial_configuration(self):
         """Test RunConfigBuilder with only some fields configured."""
@@ -286,7 +288,7 @@ class TestRunConfigBuilder:
         # Other fields should have defaults
         assert run_config.config == {}
         assert run_config.reload is False
-        assert run_config.log_level is None
+        assert run_config.log_level == "INFO"
 
     def test_builder_reset(self):
         """Test RunConfigBuilder reset functionality."""
@@ -301,7 +303,7 @@ class TestRunConfigBuilder:
         
         # Should be back to defaults
         assert run_config.inputs == {}
-        assert run_config.max_retries is None
+        assert run_config.max_retries == 3
 
     def test_builder_from_existing_config(self):
         """Test RunConfigBuilder from existing RunConfig."""
