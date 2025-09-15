@@ -9,6 +9,7 @@ import importlib.util
 import random
 import time
 from typing import TYPE_CHECKING, Any, Callable
+from requests.exceptions import HTTPError, ConnectionError, Timeout # Example exception
 
 import humanize
 import msgspec
@@ -222,23 +223,33 @@ class Pipeline(msgspec.Struct):
         # Convert string exceptions to actual exception classes
         if retry_exceptions and isinstance(retry_exceptions, (list, tuple)):
             converted_exceptions = []
+            # Safe mapping of exception names to classes
+            exception_mapping = {
+                'Exception': Exception,
+                'ValueError': ValueError,
+                'TypeError': TypeError,
+                'RuntimeError': RuntimeError,
+                'FileNotFoundError': FileNotFoundError,
+                'PermissionError': PermissionError,
+                'ConnectionError': ConnectionError,
+                'TimeoutError': TimeoutError,
+                'KeyError': KeyError,
+                'AttributeError': AttributeError,
+                'ImportError': ImportError,
+                'OSError': OSError,
+                'IOError': IOError,
+                'HTTPError': HTTPError,
+                'ConnectionError': ConnectionError,
+                'Timeout': Timeout,
+            }
             for exc in retry_exceptions:
                 if isinstance(exc, str):
-                    try:
-                        exc_class = eval(exc)
-                        # Ensure it's actually an exception class
-                        if isinstance(exc_class, type) and issubclass(
-                            exc_class, BaseException
-                        ):
-                            converted_exceptions.append(exc_class)
-                        else:
-                            logger.warning(
-                                f"'{exc}' is not an exception class, using Exception"
-                            )
-                            converted_exceptions.append(Exception)
-                    except (NameError, AttributeError):
+                    exc_class = exception_mapping.get(exc)
+                    if exc_class is not None:
+                        converted_exceptions.append(exc_class)
+                    else:
                         logger.warning(
-                            f"Unknown exception type: {exc}, using Exception"
+                            f"Unknown exception '{exc}', using Exception as fallback"
                         )
                         converted_exceptions.append(Exception)
                 elif isinstance(exc, type) and issubclass(exc, BaseException):

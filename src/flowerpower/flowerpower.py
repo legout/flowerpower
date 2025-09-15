@@ -17,6 +17,7 @@ from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
+from .utils.security import validate_pipeline_name, validate_config_dict, validate_callback_function
 
 setup_logging()
 
@@ -53,13 +54,8 @@ class FlowerPowerProject:
         self.name = self.pipeline_manager.project_cfg.name
 
     def _validate_pipeline_name(self, name: str) -> None:
-        """Validate the pipeline name argument."""
-        if not name or not isinstance(name, str):
-            raise ValueError("Pipeline 'name' must be a non-empty string")
-        if name.strip() != name:
-            raise ValueError(
-                "Pipeline 'name' cannot have leading or trailing whitespace"
-            )
+        """Validate the pipeline name argument using security utilities."""
+        validate_pipeline_name(name)  # Use secure validation function
 
     def _inject_dependencies(self):
         """Inject dependencies between managers for proper architecture.
@@ -86,12 +82,14 @@ class FlowerPowerProject:
         """
         # Handle dictionary-like attributes with update or deep merge
         if 'inputs' in kwargs and kwargs['inputs'] is not None:
+            validate_config_dict(kwargs['inputs'])  # Validate inputs
             if run_config.inputs is None:
                 run_config.inputs = kwargs['inputs']
             else:
                 run_config.inputs.update(kwargs['inputs'])
                 
         if 'config' in kwargs and kwargs['config'] is not None:
+            validate_config_dict(kwargs['config'])  # Validate config
             if run_config.config is None:
                 run_config.config = kwargs['config']
             else:
@@ -138,7 +136,11 @@ class FlowerPowerProject:
         
         for attr in simple_attrs:
             if attr in kwargs and kwargs[attr] is not None:
-                setattr(run_config, attr, kwargs[attr])
+                value = kwargs[attr]
+                # Validate callbacks for security
+                if attr in ['on_success', 'on_failure']:
+                    validate_callback_function(value)
+                setattr(run_config, attr, value)
         
         return run_config
 

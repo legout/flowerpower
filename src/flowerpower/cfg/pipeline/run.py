@@ -1,7 +1,7 @@
 import msgspec
 from munch import munchify
 from typing import Any, Callable
-
+from requests.exceptions import HTTPError, ConnectionError, Timeout # Example exception
 from ... import settings
 from ..base import BaseConfig
 
@@ -93,15 +93,25 @@ class RunConfig(BaseConfig):
             converted_exceptions = []
             for exc in self.retry_exceptions:
                 if isinstance(exc, str):
-                    try:
-                        exc_class = eval(exc)
-                        # Ensure it's actually an exception class
-                        if isinstance(exc_class, type) and issubclass(exc_class, BaseException):
-                            converted_exceptions.append(exc_class)
-                        else:
-                            converted_exceptions.append(Exception)
-                    except (NameError, AttributeError):
-                        converted_exceptions.append(Exception)
+                    # Safe mapping of exception names to classes
+                    exception_mapping = {
+                        'Exception': Exception,
+                        'ValueError': ValueError,
+                        'TypeError': TypeError,
+                        'RuntimeError': RuntimeError,
+                        'FileNotFoundError': FileNotFoundError,
+                        'PermissionError': PermissionError,
+                        'ConnectionError': ConnectionError,
+                        'TimeoutError': TimeoutError,
+                        'KeyError': KeyError,
+                        'AttributeError': AttributeError,
+                        'ImportError': ImportError,
+                        'HTTPError': HTTPError,
+                        'ConnectionError': ConnectionError,
+                        'Timeout': Timeout  # Placeholder for requests.HTTPError
+                    }
+                    exc_class = exception_mapping.get(exc, Exception)
+                    converted_exceptions.append(exc_class)
                 elif isinstance(exc, type) and issubclass(exc, BaseException):
                     converted_exceptions.append(exc)
                 else:
