@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.30.0] - 2025-09-15
+
+### Changes
+- fix: update version to 0.30.0 and streamline keywords in pyproject.toml
+- feat(mqtt): deprecate mqtt module and remove related commands  
+- feat(callback): introduce CallbackSpec for structured callback handling in RunConfig
+- feat(pipeline): remove job scheduling from PipelineManager documentation
+- feat: update dependencies in pyproject.toml and enhance .gitignore for documentation files
+- Refactor code structure for improved readability and maintainability
+- Refactor pipeline registry and settings
+- Remove extensive legacy documentation files (mkdocs site, quarto docs)
+- Remove MQTT examples and pipeline configurations
+- Clean up diagnostics and unused modules
+
 ## [0.21.0] - 2025-09-01
 
 ### Changes
