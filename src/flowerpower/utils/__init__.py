@@ -8,7 +8,6 @@ the main codebase by centralizing common operations.
 from .adapter import AdapterManager, create_adapter_manager
 from .executor import ExecutorFactory, create_executor_factory
 from .filesystem import FilesystemHelper, create_filesystem_helper
-from .project_context import ProjectContextResolver, create_project_context_resolver
 
 __all__ = [
     "AdapterManager",
@@ -17,6 +16,4 @@ __all__ = [
     "create_executor_factory",
     "FilesystemHelper",
     "create_filesystem_helper",
-    "ProjectContextResolver",
-    "create_project_context_resolver",
 ]
