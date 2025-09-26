@@ -82,11 +82,19 @@ class ProjectContextResolver:
         if not self.has_project_manager(project_context):
             return None
 
-        return getattr(
-            project_context.pipeline_manager, "project_cfg", None
-        ) or getattr(
-            project_context.pipeline_manager, "_project_cfg", None
-        )
+        return self._get_config_from_object(project_context.pipeline_manager)
+
+    def _get_config_from_object(self, obj: Any) -> Optional[Any]:
+        """
+        Get configuration from an object using common attribute names.
+        
+        Args:
+            obj: Object to extract configuration from
+            
+        Returns:
+            Configuration object or None if not found
+        """
+        return getattr(obj, "project_cfg", None) or getattr(obj, "_project_cfg", None)
 
     def _extract_project_config(
         self,
@@ -101,17 +109,14 @@ class ProjectContextResolver:
         Returns:
             Project configuration or None
         """
-        # Handle temporary case where project_context is PipelineManager
-        manager_cfg = getattr(
-            project_context, "project_cfg", None
-        ) or getattr(project_context, "_project_cfg", None)
+        # Try to get config directly from the context object
+        config = self._get_config_from_object(project_context)
+        if config:
+            return config
 
-        if manager_cfg:
-            return manager_cfg
-
-        # Use project context directly if it's FlowerPowerProject
+        # If context has a pipeline manager, try to get config from it
         if self.has_project_manager(project_context):
-            return self.get_pipeline_manager_config(project_context)
+            return self._get_config_from_object(project_context.pipeline_manager)
 
         return None
 

@@ -13,6 +13,75 @@ from ..cfg.pipeline.run import (
     WithAdapterConfig,
 )
 from .security import validate_config_dict, validate_callback_function
+def _merge_inputs(run_config: RunConfig, value):
+    """Merge inputs into run config."""
+    validate_config_dict(value)
+    if run_config.inputs is None:
+        run_config.inputs = value
+    else:
+        run_config.inputs.update(value)
+
+
+def _merge_config(run_config: RunConfig, value):
+    """Merge config into run config."""
+    validate_config_dict(value)
+    if run_config.config is None:
+        run_config.config = value
+    else:
+        run_config.config.update(value)
+
+
+def _set_cache(run_config: RunConfig, value):
+    """Set cache in run config."""
+    run_config.cache = value
+
+
+def _merge_adapter(run_config: RunConfig, value):
+    """Merge adapter into run config."""
+    if run_config.adapter is None:
+        run_config.adapter = value
+    else:
+        run_config.adapter.update(value)
+
+
+def _set_executor_cfg(run_config: RunConfig, value):
+    """Set executor config."""
+    if isinstance(value, str):
+        run_config.executor = ExecutorConfig(type=value)
+    elif isinstance(value, dict):
+        run_config.executor = ExecutorConfig.from_dict(value)
+    elif isinstance(value, ExecutorConfig):
+        run_config.executor = value
+
+
+def _set_with_adapter_cfg(run_config: RunConfig, value):
+    """Set with adapter config."""
+    if isinstance(value, dict):
+        run_config.with_adapter = WithAdapterConfig.from_dict(value)
+    elif isinstance(value, WithAdapterConfig):
+        run_config.with_adapter = value
+
+
+def _set_pipeline_adapter_cfg(run_config: RunConfig, value):
+    """Set pipeline adapter config."""
+    run_config.pipeline_adapter_cfg = value
+
+
+def _set_project_adapter_cfg(run_config: RunConfig, value):
+    """Set project adapter config."""
+    run_config.project_adapter_cfg = value
+
+
+_attr_handlers = {
+    'inputs': _merge_inputs,
+    'config': _merge_config,
+    'cache': _set_cache,
+    'adapter': _merge_adapter,
+    'executor_cfg': _set_executor_cfg,
+    'with_adapter_cfg': _set_with_adapter_cfg,
+    'pipeline_adapter_cfg': _set_pipeline_adapter_cfg,
+    'project_adapter_cfg': _set_project_adapter_cfg,
+}
 
 
 def merge_run_config_with_kwargs(run_config: RunConfig, kwargs: Dict[str, Any]) -> RunConfig:
@@ -28,54 +97,11 @@ def merge_run_config_with_kwargs(run_config: RunConfig, kwargs: Dict[str, Any]) 
     Returns:
         RunConfig: Updated RunConfig object
     """
-    # Handle dictionary-like attributes with update or deep merge
-    if 'inputs' in kwargs and kwargs['inputs'] is not None:
-        validate_config_dict(kwargs['inputs'])  # Validate inputs
-        if run_config.inputs is None:
-            run_config.inputs = kwargs['inputs']
-        else:
-            run_config.inputs.update(kwargs['inputs'])
-            
-    if 'config' in kwargs and kwargs['config'] is not None:
-        validate_config_dict(kwargs['config'])  # Validate config
-        if run_config.config is None:
-            run_config.config = kwargs['config']
-        else:
-            run_config.config.update(kwargs['config'])
-            
-    if 'cache' in kwargs and kwargs['cache'] is not None:
-        run_config.cache = kwargs['cache']
-        
-    if 'adapter' in kwargs and kwargs['adapter'] is not None:
-        if run_config.adapter is None:
-            run_config.adapter = kwargs['adapter']
-        else:
-            run_config.adapter.update(kwargs['adapter'])
-    
-    # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
-    if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
-        executor_cfg = kwargs['executor_cfg']
-        if isinstance(executor_cfg, str):
-            run_config.executor = ExecutorConfig(type=executor_cfg)
-        elif isinstance(executor_cfg, dict):
-            run_config.executor = ExecutorConfig.from_dict(executor_cfg)
-        elif isinstance(executor_cfg, ExecutorConfig):
-            run_config.executor = executor_cfg
-    
-    # Handle adapter configurations
-    if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
-        with_adapter_cfg = kwargs['with_adapter_cfg']
-        if isinstance(with_adapter_cfg, dict):
-            run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
-        elif isinstance(with_adapter_cfg, WithAdapterConfig):
-            run_config.with_adapter = with_adapter_cfg
-            
-    if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
-        run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
-        
-    if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
-        run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
-    
+    # Handle complex attributes with specific logic
+    for attr, handler in _attr_handlers.items():
+        if attr in kwargs and kwargs[attr] is not None:
+            handler(run_config, kwargs[attr])
+
     # Handle simple attributes
     simple_attrs = [
         'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',

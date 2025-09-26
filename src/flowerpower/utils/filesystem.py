@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 
 from fsspec_utils import AbstractFileSystem, filesystem
 from loguru import logger
+from .security import validate_file_path
 
 
 class FilesystemHelper:
@@ -29,6 +30,8 @@ class FilesystemHelper:
             base_dir: Base directory for filesystem operations
             storage_options: Storage options for filesystem access
         """
+        # Validate base directory for security
+        validate_file_path(base_dir, allow_relative=True)
         self._base_dir = base_dir
         self._storage_options = storage_options or {}
         self._fs_cache: Dict[str, AbstractFileSystem] = {}
@@ -79,6 +82,8 @@ class FilesystemHelper:
             RuntimeError: If directory creation fails
         """
         for directory in directories:
+            # Validate directory path for security
+            validate_file_path(directory, allow_relative=True)
             try:
                 fs.makedirs(directory, exist_ok=exist_ok)
             except (OSError, PermissionError) as e:
@@ -104,7 +109,10 @@ class FilesystemHelper:
         else:
             base_path = self._base_dir
 
-        return fs.join(base_path, *path_parts)
+        resolved_path = fs.join(base_path, *path_parts)
+        # Validate resolved path for security
+        validate_file_path(resolved_path, allow_relative=True)
+        return resolved_path
 
     def clean_directory(
         self,
@@ -121,6 +129,8 @@ class FilesystemHelper:
             recursive: Whether to remove recursively
         """
         for path in paths:
+            # Validate path for security before cleaning
+            validate_file_path(path, allow_relative=True)
             if fs.exists(path):
                 try:
                     fs.rm(path, recursive=recursive)
@@ -154,9 +164,13 @@ class FilesystemHelper:
             str: Project path
         """
         if hasattr(fs, 'is_cache_fs') and fs.is_cache_fs:
-            return fs._mapper.directory
+            project_path = fs._mapper.directory
         else:
-            return getattr(fs, 'path', self._base_dir)
+            project_path = getattr(fs, 'path', self._base_dir)
+        
+        # Validate project path for security
+        validate_file_path(project_path, allow_relative=True)
+        return project_path
 
     def clear_cache(self) -> None:
         """Clear the filesystem cache."""

@@ -8,11 +8,159 @@ from typing import Any
 
 import msgspec
 from fsspec_utils import AbstractFileSystem, filesystem
+from .security import validate_file_path
 
 if importlib.util.find_spec("joblib"):
     from joblib import Parallel, delayed
     from rich.progress import (BarColumn, Progress, TextColumn,
                                TimeElapsedColumn)
+
+    def _prepare_parallel_args(
+        args: tuple, kwargs: dict
+    ) -> tuple[list, list, dict, dict, int]:
+        """Prepare and validate arguments for parallel execution.
+        
+        Args:
+            args: Positional arguments
+            kwargs: Keyword arguments
+            
+        Returns:
+            tuple: (iterables, fixed_args, iterable_kwargs, fixed_kwargs, first_iterable_len)
+            
+        Raises:
+            ValueError: If no iterable arguments or length mismatch
+        """
+        iterables = []
+        fixed_args = []
+        iterable_kwargs = {}
+        fixed_kwargs = {}
+        first_iterable_len = None
+
+        # Process positional arguments
+        for arg in args:
+            if isinstance(arg, (list, tuple)) and not isinstance(arg[0], (list, tuple)):
+                iterables.append(arg)
+                if first_iterable_len is None:
+                    first_iterable_len = len(arg)
+                elif len(arg) != first_iterable_len:
+                    raise ValueError(
+                        f"Iterable length mismatch: argument has length {len(arg)}, expected {first_iterable_len}"
+                    )
+            else:
+                fixed_args.append(arg)
+
+        # Process keyword arguments
+        for key, value in kwargs.items():
+            if isinstance(value, (list, tuple)) and not isinstance(
+                value[0], (list, tuple)
+            ):
+                if first_iterable_len is None:
+                    first_iterable_len = len(value)
+                elif len(value) != first_iterable_len:
+                    raise ValueError(
+                        f"Iterable length mismatch: {key} has length {len(value)}, expected {first_iterable_len}"
+                    )
+                iterable_kwargs[key] = value
+            else:
+                fixed_kwargs[key] = value
+
+        if first_iterable_len is None:
+            raise ValueError("At least one iterable argument is required")
+
+        return iterables, fixed_args, iterable_kwargs, fixed_kwargs, first_iterable_len
+
+    def _execute_parallel_with_progress(
+        func: callable,
+        iterables: list,
+        fixed_args: list,
+        iterable_kwargs: dict,
+        fixed_kwargs: dict,
+        param_combinations: list,
+        parallel_kwargs: dict,
+    ) -> list:
+        """Execute parallel tasks with progress tracking.
+        
+        Args:
+            func: Function to execute
+            iterables: List of iterable arguments
+            fixed_args: List of fixed arguments
+            iterable_kwargs: Dictionary of iterable keyword arguments
+            fixed_kwargs: Dictionary of fixed keyword arguments
+            param_combinations: List of parameter combinations
+            parallel_kwargs: Parallel execution configuration
+            
+        Returns:
+            list: Results from parallel execution
+        """
+        results = [None] * len(param_combinations)
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            TimeElapsedColumn(),
+            transient=True,
+        ) as progress:
+            task = progress.add_task(
+                "Running in parallel...", total=len(param_combinations)
+            )
+
+            def wrapper(idx, param_tuple):
+                res = func(
+                    *(list(param_tuple[: len(iterables)]) + fixed_args),
+                    **{
+                        k: v
+                        for k, v in zip(
+                            iterable_kwargs.keys(), param_tuple[len(iterables) :]
+                        )
+                    },
+                    **fixed_kwargs,
+                )
+                progress.update(task, advance=1)
+                return idx, res
+
+            for idx, result in Parallel(**parallel_kwargs)(
+                delayed(wrapper)(i, param_tuple)
+                for i, param_tuple in enumerate(param_combinations)
+            ):
+                results[idx] = result
+        return results
+
+    def _execute_parallel_without_progress(
+        func: callable,
+        iterables: list,
+        fixed_args: list,
+        iterable_kwargs: dict,
+        fixed_kwargs: dict,
+        param_combinations: list,
+        parallel_kwargs: dict,
+    ) -> list:
+        """Execute parallel tasks without progress tracking.
+        
+        Args:
+            func: Function to execute
+            iterables: List of iterable arguments
+            fixed_args: List of fixed arguments
+            iterable_kwargs: Dictionary of iterable keyword arguments
+            fixed_kwargs: Dictionary of fixed keyword arguments
+            param_combinations: List of parameter combinations
+            parallel_kwargs: Parallel execution configuration
+            
+        Returns:
+            list: Results from parallel execution
+        """
+        return Parallel(**parallel_kwargs)(
+            delayed(func)(
+                *(list(param_tuple[: len(iterables)]) + fixed_args),
+                **{
+                    k: v
+                    for k, v in zip(
+                        iterable_kwargs.keys(), param_tuple[len(iterables) :]
+                    )
+                },
+                **fixed_kwargs,
+            )
+            for param_tuple in param_combinations
+        )
 
     def run_parallel(
         func: callable,
@@ -48,92 +196,26 @@ if importlib.util.find_spec("joblib"):
         """
         parallel_kwargs = {"n_jobs": n_jobs, "backend": backend, "verbose": 0}
 
-        iterables = []
-        fixed_args = []
-        iterable_kwargs = {}
-        fixed_kwargs = {}
+        # Prepare and validate arguments
+        iterables, fixed_args, iterable_kwargs, fixed_kwargs, first_iterable_len = _prepare_parallel_args(
+            args, kwargs
+        )
 
-        first_iterable_len = None
-
-        for arg in args:
-            if isinstance(arg, (list, tuple)) and not isinstance(arg[0], (list, tuple)):
-                iterables.append(arg)
-                if first_iterable_len is None:
-                    first_iterable_len = len(arg)
-                elif len(arg) != first_iterable_len:
-                    raise ValueError(
-                        f"Iterable length mismatch: argument has length {len(arg)}, expected {first_iterable_len}"
-                    )
-            else:
-                fixed_args.append(arg)
-
-        for key, value in kwargs.items():
-            if isinstance(value, (list, tuple)) and not isinstance(
-                value[0], (list, tuple)
-            ):
-                if first_iterable_len is None:
-                    first_iterable_len = len(value)
-                elif len(value) != first_iterable_len:
-                    raise ValueError(
-                        f"Iterable length mismatch: {key} has length {len(value)}, expected {first_iterable_len}"
-                    )
-                iterable_kwargs[key] = value
-            else:
-                fixed_kwargs[key] = value
-
-        if first_iterable_len is None:
-            raise ValueError("At least one iterable argument is required")
-
+        # Create parameter combinations
         all_iterables = iterables + list(iterable_kwargs.values())
         param_combinations = list(zip(*all_iterables))
 
+        # Execute with or without progress tracking
         if not verbose:
-            return Parallel(**parallel_kwargs)(
-                delayed(func)(
-                    *(list(param_tuple[: len(iterables)]) + fixed_args),
-                    **{
-                        k: v
-                        for k, v in zip(
-                            iterable_kwargs.keys(), param_tuple[len(iterables) :]
-                        )
-                    },
-                    **fixed_kwargs,
-                )
-                for param_tuple in param_combinations
+            return _execute_parallel_without_progress(
+                func, iterables, fixed_args, iterable_kwargs, fixed_kwargs,
+                param_combinations, parallel_kwargs
             )
         else:
-            results = [None] * len(param_combinations)
-            with Progress(
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                "[progress.percentage]{task.percentage:>3.0f}%",
-                TimeElapsedColumn(),
-                transient=True,
-            ) as progress:
-                task = progress.add_task(
-                    "Running in parallel...", total=len(param_combinations)
-                )
-
-                def wrapper(idx, param_tuple):
-                    res = func(
-                        *(list(param_tuple[: len(iterables)]) + fixed_args),
-                        **{
-                            k: v
-                            for k, v in zip(
-                                iterable_kwargs.keys(), param_tuple[len(iterables) :]
-                            )
-                        },
-                        **fixed_kwargs,
-                    )
-                    progress.update(task, advance=1)
-                    return idx, res
-
-                for idx, result in Parallel(**parallel_kwargs)(
-                    delayed(wrapper)(i, param_tuple)
-                    for i, param_tuple in enumerate(param_combinations)
-                ):
-                    results[idx] = result
-            return results
+            return _execute_parallel_with_progress(
+                func, iterables, fixed_args, iterable_kwargs, fixed_kwargs,
+                param_combinations, parallel_kwargs
+            )
 
 else:
 
@@ -170,45 +252,110 @@ def get_partitions_from_path(
         return list(zip(partitioning, parts[-len(partitioning) :]))
 
 
-def view_img(data: str | bytes, format: str = "svg"):
-    # Validate format to prevent injection attacks
+def _validate_image_format(format: str) -> str:
+    """Validate image format to prevent injection attacks.
+    
+    Args:
+        format: Image format to validate
+        
+    Returns:
+        str: Validated format
+        
+    Raises:
+        ValueError: If format is not supported
+    """
     allowed_formats = {"svg", "png", "jpg", "jpeg", "gif", "pdf", "html"}
     if format not in allowed_formats:
         raise ValueError(f"Unsupported format: {format}. Allowed: {allowed_formats}")
+    return format
+
+def _create_temp_image_file(data: str | bytes, format: str) -> str:
+    """Create a temporary file with image data.
     
-    # Create a temporary file with validated extension
+    Args:
+        data: Image data as string or bytes
+        format: Validated image format
+        
+    Returns:
+        str: Path to temporary file
+        
+    Raises:
+        OSError: If file creation fails
+    """
     with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp:
         if isinstance(data, str):
             tmp.write(data.encode('utf-8'))
         else:
             tmp.write(data)
         tmp_path = tmp.name
+    
+    # Validate the temporary file path for security
+    validate_file_path(tmp_path, allow_relative=False)
+    return tmp_path
 
-    # Secure subprocess call with absolute path validation
+def _open_image_viewer(tmp_path: str) -> None:
+    """Open image viewer with the given file path.
+    
+    Args:
+        tmp_path: Path to temporary image file
+        
+    Raises:
+        OSError: If platform is not supported
+        subprocess.CalledProcessError: If subprocess fails
+        subprocess.TimeoutExpired: If subprocess times out
+    """
     import platform
-    try:
-        if platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", tmp_path], check=True, timeout=10)
-        elif platform.system() == "Linux":
-            subprocess.run(["xdg-open", tmp_path], check=True, timeout=10)
-        elif platform.system() == "Windows":
-            subprocess.run(["start", "", tmp_path], shell=True, check=True, timeout=10)
-        else:
-            raise OSError(f"Unsupported platform: {platform.system()}")
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
-        # Clean up temp file on error
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise RuntimeError(f"Failed to open file: {e}")
+    platform_system = platform.system()
+    
+    if platform_system == "Darwin":  # macOS
+        subprocess.run(["open", tmp_path], check=True, timeout=10)
+    elif platform_system == "Linux":
+        subprocess.run(["xdg-open", tmp_path], check=True, timeout=10)
+    elif platform_system == "Windows":
+        subprocess.run(["start", "", tmp_path], shell=True, check=True, timeout=10)
+    else:
+        raise OSError(f"Unsupported platform: {platform_system}")
 
-    # Optional: Remove the temp file after a delay
-    time.sleep(2)  # Wait for viewer to open
+def _cleanup_temp_file(tmp_path: str) -> None:
+    """Clean up temporary file.
+    
+    Args:
+        tmp_path: Path to temporary file to remove
+    """
     try:
         os.unlink(tmp_path)
     except OSError:
         pass  # File might already be deleted or in use
+
+def view_img(data: str | bytes, format: str = "svg"):
+    """View image data using the system's default image viewer.
+    
+    Args:
+        data: Image data as string or bytes
+        format: Image format (svg, png, jpg, jpeg, gif, pdf, html)
+        
+    Raises:
+        ValueError: If format is not supported
+        RuntimeError: If file opening fails
+        OSError: If platform is not supported
+    """
+    # Validate format to prevent injection attacks
+    validated_format = _validate_image_format(format)
+    
+    # Create a temporary file with validated extension
+    tmp_path = _create_temp_image_file(data, validated_format)
+
+    try:
+        # Open image viewer with secure subprocess call
+        _open_image_viewer(tmp_path)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        # Clean up temp file on error
+        _cleanup_temp_file(tmp_path)
+        raise RuntimeError(f"Failed to open file: {e}")
+
+    # Optional: Remove the temp file after a delay
+    time.sleep(2)  # Wait for viewer to open
+    _cleanup_temp_file(tmp_path)
 
 
 def update_config_from_dict(

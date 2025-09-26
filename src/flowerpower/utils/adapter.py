@@ -24,6 +24,12 @@ class AdapterManager:
         """Initialize the adapter manager."""
         self._adapter_cache: Dict[str, Any] = {}
 
+    def _merge_configs(self, base_config: Any, override_config: Any) -> Any:
+        """Merge override config into base config."""
+        if not override_config:
+            return base_config
+        return base_config.merge(override_config) if base_config else override_config
+
     def resolve_with_adapter_config(
         self,
         with_adapter_cfg: dict | Any | None,
@@ -49,7 +55,7 @@ class AdapterManager:
                     "with_adapter must be a dictionary or WithAdapterConfig instance."
                 )
 
-            return base_config.merge(with_adapter_cfg)
+            return self._merge_configs(base_config, with_adapter_cfg)
 
         return base_config
 
@@ -80,7 +86,7 @@ class AdapterManager:
                     "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
                 )
 
-            return base_config.merge(pipeline_adapter_cfg)
+            return self._merge_configs(base_config, pipeline_adapter_cfg)
 
         return base_config
 
@@ -114,11 +120,7 @@ class AdapterManager:
                     "project_adapter_cfg must be a dictionary or ProjectAdapterConfig instance."
                 )
 
-            # Merge with base configuration if available
-            if base_cfg:
-                return base_cfg.merge(project_adapter_cfg)
-
-            return project_adapter_cfg
+            return self._merge_configs(base_cfg, project_adapter_cfg)
         else:
             # Use base configuration or create default
             return base_cfg or ProjectAdapterConfig()
@@ -136,22 +138,17 @@ class AdapterManager:
         Returns:
             ProjectAdapterConfig or None: Extracted configuration
         """
-        # Handle temporary case where project_context is PipelineManager
-        manager_project_cfg = getattr(
-            project_context, "project_cfg", None
-        ) or getattr(project_context, "_project_cfg", None)
+        # Try direct access to project config
+        project_cfg = getattr(project_context, "project_cfg", None) or getattr(project_context, "_project_cfg", None)
+        if project_cfg and hasattr(project_cfg, "adapter"):
+            return project_cfg.adapter
 
-        if manager_project_cfg and hasattr(manager_project_cfg, "adapter"):
-            return manager_project_cfg.adapter
-
-        # Use project context directly if it's FlowerPowerProject
+        # Try via pipeline_manager if available
         if hasattr(project_context, "pipeline_manager"):
-            pm_cfg = getattr(
-                project_context.pipeline_manager, "project_cfg", None
-            ) or getattr(
-                project_context.pipeline_manager, "_project_cfg", None
-            )
-            return pm_cfg.adapter if pm_cfg else None
+            pm = project_context.pipeline_manager
+            pm_cfg = getattr(pm, "project_cfg", None) or getattr(pm, "_project_cfg", None)
+            if pm_cfg and hasattr(pm_cfg, "adapter"):
+                return pm_cfg.adapter
 
         return None
 
