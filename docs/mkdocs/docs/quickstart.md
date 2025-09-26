@@ -32,7 +32,7 @@ cd hello-flowerpower
 from flowerpower import FlowerPowerProject
 
 # Initialize a new project
-project = FlowerPowerProject.init(
+project = FlowerPowerProject.new(
     name='hello-flowerpower'
 )
 ```
@@ -77,14 +77,15 @@ Open `pipelines/hello_world.py` and add your Hamilton functions.
 # pipelines/hello_world.py
 from pathlib import Path
 from hamilton.function_modifiers import parameterize
-from flowerpower.cfg import Config
+from flowerpower.cfg.project import ProjectConfig
+from flowerpower.cfg.pipeline import PipelineConfig
 
-# Load pipeline parameters
-PARAMS = Config.load(
-    Path(__file__).parents[1], pipeline_name="hello_world"
-).pipeline.h_params
+# Load project and pipeline configurations separately
+project_cfg = ProjectConfig.load(name="hello-flowerpower")
+pipeline_cfg = PipelineConfig.load(name="hello_world")
+PARAMS = pipeline_cfg.params  # Access params from pipeline config
 
-@parameterize(**PARAMS.greeting_message)
+@parameterize(**PARAMS.get("greeting_message", {}))
 def greeting_message(message: str) -> str:
     return f"{message},"
 
