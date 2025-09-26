@@ -1,12 +1,81 @@
 import copy
-from typing import Any, Self
+from pathlib import Path
+from typing import Any, Self, Optional
+from functools import lru_cache
 
 import msgspec
 from fsspec_utils import AbstractFileSystem, filesystem
 from ..utils.misc import get_filesystem
+from ..utils.security import validate_file_path as security_validate_file_path
+from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
+
+
+def validate_file_path(path: str) -> str:
+    """
+    Validate a file path to prevent directory traversal attacks.
+    
+    Args:
+        path: The file path to validate
+        
+    Returns:
+        str: The validated path
+        
+    Raises:
+        ConfigPathError: If the path contains directory traversal attempts
+    """
+    try:
+        # Use the comprehensive security validation
+        validated_path = security_validate_file_path(
+            path,
+            allow_absolute=False,  # Config files should be relative
+            allow_relative=True
+        )
+        return str(validated_path)
+    except Exception as e:
+        # Convert security errors to config path errors for consistency
+        raise ConfigPathError(f"Invalid file path: {path}. {str(e)}", path=path) from e
 
 
 class BaseConfig(msgspec.Struct, kw_only=True):
+    # Class-level cache for filesystem instances
+    _fs_cache = {}
+    
+    @classmethod
+    @lru_cache(maxsize=32)
+    def _get_cached_filesystem(cls, base_dir: str, storage_options_hash: int) -> AbstractFileSystem:
+        """Get a cached filesystem instance.
+        
+        Args:
+            base_dir: Base directory for the filesystem.
+            storage_options_hash: Hash of storage options for cache key.
+            
+        Returns:
+            Cached filesystem instance.
+        """
+        cache_key = (base_dir, storage_options_hash)
+        if cache_key not in cls._fs_cache:
+            cls._fs_cache[cache_key] = filesystem(base_dir, cached=True, dirfs=True)
+        return cls._fs_cache[cache_key]
+    
+    @classmethod
+    def _hash_storage_options(cls, storage_options: dict | None) -> int:
+        """Create a hash of storage options for caching.
+        
+        Args:
+            storage_options: Storage options to hash.
+            
+        Returns:
+            Hash of storage options.
+        """
+        if not storage_options:
+            return hash(())
+        
+        # Convert to frozenset of items for consistent hashing
+        try:
+            return hash(frozenset(sorted(storage_options.items())))
+        except TypeError:
+            # If items are not hashable, use string representation
+            return hash(str(sorted(storage_options.items())))
     def to_dict(self) -> dict[str, Any]:
         # Convert to dictionary, handling special cases like type objects
         result = {}
@@ -40,14 +109,27 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             fs: An optional filesystem instance to use for file operations.
 
         Raises:
-            NotImplementedError: If the filesystem does not support writing files.
+            ConfigSaveError: If saving the configuration fails.
+            ConfigPathError: If the path contains directory traversal attempts.
         """
-        fs = get_filesystem(fs)
+        # Validate the path to prevent directory traversal
         try:
-            with fs.open(path, "wb") as f:
-                f.write(msgspec.yaml.encode(self, order="deterministic"))
-        except NotImplementedError:
-            raise NotImplementedError("The filesystem does not support writing files.")
+            validated_path = validate_file_path(path)
+        except ConfigPathError as e:
+            raise ConfigSaveError(f"Path validation failed: {e}", path=path, original_error=e)
+            
+        # Use cached filesystem if available
+        if fs is None:
+            # Use cached filesystem if available
+            if fs is None:
+                fs = get_filesystem(fs)
+        try:
+            with fs.open(validated_path, "w") as f:
+                f.write(msgspec.yaml.encode(self, order="deterministic").decode('utf-8'))
+        except NotImplementedError as e:
+            raise ConfigSaveError("The filesystem does not support writing files.", path=validated_path, original_error=e)
+        except Exception as e:
+            raise ConfigSaveError(f"Failed to write configuration to {validated_path}", path=validated_path, original_error=e)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BaseConfig":
@@ -73,10 +155,22 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         Returns:
             An instance of the class with the values from the YAML file.
 
+        Raises:
+            ConfigLoadError: If loading the configuration fails.
+            ConfigPathError: If the path contains directory traversal attempts.
         """
+        # Validate the path to prevent directory traversal
+        try:
+            validated_path = validate_file_path(path)
+        except ConfigPathError as e:
+            raise ConfigLoadError(f"Path validation failed: {e}", path=path, original_error=e)
+            
         fs = get_filesystem(fs)
-        with fs.open(path) as f:
-            return msgspec.yaml.decode(f.read(), type=cls, strict=False)
+        try:
+            with fs.open(validated_path) as f:
+                return msgspec.yaml.decode(f.read(), type=cls, strict=True)
+        except Exception as e:
+            raise ConfigLoadError(f"Failed to load configuration from {validated_path}", path=validated_path, original_error=e)
 
     def _apply_dict_updates(self, target: Self, d: dict[str, Any]) -> None:
         """
@@ -90,8 +184,13 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             if hasattr(target, k):
                 current_value = getattr(target, k)
                 if isinstance(current_value, dict) and isinstance(v, dict):
+                    # For dictionaries, update in-place to avoid deep copy
                     current_value.update(v)
+                elif hasattr(current_value, '__struct_fields__'):
+                    # For nested msgspec structs, create a new instance with merged values
+                    setattr(target, k, current_value.merge_dict(v))
                 else:
+                    # For primitive values, direct assignment is fine
                     setattr(target, k, v)
             else:
                 # Use object.__setattr__ to bypass msgspec.Struct's restrictions
@@ -117,7 +216,8 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         Returns:
             A new instance of the struct with updated values.
         """
-        self_copy = copy.deepcopy(self)
+        # Use shallow copy for better performance
+        self_copy = copy.copy(self)
         self._apply_dict_updates(self_copy, d)
         return self_copy
 

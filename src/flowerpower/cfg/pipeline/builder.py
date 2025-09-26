@@ -8,6 +8,8 @@ from ..base import BaseConfig
 from .adapter import AdapterConfig as PipelineAdapterConfig
 from .run import ExecutorConfig, RunConfig, WithAdapterConfig
 from ..project.adapter import AdapterConfig as ProjectAdapterConfig
+from .builder_executor import ExecutorBuilder
+from .builder_adapter import AdapterBuilder
 
 
 class RunConfigBuilder:
@@ -39,6 +41,10 @@ class RunConfigBuilder:
         
         # Initialize with empty config
         self._config = RunConfig()
+        
+        # Initialize sub-builders
+        self._executor_builder = ExecutorBuilder()
+        self._adapter_builder = AdapterBuilder()
         
         # Load defaults from pipeline and project configs
         self._load_defaults()
@@ -148,16 +154,9 @@ class RunConfigBuilder:
         Returns:
             Self for method chaining
         """
-        if not self._config.executor:
-            self._config.executor = ExecutorConfig()
-        
-        self._config.executor.type = executor_type
-        
-        # Apply additional executor options
-        for key, value in kwargs.items():
-            if hasattr(self._config.executor, key):
-                setattr(self._config.executor, key, value)
-        
+        self._executor_builder.with_type(executor_type)
+        if kwargs:
+            self._executor_builder.with_config(kwargs)
         return self
     
     def with_adapter(self, adapter_name: str, **kwargs) -> "RunConfigBuilder":
@@ -170,17 +169,10 @@ class RunConfigBuilder:
         Returns:
             Self for method chaining
         """
-        if not self._config.with_adapter:
-            self._config.with_adapter = WithAdapterConfig()
-        
-        # Enable the adapter
-        if hasattr(self._config.with_adapter, adapter_name):
-            setattr(self._config.with_adapter, adapter_name, True)
-            
-            # Store adapter configuration for merging
-            if not hasattr(self, '_adapter_configs'):
-                self._adapter_configs = {}
-            self._adapter_configs[adapter_name] = kwargs
+        # Enable the adapter using the adapter builder
+        enable_method = getattr(self._adapter_builder, f"enable_{adapter_name}", None)
+        if enable_method:
+            enable_method(True, **kwargs)
         
         return self
     
@@ -315,16 +307,23 @@ class RunConfigBuilder:
         # Create a deep copy to avoid modifying the internal state
         final_config = copy.deepcopy(self._config)
         
+        # Build executor configuration
+        final_config.executor = self._executor_builder.build()
+        
+        # Build adapter configuration
+        final_config.with_adapter = self._adapter_builder.build()
+        
         # Merge adapter configurations
-        if hasattr(self, '_adapter_configs') and self._adapter_configs:
-            self._merge_adapter_configs(final_config)
+        adapter_configs = self._adapter_builder.get_adapter_configs()
+        if adapter_configs:
+            self._merge_adapter_configs(final_config, adapter_configs)
         
         # Validate configuration
         self._validate_config(final_config)
         
         return final_config
     
-    def _merge_adapter_configs(self, config: RunConfig):
+    def _merge_adapter_configs(self, config: RunConfig, adapter_configs: dict[str, dict[str, Any]]):
         """Merge adapter configurations from builder with project/pipeline configs."""
         if not config.pipeline_adapter_cfg:
             config.pipeline_adapter_cfg = {}
@@ -333,7 +332,7 @@ class RunConfigBuilder:
             config.project_adapter_cfg = {}
         
         # Merge project adapter defaults
-        for adapter_name, adapter_config in self._adapter_configs.items():
+        for adapter_name, adapter_config in adapter_configs.items():
             if adapter_name in ['hamilton_tracker', 'mlflow', 'opentelemetry']:
                 # Merge with project config
                 if hasattr(self._project_adapter_cfg, adapter_name):
