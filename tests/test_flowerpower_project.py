@@ -61,7 +61,7 @@ class TestFlowerPowerProject(unittest.TestCase):
         )
 
         with pytest.raises(
-            RuntimeError, match="Run failed: Pipeline 'name' must be a non-empty string"
+            RuntimeError, match="Run failed: Pipeline name must be a non-empty string"
         ):
             project.run("")
 

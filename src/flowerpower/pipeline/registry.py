@@ -8,6 +8,8 @@ import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict
 
+import msgspec
+
 import rich
 from fsspec_utils import AbstractFileSystem, filesystem
 from loguru import logger
@@ -48,8 +50,7 @@ class HookType(str, Enum):
         return self.value
 
 
-@dataclass
-class CachedPipelineData:
+class CachedPipelineData(msgspec.Struct):
     """Container for cached pipeline data."""
     pipeline: "Pipeline"
     config: PipelineConfig
@@ -832,5 +833,45 @@ class PipelineRegistry:
             f.write(template.format(function_name=function_name))
 
         rich.print(
-            f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}"
-        )
+            f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")
+       
+
+    def create_pipeline(
+        self,
+        name: str,
+        overwrite: bool = False,
+        template: str | None = None,
+        tags: list[str] | None = None,
+        description: str | None = None
+    ) -> None:
+        """Create a new pipeline.
+
+        This method provides compatibility with the lifecycle manager interface.
+        Additional parameters (template, tags, description) are currently not used.
+
+        Args:
+            name: Name of the pipeline to create
+            overwrite: Whether to overwrite existing pipeline
+            template: Template to use (not currently implemented)
+            tags: Tags for the pipeline (not currently implemented)
+            description: Description of the pipeline (not currently implemented)
+        """
+        self.new(name=name, overwrite=overwrite)
+
+    def delete_pipeline(
+        self,
+        name: str,
+        cfg: bool = True,
+        module: bool = False
+    ) -> None:
+        """Delete a pipeline.
+
+        This method provides compatibility with the lifecycle manager interface.
+
+        Args:
+            name: Name of the pipeline to delete
+            cfg: Whether to delete configuration files
+            module: Whether to delete module files
+        """
+        self.delete(name=name, cfg=cfg, module=module)
+        

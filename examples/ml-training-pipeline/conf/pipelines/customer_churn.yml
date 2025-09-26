@@ -1,4 +1,4 @@
-params:
+params: {}
   # Parameters are now provided as function inputs
 
 run:
@@ -18,7 +18,7 @@ run:
     numerical_columns: ["age", "monthly_spend", "total_spend", "support_calls"]
     scale_features: true
     # Model configuration parameters
-    algorithm: "random_forest"  # options: random_forest, logistic_regression, gradient_boosting
+    algorithm: "random_forest" # options: random_forest, logistic_regression, gradient_boosting
     hyperparameters:
       n_estimators: 100
       max_depth: 10
@@ -32,7 +32,7 @@ run:
     save_model: true
     model_versioning: true
   config:
-    environment: "development"  # development, staging, production
+    environment: "development" # development, staging, production
     enable_feature_selection: true
     cross_validation: true
   executor:

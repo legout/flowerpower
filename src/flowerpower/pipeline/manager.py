@@ -20,12 +20,15 @@ from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ..settings import CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
 from ..cfg import PipelineConfig, ProjectConfig
-from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import ExecutorConfig, RunConfig, WithAdapterConfig
-from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from ..cfg.pipeline.run import RunConfig
 from ..utils.logging import setup_logging
+from ..utils.config import merge_run_config_with_kwargs
+from ..utils.filesystem import FilesystemHelper
+from .config_manager import PipelineConfigManager
+from .executor import PipelineExecutor
 from .io import PipelineIOManager
-from .registry import HookType, PipelineRegistry
+from .lifecycle_manager import PipelineLifecycleManager
+from .registry import PipelineRegistry, HookType
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -119,8 +122,36 @@ class PipelineManager:
         if log_level:
             setup_logging(level=log_level)
 
+        self._setup_filesystem(base_dir, storage_options, fs, cfg_dir, pipelines_dir)
+        self._initialize_managers()
+        self._ensure_directories_exist()
+        self._add_modules_path()
+
+    def _setup_filesystem(
+        self,
+        base_dir: str | None,
+        storage_options: dict | Munch | BaseStorageOptions | None,
+        fs: AbstractFileSystem | None,
+        cfg_dir: str | None,
+        pipelines_dir: str | None
+    ) -> None:
+        """Setup filesystem and configuration directories.
+
+        Args:
+            base_dir: Root directory for the project
+            storage_options: Storage options for filesystem
+            fs: Pre-configured filesystem instance
+            cfg_dir: Configuration directory name
+            pipelines_dir: Pipelines directory name
+        """
         self._base_dir = base_dir or str(Path.cwd())
-        # self._storage_options = storage_options
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
+
+        # Setup filesystem helper
+        self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
+
+        # Configure caching if storage options provided
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
@@ -131,58 +162,81 @@ class PipelineManager:
         else:
             cached = False
             cache_storage = None
-        if not fs:
-            fs = filesystem(
-                self._base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-        self._fs = fs
+
+        # Get filesystem instance
+        self._fs = fs or self._fs_helper.get_filesystem(cached=cached, cache_storage=cache_storage)
         self._storage_options = (
-            storage_options or fs.storage_options
-            if fs.protocol != "dir"
-            else fs.fs.storage_options
+            storage_options or self._fs.storage_options
+            if self._fs.protocol != "dir"
+            else self._fs.fs.storage_options
         )
 
-        # Store overrides for ProjectConfig loading
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
+    def _initialize_managers(self) -> None:
+        """Initialize all manager components."""
+        # Initialize config manager
+        self._config_manager = PipelineConfigManager(
+            base_dir=self._base_dir,
+            fs=self._fs,
+            storage_options=self._storage_options,
+            cfg_dir=self._cfg_dir
+        )
 
-        self._load_project_cfg(
-            reload=True
-        )  # Load project config
-        
+        # Load project configuration
+        self._config_manager.load_project_config(reload=True)
 
-        # Ensure essential directories exist (using paths from loaded project_cfg)
-        try:
-            self._fs.makedirs(self._cfg_dir, exist_ok=True)
-            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except (OSError, PermissionError) as e:
-            logger.error(f"Error creating essential directories: {e}")
-            raise RuntimeError(f"Failed to create essential directories: {e}") from e
-        except Exception as e:
-            logger.error(f"Unexpected error creating essential directories: {e}")
-            raise RuntimeError(f"Unexpected filesystem error: {e}") from e
-
-        # Ensure pipeline modules can be imported
-        self._add_modules_path()
-
-        # Instantiate components using the loaded project config
+        # Initialize registry
         self.registry = PipelineRegistry(
-            project_cfg=self.project_cfg,
+            project_cfg=self._config_manager.project_config,
             fs=self._fs,
             base_dir=self._base_dir,
             storage_options=self._storage_options,
         )
 
-        # Initialize project context (will be injected by FlowerPowerProject)
+        # Initialize specialized managers
+        self._executor = PipelineExecutor(
+            config_manager=self._config_manager,
+            registry=self.registry
+        )
+        self._lifecycle_manager = PipelineLifecycleManager(registry=self.registry)
+
+        # Initialize other components
         self._project_context = None
-        self.visualizer = PipelineVisualizer(project_cfg=self.project_cfg, fs=self._fs)
+        self.visualizer = PipelineVisualizer(
+            project_cfg=self._config_manager.project_config,
+            fs=self._fs
+        )
         self.io = PipelineIOManager(registry=self.registry)
 
-        self._current_pipeline_name: str | None = None
-        self._pipeline_cfg: PipelineConfig | None = None
+    def _ensure_directories_exist(self) -> None:
+        """Ensure essential directories exist."""
+        self._fs_helper.ensure_directories_exist(
+            self._fs,
+            self._cfg_dir,
+            self._pipelines_dir
+        )
+
+    def _add_modules_path(self) -> None:
+        """Add pipeline module paths to Python path.
+
+        This internal method ensures that pipeline modules can be imported by:
+        1. Syncing filesystem cache if needed
+        2. Adding project root to Python path
+        3. Adding pipelines directory to Python path
+        """
+        if self._fs.is_cache_fs:
+            self._fs.sync_cache()
+            project_path = self._fs._mapper.directory
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
+        else:
+            # Use the base directory directly if not using cache
+            project_path = self._fs.path
+            modules_path = posixpath.join(project_path, self._pipelines_dir)
+
+        if project_path not in sys.path:
+            sys.path.insert(0, project_path)
+
+        if modules_path not in sys.path:
+            sys.path.insert(0, modules_path)
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -228,84 +282,9 @@ class PipelineManager:
         # Add cleanup code if needed
         pass
 
-    def _add_modules_path(self) -> None:
-        """Add pipeline module paths to Python path.
-
-        This internal method ensures that pipeline modules can be imported by:
-        1. Syncing filesystem cache if needed
-        2. Adding project root to Python path
-        3. Adding pipelines directory to Python path
-
-        Raises:
-            RuntimeError: If filesystem sync fails or paths are invalid
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> manager._add_modules_path()
-            >>> import my_pipeline  # Now importable
-        """
-        if self._fs.is_cache_fs:
-            self._fs.sync_cache()
-            project_path = self._fs._mapper.directory
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-        else:
-            # Use the base directory directly if not using cache
-            project_path = self._fs.path
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-        if project_path not in sys.path:
-            sys.path.insert(0, project_path)
-
-        if modules_path not in sys.path:
-            sys.path.insert(0, modules_path)
-
-    def _load_project_cfg(
-        self, reload: bool = False
-    ) -> ProjectConfig:
-        """Load or reload the project configuration.
-
-        This internal method handles loading project-wide settings from the config
-        directory, applying overrides, and maintaining configuration state.
-
-        Args:
-            reload: Force reload configuration even if already loaded.
-                Defaults to False for caching behavior.
-
-        Returns:
-            ProjectConfig: The loaded project configuration object with any
-                specified overrides applied.
-
-        Raises:
-            FileNotFoundError: If project configuration file doesn't exist
-            ValueError: If configuration format is invalid
-            RuntimeError: If filesystem operations fail during loading
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> project_cfg = manager._load_project_cfg(reload=True)
-            >>> print(project_cfg.name)
-            'my_project'
-        """
-        if hasattr(self, "_project_cfg") and not reload:
-            return self._project_cfg
-
-        # Pass overrides to ProjectConfig.load
-        self._project_cfg = ProjectConfig.load(
-            base_dir=self._base_dir,
-            fs=self._fs,  # Pass pre-configured fs if provided
-            storage_options=self._storage_options,
-        )
-        # Update internal fs reference in case ProjectConfig loaded/created one
-        return self._project_cfg
 
     def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load or reload configuration for a specific pipeline.
-
-        This internal method handles loading pipeline-specific settings from the config
-        directory and maintaining the configuration cache state.
 
         Args:
             name: Name of the pipeline whose configuration to load
@@ -314,45 +293,17 @@ class PipelineManager:
 
         Returns:
             PipelineConfig: The loaded pipeline configuration object
-
-        Raises:
-            FileNotFoundError: If pipeline configuration file doesn't exist
-            ValueError: If configuration format is invalid
-            RuntimeError: If filesystem operations fail during loading
-
-        Example:
-            >>> # Internal usage
-            >>> manager = PipelineManager()
-            >>> cfg = manager._load_pipeline_cfg("data_pipeline", reload=True)
-            >>> print(cfg.run.executor.type)
-            'async'
         """
-        if name == self._current_pipeline_name and not reload:
-            return self._pipeline_cfg
-
-        self._current_pipeline_name = name
-        self._pipeline_cfg = PipelineConfig.load(
-            base_dir=self._base_dir,
-            name=name,
-            fs=self._fs,
-            storage_options=self._storage_options,
-        )
-        return self._pipeline_cfg
+        return self._config_manager.load_pipeline_config(name, reload)
 
     @property
     def current_pipeline_name(self) -> str:
         """Get the name of the currently loaded pipeline.
 
         Returns:
-            str: Name of the currently loaded pipeline, or empty string if none loaded.
-
-        Example:
-            >>> manager = PipelineManager()
-            >>> manager._load_pipeline_cfg("example_pipeline")
-            >>> print(manager.current_pipeline_name)
-            'example_pipeline'
+            str: Name of the currently loaded pipeline, or None if none loaded.
         """
-        return self._current_pipeline_name
+        return self._config_manager.current_pipeline_name
 
     @property
     def project_cfg(self) -> ProjectConfig:
@@ -372,9 +323,7 @@ class PipelineManager:
             >>> print(cfg.name)
             'my_project'
         """
-        if not hasattr(self, "_project_cfg"):
-            self._load_project_cfg()
-        return self._project_cfg
+        return self._config_manager.project_config
 
     @property
     def pipeline_cfg(self) -> PipelineConfig:
@@ -393,83 +342,10 @@ class PipelineManager:
             >>> print(cfg.run.executor)
             'local'
         """
-        if not hasattr(self, "_pipeline_cfg"):
-            logger.warning("Pipeline config not loaded.")
-            return
-        return self._pipeline_cfg
+        return self._config_manager.pipeline_config
 
     # --- Core Execution Method ---
 
-    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
-        """Merge kwargs into a RunConfig object.
-        
-        This helper method updates the RunConfig object with values from kwargs,
-        handling different types of attributes appropriately.
-        
-        Args:
-            run_config: The RunConfig object to update
-            kwargs: Dictionary of additional parameters to merge
-            
-        Returns:
-            RunConfig: Updated RunConfig object
-        """
-        # Handle dictionary-like attributes with update or deep merge
-        if 'inputs' in kwargs and kwargs['inputs'] is not None:
-            if run_config.inputs is None:
-                run_config.inputs = kwargs['inputs']
-            else:
-                run_config.inputs.update(kwargs['inputs'])
-                
-        if 'config' in kwargs and kwargs['config'] is not None:
-            if run_config.config is None:
-                run_config.config = kwargs['config']
-            else:
-                run_config.config.update(kwargs['config'])
-                
-        if 'cache' in kwargs and kwargs['cache'] is not None:
-            run_config.cache = kwargs['cache']
-            
-        if 'adapter' in kwargs and kwargs['adapter'] is not None:
-            if run_config.adapter is None:
-                run_config.adapter = kwargs['adapter']
-            else:
-                run_config.adapter.update(kwargs['adapter'])
-        
-        # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
-        if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
-            executor_cfg = kwargs['executor_cfg']
-            if isinstance(executor_cfg, str):
-                run_config.executor = ExecutorConfig(type=executor_cfg)
-            elif isinstance(executor_cfg, dict):
-                run_config.executor = ExecutorConfig.from_dict(executor_cfg)
-            elif isinstance(executor_cfg, ExecutorConfig):
-                run_config.executor = executor_cfg
-        
-        # Handle adapter configurations
-        if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
-            with_adapter_cfg = kwargs['with_adapter_cfg']
-            if isinstance(with_adapter_cfg, dict):
-                run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
-            elif isinstance(with_adapter_cfg, WithAdapterConfig):
-                run_config.with_adapter = with_adapter_cfg
-                
-        if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
-            run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
-            
-        if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
-            run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
-        
-        # Handle simple attributes
-        simple_attrs = [
-            'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
-            'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
-        ]
-        
-        for attr in simple_attrs:
-            if attr in kwargs and kwargs[attr] is not None:
-                setattr(run_config, attr, kwargs[attr])
-        
-        return run_config
 
     def run(
         self,
@@ -547,33 +423,12 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        # Initialize run_config - use provided config or load pipeline default
-        if run_config is None:
-            run_config = self.load_pipeline(name=name).run
+        # Set project context for executor
+        if hasattr(self, "_project_context") and self._project_context is not None:
+            self._executor._project_context = self._project_context
         
-        # Merge kwargs into run_config
-        if kwargs:
-            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
-
-        # Set up logging for this specific run if log_level is provided
-        if run_config.log_level is not None:
-            setup_logging(level=run_config.log_level)
-        else:
-            # Ensure logging is reset to default if no specific level is provided for this run
-            setup_logging()
-            
-        # Use injected project context, fallback to self for backward compatibility
-        project_context = getattr(self, "_project_context", self)
-
-        # Get Pipeline instance from registry
-        pipeline = self.registry.get_pipeline(
-            name=name, project_context=project_context, reload=run_config.reload
-        )
-
-        # Execute pipeline using its own run method
-        return pipeline.run(
-            run_config=run_config,
-        )
+        # Delegate to executor
+        return self._executor.run(name=name, run_config=run_config, **kwargs)
 
     # --- Delegated Methods ---
 
@@ -603,7 +458,7 @@ class PipelineManager:
             >>> # Overwrite existing pipeline
             >>> manager.new("data_transformation", overwrite=True)
         """
-        self.registry.new(name=name, overwrite=overwrite)
+        self._lifecycle_manager.create_pipeline(name=name, overwrite=overwrite)
 
     def delete(self, name: str, cfg: bool = True, module: bool = False) -> None:
         """
@@ -630,7 +485,7 @@ class PipelineManager:
             >>> # Delete both config and module
             >>> manager.delete("test_pipeline", module=True)
         """
-        self.registry.delete(name=name, cfg=cfg, module=module)
+        self._lifecycle_manager.delete_pipeline(name=name, cfg=cfg, module=module)
 
     def get_summary(
         self,
@@ -700,7 +555,7 @@ class PipelineManager:
             >>> pm = PipelineManager()
             >>> pm.show_summary()
         """
-        return self.registry.show_summary(
+        return self._lifecycle_manager.show_summary(
             name=name,
             cfg=cfg,
             code=code,
@@ -708,21 +563,6 @@ class PipelineManager:
             to_html=to_html,
             to_svg=to_svg,
         )
-
-    def show_pipelines(self) -> None:
-        """Display all available pipelines in a formatted table.
-
-        The table includes pipeline names, types, and enablement status.
-        Uses rich formatting for terminal display.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> manager.show_pipelines()
-
-        """
-        self.registry.show_pipelines()
 
     def list_pipelines(self) -> list[str]:
         """Get list of all available pipeline names.
@@ -738,7 +578,14 @@ class PipelineManager:
             >>> print(pipelines)
             ['data_ingestion', 'model_training', 'reporting']
         """
-        return self.registry.list_pipelines()
+        return self._lifecycle_manager.list_pipelines()
+
+    def show_pipelines(self) -> None:
+        """Display all available pipelines in a formatted table.
+
+        Uses rich formatting for terminal display.
+        """
+        return self.registry.show_pipelines()
 
     @property
     def pipelines(self) -> list[str]:
@@ -756,7 +603,7 @@ class PipelineManager:
             >>> print(manager.pipelines)
             ['data_ingestion', 'model_training', 'reporting']
         """
-        return self.registry.pipelines
+        return self._lifecycle_manager.pipelines
 
     @property
     def summary(self) -> dict[str, dict | str]:
@@ -776,7 +623,7 @@ class PipelineManager:
             data_pipeline: batch
             ml_pipeline: streaming
         """
-        return self.registry.summary
+        return self._lifecycle_manager.summary
 
     def add_hook(
         self,
@@ -810,7 +657,7 @@ class PipelineManager:
             ...     function_name="my_pre_execute_function"
             ... )
         """
-        self.registry.add_hook(
+        self._lifecycle_manager.add_hook(
             name=name,
             type=type,
             to=to,

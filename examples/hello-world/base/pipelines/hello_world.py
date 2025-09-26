@@ -2,6 +2,7 @@
 # Created on 2024-10-26 12:44:27
 
 
+import sys
 import time
 from pathlib import Path
 
@@ -27,6 +28,7 @@ def spend__10000() -> pd.Series:
 def signups__10000() -> pd.Series:
     """Returns a series of signups data."""
     time.sleep(1)
+    print(10_000)
     return pd.Series(range(10_000))
 
 
@@ -34,6 +36,7 @@ def signups__10000() -> pd.Series:
 def spend__1000() -> pd.Series:
     """Returns a series of spend data."""
     # time.sleep(2)
+    print(1_000)
     return pd.Series(range(10_000)) * 10
 
 
@@ -41,12 +44,13 @@ def spend__1000() -> pd.Series:
 def signups__1000() -> pd.Series:
     """Returns a series of signups data."""
     time.sleep(1)
+    print(1_000)
     return pd.Series(range(10_000))
 
 
 @parameterize(
     **PARAMS.avg_x_wk_spend
-)  # (**{"avg_x_wk_spend": {"rolling": value(3)}})  #
+)  # (avg_x_wk_spend={"rolling": value(3)})  #
 def avg_x_wk_spend(spend: pd.Series, rolling: int) -> pd.Series:
     """Rolling x week average spend."""
     # time.sleep(2)
@@ -66,7 +70,7 @@ def spend_mean(spend: pd.Series) -> float:
 
 @parameterize(
     **PARAMS.spend_zero_mean
-)  # (**{"spend_zero_mean": {"offset": value(0)}})  #
+)  # (spend_zero_mean={"offset": value(0)})  #
 def spend_zero_mean(spend: pd.Series, spend_mean: float, offset: int) -> pd.Series:
     """Shows function that takes a scalar. In this case to zero mean spend."""
     return spend - spend_mean + offset

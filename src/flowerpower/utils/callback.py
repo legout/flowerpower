@@ -14,80 +14,86 @@ from .logging import setup_logging
 setup_logging(level=LOG_LEVEL)
 
 
+def _add_exception_to_simple_callback(callback_fn: Callable, context_exception: Exception, cb_args: list, cb_kwargs: Dict[str, Any]):
+    """Add exception to simple callback arguments."""
+    try:
+        sig = inspect.signature(callback_fn)
+        if len(sig.parameters) == 1:
+            first_param = next(iter(sig.parameters.values()))
+            if first_param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY):
+                cb_args.append(context_exception)
+        elif "exception" in sig.parameters:
+            cb_kwargs["exception"] = context_exception
+    except (ValueError, TypeError):
+        logger.debug(
+            f"Could not inspect signature for simple callback {getattr(callback_fn, '__name__', str(callback_fn))}. Exception not passed automatically."
+        )
+
+
+def _parse_tuple_callback_args(callback_info: tuple, cb_args: list, cb_kwargs: Dict[str, Any]):
+    """Parse args and kwargs from tuple callback info."""
+    callback_fn = callback_info[0]
+
+    # Args: callback_info[1]
+    if len(callback_info) > 1 and callback_info[1] is not None:
+        if isinstance(callback_info[1], tuple):
+            cb_args.extend(callback_info[1])
+        else:
+            logger.warning(
+                f"Callback args for {getattr(callback_fn, '__name__', str(callback_fn))} "
+                f"expected tuple, got {type(callback_info[1])}. Ignoring args."
+            )
+
+    # Kwargs: callback_info[2]
+    if len(callback_info) > 2 and callback_info[2] is not None:
+        if isinstance(callback_info[2], dict):
+            cb_kwargs.update(callback_info[2])
+        else:
+            logger.warning(
+                f"Callback kwargs for {getattr(callback_fn, '__name__', str(callback_fn))} "
+                f"expected dict, got {type(callback_info[2])}. Ignoring kwargs."
+            )
+
+
+def _add_exception_to_tuple_callback(callback_fn: Callable, context_exception: Exception, cb_kwargs: Dict[str, Any]):
+    """Add exception to tuple callback kwargs if accepted."""
+    try:
+        sig = inspect.signature(callback_fn)
+        if "exception" in sig.parameters:
+            cb_kwargs["exception"] = context_exception
+    except (ValueError, TypeError):
+        pass
+
+
+def _prepare_callback_details(callback_info: Any, context_exception: Exception = None) -> tuple[Callable | None, tuple, Dict[str, Any]]:
+    """Prepare callback function and arguments for execution."""
+    if not callback_info:
+        return None, (), {}
+
+    callback_fn = None
+    cb_args = []
+    cb_kwargs = {}
+
+    if isinstance(callback_info, Callable):
+        callback_fn = callback_info
+        if context_exception:
+            _add_exception_to_simple_callback(callback_fn, context_exception, cb_args, cb_kwargs)
+    elif isinstance(callback_info, tuple) and len(callback_info) > 0 and isinstance(callback_info[0], Callable):
+        callback_fn = callback_info[0]
+        _parse_tuple_callback_args(callback_info, cb_args, cb_kwargs)
+        if context_exception and "exception" not in cb_kwargs:
+            _add_exception_to_tuple_callback(callback_fn, context_exception, cb_kwargs)
+
+    return callback_fn, tuple(cb_args), cb_kwargs
+
+
 def _execute_callback(callback_info: Any, context_exception: Exception = None):
     """
     Helper to execute a callback.
     The callback_info can be a callable, or a tuple (callable, args_tuple, kwargs_dict).
     If context_exception is provided (for on_failure), it can be passed to the callback.
     """
-    if not callback_info:
-        return
-
-    callback_fn: Callable = None
-    cb_args: Tuple = ()
-    cb_kwargs: Dict[str, Any] = {}
-
-    is_simple_callable = isinstance(callback_info, Callable)
-
-    if is_simple_callable:
-        callback_fn = callback_info
-        # For a simple callable in an on_failure context, try to pass the exception.
-        if context_exception:
-            try:
-                sig = inspect.signature(callback_fn)
-                if len(sig.parameters) == 1:  # Assumes it takes one positional argument
-                    first_param_name = list(sig.parameters.keys())[0]
-                    # Avoid passing if it's a **kwargs style param and we have no other indication
-                    if sig.parameters[first_param_name].kind in [
-                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                        inspect.Parameter.POSITIONAL_ONLY,
-                    ]:
-                        cb_args = (context_exception,)
-                elif (
-                    "exception" in sig.parameters
-                ):  # Or if it explicitly takes 'exception' kwarg
-                    cb_kwargs["exception"] = context_exception
-            except (ValueError, TypeError):  # Some callables might not be inspectable
-                logger.debug(
-                    f"Could not inspect signature for simple callback {getattr(callback_fn, '__name__', str(callback_fn))}. Exception not passed automatically."
-                )
-
-    elif (
-        isinstance(callback_info, tuple)
-        and len(callback_info) > 0
-        and isinstance(callback_info[0], Callable)
-    ):
-        callback_fn = callback_info[0]
-
-        # Args: callback_info[1]
-        if len(callback_info) > 1 and callback_info[1] is not None:
-            if isinstance(callback_info[1], tuple):
-                cb_args = callback_info[1]
-            else:
-                logger.warning(
-                    f"Callback args for {getattr(callback_fn, '__name__', str(callback_fn))} "
-                    f"expected tuple, got {type(callback_info[1])}. Ignoring args."
-                )
-
-        # Kwargs: callback_info[2]
-        if len(callback_info) > 2 and callback_info[2] is not None:
-            if isinstance(callback_info[2], dict):
-                cb_kwargs = callback_info[2].copy()  # Use a copy
-            else:
-                logger.warning(
-                    f"Callback kwargs for {getattr(callback_fn, '__name__', str(callback_fn))} "
-                    f"expected dict, got {type(callback_info[2])}. Ignoring kwargs."
-                )
-
-        # If this is an on_failure call and an exception occurred,
-        # pass it if 'exception' kwarg is not set and the callback accepts it.
-        if context_exception and "exception" not in cb_kwargs:
-            try:
-                sig = inspect.signature(callback_fn)
-                if "exception" in sig.parameters:
-                    cb_kwargs["exception"] = context_exception
-            except (ValueError, TypeError):  # Some callables might not be inspectable
-                pass  # Cannot inspect, so don't add
+    callback_fn, cb_args, cb_kwargs = _prepare_callback_details(callback_info, context_exception)
 
     if callback_fn:
         try:

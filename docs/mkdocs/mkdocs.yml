@@ -40,6 +40,7 @@ nav:
   - Architecture: architecture.md
   - Examples: examples.md
   - Advanced Usage: advanced.md
+  - CLI Reference: cli.md
   - API Reference:
       - Overview: api/index.md
       - FlowerPower: api/flowerpower.md
@@ -48,6 +49,8 @@ nav:
       - FlowerPowerProject: api/flowerpowerproject.md
       - initialize_project: api/initialize_project.md
       - create_project: api/create_project.md
+      - PipelineRegistry: api/registry.md
+      - PipelineExecutor: api/executor.md
       - CLI:
           - CLI: api/cli.md
           - Pipeline CLI: api/cli_pipeline.md

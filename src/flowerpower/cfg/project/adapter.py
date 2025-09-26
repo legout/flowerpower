@@ -1,4 +1,5 @@
 import msgspec
+import os
 from munch import munchify
 
 from ... import settings
@@ -11,6 +12,11 @@ class HamiltonTrackerConfig(BaseConfig):
     ui_url: str = msgspec.field(default=settings.HAMILTON_UI_URL)
     api_key: str | None = msgspec.field(default=None)
     verify: bool = msgspec.field(default=False)
+    
+    def __post_init__(self):
+        # Load API key from environment variable if not explicitly set
+        if self.api_key is None:
+            self.api_key = os.getenv("HAMILTON_API_KEY")
 
 
 class MLFlowConfig(BaseConfig):

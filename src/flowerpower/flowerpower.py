@@ -17,7 +17,9 @@ from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from .pipeline import PipelineManager
 from .utils.logging import setup_logging
-from .utils.security import validate_pipeline_name, validate_config_dict, validate_callback_function
+from .utils.security import validate_pipeline_name
+from .utils.config import merge_run_config_with_kwargs
+from .utils.filesystem import FilesystemHelper
 
 setup_logging()
 
@@ -67,82 +69,6 @@ class FlowerPowerProject:
         # This will be used when creating Pipeline instances
         self.pipeline_manager._project_context = self
 
-    def _merge_run_config_with_kwargs(self, run_config: RunConfig, kwargs: dict) -> RunConfig:
-        """Merge kwargs into a RunConfig object.
-        
-        This helper method updates the RunConfig object with values from kwargs,
-        handling different types of attributes appropriately.
-        
-        Args:
-            run_config: The RunConfig object to update
-            kwargs: Dictionary of additional parameters to merge
-            
-        Returns:
-            RunConfig: Updated RunConfig object
-        """
-        # Handle dictionary-like attributes with update or deep merge
-        if 'inputs' in kwargs and kwargs['inputs'] is not None:
-            validate_config_dict(kwargs['inputs'])  # Validate inputs
-            if run_config.inputs is None:
-                run_config.inputs = kwargs['inputs']
-            else:
-                run_config.inputs.update(kwargs['inputs'])
-                
-        if 'config' in kwargs and kwargs['config'] is not None:
-            validate_config_dict(kwargs['config'])  # Validate config
-            if run_config.config is None:
-                run_config.config = kwargs['config']
-            else:
-                run_config.config.update(kwargs['config'])
-                
-        if 'cache' in kwargs and kwargs['cache'] is not None:
-            run_config.cache = kwargs['cache']
-            
-        if 'adapter' in kwargs and kwargs['adapter'] is not None:
-            if run_config.adapter is None:
-                run_config.adapter = kwargs['adapter']
-            else:
-                run_config.adapter.update(kwargs['adapter'])
-        
-        # Handle executor_cfg - convert string/dict to ExecutorConfig if needed
-        if 'executor_cfg' in kwargs and kwargs['executor_cfg'] is not None:
-            executor_cfg = kwargs['executor_cfg']
-            if isinstance(executor_cfg, str):
-                run_config.executor = ExecutorConfig(type=executor_cfg)
-            elif isinstance(executor_cfg, dict):
-                run_config.executor = ExecutorConfig.from_dict(executor_cfg)
-            elif isinstance(executor_cfg, ExecutorConfig):
-                run_config.executor = executor_cfg
-        
-        # Handle adapter configurations
-        if 'with_adapter_cfg' in kwargs and kwargs['with_adapter_cfg'] is not None:
-            with_adapter_cfg = kwargs['with_adapter_cfg']
-            if isinstance(with_adapter_cfg, dict):
-                run_config.with_adapter = WithAdapterConfig.from_dict(with_adapter_cfg)
-            elif isinstance(with_adapter_cfg, WithAdapterConfig):
-                run_config.with_adapter = with_adapter_cfg
-                
-        if 'pipeline_adapter_cfg' in kwargs and kwargs['pipeline_adapter_cfg'] is not None:
-            run_config.pipeline_adapter_cfg = kwargs['pipeline_adapter_cfg']
-            
-        if 'project_adapter_cfg' in kwargs and kwargs['project_adapter_cfg'] is not None:
-            run_config.project_adapter_cfg = kwargs['project_adapter_cfg']
-        
-        # Handle simple attributes
-        simple_attrs = [
-            'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
-            'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
-        ]
-        
-        for attr in simple_attrs:
-            if attr in kwargs and kwargs[attr] is not None:
-                value = kwargs[attr]
-                # Validate callbacks for security
-                if attr in ['on_success', 'on_failure']:
-                    validate_callback_function(value)
-                setattr(run_config, attr, value)
-        
-        return run_config
 
     # --- Convenience Methods for Pipeline Operations ---
 
@@ -237,7 +163,7 @@ class FlowerPowerProject:
         
         # Merge kwargs into run_config
         if kwargs:
-            run_config = self._merge_run_config_with_kwargs(run_config, kwargs)
+            run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
         return self.pipeline_manager.run(
             name=name,
@@ -365,6 +291,38 @@ class FlowerPowerProject:
         if log_level:
             setup_logging(level=log_level)
 
+        # Initialize project parameters
+        name, base_dir = cls._resolve_project_params(name, base_dir)
+
+        # Setup filesystem
+        fs = cls._setup_filesystem(base_dir, storage_options, fs)
+
+        # Handle existing project
+        cls._handle_existing_project(base_dir, fs, hooks_dir, overwrite)
+
+        # Create project structure
+        cls._create_project_structure(fs, hooks_dir)
+
+        # Initialize project configuration
+        cls._initialize_project_config(name, fs)
+
+        # Print success message and getting started guide
+        cls._print_success_message(name, base_dir)
+
+        return cls.load(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            log_level=log_level,
+        )
+
+    @classmethod
+    def _resolve_project_params(
+        cls,
+        name: str | None,
+        base_dir: str | None
+    ) -> tuple[str, str]:
+        """Resolve project name and base directory."""
         if name is None:
             name = str(Path.cwd().name)
             base_dir = posixpath.join(str(Path.cwd().parent), name)
@@ -372,54 +330,89 @@ class FlowerPowerProject:
         if base_dir is None:
             base_dir = posixpath.join(str(Path.cwd()), name)
 
+        return name, base_dir
+
+    @classmethod
+    def _setup_filesystem(
+        cls,
+        base_dir: str,
+        storage_options: dict | BaseStorageOptions | None,
+        fs: AbstractFileSystem | None
+    ) -> AbstractFileSystem:
+        """Setup filesystem for project operations."""
         if fs is None:
             fs = filesystem(
                 protocol_or_path=base_dir,
                 dirfs=True,
                 storage_options=storage_options,
             )
+        return fs
 
-        # Check if project already exists
-        project_exists, message = cls._check_project_exists(base_dir, fs)
+    @classmethod
+    def _handle_existing_project(
+        cls,
+        base_dir: str,
+        fs: AbstractFileSystem,
+        hooks_dir: str,
+        overwrite: bool
+    ) -> None:
+        """Handle existing project directory."""
+        project_exists, _ = cls._check_project_exists(base_dir, fs)
+
         if project_exists:
             if overwrite:
-                # Delete existing project files and directories
                 logger.info(f"Overwriting existing project at {base_dir}")
-                
-                # Remove directories recursively
-                config_path = f"{settings.CONFIG_DIR}"
-                pipelines_path = settings.PIPELINES_DIR
-                
-                if fs.exists(config_path):
-                    fs.rm(config_path, recursive=True)
-                if fs.exists(pipelines_path):
-                    fs.rm(pipelines_path, recursive=True)
-                if fs.exists(hooks_dir):
-                    fs.rm(hooks_dir, recursive=True)
-                
-                # Remove README.md file
-                if fs.exists("README.md"):
-                    fs.rm("README.md")
+
+                # Use FilesystemHelper to clean existing files
+                fs_helper = FilesystemHelper(base_dir)
+                fs_helper.clean_directory(
+                    fs,
+                    f"{settings.CONFIG_DIR}",
+                    settings.PIPELINES_DIR,
+                    hooks_dir,
+                    "README.md"
+                )
             else:
                 error_msg = f"Project already exists at {base_dir}. Use overwrite=True to overwrite the existing project."
                 rich.print(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
                 raise FileExistsError(error_msg)
 
+    @classmethod
+    def _create_project_structure(
+        cls,
+        fs: AbstractFileSystem,
+        hooks_dir: str
+    ) -> None:
+        """Create project directory structure."""
         fs.makedirs(f"{settings.CONFIG_DIR}/pipelines", exist_ok=True)
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
         fs.makedirs(hooks_dir, exist_ok=True)
 
+    @classmethod
+    def _initialize_project_config(
+        cls,
+        name: str,
+        fs: AbstractFileSystem
+    ) -> ProjectConfig:
+        """Initialize project configuration and create README."""
         # Load project configuration
         cfg = ProjectConfig.load(name=name, fs=fs)
 
+        # Create README file
         with fs.open("README.md", "w") as f:
             f.write(
                 f"# FlowerPower project {name.replace('_', ' ').upper()}\n\n"
                 f"**created on**\n\n*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
             )
-        cfg.save(fs=fs)
 
+        # Save configuration
+        cfg.save(fs=fs)
+        return cfg
+
+    @classmethod
+    def _print_success_message(cls, name: str, base_dir: str) -> None:
+        """Print success message and getting started guide."""
         rich.print(
             f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] "
             f"at [italic green]{base_dir}[/italic green]\n"
@@ -459,13 +452,6 @@ class FlowerPowerProject:
                 lexer="python",
                 theme="nord",
             )
-        )
-
-        return cls.load(
-            base_dir=base_dir,
-            storage_options=storage_options,
-            fs=fs,
-            log_level=log_level,
         )
 
 
@@ -511,23 +497,9 @@ def create_project(
     fs: AbstractFileSystem | None = None,
     hooks_dir: str = settings.HOOKS_DIR,
 ) -> FlowerPowerProject:
-    """
-    Create or load a FlowerPower project.
-
-    If a project exists at the specified base_dir, it will be loaded.
-    Otherwise, a new project will be initialized.
-
-    Args:
-        name (str | None): The name of the project. If None, it defaults to the current directory name.
-        base_dir (str | None): The base directory where the project will be created or loaded from.
-                               If None, it defaults to the current working directory.
-        storage_options (dict | BaseStorageOptions | None): Storage options for the filesystem.
-        fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
-        hooks_dir (str): The directory where the project hooks will be stored.
-
-    Returns:
-        FlowerPowerProject: An instance of FlowerPowerProject.
-    """
+    # Note: _check_project_exists expects base_dir to be a string.
+    # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
+    # We pass fs directly, as _check_project_exists can handle fs being None.
     # Note: _check_project_exists expects base_dir to be a string.
     # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
     # We pass fs directly, as _check_project_exists can handle fs being None.

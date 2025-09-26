@@ -1,9 +1,11 @@
 import msgspec
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 import posixpath
+from typing import Optional
 
 from ...settings import CONFIG_DIR
 from ..base import BaseConfig
+from ..exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
 from .adapter import AdapterConfig
 
 
@@ -36,6 +38,52 @@ class ProjectConfig(BaseConfig):
     def __post_init__(self):
         if isinstance(self.adapter, dict):
             self.adapter = AdapterConfig.from_dict(self.adapter)
+        
+        # Validate project name if provided
+        if self.name is not None:
+            self._validate_project_name()
+
+    def _validate_project_name(self) -> None:
+        """Validate project name parameter.
+        
+        Raises:
+            ValueError: If project name contains invalid characters.
+        """
+        if not isinstance(self.name, str):
+            raise ValueError(f"Project name must be a string, got {type(self.name)}")
+        
+        # Check for directory traversal attempts
+        if '..' in self.name or '/' in self.name or '\\' in self.name:
+            raise ValueError(f"Invalid project name: {self.name}. Contains path traversal characters.")
+        
+        # Check for empty string
+        if not self.name.strip():
+            raise ValueError("Project name cannot be empty or whitespace only.")
+
+    @classmethod
+    def _load_project_config(cls, fs: AbstractFileSystem, name: str | None) -> "ProjectConfig":
+        """Centralized project configuration loading logic.
+        
+        Args:
+            fs: Filesystem instance.
+            name: Project name.
+            
+        Returns:
+            Loaded project configuration.
+        """
+        if fs.exists("conf/project.yml"):
+            project = cls.from_yaml(path="conf/project.yml", fs=fs)
+        else:
+            project = cls(name=name)
+        return project
+
+    def _save_project_config(self, fs: AbstractFileSystem) -> None:
+        """Centralized project configuration saving logic.
+        
+        Args:
+            fs: Filesystem instance.
+        """
+        self.to_yaml(path=posixpath.join(CONFIG_DIR, "project.yml"), fs=fs)
 
     @classmethod
     def load(
@@ -65,15 +113,11 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = filesystem(
-                base_dir, cached=False, dirfs=True, storage_options=storage_options
-            )
-        if fs.exists("conf/project.yml"):
-            project = ProjectConfig.from_yaml(path="conf/project.yml", fs=fs)
-        else:
-            project = ProjectConfig(name=name)
-
-        return project
+            # Use cached filesystem for better performance
+            storage_options_hash = cls._hash_storage_options(storage_options)
+            fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
+        
+        return cls._load_project_config(fs, name)
 
     def save(
         self,
@@ -94,12 +138,12 @@ class ProjectConfig(BaseConfig):
             ```
         """
         if fs is None:
-            fs = filesystem(
-                base_dir, cached=True, dirfs=True, storage_options=storage_options
-            )
+            # Use cached filesystem for better performance
+            storage_options_hash = self._hash_storage_options(storage_options)
+            fs = self._get_cached_filesystem(base_dir, storage_options_hash)
 
         fs.makedirs(CONFIG_DIR, exist_ok=True)
-        self.to_yaml(path=posixpath.join(CONFIG_DIR, "project.yml"), fs=fs)
+        self._save_project_config(fs)
 
 
 def init_project_config(
@@ -137,3 +181,4 @@ def init_project_config(
     )
     project.save(base_dir=base_dir, fs=fs, storage_options=storage_options)
     return project
+

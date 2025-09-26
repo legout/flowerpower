@@ -1,4 +1,4 @@
-params:
+params: {}
   # Parameters are now provided as function inputs
 
 run:
@@ -6,14 +6,14 @@ run:
     # Target sites configuration
     urls:
       - name: "example_news"
-        url: "https://httpbin.org/json"  # Mock API for demo
+        url: "https://httpbin.org/json" # Mock API for demo
         selectors:
           title: "title"
           content: "content"
           date: "date"
         type: "json"
       - name: "example_feed"
-        url: "https://httpbin.org/xml"   # Mock XML for demo
+        url: "https://httpbin.org/xml" # Mock XML for demo
         selectors:
           title: "title"
           content: "description"
@@ -21,7 +21,7 @@ run:
         type: "xml"
     # Scraping configuration parameters
     max_concurrent_requests: 5
-    request_delay: 1.0  # seconds between requests
+    request_delay: 1.0 # seconds between requests
     timeout: 30
     user_agent: "FlowerPower News Scraper 1.0"
     max_retries: 3
@@ -33,7 +33,7 @@ run:
     language_detection: true
     # Data storage parameters
     scrape_timestamp: "2024-11-30T12:00:00"
-    output_format: "json"  # json, csv, parquet
+    output_format: "json" # json, csv, parquet
     output_dir: "output"
     include_metadata: true
     deduplication: true
