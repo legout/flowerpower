@@ -16,8 +16,6 @@ PARAMS = Config.load(
     Path(__file__).parents[1], pipeline_name="hello_world"
 ).pipeline.h_params
 
-print( Path(__file__).parents[1])
-print(f"PARAMS: {PARAMS}")
 
 @config.when(range=10_000)
 def spend__10000() -> pd.Series:
@@ -30,6 +28,7 @@ def spend__10000() -> pd.Series:
 def signups__10000() -> pd.Series:
     """Returns a series of signups data."""
     time.sleep(1)
+    print(10_000)
     return pd.Series(range(10_000))
 
 
@@ -37,6 +36,7 @@ def signups__10000() -> pd.Series:
 def spend__1000() -> pd.Series:
     """Returns a series of spend data."""
     # time.sleep(2)
+    print(1_000)
     return pd.Series(range(10_000)) * 10
 
 
@@ -44,6 +44,7 @@ def spend__1000() -> pd.Series:
 def signups__1000() -> pd.Series:
     """Returns a series of signups data."""
     time.sleep(1)
+    print(1_000)
     return pd.Series(range(10_000))
 
 

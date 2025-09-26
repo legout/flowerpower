@@ -73,6 +73,12 @@ class PipelineConfig(BaseConfig):
     @classmethod
     def from_dict(cls, name: str, data: dict | Munch):
         data.update({"name": name})
+        
+        # Handle null params field by converting to empty dict
+        # This fixes the issue where YAML parses empty sections with comments as null
+        if data.get('params') is None:
+            data['params'] = {}
+        
         instance = msgspec.convert(data, cls)
         # Manually call __post_init__ since msgspec.convert doesn't call it
         instance.__post_init__()

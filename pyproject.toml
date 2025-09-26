@@ -72,6 +72,10 @@ dev-dependencies = [
   "bandit[toml]>=1.7.7",
   "safety>=3.2.0",
   "mypy>=1.13.0",
+  "pandas>=2.3.2",
+  "numpy>=2.3.3",
+  "matplotlib>=3.10.6",
+  "seaborn>=0.13.2",
 ]
 package = true
 
