@@ -11,7 +11,7 @@ dependencies = [
   #'dill>=0.3.8',
   'duration-parser>=1.0.1',
   'fsspec>=2024.10.0',
-  'fsspec-utils[full]>=0.1.0',
+  'fsspec-utils>=0.1.0',
   'humanize>=4.12.2',
   'msgspec>=0.19.0',
   'munch>=4.0.0',
@@ -78,7 +78,7 @@ package = true
 # Security configuration
 [tool.bandit]
 exclude_dirs = ["tests", "examples"]
-skips = ["B101"]  # Skip assert_used test for test files
+skips = ["B101"]                     # Skip assert_used test for test files
 
 [tool.bandit.assert_used]
 skips = ["*/test_*.py", "*/tests.py"]
@@ -102,13 +102,13 @@ show_error_codes = true
 
 [[tool.mypy.overrides]]
 module = [
-    "hamilton.*",
-    "sf_hamilton.*",
-    "fsspec_utils.*",
-    "loguru.*",
-    "munch.*",
-    "rich.*",
-    "typer.*",
+  "hamilton.*",
+  "sf_hamilton.*",
+  "fsspec_utils.*",
+  "loguru.*",
+  "munch.*",
+  "rich.*",
+  "typer.*",
 ]
 ignore_missing_imports = true
 
@@ -119,20 +119,20 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "S",   # flake8-bandit (security)
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "C4", # flake8-comprehensions
+  "UP", # pyupgrade
+  "S",  # flake8-bandit (security)
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
+  "E501", # line too long, handled by black
+  "B008", # do not perform function calls in argument defaults
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]  # Allow assert in tests
-"examples/*" = ["S101"]  # Allow assert in examples
+"tests/*" = ["S101"]    # Allow assert in tests
+"examples/*" = ["S101"] # Allow assert in examples

@@ -1,10 +1,15 @@
 """Configuration management for pipelines."""
 
-from typing import Optional
-from fsspec_utils import AbstractFileSystem, filesystem
-
+import os
+from typing import TYPE_CHECKING, Optional
+from fsspec_utils import AbstractFileSystem
+from ..utils.misc import get_filesystem
 from ..cfg import ProjectConfig, PipelineConfig
 from ..settings import CONFIG_DIR
+
+
+if TYPE_CHECKING:
+    from fsspec_utils import AbstractFileSystem
 
 
 class PipelineConfigManager:
@@ -53,49 +58,74 @@ class PipelineConfigManager:
             from ..cfg import ProjectConfig
             
             # Construct config file path
-            cfg_path = f"{self._base_dir}/{self._cfg_dir}/project.yaml"
+            cfg_path = f"{self._base_dir}/{self._cfg_dir}/project.yml"
             
             # Load configuration
-            fs = filesystem(self._base_dir, **self._storage_options)
-            self._project_cfg = ProjectConfig.from_yaml(path=f"{self._cfg_dir}/project.yaml", fs=fs)
+            fs = get_filesystem(fs=None, fs_type=self._base_dir)
+            self._project_cfg = ProjectConfig.from_yaml(path=f"{self._cfg_dir}/project.yml", fs=fs)
             
-            # Add modules path to Python path
-            self._add_modules_path(self._project_cfg.python_path)
+            # Add pipelines directory to Python path
+            self._add_modules_path(["pipelines"])
         
         return self._project_cfg
     
     def load_pipeline_config(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load pipeline configuration.
-        
+
         Args:
             name: Name of the pipeline to load
             reload: Whether to reload the configuration even if already loaded
-            
+
         Returns:
             PipelineConfig: The loaded pipeline configuration
         """
-        if (self._pipeline_cfg is None or 
-            self._current_pipeline_name != name or 
+        if (self._pipeline_cfg is None or
+            self._current_pipeline_name != name or
             reload):
-            
+
             from ..cfg import PipelineConfig
-            
+
             # Ensure project config is loaded first
-            project_cfg = self.load_project_config(reload=reload)
-            
-            # Construct config file path
-            cfg_path = f"{self._base_dir}/{self._cfg_dir}/{name}.yaml"
-            
+            self.load_project_config(reload=reload)
+
+            # Create filesystem from storage_options
+            fs = get_filesystem(fs=None, fs_type=self._base_dir)
+
+            # Try different file locations and extensions
+            cfg_path = None
+            possible_paths = [
+                # Try .yml extension in pipelines/ subdirectory first
+                os.path.join(self._cfg_dir, "pipelines", f"{name}.yml"),
+                # Then try .yaml extension in pipelines/ subdirectory
+                os.path.join(self._cfg_dir, "pipelines", f"{name}.yaml"),
+                # Fallback to old paths for backward compatibility
+                os.path.join(self._cfg_dir, f"{name}.yml"),
+                os.path.join(self._cfg_dir, f"{name}.yaml"),
+            ]
+
+            for path in possible_paths:
+                try:
+                    if fs.exists(path):
+                        cfg_path = path
+                        break
+                except Exception:
+                    continue
+
+            if cfg_path is None:
+                raise FileNotFoundError(
+                    f"Pipeline configuration not found. Searched for: {possible_paths}"
+                )
+
             # Load configuration
             self._pipeline_cfg = PipelineConfig.from_yaml(
+                name=name,
                 path=cfg_path,
-                storage_options=self._storage_options,
-                project=project_cfg,
+                fs=fs,
             )
-            
+
             # Update current pipeline name
             self._current_pipeline_name = name
-        
+
         return self._pipeline_cfg
     
     @property

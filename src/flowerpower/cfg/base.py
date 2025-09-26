@@ -18,6 +18,15 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             elif hasattr(value, '__struct_fields__'):
                 # Recursively convert nested msgspec structs
                 result[field] = value.to_dict()
+            elif isinstance(value, list):
+                # Handle lists that might contain type objects (like exception classes)
+                converted_list = []
+                for item in value:
+                    if isinstance(item, type):
+                        converted_list.append(str(item))
+                    else:
+                        converted_list.append(item)
+                result[field] = converted_list
             else:
                 result[field] = value
         return result

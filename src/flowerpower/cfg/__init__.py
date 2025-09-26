@@ -21,8 +21,9 @@ class Config(BaseConfig):
         pipeline (PipelineConfig): Configuration for the pipeline.
         project (ProjectConfig): Configuration for the project.
         fs (AbstractFileSystem | None): Filesystem abstraction for I/O operations.
-        base_dir (str | Path | None): Base directory for the configuration.
-        storage_options (dict | Munch): Options for filesystem operations.
+        base_dir (str | None): Base directory for the configuration.
+        base_dir_path (pathlib.Path | None): Base directory as a Path object (property).
+        storage_options (Munch): Options for filesystem operations.
 
     Example:
         ```python
@@ -41,8 +42,22 @@ class Config(BaseConfig):
     pipeline: PipelineConfig = msgspec.field(default_factory=PipelineConfig)
     project: ProjectConfig = msgspec.field(default_factory=ProjectConfig)
     fs: AbstractFileSystem | None = None
-    base_dir: str | Path | None = None
-    storage_options: dict | Munch = msgspec.field(default_factory=Munch)
+    base_dir: str | None = None
+    storage_options: Munch = msgspec.field(default_factory=Munch)
+
+    def __post_init__(self):
+        """Handle conversion of storage_options from dict to Munch if needed."""
+        if isinstance(self.storage_options, dict):
+            self.storage_options = Munch(self.storage_options)
+
+    @property
+    def base_dir_path(self) -> Path | None:
+        """Get base_dir as a pathlib.Path object.
+        
+        Returns:
+            pathlib.Path | None: The base directory as a Path object, or None if base_dir is None.
+        """
+        return Path(self.base_dir) if self.base_dir is not None else None
 
     @classmethod
     def load(

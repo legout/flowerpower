@@ -21,6 +21,8 @@ from hamilton_sdk.api.clients import UnauthorizedException
 from requests.exceptions import ConnectionError, HTTPError
 
 from .. import settings
+from ..utils.adapter import create_adapter_manager
+from ..utils.executor import create_executor_factory
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -58,7 +60,7 @@ else:
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from ..cfg.pipeline.run import RunConfig
+from ..cfg.pipeline.run import ExecutorConfig, RunConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
 from ..utils.config import merge_run_config_with_kwargs
 
@@ -84,13 +86,19 @@ class Pipeline(msgspec.Struct):
     config: PipelineConfig
     module: Any
     project_context: FlowerPowerProject
+    _adapter_manager: Any = None
+    _executor_factory: Any = None
 
     def __post_init__(self):
-        """Initialize Hamilton settings."""
+        """Initialize Hamilton settings and utility managers."""
         if not settings.HAMILTON_TELEMETRY_ENABLED:
             disable_telemetry()
         if not settings.HAMILTON_AUTOLOAD_EXTENSIONS:
             disable_autoload()
+
+        # Initialize utility managers
+        self._adapter_manager = create_adapter_manager()
+        self._executor_factory = create_executor_factory()
 
 
     def run(
@@ -322,6 +330,7 @@ class Pipeline(msgspec.Struct):
         """Get the executor based on the provided configuration."""
         logger.debug("Setting up executor...")
 
+        # Merge with default configuration
         if executor_cfg:
             if isinstance(executor_cfg, str):
                 executor_cfg = ExecutorConfig(type=executor_cfg)
@@ -336,60 +345,25 @@ class Pipeline(msgspec.Struct):
         else:
             executor_cfg = self.config.run.executor
 
-        if executor_cfg.type is None or executor_cfg.type == "synchronous":
-            logger.debug("Using SynchronousLocalTaskExecutor as default.")
-            return executors.SynchronousLocalTaskExecutor(), None
+        # Create executor using factory
+        executor = self._executor_factory.create_executor(executor_cfg)
 
-        if executor_cfg.type == "threadpool":
-            logger.debug(
-                f"Using MultiThreadingExecutor with max_workers={executor_cfg.max_workers}"
-            )
-            return executors.MultiThreadingExecutor(
-                max_tasks=executor_cfg.max_workers
-            ), None
-        elif executor_cfg.type == "processpool":
-            logger.debug(
-                f"Using MultiProcessingExecutor with max_workers={executor_cfg.max_workers}"
-            )
-            return executors.MultiProcessingExecutor(
-                max_tasks=executor_cfg.max_workers
-            ), None
-        elif executor_cfg.type == "ray":
-            if h_ray:
-                logger.debug(
-                    f"Using RayTaskExecutor with num_cpus={executor_cfg.num_cpus}"
-                )
+        # Handle special cleanup for certain executor types
+        cleanup_fn = None
+        if executor_cfg.type == "ray" and h_ray:
+            # Handle temporary case where project_context is PipelineManager
+            project_cfg = getattr(
+                self.project_context, "project_cfg", None
+            ) or getattr(self.project_context, "_project_cfg", None)
 
-                # Handle temporary case where project_context is PipelineManager
-                project_cfg = getattr(
-                    self.project_context, "project_cfg", None
-                ) or getattr(self.project_context, "_project_cfg", None)
-
-                return (
-                    h_ray.RayTaskExecutor(
-                        num_cpus=executor_cfg.num_cpus,
-                        ray_init_config=project_cfg.adapter.ray.ray_init_config,
-                    ),
+            if project_cfg and hasattr(project_cfg.adapter, 'ray'):
+                cleanup_fn = (
                     ray.shutdown
                     if project_cfg.adapter.ray.shutdown_ray_on_completion
-                    else None,
+                    else None
                 )
-            else:
-                logger.warning("Ray is not installed. Using local executor.")
-                return executors.SynchronousLocalTaskExecutor(), None
-        elif executor_cfg.type == "dask":
-            if distributed:
-                cluster = distributed.LocalCluster()
-                client = distributed.Client(cluster)
-                return h_dask.DaskExecutor(client=client), cluster.close
-            else:
-                logger.warning("Dask is not installed. Using local executor.")
-                return executors.SynchronousLocalTaskExecutor(), None
-        else:
-            logger.warning(
-                f"Unknown executor type: {executor_cfg.type}. Using local executor."
-            )
-            return executors.SynchronousLocalTaskExecutor(), None
+
+        return executor, cleanup_fn
 
     def _get_adapters(
         self,
@@ -401,152 +375,23 @@ class Pipeline(msgspec.Struct):
         """Set up the adapters for the pipeline."""
         logger.debug("Setting up adapters...")
 
-        # Resolve adapter configurations
-        if with_adapter_cfg:
-            if isinstance(with_adapter_cfg, dict):
-                with_adapter_cfg = WithAdapterConfig.from_dict(with_adapter_cfg)
-            elif not isinstance(with_adapter_cfg, WithAdapterConfig):
-                raise TypeError(
-                    "with_adapter must be a dictionary or WithAdapterConfig instance."
-                )
+        # Resolve adapter configurations using the adapter manager
+        with_adapter_cfg = self._adapter_manager.resolve_with_adapter_config(
+            with_adapter_cfg, self.config.run.with_adapter
+        )
 
-            with_adapter_cfg = self.config.run.with_adapter.merge(with_adapter_cfg)
-        else:
-            with_adapter_cfg = self.config.run.with_adapter
+        pipeline_adapter_cfg = self._adapter_manager.resolve_pipeline_adapter_config(
+            pipeline_adapter_cfg, self.config.adapter
+        )
 
-        if pipeline_adapter_cfg:
-            if isinstance(pipeline_adapter_cfg, dict):
-                pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(
-                    pipeline_adapter_cfg
-                )
-            elif not isinstance(pipeline_adapter_cfg, PipelineAdapterConfig):
-                raise TypeError(
-                    "pipeline_adapter_cfg must be a dictionary or PipelineAdapterConfig instance."
-                )
+        project_adapter_cfg = self._adapter_manager.resolve_project_adapter_config(
+            project_adapter_cfg, self.project_context
+        )
 
-            pipeline_adapter_cfg = self.config.adapter.merge(pipeline_adapter_cfg)
-        else:
-            pipeline_adapter_cfg = self.config.adapter
-
-        if project_adapter_cfg:
-            if isinstance(project_adapter_cfg, dict):
-                project_adapter_cfg = ProjectAdapterConfig.from_dict(
-                    project_adapter_cfg
-                )
-            elif not isinstance(project_adapter_cfg, ProjectAdapterConfig):
-                raise TypeError(
-                    "project_adapter_cfg must be a dictionary or ProjectAdapterConfig instance."
-                )
-
-            # Handle temporary case where project_context is PipelineManager
-            manager_project_cfg = getattr(
-                self.project_context, "project_cfg", None
-            ) or getattr(self.project_context, "_project_cfg", None)
-            if manager_project_cfg and hasattr(manager_project_cfg, "adapter"):
-                project_adapter_cfg = manager_project_cfg.adapter.merge(
-                    project_adapter_cfg
-                )
-            else:
-                # Use project context directly if it's FlowerPowerProject
-                if hasattr(self.project_context, "pipeline_manager"):
-                    pm_cfg = getattr(
-                        self.project_context.pipeline_manager, "project_cfg", None
-                    ) or getattr(
-                        self.project_context.pipeline_manager, "_project_cfg", None
-                    )
-                    base_cfg = pm_cfg.adapter if pm_cfg else None
-                    if base_cfg:
-                        project_adapter_cfg = base_cfg.merge(project_adapter_cfg)
-                    else:
-                        from ..cfg.project.adapter import \
-                            AdapterConfig as ProjectAdapterConfig
-
-                        project_adapter_cfg = ProjectAdapterConfig()
-                else:
-                    from ..cfg.project.adapter import \
-                        AdapterConfig as ProjectAdapterConfig
-
-                    project_adapter_cfg = ProjectAdapterConfig()
-        else:
-            # Handle temporary case where project_context is PipelineManager
-            manager_project_cfg = getattr(
-                self.project_context, "project_cfg", None
-            ) or getattr(self.project_context, "_project_cfg", None)
-            if manager_project_cfg and hasattr(manager_project_cfg, "adapter"):
-                project_adapter_cfg = manager_project_cfg.adapter
-            else:
-                # Use project context directly if it's FlowerPowerProject
-                if hasattr(self.project_context, "pipeline_manager"):
-                    pm_cfg = getattr(
-                        self.project_context.pipeline_manager, "project_cfg", None
-                    ) or getattr(
-                        self.project_context.pipeline_manager, "_project_cfg", None
-                    )
-                    project_adapter_cfg = pm_cfg.adapter if pm_cfg else None
-                else:
-                    project_adapter_cfg = None
-
-            # Create default adapter config if none found
-            if project_adapter_cfg is None:
-                from ..cfg.project.adapter import \
-                    AdapterConfig as ProjectAdapterConfig
-
-                project_adapter_cfg = ProjectAdapterConfig()
-
-        adapters = []
-
-        # Hamilton Tracker adapter
-        if with_adapter_cfg.hamilton_tracker:
-            tracker_kwargs = project_adapter_cfg.hamilton_tracker.to_dict()
-            tracker_kwargs.update(pipeline_adapter_cfg.hamilton_tracker.to_dict())
-            tracker_kwargs["hamilton_api_url"] = tracker_kwargs.pop("api_url", None)
-            tracker_kwargs["hamilton_ui_url"] = tracker_kwargs.pop("ui_url", None)
-
-            constants.MAX_DICT_LENGTH_CAPTURE = (
-                tracker_kwargs.pop("max_dict_length_capture", None)
-                or settings.HAMILTON_MAX_DICT_LENGTH_CAPTURE
-            )
-            constants.MAX_LIST_LENGTH_CAPTURE = (
-                tracker_kwargs.pop("max_list_length_capture", None)
-                or settings.HAMILTON_MAX_LIST_LENGTH_CAPTURE
-            )
-            constants.CAPTURE_DATA_STATISTICS = (
-                tracker_kwargs.pop("capture_data_statistics", None)
-                or settings.HAMILTON_CAPTURE_DATA_STATISTICS
-            )
-
-            tracker = HamiltonTracker(**tracker_kwargs)
-            adapters.append(tracker)
-
-        # MLFlow adapter
-        if with_adapter_cfg.mlflow:
-            if h_mlflow is None:
-                logger.warning("MLFlow is not installed. Skipping MLFlow adapter.")
-            else:
-                mlflow_kwargs = project_adapter_cfg.mlflow.to_dict()
-                mlflow_kwargs.update(pipeline_adapter_cfg.mlflow.to_dict())
-                mlflow_adapter = h_mlflow.MLFlowTracker(**mlflow_kwargs)
-                adapters.append(mlflow_adapter)
-
-        # OpenTelemetry adapter
-        if with_adapter_cfg.opentelemetry:
-            if h_opentelemetry is None:
-                logger.warning(
-                    "OpenTelemetry is not installed. Skipping OpenTelemetry adapter."
-                )
-            else:
-                otel_kwargs = project_adapter_cfg.opentelemetry.to_dict()
-                otel_kwargs.update(pipeline_adapter_cfg.opentelemetry.to_dict())
-                init_tracer()
-                otel_adapter = h_opentelemetry.OpenTelemetryTracker(**otel_kwargs)
-                adapters.append(otel_adapter)
-
-        # Progress bar adapter
-        if with_adapter_cfg.progressbar:
-            progressbar_kwargs = project_adapter_cfg.progressbar.to_dict()
-            progressbar_kwargs.update(pipeline_adapter_cfg.progressbar.to_dict())
-            progressbar_adapter = h_rich.ProgressBar(**progressbar_kwargs)
-            adapters.append(progressbar_adapter)
+        # Create adapters
+        adapters = self._adapter_manager.create_adapters(
+            with_adapter_cfg, pipeline_adapter_cfg, project_adapter_cfg
+        )
 
         # Add any additional adapters
         if adapter:

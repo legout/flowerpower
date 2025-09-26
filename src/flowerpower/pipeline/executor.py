@@ -80,7 +80,6 @@ class PipelineExecutor:
         # Get the pipeline object from registry
         pipeline = self._registry.get_pipeline(
             name=name,
-            config=pipeline_config,
             project_context=self._project_context,
         )
         
@@ -120,7 +119,6 @@ class PipelineExecutor:
         # Get the pipeline object from registry
         pipeline = self._registry.get_pipeline(
             name=name,
-            config=pipeline_config,
             project_context=self._project_context,
         )
         

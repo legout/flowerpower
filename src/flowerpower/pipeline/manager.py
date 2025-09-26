@@ -23,6 +23,7 @@ from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
 from ..utils.logging import setup_logging
 from ..utils.config import merge_run_config_with_kwargs
+from ..utils.filesystem import FilesystemHelper
 from .config_manager import PipelineConfigManager
 from .executor import PipelineExecutor
 from .io import PipelineIOManager
@@ -121,8 +122,36 @@ class PipelineManager:
         if log_level:
             setup_logging(level=log_level)
 
+        self._setup_filesystem(base_dir, storage_options, fs, cfg_dir, pipelines_dir)
+        self._initialize_managers()
+        self._ensure_directories_exist()
+        self._add_modules_path()
+
+    def _setup_filesystem(
+        self,
+        base_dir: str | None,
+        storage_options: dict | Munch | BaseStorageOptions | None,
+        fs: AbstractFileSystem | None,
+        cfg_dir: str | None,
+        pipelines_dir: str | None
+    ) -> None:
+        """Setup filesystem and configuration directories.
+
+        Args:
+            base_dir: Root directory for the project
+            storage_options: Storage options for filesystem
+            fs: Pre-configured filesystem instance
+            cfg_dir: Configuration directory name
+            pipelines_dir: Pipelines directory name
+        """
         self._base_dir = base_dir or str(Path.cwd())
-        # self._storage_options = storage_options
+        self._cfg_dir = cfg_dir
+        self._pipelines_dir = pipelines_dir
+
+        # Setup filesystem helper
+        self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
+
+        # Configure caching if storage options provided
         if storage_options is not None:
             cached = True
             cache_storage = posixpath.join(
@@ -133,80 +162,58 @@ class PipelineManager:
         else:
             cached = False
             cache_storage = None
-        if not fs:
-            fs = filesystem(
-                self._base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-        self._fs = fs
+
+        # Get filesystem instance
+        self._fs = fs or self._fs_helper.get_filesystem(cached=cached, cache_storage=cache_storage)
         self._storage_options = (
-            storage_options or fs.storage_options
-            if fs.protocol != "dir"
-            else fs.fs.storage_options
+            storage_options or self._fs.storage_options
+            if self._fs.protocol != "dir"
+            else self._fs.fs.storage_options
         )
 
-        # Store overrides for ProjectConfig loading
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
-
-        # Initialize specialized managers
+    def _initialize_managers(self) -> None:
+        """Initialize all manager components."""
+        # Initialize config manager
         self._config_manager = PipelineConfigManager(
             base_dir=self._base_dir,
             fs=self._fs,
             storage_options=self._storage_options,
             cfg_dir=self._cfg_dir
         )
-        
+
         # Load project configuration
         self._config_manager.load_project_config(reload=True)
-        
-        # Ensure essential directories exist
-        try:
-            self._fs.makedirs(self._cfg_dir, exist_ok=True)
-            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except (OSError, PermissionError) as e:
-            logger.error(f"Error creating essential directories: {e}")
-            raise RuntimeError(f"Failed to create essential directories: {e}") from e
-        except Exception as e:
-            logger.error(f"Unexpected error creating essential directories: {e}")
-            raise RuntimeError(f"Unexpected filesystem error: {e}") from e
 
-        # Ensure pipeline modules can be imported
-        self._add_modules_path()
-        try:
-            self._fs.makedirs(self._cfg_dir, exist_ok=True)
-            self._fs.makedirs(self._pipelines_dir, exist_ok=True)
-        except (OSError, PermissionError) as e:
-            logger.error(f"Error creating essential directories: {e}")
-            raise RuntimeError(f"Failed to create essential directories: {e}") from e
-        except Exception as e:
-            logger.error(f"Unexpected error creating essential directories: {e}")
-            raise RuntimeError(f"Unexpected filesystem error: {e}") from e
-
-        # Initialize registry and other components
+        # Initialize registry
         self.registry = PipelineRegistry(
             project_cfg=self._config_manager.project_config,
             fs=self._fs,
             base_dir=self._base_dir,
             storage_options=self._storage_options,
         )
-        
+
         # Initialize specialized managers
         self._executor = PipelineExecutor(
             config_manager=self._config_manager,
             registry=self.registry
         )
         self._lifecycle_manager = PipelineLifecycleManager(registry=self.registry)
-        
+
         # Initialize other components
         self._project_context = None
         self.visualizer = PipelineVisualizer(
-            project_cfg=self._config_manager.project_config, 
+            project_cfg=self._config_manager.project_config,
             fs=self._fs
         )
         self.io = PipelineIOManager(registry=self.registry)
+
+    def _ensure_directories_exist(self) -> None:
+        """Ensure essential directories exist."""
+        self._fs_helper.ensure_directories_exist(
+            self._fs,
+            self._cfg_dir,
+            self._pipelines_dir
+        )
 
     def _add_modules_path(self) -> None:
         """Add pipeline module paths to Python path.
@@ -556,21 +563,6 @@ class PipelineManager:
             to_html=to_html,
             to_svg=to_svg,
         )
-
-    def show_pipelines(self) -> None:
-        """Display all available pipelines in a formatted table.
-
-        The table includes pipeline names, types, and enablement status.
-        Uses rich formatting for terminal display.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> manager.show_pipelines()
-
-        """
-        self.registry.show_pipelines()
 
     def list_pipelines(self) -> list[str]:
         """Get list of all available pipeline names.

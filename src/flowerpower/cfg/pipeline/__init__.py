@@ -73,7 +73,10 @@ class PipelineConfig(BaseConfig):
     @classmethod
     def from_dict(cls, name: str, data: dict | Munch):
         data.update({"name": name})
-        return msgspec.convert(data, cls)
+        instance = msgspec.convert(data, cls)
+        # Manually call __post_init__ since msgspec.convert doesn't call it
+        instance.__post_init__()
+        return instance
 
     @classmethod
     def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem):
@@ -135,11 +138,10 @@ class PipelineConfig(BaseConfig):
                 return value(val)
             # For all other values
             return val
-
-        # Step 1: Replace each value with a dictionary containing key and value
-        result = {k: {k: d[k]} for k in d}
-
-        # Step 2: Transform all values recursively
+        
+        result = {k: {k: d[k]} for k in d}  # Step 1: Wrap each parameter in its own dict
+        
+        # Step 2: Transform each parameter value recursively
         return {k: transform_recursive(v, d) for k, v in result.items()}
 
     @classmethod
@@ -173,15 +175,13 @@ class PipelineConfig(BaseConfig):
             fs = filesystem(
                 base_dir, cached=False, dirfs=True, storage_options=storage_options
             )
-        if fs.exists("conf/pipelines"):
-            if name is not None:
-                pipeline = PipelineConfig.from_yaml(
-                    name=name,
-                    path=f"conf/pipelines/{name}.yml",
-                    fs=fs,
-                )
-            else:
-                pipeline = PipelineConfig(name=name)
+        if fs.exists("conf/pipelines") and name is not None:
+            
+            pipeline = PipelineConfig.from_yaml(
+                name=name,
+                path=f"conf/pipelines/{name}.yml",
+                fs=fs,
+            )
         else:
             pipeline = PipelineConfig(name=name)
 
