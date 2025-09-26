@@ -37,7 +37,7 @@ def run_sync_scraping():
     print("🔄 Running news scraping synchronously...")
 
     # Initialize FlowerPower project
-    project = FlowerPowerProject.from_config(".")
+    project = FlowerPowerProject.load(".")
 
     # Run the pipeline immediately
     result = project.pipeline_manager.run(
@@ -62,7 +62,7 @@ def run_custom_scraping_config():
     print("⚙️ Running news scraping with custom configuration...")
 
     # Initialize FlowerPower project
-    project = FlowerPowerProject.from_config(".")
+    project = FlowerPowerProject.load(".")
 
     # Custom inputs for aggressive scraping
     custom_inputs = {
@@ -93,7 +93,7 @@ def run_batch_scraping():
     """Run multiple scraping jobs with different configurations."""
     print("🔄 Running batch scraping with different configurations...")
 
-    project = FlowerPowerProject.from_config(".")
+    project = FlowerPowerProject.load(".")
 
     # Different scraping configurations
     configurations = [

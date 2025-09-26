@@ -23,7 +23,6 @@ from urllib.parse import urljoin, urlparse
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from hamilton import function
 from hamilton.function_modifiers import config, parameterize
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -34,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Load configuration parameters
 BASE_DIR = Path(__file__).parent.parent
-PARAMS = Config.load(str(BASE_DIR), {}).run.inputs
+PARAMS = Config.load(str(BASE_DIR), {}).pipeline.run.inputs
 
 
 class WebScraper:
@@ -313,6 +312,14 @@ def filtered_articles(
     content_types: List[str],
 ) -> List[Dict[str, Any]]:
     """Filter articles based on date range, keywords, and content types."""
+    
+    # Convert Munch objects to plain dictionaries if needed
+    from munch import Munch
+    if isinstance(date_range, Munch):
+        date_range = dict(date_range)
+    if isinstance(keywords, Munch):
+        keywords = dict(keywords)
+    
     filtered = []
 
     # Parse date range

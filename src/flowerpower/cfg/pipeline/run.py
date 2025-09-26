@@ -51,8 +51,8 @@ class RunConfig(BaseConfig):
     on_failure: CallbackSpec | None = msgspec.field(default=None)
 
     def __post_init__(self):
-        if isinstance(self.inputs, dict):
-            self.inputs = munchify(self.inputs)
+        # if isinstance(self.inputs, dict):
+        #     self.inputs = munchify(self.inputs)
         if isinstance(self.config, dict):
             self.config = munchify(self.config)
         if isinstance(self.cache, (dict)):

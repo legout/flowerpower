@@ -5,10 +5,11 @@
 #     "pandas>=2.0.0",
 #     "plotly>=5.15.0",
 #     "typer>=0.9.0",
-#     "numpy>=1.21.0"
+#     "numpy>=1.21.0",
 #     "scikit-learn>=1.3.0",
 #     "joblib>=1.2.0",
 # ]
+# ///
 """
 Example runner script for the ml-training-pipeline FlowerPower project.
 
