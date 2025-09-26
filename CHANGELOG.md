@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.31.0] - 2025-09-26
+
+### Changes
+- feat: Add detailed documentation for PipelineExecutor and PipelineRegistry, enhance CLI reference, and update quickstart instructions
+- feat: Enhance configuration management with validation and error handling
+- feat: Update web scraping pipeline and configuration handling
+- Refactor code structure for improved readability and maintainability
+- refactor(cli): enhance error handling, remove dead code, and improve utility functions for better maintainability
+- refactor(utils): remove ProjectContextResolver and related functions to simplify utility module
+- Add comprehensive code review documentation and improve utility module
+- docs: Update and reorganize API documentation including CLI, configuration, executors, and project creation
+- docs: Remove deprecated job queue and MQTT documentation
+- docs: Enhance README and project documentation
+
 ## [0.30.0] - 2025-09-15
 
 ### Changes
