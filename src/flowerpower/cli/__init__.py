@@ -65,7 +65,7 @@ def init(
             parsed_storage_options = (
                 parse_dict_or_list_param(storage_options, "dict") or {}
             )
-        except Exception as e:
+        except (ValueError, SyntaxError, json.JSONDecodeError) as e:
             logger.error(f"Error parsing storage options: {e}")
             raise typer.Exit(code=1)
 
@@ -75,8 +75,14 @@ def init(
             base_dir=base_dir,
             storage_options=parsed_storage_options,
         )
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        logger.error(f"File system error initializing project: {e}")
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        logger.error(f"Invalid configuration for project: {e}")
+        raise typer.Exit(code=1)
     except Exception as e:
-        logger.error(f"Error initializing project: {e}")
+        logger.error(f"Unexpected error initializing project: {e}")
         raise typer.Exit(code=1)
 
 
