@@ -1,0 +1,560 @@
+# PipelineManager
+
+**Module:** `flowerpower.pipeline.PipelineManager`
+
+The `PipelineManager` is the central class for managing pipeline operations in FlowerPower. It provides a unified interface for creating, running, and managing pipelines.
+
+## Initialization
+
+### __init__
+```python
+__init__(self, base_dir: str | None = None, storage_options: dict | Munch | BaseStorageOptions | None = None, fs: AbstractFileSystem | None = None, cfg_dir: str | None = None, pipelines_dir: str | None = None, log_level: str | None = None)
+```
+
+Initializes the `PipelineManager`, setting up project paths and loading configurations.
+
+| Parameter         | Type                               | Description                                                                    |
+|-------------------|------------------------------------|--------------------------------------------------------------------------------|
+| `base_dir` | `str \| None` | The base directory of the project. Defaults to the current working directory. | `None` |
+| `storage_options` | `dict \| Munch \| BaseStorageOptions \| None` | Configuration options for filesystem access (e.g., S3, GCS). | `{}` |
+| `fs` | `AbstractFileSystem \| None` | An fsspec-compatible filesystem instance. | `None` |
+| `cfg_dir` | `str \| None` | Override the default configuration directory name. | `settings.CONFIG_DIR` |
+| `pipelines_dir` | `str \| None` | Override the default pipelines directory name. | `settings.PIPELINES_DIR` |
+| `log_level` | `str \| None` | The logging level for the manager. | `None` |
+
+**Example:**
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+# Initialize a manager for the project in the current directory
+manager = PipelineManager()
+```
+
+## Methods
+
+## Attributes
+| Attribute | Type | Description |
+|:----------|:-----|:------------|
+| `registry` | `PipelineRegistry` | Handles pipeline registration and discovery. |
+| `visualizer` | `PipelineVisualizer` | Handles pipeline visualization. |
+| `io` | `PipelineIOManager` | Handles pipeline import/export operations, consolidating common logic. |
+| `project_cfg` | `ProjectConfig` | Current project configuration. |
+| `pipeline_cfg` | `PipelineConfig` | Current pipeline configuration. |
+| `pipelines` | `list[str]` | List of available pipeline names. |
+| `current_pipeline_name` | `str` | Name of the currently loaded pipeline. |
+| `summary` | `dict[str, dict \| str]` | Summary of all pipelines. |
+| `_base_dir` | `str` | The base directory of the project. |
+| `_fs` | `AbstractFileSystem` | The filesystem instance used by the manager. |
+| `_storage_options` | `dict \| Munch \| BaseStorageOptions` | Storage options for the filesystem. |
+| `_cfg_dir` | `str` | The directory for configuration files. |
+| `_pipelines_dir` | `str` | The directory for pipeline modules. |
+| `_project_context` | `FlowerPowerProject \| None` | Reference to the FlowerPowerProject instance. |
+
+## Methods
+
+### run
+```python
+run(self, name: str, run_config: RunConfig | None = None, inputs: dict | None = None, final_vars: list[str] | None = None, config: dict | None = None, cache: dict | None = None, executor_cfg: str | dict | ExecutorConfig | None = None, with_adapter_cfg: dict | WithAdapterConfig | None = None, pipeline_adapter_cfg: dict | PipelineAdapterConfig | None = None, project_adapter_cfg: dict | ProjectAdapterConfig | None = None, adapter: dict[str, Any] | None = None, reload: bool = False, log_level: str | None = None, max_retries: int | None = None, retry_delay: float | None = None, jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None, on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None, on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None)
+```
+
+Execute a pipeline synchronously and return its results. Parameters related to retries (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) configure the internal retry mechanism.
+
+This method supports two primary ways of providing execution configuration:
+1. Using a `RunConfig` object (recommended): Provides a structured way to pass all execution parameters.
+2. Using individual parameters (`**kwargs`): Allows specifying parameters directly, which will override corresponding values in the `RunConfig` if both are provided.
+
+When both `run_config` and individual parameters (`**kwargs`) are provided, the individual parameters take precedence over the corresponding values in `run_config`.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to run. Must be a valid identifier. | |
+| `run_config` | `RunConfig \| None` | Configuration object containing all execution parameters. See [RunConfig](./runconfig.md) for details. | `None` |
+| `inputs` | `dict \| None` | Override pipeline input values. Example: `{"data_date": "2025-04-28"}` | `None` |
+| `final_vars` | `list[str] \| None` | Specify which output variables to return. Example: `["model", "metrics"]` | `None` |
+| `config` | `dict \| None` | Configuration for Hamilton pipeline executor. Example: `{"model": "LogisticRegression"}` | `None` |
+| `cache` | `dict \| None` | Cache configuration for results. Example: `{"recompute": ["node1", "final_node"]}` | `None` |
+| `executor_cfg` | `str \| dict \| ExecutorConfig \| None` | Execution configuration, can be: <br>- `str`: Executor name, e.g. "threadpool", "local" <br>- `dict`: Raw config, e.g. `{"type": "threadpool", "max_workers": 4}` <br>- `ExecutorConfig`: Structured config object | `None` |
+| `with_adapter_cfg` | `dict \| WithAdapterConfig \| None` | Adapter settings for pipeline execution. Example: `{"opentelemetry": True, "tracker": False}` | `None` |
+| `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. Example: `{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}` | `None` |
+| `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"opentelemetry": {"host": "http://localhost:4317"}}` | `None` |
+| `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
+| `reload` | `bool` | Force reload of pipeline configuration. | `False` |
+| `log_level` | `str \| None` | Logging level for the execution. Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `None` |
+| `max_retries` | `int \| None` | Maximum number of retries for execution. | `None` |
+| `retry_delay` | `float \| None` | Delay between retries in seconds. | `None` |
+| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay | `None` |
+| `retry_exceptions` | `tuple \| list \| None` | Exceptions that trigger a retry. | `None` |
+| `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. | `None` |
+| `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. | `None` |
+
+**Returns:** `dict[str, Any]` - Pipeline execution results, mapping output variable names to their computed values.
+
+**Raises:**
+
+- `ValueError`: If pipeline name doesn't exist or configuration is invalid.
+- `ImportError`: If pipeline module cannot be imported.
+- `RuntimeError`: If execution fails due to pipeline or adapter errors.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+from flowerpower.cfg.pipeline.run import RunConfig
+from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+
+manager = PipelineManager()
+
+# Simple execution
+result = manager.run("my_pipeline")
+
+# Using individual parameters (kwargs)
+result = manager.run(
+    "ml_pipeline",
+    inputs={"data_date": "2025-01-01"},
+    final_vars=["model", "metrics"]
+)
+
+# Using RunConfig directly
+config = RunConfig(
+    inputs={"data_date": "2025-01-01"},
+    final_vars=["model", "metrics"],
+    log_level="DEBUG"
+)
+result = manager.run("ml_pipeline", run_config=config)
+
+# Using RunConfigBuilder from flowerpower.cfg.pipeline.builder (recommended)
+config = (
+    RunConfigBuilder()
+    .with_inputs({"data_date": "2025-01-01"})
+    .with_final_vars(["model", "metrics"])
+    .with_log_level("DEBUG")
+    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .build()
+)
+result = manager.run("ml_pipeline", run_config=config)
+
+# Mixing RunConfig with individual parameters (kwargs)
+# Individual parameters take precedence over RunConfig values
+base_config = RunConfigBuilder().with_log_level("INFO").build()
+result = manager.run(
+    "ml_pipeline",
+    run_config=base_config,
+    inputs={"data_date": "2025-01-01"},  # Overrides inputs in base_config
+    final_vars=["model"]  # Overrides final_vars in base_config
+)
+```
+
+### new
+```python
+new(self, name: str, overwrite: bool = False)
+```
+
+Create a new pipeline with the given name.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name for the new pipeline. Must be a valid Python identifier. | |
+| `overwrite` | `bool` | Whether to overwrite existing pipeline with same name. | `False` |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `ValueError`: If name is invalid or pipeline exists and overwrite=`False`.
+- `RuntimeError`: If file creation fails.
+- `PermissionError`: If lacking write permissions.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+# Create new pipeline
+manager = PipelineManager()
+manager.new("data_transformation")
+
+# Overwrite existing pipeline
+manager.new("data_transformation", overwrite=True)
+```
+
+### delete
+```python
+delete(self, name: str)
+```
+
+Delete an existing pipeline.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to delete. | |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `FileNotFoundError`: If the pipeline does not exist.
+- `RuntimeError`: If deletion fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+manager.delete("old_pipeline")
+```
+
+### show_pipelines
+```python
+show_pipelines(self, format: str = "table") -> None
+```
+
+Display a summary of all available pipelines.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `format` | `str` | Output format ("table", "json", "yaml"). | `"table"` |
+
+**Returns:** `None`
+
+### list_pipelines
+```python
+list_pipelines(self) -> list[str]
+```
+
+Return a sorted list of available pipeline names.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+
+# Show pipelines in table format (default)
+manager.show_pipelines()
+
+# Show pipelines in JSON format
+manager.show_pipelines(format="json")
+```
+
+### add_hook
+```python
+add_hook(self, name: str, type: HookType, to: str, function_name: str)
+```
+
+Add a hook to a specific pipeline.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to add the hook to. | |
+| `type` | `HookType` | Type of the hook (e.g., `HookType.MQTT_BUILD_CONFIG`). | |
+| `to` | `str` | Destination of the hook (e.g., "mqtt"). | |
+| `function_name` | `str` | Name of the function to be called as the hook. | |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `ValueError`: If the pipeline does not exist or hook type is invalid.
+- `FileExistsError`: If a hook with the same name and type already exists.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager, HookType
+
+manager = PipelineManager()
+manager.add_hook(
+    name="my_pipeline",
+    type=HookType.MQTT_BUILD_CONFIG,
+    to="mqtt",
+    function_name="build_mqtt_config"
+)
+```
+
+### remove_hook
+```python
+remove_hook(self, name: str, type: HookType, function_name: str)
+```
+
+Remove a hook from a specific pipeline.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to remove the hook from. | |
+| `type` | `HookType` | Type of the hook to remove. | |
+| `function_name` | `str` | Name of the function that was used as the hook. | |
+
+**Returns:** `None`
+
+**Raises:** `FileNotFoundError`: If the pipeline or hook does not exist.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager, HookType
+
+manager = PipelineManager()
+manager.remove_hook(
+    name="my_pipeline",
+    type=HookType.MQTT_BUILD_CONFIG,
+    function_name="build_mqtt_config"
+)
+```
+
+### import_pipeline
+```python
+import_pipeline(self, name: str, src_base_dir: str, src_fs: AbstractFileSystem | None = None, src_storage_options: dict | BaseStorageOptions | None = None, overwrite: bool = False)
+```
+
+Import a pipeline from another FlowerPower project.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name for the new pipeline in the current project. | |
+| `src_base_dir` | `str` | Source FlowerPower project directory or URI. Examples: <br>- Local: `"/path/to/other/project"` <br>- S3: `"s3://bucket/project"` <br>- GitHub: `"github://org/repo/project"` | |
+| `src_fs` | `AbstractFileSystem \| None` | Pre-configured source filesystem. Example: `S3FileSystem(anon=False)` | `None` |
+| `src_storage_options` | `dict \| BaseStorageOptions \| None` | Options for source filesystem access. Example: `{"key": "ACCESS_KEY", "secret": "SECRET_KEY"}` | `None` |
+| `overwrite` | `bool` | Whether to replace existing pipeline if name exists. | `False` |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `ValueError`: If pipeline name exists and `overwrite=False`.
+- `FileNotFoundError`: If source pipeline not found.
+- `RuntimeError`: If import fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+from s3fs import S3FileSystem
+
+manager = PipelineManager()
+
+# Import from local filesystem
+manager.import_pipeline(
+    "new_pipeline",
+    "/path/to/other/project"
+)
+
+# Import from S3 with custom filesystem
+s3 = S3FileSystem(anon=False)
+manager.import_pipeline(
+    "s3_pipeline",
+    "s3://bucket/project",
+    src_fs=s3
+)
+```
+
+### import_many
+```python
+import_many(self, names: list[str], src_base_dir: str, src_fs: AbstractFileSystem | None = None, src_storage_options: dict | BaseStorageOptions | None = None, overwrite: bool = False)
+```
+
+Import multiple pipelines from another FlowerPower project.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `names` | `list[str]` | List of pipeline names to import. | |
+| `src_base_dir` | `str` | Source FlowerPower project directory or URI. Examples: <br>- Local: `"/path/to/other/project"` <br>- S3: `"s3://bucket/project"` <br>- GitHub: `"github://org/repo/project"` | |
+| `src_fs` | `AbstractFileSystem \| None` | Pre-configured source filesystem. Example: `S3FileSystem(anon=False)` | `None` |
+| `src_storage_options` | `dict \| BaseStorageOptions \| None` | Options for source filesystem access. Example: `{"key": "ACCESS_KEY", "secret": "SECRET_KEY"}` | `None` |
+| `overwrite` | `bool` | Whether to replace existing pipelines if names exist. | `False` |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `ValueError`: If any pipeline name exists and `overwrite=False`.
+- `FileNotFoundError`: If any source pipeline not found.
+- `RuntimeError`: If import fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+
+# Import multiple pipelines
+manager.import_many(
+    names=["pipeline1", "pipeline2"],
+    src_base_dir="/path/to/other/project"
+)
+
+# Import multiple pipelines from S3
+manager.import_many(
+    names=["s3_pipeline_a", "s3_pipeline_b"],
+    src_base_dir="s3://bucket/source",
+    src_storage_options={
+        "key": "ACCESS_KEY",
+        "secret": "SECRET_KEY"
+    }
+)
+```
+
+### export_pipeline
+```python
+export_pipeline(self, name: str, dest_base_dir: str, dest_fs: AbstractFileSystem | None = None, dest_storage_options: dict | BaseStorageOptions | None = None, overwrite: bool = False)
+```
+
+Export a pipeline to another FlowerPower project.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to export. | |
+| `dest_base_dir` | `str` | Destination FlowerPower project directory or URI. Examples: <br>- Local: `"/path/to/backup"` <br>- S3: `"s3://bucket/backups"` <br>- GCS: `"gs://bucket/backups"` | |
+| `dest_fs` | `AbstractFileSystem \| None` | Pre-configured destination filesystem. Example: `GCSFileSystem(project='my-project')` | `None` |
+| `dest_storage_options` | `dict \| BaseStorageOptions \| None` | Options for destination filesystem access. Example: `{"token": "my_token"}` | `None` |
+| `overwrite` | `bool` | Whether to replace existing pipeline in destination if name exists. | `False` |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `FileNotFoundError`: If the pipeline does not exist in the current project.
+- `FileExistsError`: If destination pipeline exists and `overwrite=False`.
+- `RuntimeError`: If export fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+from gcsfs import GCSFileSystem
+
+manager = PipelineManager()
+
+# Export to local backup
+manager.export_pipeline(
+    "my_pipeline",
+    "/path/to/backup"
+)
+
+# Export to Google Cloud Storage
+gcs = GCSFileSystem(project='my-project')
+manager.export_pipeline(
+    "prod_pipeline",
+    "gs://my-bucket/backups",
+    dest_fs=gcs
+)
+```
+
+### export_many
+```python
+export_many(self, names: list[str], dest_base_dir: str, dest_fs: AbstractFileSystem | None = None, dest_storage_options: dict | BaseStorageOptions | None = None, overwrite: bool = False)
+```
+
+Export multiple pipelines to another FlowerPower project.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `names` | `list[str]` | List of pipeline names to export. | |
+| `dest_base_dir` | `str` | Destination FlowerPower project directory or URI. Examples: <br>- Local: `"/path/to/backup"` <br>- S3: `"s3://bucket/backups"` <br>- GCS: `"gs://bucket/backups"` | |
+| `dest_fs` | `AbstractFileSystem \| None` | Pre-configured destination filesystem. Example: `GCSFileSystem(project='my-project')` | `None` |
+| `dest_storage_options` | `dict \| BaseStorageOptions \| None` | Options for destination filesystem access. Example: `{"token": "my_token"}` | `None` |
+| `overwrite` | `bool` | Whether to replace existing pipelines in destination if names exist. | `False` |
+
+**Returns:** `None`
+
+**Raises:**
+
+- `FileNotFoundError`: If any pipeline does not exist in the current project.
+- `FileExistsError`: If any destination pipeline exists and `overwrite=False`.
+- `RuntimeError`: If export fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+
+# Export multiple pipelines
+manager.export_many(
+    names=["pipeline1", "pipeline2"],
+    dest_base_dir="/path/to/backup"
+)
+
+# Export multiple pipelines from S3
+manager.export_many(
+    names=["s3_pipeline_a", "s3_pipeline_b"],
+    dest_base_dir="s3://bucket/backups",
+    dest_storage_options={
+        "key": "ACCESS_KEY",
+        "secret": "SECRET_KEY"
+    }
+)
+```
+
+### show_dag
+```python
+show_dag(self, name: str, format: str = "png", show_outputs: bool = False, display_html: bool = False)
+```
+
+Generate and display the Directed Acyclic Graph (DAG) of a pipeline.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to visualize. | |
+| `format` | `str` | Output format for the DAG ("png", "svg", "html", "dot"). | `"png"` |
+| `show_outputs` | `bool` | Whether to include output nodes in the DAG. | `False` |
+| `display_html` | `bool` | Whether to display the HTML directly in the notebook (only for "html" format). | `False` |
+
+**Returns:** `None` (displays the DAG directly or saves it to a file).
+
+**Raises:**
+
+- `FileNotFoundError`: If the pipeline does not exist.
+- `ValueError`: If format is invalid or visualization fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+
+# Show DAG as PNG
+manager.show_dag("my_pipeline")
+
+# Show DAG as SVG with outputs
+manager.show_dag("ml_pipeline", format="svg", show_outputs=True)
+```
+
+### show_execution_graph
+```python
+show_execution_graph(self, name: str, format: str = "png", show_outputs: bool = False, display_html: bool = False, inputs: dict | None = None, config: dict | None = None)
+```
+
+Generate and display the execution graph of a pipeline, considering inputs and configuration.
+
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str` | Name of the pipeline to visualize. | |
+| `format` | `str` | Output format for the graph ("png", "svg", "html", "dot"). | `"png"` |
+| `show_outputs` | `bool` | Whether to include output nodes in the graph. | `False` |
+| `display_html` | `bool` | Whether to display the HTML directly in the notebook (only for "html" format). | `False` |
+| `inputs` | `dict \| None` | Input values to consider for graph generation. | `None` |
+| `config` | `dict \| None` | Configuration for Hamilton pipeline executor. | `None` |
+
+**Returns:** `None` (displays the graph directly or saves it to a file).
+
+**Raises:**
+
+- `FileNotFoundError`: If the pipeline does not exist.
+- `ValueError`: If format is invalid or visualization fails.
+
+#### Example
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+
+# Show execution graph
+manager.show_execution_graph("my_pipeline", inputs={"data_date": "2025-01-01"})
+```
