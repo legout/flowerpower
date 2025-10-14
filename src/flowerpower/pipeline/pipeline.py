@@ -9,10 +9,11 @@ import importlib.util
 import random
 import time
 from typing import TYPE_CHECKING, Any, Callable
-from requests.exceptions import HTTPError, ConnectionError, Timeout # Example exception
+from requests.exceptions import HTTPError, ConnectionError, Timeout  # Example exception
 
 import humanize
 import msgspec
+from loguru import logger
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
@@ -23,6 +24,8 @@ from requests.exceptions import ConnectionError, HTTPError
 from .. import settings
 from ..utils.adapter import create_adapter_manager
 from ..utils.executor import create_executor_factory
+from ..utils.logging import setup_logging
+
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -37,11 +40,6 @@ if importlib.util.find_spec("mlflow"):
 else:
     h_mlflow = None
 
-from hamilton.plugins import h_rich
-from hamilton.plugins.h_threadpool import FutureAdapter
-from hamilton_sdk.adapters import HamiltonTracker
-from hamilton_sdk.tracking import constants
-from loguru import logger
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
@@ -58,7 +56,7 @@ else:
     ray = None
     h_ray = None
 
-from ..cfg import PipelineConfig, ProjectConfig
+from ..cfg import PipelineConfig
 from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from ..cfg.pipeline.run import ExecutorConfig, RunConfig
 from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
@@ -66,6 +64,8 @@ from ..utils.config import merge_run_config_with_kwargs
 
 if TYPE_CHECKING:
     from ..flowerpower import FlowerPowerProject
+
+setup_logging(level=settings.LOG_LEVEL)
 
 
 class Pipeline(msgspec.Struct):
@@ -100,12 +100,7 @@ class Pipeline(msgspec.Struct):
         self._adapter_manager = create_adapter_manager()
         self._executor_factory = create_executor_factory()
 
-
-    def run(
-        self,
-        run_config: RunConfig | None = None,
-        **kwargs
-    ) -> dict[str, Any]:
+    def run(self, run_config: RunConfig | None = None, **kwargs) -> dict[str, Any]:
         """Execute the pipeline with the given parameters.
 
         Args:
@@ -120,7 +115,7 @@ class Pipeline(msgspec.Struct):
 
         # Initialize run_config with pipeline defaults if not provided
         run_config = run_config or self.config.run
-        
+
         # Merge kwargs into the run_config
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
@@ -131,7 +126,10 @@ class Pipeline(msgspec.Struct):
 
         # Set up retry configuration
         retry_config = self._setup_retry_config(
-            run_config.max_retries, run_config.retry_delay, run_config.jitter_factor, run_config.retry_exceptions
+            run_config.max_retries,
+            run_config.retry_delay,
+            run_config.jitter_factor,
+            run_config.retry_exceptions,
         )
         max_retries = retry_config["max_retries"]
         retry_delay = retry_config["retry_delay"]
@@ -165,22 +163,22 @@ class Pipeline(msgspec.Struct):
             converted_exceptions = []
             # Safe mapping of exception names to classes
             exception_mapping = {
-                'Exception': Exception,
-                'ValueError': ValueError,
-                'TypeError': TypeError,
-                'RuntimeError': RuntimeError,
-                'FileNotFoundError': FileNotFoundError,
-                'PermissionError': PermissionError,
-                'ConnectionError': ConnectionError,
-                'TimeoutError': TimeoutError,
-                'KeyError': KeyError,
-                'AttributeError': AttributeError,
-                'ImportError': ImportError,
-                'OSError': OSError,
-                'IOError': IOError,
-                'HTTPError': HTTPError,
-                'ConnectionError': ConnectionError,
-                'Timeout': Timeout,
+                "Exception": Exception,
+                "ValueError": ValueError,
+                "TypeError": TypeError,
+                "RuntimeError": RuntimeError,
+                "FileNotFoundError": FileNotFoundError,
+                "PermissionError": PermissionError,
+                "ConnectionError": ConnectionError,
+                "TimeoutError": TimeoutError,
+                "KeyError": KeyError,
+                "AttributeError": AttributeError,
+                "ImportError": ImportError,
+                "OSError": OSError,
+                "IOError": IOError,
+                "HTTPError": HTTPError,
+                "ConnectionError": ConnectionError,
+                "Timeout": Timeout,
             }
             for exc in retry_exceptions:
                 if isinstance(exc, str):
@@ -296,17 +294,33 @@ class Pipeline(msgspec.Struct):
     ) -> dict[str, Any]:
         """Execute the pipeline with Hamilton."""
         # Set up execution context
-        executor, shutdown_func, adapters = self._setup_execution_context(run_config=run_config)
-
+        executor, shutdown_func, adapters = self._setup_execution_context(
+            run_config=run_config
+        )
+        if (
+            run_config.executor.type != "synchronous"
+            or run_config.executor.type == "local"
+        ):
+            allow_experimental_mode = True
+            synchronous_executor = False
+        else:
+            allow_experimental_mode = False
         try:
             # Create Hamilton driver
             dr = (
                 driver.Builder()
-                .with_config(run_config.config)
                 .with_modules(self.module)
+                .with_config(run_config.config)
                 .with_adapters(*adapters)
-                .build()
+                .enable_dynamic_execution(
+                    allow_experimental_mode=allow_experimental_mode
+                )
+                .with_local_executor(executors.SynchronousLocalTaskExecutor())
             )
+            if not synchronous_executor:
+                dr = dr.with_remote_executor(executor)
+
+            dr = dr.build()
 
             # Execute the pipeline
             result = dr.execute(
@@ -352,11 +366,11 @@ class Pipeline(msgspec.Struct):
         cleanup_fn = None
         if executor_cfg.type == "ray" and h_ray:
             # Handle temporary case where project_context is PipelineManager
-            project_cfg = getattr(
-                self.project_context, "project_cfg", None
-            ) or getattr(self.project_context, "_project_cfg", None)
+            project_cfg = getattr(self.project_context, "project_cfg", None) or getattr(
+                self.project_context, "_project_cfg", None
+            )
 
-            if project_cfg and hasattr(project_cfg.adapter, 'ray'):
+            if project_cfg and hasattr(project_cfg.adapter, "ray"):
                 cleanup_fn = (
                     ray.shutdown
                     if project_cfg.adapter.ray.shutdown_ray_on_completion
@@ -427,5 +441,7 @@ class Pipeline(msgspec.Struct):
             logger.error(f"Failed to reload module for pipeline '{self.name}': {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error reloading module for pipeline '{self.name}': {e}")
+            logger.error(
+                f"Unexpected error reloading module for pipeline '{self.name}': {e}"
+            )
             raise

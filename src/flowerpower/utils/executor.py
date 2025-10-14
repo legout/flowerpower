@@ -25,8 +25,7 @@ class ExecutorFactory:
         self._executor_cache: Dict[str, Any] = {}
 
     def create_executor(
-        self,
-        executor_cfg: Union[str, Dict[str, Any], Any, None]
+        self, executor_cfg: Union[str, Dict[str, Any], Any, None]
     ) -> Any:
         """
         Create an executor instance based on configuration.
@@ -52,8 +51,7 @@ class ExecutorFactory:
         return executor
 
     def _normalize_config(
-        self,
-        executor_cfg: Union[str, Dict[str, Any], Any, None]
+        self, executor_cfg: Union[str, Dict[str, Any], Any, None]
     ) -> Any:
         """Normalize executor configuration to ExecutorConfig instance."""
         from ..cfg.pipeline.run import ExecutorConfig
@@ -95,17 +93,18 @@ class ExecutorFactory:
     def _create_synchronous_executor(self) -> Any:
         """Create synchronous/local executor."""
         from hamilton.execution.executors import SynchronousLocalTaskExecutor
+
         return SynchronousLocalTaskExecutor()
 
     def _create_threadpool_executor(self, executor_cfg: Any) -> Any:
         """Create thread pool executor."""
         try:
-            from hamilton.plugins.h_threadpool import ThreadPoolExecutor
+            from hamilton.execution.executors import MultiThreadingExecutor
 
             # Extract max workers from config
             if executor_cfg.max_workers is not None:
-                return ThreadPoolExecutor(max_workers=executor_cfg.max_workers)
-            return ThreadPoolExecutor()
+                return MultiThreadingExecutor(max_tasks=executor_cfg.max_workers)
+            return MultiThreadingExecutor()
         except ImportError:
             logger.warning(
                 "ThreadPool executor dependencies not installed. Using local executor."
@@ -115,12 +114,12 @@ class ExecutorFactory:
     def _create_processpool_executor(self, executor_cfg: Any) -> Any:
         """Create process pool executor."""
         try:
-            from hamilton.execution.executors import ProcessPoolExecutor
+            from hamilton.execution.executors import MultiProcessingExecutor
 
             # Extract max workers from config
             if executor_cfg.max_workers is not None:
-                return ProcessPoolExecutor(max_workers=executor_cfg.max_workers)
-            return ProcessPoolExecutor()
+                return MultiProcessingExecutor(max_tasks=executor_cfg.max_workers)
+            return MultiProcessingExecutor()
         except ImportError:
             logger.warning(
                 "ProcessPool executor dependencies not installed. Using local executor."
@@ -135,7 +134,7 @@ class ExecutorFactory:
             # Extract configuration
             config = {}
             if executor_cfg.num_cpus is not None:
-                config['num_cpus'] = executor_cfg.num_cpus
+                config["num_cpus"] = executor_cfg.num_cpus
             if config:
                 return RayTaskExecutor(**config)
             return RayTaskExecutor()
@@ -153,7 +152,7 @@ class ExecutorFactory:
             # Extract configuration
             config = {}
             if executor_cfg.num_cpus is not None:
-                config['num_cpus'] = executor_cfg.num_cpus
+                config["num_cpus"] = executor_cfg.num_cpus
             if config:
                 return DaskExecutor(**config)
             return DaskExecutor()
