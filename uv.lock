@@ -1225,7 +1225,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.30.0"
+version = "0.31.1"
 source = { editable = "." }
 dependencies = [
     { name = "duration-parser" },
@@ -1286,6 +1286,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "pyyaml" },
     { name = "quarto" },
     { name = "repomix" },
     { name = "ruff" },
@@ -1340,6 +1341,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-mock", specifier = ">=3.12.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "quarto", specifier = ">=0.1.0" },
     { name = "repomix", specifier = ">=0.3.4" },
     { name = "ruff", specifier = ">=0.7.1" },

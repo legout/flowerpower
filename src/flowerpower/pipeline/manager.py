@@ -580,11 +580,32 @@ class PipelineManager:
         """
         return self._lifecycle_manager.list_pipelines()
 
-    def show_pipelines(self) -> None:
-        """Display all available pipelines in a formatted table.
+    def show_pipelines(self, format: str = "table") -> None:
+        """Display all available pipelines in a selected format.
 
-        Uses rich formatting for terminal display.
+        Args:
+            format: One of "table", "json", or "yaml". Defaults to "table".
         """
+        fmt = (format or "table").lower()
+        if fmt == "table":
+            return self.registry.show_pipelines()
+        names = self._lifecycle_manager.list_pipelines()
+        try:
+            if fmt == "json":
+                import json
+                print(json.dumps(names))
+                return None
+            if fmt == "yaml":
+                import yaml  # type: ignore
+                print(yaml.safe_dump(names, sort_keys=False))
+                return None
+        except Exception as e:
+            warnings.warn(
+                f"Failed to format pipelines as {fmt}: {e}. Falling back to table.",
+                RuntimeWarning,
+            )
+            return self.registry.show_pipelines()
+        warnings.warn(f"Unknown format '{format}', using table.", RuntimeWarning)
         return self.registry.show_pipelines()
 
     @property
@@ -985,7 +1006,13 @@ class PipelineManager:
         )
 
     # Visualizer Delegations
-    def save_dag(self, name: str, format: str = "png", reload: bool = False) -> None:
+    def save_dag(
+        self,
+        name: str,
+        format: str = "png",
+        reload: bool = False,
+        output_path: str | None = None,
+    ) -> str:
         """Save pipeline DAG visualization to a file.
 
         Creates a visual representation of the pipeline's directed acyclic graph (DAG)
@@ -1020,7 +1047,9 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        self.visualizer.save_dag(name=name, format=format, reload=reload)
+        return self.visualizer.save_dag(
+            name=name, format=format, reload=reload, output_path=output_path
+        )
 
     def show_dag(
         self, name: str, format: str = "png", reload: bool = False, raw: bool = False

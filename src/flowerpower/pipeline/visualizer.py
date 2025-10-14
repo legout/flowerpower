@@ -67,7 +67,8 @@ class PipelineVisualizer:
         name: str,
         format: str = "png",
         reload: bool = False,
-    ):
+        output_path: str | None = None,
+    ) -> str:
         """
         Save an image of the graph of functions for a given pipeline name.
 
@@ -86,25 +87,38 @@ class PipelineVisualizer:
         """
         dag = self._get_dag_object(name=name, reload=reload)
 
-        # Use project_cfg attributes for path and filesystem access
-        graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
-        self._fs.makedirs(graph_dir, exist_ok=True)
-
-        output_path = posixpath.join(
-            graph_dir, name
-        )  # Output filename is just the pipeline name
-        output_path_with_ext = f"{output_path}.{format}"
+        # Determine final output path
+        if output_path is None:
+            graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
+            self._fs.makedirs(graph_dir, exist_ok=True)
+            base = posixpath.join(graph_dir, name)
+            final_path = f"{base}.{format}"
+            render_path = base
+        else:
+            # If output_path already has an extension, use as-is; otherwise append format
+            if "." in posixpath.basename(output_path):
+                final_path = output_path
+                # Remove extension for graphviz render base path
+                render_path = final_path.rsplit(".", 1)[0]
+                fmt = final_path.rsplit(".", 1)[1]
+                if fmt != format:
+                    # Honor explicit extension if it differs from format argument
+                    format = fmt
+            else:
+                final_path = f"{output_path}.{format}"
+                render_path = output_path
 
         # Render the DAG using the graphviz object returned by display_all_functions
         dag.render(
-            output_path,  # graphviz appends the format automatically
+            render_path,  # graphviz appends the format automatically
             format=format,
             cleanup=True,
             view=False,
         )
         print(
-            f"📊 Saved graph for [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{output_path_with_ext}[/green]"
+            f"📊 Saved graph for [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{final_path}[/green]"
         )
+        return final_path
 
     def show_dag(
         self,
