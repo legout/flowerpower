@@ -304,7 +304,7 @@ class Pipeline(msgspec.Struct):
             allow_experimental_mode = True
             synchronous_executor = False
         else:
-            allow_experimental_mode = False
+            allow_experimental_mode = True
         try:
             # Create Hamilton driver
             dr = (
