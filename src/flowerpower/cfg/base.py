@@ -5,6 +5,7 @@ from functools import lru_cache
 
 import msgspec
 from fsspec_utils import AbstractFileSystem, filesystem
+from munch import Munch
 from ..utils.misc import get_filesystem
 from ..utils.security import validate_file_path as security_validate_file_path
 from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
@@ -87,17 +88,54 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             elif hasattr(value, '__struct_fields__'):
                 # Recursively convert nested msgspec structs
                 result[field] = value.to_dict()
+            elif hasattr(value, 'toDict'):
+                # Handle Munch objects by converting to regular dict
+                result[field] = value.toDict()
+            elif isinstance(value, dict):
+                # Handle regular dictionaries that might contain Munch objects
+                result[field] = self._convert_dict_recursively(value)
             elif isinstance(value, list):
-                # Handle lists that might contain type objects (like exception classes)
+                # Handle lists that might contain type objects or Munch objects
                 converted_list = []
                 for item in value:
                     if isinstance(item, type):
                         converted_list.append(str(item))
+                    elif hasattr(item, 'toDict'):
+                        # Handle Munch objects in lists
+                        converted_list.append(item.toDict())
+                    elif isinstance(item, dict):
+                        # Handle dictionaries in lists
+                        converted_list.append(self._convert_dict_recursively(item))
                     else:
                         converted_list.append(item)
                 result[field] = converted_list
             else:
                 result[field] = value
+        return result
+    
+    def _convert_dict_recursively(self, d: dict) -> dict:
+        """Recursively convert dictionaries, handling Munch objects."""
+        result = {}
+        for key, value in d.items():
+            if hasattr(value, 'toDict'):
+                # Convert Munch objects to regular dict
+                result[key] = value.toDict()
+            elif isinstance(value, dict):
+                # Recursively handle nested dictionaries
+                result[key] = self._convert_dict_recursively(value)
+            elif isinstance(value, list):
+                # Handle lists within dictionaries
+                converted_list = []
+                for item in value:
+                    if hasattr(item, 'toDict'):
+                        converted_list.append(item.toDict())
+                    elif isinstance(item, dict):
+                        converted_list.append(self._convert_dict_recursively(item))
+                    else:
+                        converted_list.append(item)
+                result[key] = converted_list
+            else:
+                result[key] = value
         return result
 
     def to_yaml(self, path: str, fs: AbstractFileSystem | None = None) -> None:

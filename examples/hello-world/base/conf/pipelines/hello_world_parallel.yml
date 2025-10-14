@@ -5,20 +5,20 @@ adapter:
     max_dict_length_capture: 10
     max_list_length_capture: 50
     project_id: null
-    tags: !munch.Munch {}
+    tags: {}
   mlflow:
     experiment_description: null
     experiment_name: null
-    experiment_tags: !munch.Munch {}
+    experiment_tags: {}
     run_description: null
     run_id: null
     run_name: null
-    run_tags: !munch.Munch {}
-params: !munch.Munch {}
+    run_tags: {}
+params: {}
 run:
   adapter: null
   cache: false
-  config: !munch.Munch {}
+  config: {}
   executor:
     max_workers: 60
     num_cpus: 12
