@@ -11,6 +11,7 @@ from .adapter import AdapterConfig
 from .run import ExecutorConfig as ExecutorConfig
 from .run import RunConfig
 from .run import WithAdapterConfig as WithAdapterConfig
+from .run import migrate_legacy_retry_fields
 
 
 class PipelineConfig(BaseConfig):
@@ -133,8 +134,18 @@ class PipelineConfig(BaseConfig):
             
         try:
             with fs.open(validated_path) as f:
-                data = yaml.safe_load(f)
-                return cls.from_dict(name=name, data=data)
+                data = yaml.safe_load(f) or {}
+
+            migrated = False
+            if isinstance(data, dict) and isinstance(data.get('run'), dict):
+                migrated = migrate_legacy_retry_fields(data['run'])
+
+            pipeline = cls.from_dict(name=name, data=data)
+
+            if migrated:
+                pipeline.to_yaml(path=validated_path, fs=fs)
+
+            return pipeline
         except Exception as e:
             raise ConfigLoadError(
                 f"Failed to load configuration from {validated_path}",

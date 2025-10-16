@@ -8,6 +8,68 @@ from ... import settings
 from ..base import BaseConfig
 
 
+DEPRECATED_RETRY_FIELDS = (
+    "max_retries",
+    "retry_delay",
+    "jitter_factor",
+    "retry_exceptions",
+)
+
+
+def migrate_legacy_retry_fields(run_data: dict[str, Any]) -> bool:
+    """Normalize legacy retry fields into nested retry configuration.
+
+    Args:
+        run_data: Raw run configuration dictionary loaded from YAML.
+
+    Returns:
+        True if the dictionary was mutated, otherwise False.
+    """
+    if not isinstance(run_data, dict):
+        return False
+
+    mutated = False
+    existing_retry = run_data.get("retry")
+    retry_block = existing_retry if isinstance(existing_retry, dict) else None
+    collected: dict[str, Any] = {}
+
+    for field in DEPRECATED_RETRY_FIELDS:
+        if field in run_data:
+            value = run_data.pop(field)
+            mutated = True
+
+            if field == "max_retries" and value is not None:
+                try:
+                    value = int(value)
+                except (TypeError, ValueError):
+                    pass
+            elif field in {"retry_delay", "jitter_factor"} and value is not None:
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    pass
+            elif field == "retry_exceptions" and value is not None and not isinstance(value, list):
+                value = [value]
+
+            if field == "retry_exceptions":
+                if value not in (None, []):
+                    collected[field] = value
+            elif value is not None:
+                collected[field] = value
+
+    if collected:
+        if retry_block is None:
+            run_data["retry"] = collected
+        else:
+            merged = retry_block.copy()
+            for key, value in collected.items():
+                merged.setdefault(key, value)
+            run_data["retry"] = merged
+        mutated = True
+
+    return mutated
+
+
 class WithAdapterConfig(BaseConfig):
     hamilton_tracker: bool = msgspec.field(default=False)
     mlflow: bool = msgspec.field(default=False)
@@ -137,6 +199,35 @@ class RunConfig(BaseConfig):
     reload: bool = msgspec.field(default=False)
     on_success: CallbackSpec | None = msgspec.field(default=None)
     on_failure: CallbackSpec | None = msgspec.field(default=None)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        for field in DEPRECATED_RETRY_FIELDS:
+            data.pop(field, None)
+        retry_data = data.get("retry")
+        if isinstance(retry_data, dict):
+            exceptions: list[Any] = []
+            if self.retry and isinstance(self.retry.retry_exceptions, list):
+                for exc in self.retry.retry_exceptions:
+                    if isinstance(exc, str):
+                        exceptions.append(exc)
+                    elif isinstance(exc, type) and issubclass(exc, BaseException):
+                        exceptions.append(exc.__name__)
+                    else:
+                        exceptions.append(str(exc))
+            else:
+                raw_exceptions = retry_data.get("retry_exceptions", [])
+                if isinstance(raw_exceptions, list):
+                    for exc in raw_exceptions:
+                        if isinstance(exc, str):
+                            exceptions.append(exc)
+                        elif isinstance(exc, type) and issubclass(exc, BaseException):
+                            exceptions.append(exc.__name__)
+                        else:
+                            exceptions.append(str(exc))
+            if exceptions:
+                retry_data["retry_exceptions"] = exceptions
+        return data
 
     def __post_init__(self):
         # if isinstance(self.inputs, dict):

@@ -1,11 +1,22 @@
-import pytest
-import warnings
-from unittest.mock import Mock, patch
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock
 
-from flowerpower.cfg.pipeline.run import RunConfig, ExecutorConfig, WithAdapterConfig, CallbackSpec
-from flowerpower.utils.config import RunConfigBuilder
+import pytest
+import yaml
+from fsspec_utils import filesystem
+
+from flowerpower.cfg.pipeline import PipelineConfig
+from flowerpower.cfg.pipeline.run import (
+    CallbackSpec,
+    DEPRECATED_RETRY_FIELDS,
+    ExecutorConfig,
+    RunConfig,
+    WithAdapterConfig,
+)
 from flowerpower.cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from flowerpower.utils.config import RunConfigBuilder
 
 
 class TestRunConfig:
@@ -107,6 +118,12 @@ class TestRunConfig:
         assert result_dict["final_vars"] == final_vars
         assert result_dict["config"] == config
         assert result_dict["executor"]["type"] == "synchronous"
+        assert "max_retries" not in result_dict
+        assert "retry_delay" not in result_dict
+        assert "jitter_factor" not in result_dict
+        assert "retry_exceptions" not in result_dict
+        assert "retry" in result_dict
+        assert result_dict["retry"]["max_retries"] == run_config.retry.max_retries
 
     def test_run_config_from_dict(self):
         """Test RunConfig from_dict creation."""
@@ -343,3 +360,71 @@ class TestRunConfigBuilder:
         # First config should not be affected
         assert run_config1.inputs == {"x": 1}
         assert run_config2.inputs == {"x": 2}
+
+
+class TestRunConfigPersistence:
+    def test_pipeline_save_omits_deprecated_retry_fields(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            pipeline_cfg = PipelineConfig(
+                name="retry-clean",
+                run=RunConfig(
+                    max_retries=5,
+                    retry_delay=2.5,
+                    jitter_factor=0.3,
+                    retry_exceptions=["ValueError"],
+                ),
+            )
+
+            pipeline_cfg.save(name="retry-clean", base_dir=tmpdir, fs=fs)
+
+            config_path = Path(tmpdir) / "conf" / "pipelines" / "retry-clean.yml"
+            with config_path.open() as fh:
+                data = yaml.safe_load(fh)
+
+        run_section = data["run"]
+        for field in DEPRECATED_RETRY_FIELDS:
+            assert field not in run_section
+        assert run_section["retry"]["max_retries"] == 5
+        assert run_section["retry"]["retry_delay"] == 2.5
+        assert run_section["retry"]["jitter_factor"] == 0.3
+        assert run_section["retry"]["retry_exceptions"] == ["ValueError"]
+
+    def test_pipeline_load_migrates_deprecated_retry_fields(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            pipeline_dir = Path(tmpdir) / "conf" / "pipelines"
+            pipeline_dir.mkdir(parents=True)
+
+            legacy_path = pipeline_dir / "legacy.yml"
+            with legacy_path.open("w") as fh:
+                yaml.safe_dump(
+                    {
+                        "run": {
+                            "max_retries": 7,
+                            "retry_delay": 3,
+                            "jitter_factor": 0.4,
+                            "retry_exceptions": ["TimeoutError"],
+                        }
+                    },
+                    fh,
+                )
+
+            pipeline_cfg = PipelineConfig.load(base_dir=tmpdir, name="legacy", fs=fs)
+
+            assert pipeline_cfg.run.retry.max_retries == 7
+            assert pytest.approx(pipeline_cfg.run.retry.retry_delay) == 3.0
+            assert pipeline_cfg.run.retry.jitter_factor == 0.4
+            assert pipeline_cfg.run.retry.retry_exceptions == [TimeoutError]
+            assert pipeline_cfg.run.max_retries == 7
+
+            with legacy_path.open() as fh:
+                rewritten = yaml.safe_load(fh)
+
+        run_section = rewritten["run"]
+        for field in DEPRECATED_RETRY_FIELDS:
+            assert field not in run_section
+        assert run_section["retry"]["max_retries"] == 7
+        assert run_section["retry"]["retry_delay"] == 3.0
+        assert run_section["retry"]["jitter_factor"] == 0.4
+        assert run_section["retry"]["retry_exceptions"] == ["TimeoutError"]

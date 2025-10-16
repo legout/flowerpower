@@ -9,6 +9,7 @@ from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.flowerpower import FlowerPowerProject
 from flowerpower.pipeline.pipeline import Pipeline
+from flowerpower.utils.config import RunConfigBuilder
 
 
 class TestPipeline(unittest.TestCase):
