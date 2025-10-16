@@ -176,6 +176,29 @@ class RetryConfig(BaseConfig):
                 continue
         raise ImportError(f"Could not find exception class: {exception_name}")
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert RetryConfig to dictionary, properly handling exception classes.
+        
+        This ensures that exception classes are converted to their string names
+        rather than their full string representation (e.g., "ValueError" instead of 
+        "<class 'ValueError'>").
+        """
+        data = super().to_dict()
+        
+        # Convert exception classes to their names for proper YAML serialization
+        if isinstance(data.get("retry_exceptions"), list):
+            converted_exceptions = []
+            for exc in data["retry_exceptions"]:
+                if isinstance(exc, str) and exc.startswith("<class '") and exc.endswith("'>"):
+                    # Extract the class name from the full string representation
+                    class_name = exc[8:-2]  # Remove "<class '" and "'>"
+                    converted_exceptions.append(class_name)
+                else:
+                    converted_exceptions.append(exc)
+            data["retry_exceptions"] = converted_exceptions
+            
+        return data
+
 
 class RunConfig(BaseConfig):
     inputs: dict | None = msgspec.field(default_factory=dict)

@@ -428,3 +428,70 @@ class TestRunConfigPersistence:
         assert run_section["retry"]["retry_delay"] == 3.0
         assert run_section["retry"]["jitter_factor"] == 0.4
         assert run_section["retry"]["retry_exceptions"] == ["TimeoutError"]
+
+
+class TestRetryConfig:
+    """Test cases for RetryConfig class."""
+
+    def test_retry_config_to_dict_converts_exceptions_to_strings(self):
+        """Test that RetryConfig.to_dict() converts exception classes to their string names."""
+        from flowerpower.cfg.pipeline.run import RetryConfig
+        
+        # Create a RetryConfig with exception classes
+        retry_config = RetryConfig(
+            max_retries=3,
+            retry_delay=1.0,
+            jitter_factor=0.1,
+            retry_exceptions=[ValueError, TypeError, RuntimeError]  # Exception classes
+        )
+        
+        # Convert to dict
+        result = retry_config.to_dict()
+        
+        # Verify the result
+        assert result["max_retries"] == 3
+        assert result["retry_delay"] == 1.0
+        assert result["jitter_factor"] == 0.1
+        assert result["retry_exceptions"] == ["ValueError", "TypeError", "RuntimeError"]
+        
+        # Ensure all are strings, not exception classes
+        assert all(isinstance(exc, str) for exc in result["retry_exceptions"])
+        
+        # Ensure no class representation artifacts
+        assert not any("<class '" in exc for exc in result["retry_exceptions"])
+
+    def test_retry_config_to_dict_handles_string_exceptions(self):
+        """Test that RetryConfig.to_dict() preserves known string exceptions as-is."""
+        from flowerpower.cfg.pipeline.run import RetryConfig
+        
+        # Create a RetryConfig with known string exceptions
+        retry_config = RetryConfig(
+            max_retries=2,
+            retry_delay=0.5,
+            retry_exceptions=["ValueError", "TypeError"]  # Known string exceptions
+        )
+        
+        # Convert to dict
+        result = retry_config.to_dict()
+        
+        # Verify the result
+        assert result["retry_exceptions"] == ["ValueError", "TypeError"]
+        assert all(isinstance(exc, str) for exc in result["retry_exceptions"])
+
+    def test_retry_config_to_dict_handles_mixed_exceptions(self):
+        """Test that RetryConfig.to_dict() handles mixed string and class exceptions."""
+        from flowerpower.cfg.pipeline.run import RetryConfig
+        
+        # Create a RetryConfig and manually set mixed exceptions
+        retry_config = RetryConfig(
+            max_retries=1,
+            retry_delay=2.0,
+            retry_exceptions=[ValueError, "TypeError"]  # Mixed types (known string)
+        )
+        
+        # Convert to dict
+        result = retry_config.to_dict()
+        
+        # Verify the result - should be all strings
+        assert result["retry_exceptions"] == ["ValueError", "TypeError"]
+        assert all(isinstance(exc, str) for exc in result["retry_exceptions"])
