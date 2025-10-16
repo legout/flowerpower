@@ -14,6 +14,47 @@ from ..cfg.pipeline.run import (
     RetryConfig,
 )
 from .security import validate_config_dict, validate_callback_function
+
+def prefer_executor_override(base: ExecutorConfig, override: str | dict | ExecutorConfig | None) -> ExecutorConfig:
+    """Merge executor configs preferring explicit runtime overrides.
+
+    Rules:
+    - If override is None -> return base
+    - String -> treated as type override
+    - Dict -> fields present (including explicit None) override base
+    - ExecutorConfig -> fields that are not None override base
+    """
+    if override is None:
+        return base
+
+    # Normalize override to ExecutorConfig
+    if isinstance(override, str):
+        ov = ExecutorConfig(type=override)
+    elif isinstance(override, dict):
+        # Preserve explicit None vs missing by checking keys
+        ov = ExecutorConfig.from_dict(override)
+        type_set = 'type' in override
+        max_workers_set = 'max_workers' in override
+        num_cpus_set = 'num_cpus' in override
+        merged = ExecutorConfig(
+            type=ov.type if type_set else base.type,
+            max_workers=ov.max_workers if max_workers_set else base.max_workers,
+            num_cpus=ov.num_cpus if num_cpus_set else base.num_cpus,
+        )
+        return merged
+    elif isinstance(override, ExecutorConfig):
+        ov = override
+    else:
+        return base
+
+    # Build merged with explicit precedence: if ov.field is not None, use it
+    # Note: for dict-based overrides, explicit None is kept as None (clears base)
+    merged = ExecutorConfig(
+        type=ov.type if (ov.type is not None) else base.type,
+        max_workers=ov.max_workers if (ov.max_workers is not None) else base.max_workers,
+        num_cpus=ov.num_cpus if (ov.num_cpus is not None) else base.num_cpus,
+    )
+    return merged
 def _merge_inputs(run_config: RunConfig, value):
     """Merge inputs into run config."""
     validate_config_dict(value)

@@ -337,18 +337,37 @@ class Pipeline(msgspec.Struct):
         """Get the executor based on the provided configuration."""
         logger.debug("Setting up executor...")
 
-        # Merge with default configuration
+        # Merge with default configuration (prefer explicit runtime overrides)
         if executor_cfg:
+            override_raw = executor_cfg
             if isinstance(executor_cfg, str):
-                executor_cfg = ExecutorConfig(type=executor_cfg)
+                pass  # keep raw string
             elif isinstance(executor_cfg, dict):
-                executor_cfg = ExecutorConfig.from_dict(executor_cfg)
+                pass  # keep raw dict
             elif not isinstance(executor_cfg, ExecutorConfig):
                 raise TypeError(
                     "Executor must be a string, dictionary, or ExecutorConfig instance."
                 )
 
-            executor_cfg = self.config.run.executor.merge(executor_cfg)
+            # Prefer explicit override fields over YAML defaults
+            try:
+                from ..utils.config import prefer_executor_override
+
+                executor_cfg = prefer_executor_override(
+                    self.config.run.executor, override_raw
+                )
+            except Exception:
+                # Fallback to existing merge behavior on any unexpected error
+                if isinstance(override_raw, (str, dict)):
+                    # Normalize then merge
+                    norm = (
+                        ExecutorConfig(type=override_raw)
+                        if isinstance(override_raw, str)
+                        else ExecutorConfig.from_dict(override_raw)
+                    )
+                    executor_cfg = self.config.run.executor.merge(norm)
+                else:
+                    executor_cfg = self.config.run.executor.merge(override_raw)
         else:
             executor_cfg = self.config.run.executor
 
