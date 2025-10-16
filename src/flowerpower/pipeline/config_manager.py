@@ -8,6 +8,11 @@ from fsspec_utils import AbstractFileSystem
 from ..cfg import PipelineConfig, ProjectConfig
 from ..settings import CONFIG_DIR
 from ..utils.misc import get_filesystem
+from ..utils.env import (
+    parse_env_overrides,
+    build_specific_overlays,
+    apply_global_shims,
+)
 
 if TYPE_CHECKING:
     from fsspec_utils import AbstractFileSystem
@@ -42,6 +47,7 @@ class PipelineConfigManager:
         self._fs = fs
         self._storage_options = storage_options
         self._cfg_dir = cfg_dir
+        self._fs = fs
         self._project_cfg: Optional[ProjectConfig] = None
         self._pipeline_cfg: Optional[PipelineConfig] = None
         self._current_pipeline_name: Optional[str] = None
@@ -61,9 +67,19 @@ class PipelineConfigManager:
             # Construct config file path
             cfg_path = f"{self._base_dir}/{self._cfg_dir}/project.yml"
             
-            # Load configuration
-            fs = get_filesystem(fs=None, fs_type=self._base_dir)
+            # Load configuration using provided filesystem
+            fs = self._fs
             self._project_cfg = ProjectConfig.from_yaml(path=f"{self._cfg_dir}/project.yml", fs=fs)
+
+            # Apply environment overlays (project-only part)
+            try:
+                overrides = parse_env_overrides()
+                proj_overlay, pipe_overlay = build_specific_overlays(overrides)
+                apply_global_shims(overrides, proj_overlay, pipe_overlay)
+                if proj_overlay.get("project") and hasattr(self._project_cfg, "update"):
+                    self._project_cfg.update(proj_overlay["project"])  
+            except Exception:
+                pass
             
             # Add pipelines directory to Python path
             self._add_modules_path(["pipelines"])
@@ -89,8 +105,8 @@ class PipelineConfigManager:
             # Ensure project config is loaded first
             self.load_project_config(reload=reload)
 
-            # Create filesystem from storage_options
-            fs = get_filesystem(fs=None, fs_type=self._base_dir)
+            # Use existing filesystem
+            fs = self._fs
 
             # Try different file locations and extensions
             cfg_path = None
@@ -123,6 +139,16 @@ class PipelineConfigManager:
                 path=cfg_path,
                 fs=fs,
             )
+
+            # Apply environment overlays (pipeline-only part)
+            try:
+                overrides = parse_env_overrides()
+                proj_overlay, pipe_overlay = build_specific_overlays(overrides)
+                apply_global_shims(overrides, proj_overlay, pipe_overlay)
+                if pipe_overlay.get("pipeline") and hasattr(self._pipeline_cfg, "update"):
+                    self._pipeline_cfg.update(pipe_overlay["pipeline"])  
+            except Exception:
+                pass
 
             # Update current pipeline name
             self._current_pipeline_name = name

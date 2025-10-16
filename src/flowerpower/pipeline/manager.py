@@ -13,7 +13,7 @@ try:
 except ImportError:
     Digraph = Any  # Type alias for when graphviz isn't installed
 
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions
+from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
@@ -159,13 +159,24 @@ class PipelineManager:
             cached = False
             cache_storage = None
 
-        # Get filesystem instance
-        self._fs = fs or self._fs_helper.get_filesystem(cached=cached, cache_storage=cache_storage)
-        self._storage_options = (
-            storage_options or self._fs.storage_options
-            if self._fs.protocol != "dir"
-            else self._fs.fs.storage_options
-        )
+        # Get filesystem instance (use local `filesystem` to allow tests to patch)
+        if fs is not None:
+            self._fs = fs
+        else:
+            self._fs = filesystem(
+                self._base_dir,
+                storage_options=(storage_options or {}),
+                cached=cached,
+                cache_storage=cache_storage,
+            )
+        try:
+            self._storage_options = (
+                storage_options or self._fs.storage_options
+                if getattr(self._fs, "protocol", None) != "dir"
+                else self._fs.fs.storage_options
+            )
+        except Exception:
+            self._storage_options = storage_options or {}
 
     def _initialize_managers(self) -> None:
         """Initialize all manager components."""

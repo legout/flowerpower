@@ -12,6 +12,7 @@ from .run import ExecutorConfig as ExecutorConfig
 from .run import RunConfig
 from .run import WithAdapterConfig as WithAdapterConfig
 from .run import migrate_legacy_retry_fields
+from ...utils.yaml_env import interpolate_env_in_data
 
 
 class PipelineConfig(BaseConfig):
@@ -134,7 +135,8 @@ class PipelineConfig(BaseConfig):
             
         try:
             with fs.open(validated_path) as f:
-                data = yaml.safe_load(f) or {}
+                raw = yaml.safe_load(f) or {}
+                data = interpolate_env_in_data(raw)
 
             migrated = False
             if isinstance(data, dict) and isinstance(data.get('run'), dict):

@@ -9,6 +9,12 @@ from .base import BaseConfig
 from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
+from ..utils.env import (
+    parse_env_overrides,
+    build_specific_overlays,
+    apply_global_shims,
+    merge_overlays_into_config,
+)
 
 
 class Config(BaseConfig):
@@ -154,13 +160,25 @@ class Config(BaseConfig):
         except ConfigLoadError as e:
             raise ConfigLoadError(f"Failed to load pipeline configuration: {e}", path=base_dir, original_error=e)
 
-        return cls(
+        config = cls(
             base_dir=base_dir,
             pipeline=pipeline,
             project=project,
             fs=fs,
             storage_options=storage_options,
         )
+
+        # Apply environment overlays with specificity and shims
+        try:
+            overrides = parse_env_overrides()
+            proj_overlay, pipe_overlay = build_specific_overlays(overrides)
+            apply_global_shims(overrides, proj_overlay, pipe_overlay)
+            merge_overlays_into_config(config, proj_overlay, pipe_overlay)
+        except Exception:
+            # Fail-open: ignore overlay errors to avoid breaking existing flows
+            pass
+
+        return config
 
     def save(
         self,

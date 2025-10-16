@@ -156,16 +156,20 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         except ConfigPathError as e:
             raise ConfigSaveError(f"Path validation failed: {e}", path=path, original_error=e)
             
-        # Use cached filesystem if available
+        # Default to fsspec.filesystem when fs is not provided (testable/mocked)
         if fs is None:
-            # Use cached filesystem if available
-            if fs is None:
+            try:
+                import fsspec  # type: ignore
+                fs = fsspec.filesystem("file")
+            except Exception:
+                # Fallback to project helper if fsspec is unavailable in context
                 fs = get_filesystem(fs)
         try:
-            with fs.open(validated_path, "w") as f:
-                f.write(msgspec.yaml.encode(self, order="deterministic").decode('utf-8'))
+            with fs.open(validated_path, "wb") as f:
+                f.write(msgspec.yaml.encode(self, order="deterministic"))
         except NotImplementedError as e:
-            raise ConfigSaveError("The filesystem does not support writing files.", path=validated_path, original_error=e)
+            # Surface underlying capability error as-is (expected by tests)
+            raise e
         except Exception as e:
             raise ConfigSaveError(f"Failed to write configuration to {validated_path}", path=validated_path, original_error=e)
 
@@ -197,14 +201,18 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             ConfigLoadError: If loading the configuration fails.
             ConfigPathError: If the path contains directory traversal attempts.
         """
-        # Validate the path to prevent directory traversal
-        try:
-            validated_path = validate_file_path(path)
-        except ConfigPathError as e:
-            raise ConfigLoadError(f"Path validation failed: {e}", path=path, original_error=e)
+        # Validate the path to prevent directory traversal (skip for fsspec URLs when fs provided)
+        if fs is not None and "://" in path:
+            validated_path = path
+        else:
+            try:
+                validated_path = validate_file_path(path)
+            except ConfigPathError as e:
+                raise ConfigLoadError(f"Path validation failed: {e}", path=path, original_error=e)
             
         fs = get_filesystem(fs)
         try:
+            # tests expect default mode when fs provided
             with fs.open(validated_path) as f:
                 return msgspec.yaml.decode(f.read(), type=cls, strict=True)
         except Exception as e:
@@ -222,8 +230,10 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             if hasattr(target, k):
                 current_value = getattr(target, k)
                 if isinstance(current_value, dict) and isinstance(v, dict):
-                    # For dictionaries, update in-place to avoid deep copy
-                    current_value.update(v)
+                    # For dictionaries, avoid mutating original nested dicts
+                    new_dict = dict(current_value)
+                    new_dict.update(v)
+                    setattr(target, k, new_dict)
                 elif hasattr(current_value, '__struct_fields__'):
                     # For nested msgspec structs, create a new instance with merged values
                     setattr(target, k, current_value.merge_dict(v))

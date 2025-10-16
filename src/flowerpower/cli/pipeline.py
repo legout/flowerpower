@@ -43,7 +43,8 @@ def run(
         None, help="Executor to use for running the pipeline"
     ),
     executor_cfg: str | None = typer.Option(
-        None, help="Executor configuration as JSON/dict string (e.g. '{"type":"threadpool","max_workers":4}')"
+        None,
+        help='Executor configuration as JSON/dict string (e.g. "{\"type\":\"threadpool\",\"max_workers\":4}")',
     ),
     executor_max_workers: int | None = typer.Option(
         None, help="Convenience flag: set executor max_workers"
