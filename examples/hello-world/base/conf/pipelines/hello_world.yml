@@ -26,7 +26,7 @@ run:
   executor:
     max_workers: 40
     num_cpus: 8
-    type: threadpool
+    type: local
   final_vars:
     - spend
     - signups

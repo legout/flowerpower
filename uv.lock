@@ -1245,7 +1245,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.31.3"
+version = "0.31.5.2"
 source = { editable = "." }
 dependencies = [
     { name = "duration-parser" },
@@ -1332,7 +1332,7 @@ requires-dist = [
     { name = "ray", marker = "extra == 'ray'", specifier = ">=2.34.0" },
     { name = "rich", specifier = ">=13.9.3" },
     { name = "s3fs", specifier = ">=2024.10.0" },
-    { name = "sf-hamilton", extras = ["visualization", "rich", "tqdm"], specifier = "<=1.88.0" },
+    { name = "sf-hamilton", extras = ["visualization", "rich", "tqdm"], specifier = ">=1.69.0" },
     { name = "sf-hamilton-sdk", specifier = ">=0.5.2" },
     { name = "sf-hamilton-ui", marker = "extra == 'ui'", specifier = ">=0.0.11" },
     { name = "typer", specifier = ">=0.12.3" },

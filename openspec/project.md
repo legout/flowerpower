@@ -1,60 +1,69 @@
 # Project Context
 
 ## Purpose
-FlowerPower is a Python framework for building, configuring, and executing data processing pipelines. It emphasizes a modular, configuration‑driven approach using Hamilton for DAG-based pipeline definitions, with a unified interface (`FlowerPowerProject`), a CLI (Typer), and optional UI integration. The goals are to make pipeline creation simple, predictable, and extensible across local and cloud environments.
+FlowerPower is a Python framework for building, configuring, and executing data processing pipelines. It emphasizes a modular, configuration‑driven approach using Hamilton for DAG-based pipeline definitions, with a unified interface (`FlowerPowerProject`), a Typer-based CLI, and optional Hamilton UI integration. Goals: make pipeline creation simple, predictable, and extensible across local and cloud environments.
 
 ## Tech Stack
-- Python 3.11+
-- Core: `sf-hamilton`, `msgspec`, `pyyaml`, `munch`
-- Filesystems: `fsspec`, `s3fs`, `fsspec-utils`
-- CLI/UX: `typer`, `rich`
-- Optional: `opentelemetry-*`, `openlineage-python`, `ray`, `sf-hamilton-ui`, `flowerpower-io`
-- Tooling: `uv` (env/build), `ruff` (lint/format), `mypy` (types), `pytest` (tests), `bandit` and `safety` (security), `mkdocs` (+ mkdocstrings, material) for docs
+- Runtime: Python >= 3.11
+- Core: `sf-hamilton`, `sf-hamilton-sdk`, `msgspec`, `pyyaml`, `munch`
+- Filesystems: `fsspec`, `fsspec-utils`, `s3fs` (others via fsspec)
+- CLI/UX: `typer`, `rich`; Logging: `loguru`
+- Optional extras: `opentelemetry-*` (Jaeger), `openlineage-python`, `ray`, `sf-hamilton-ui`, `flowerpower-io`
+- Tooling: `uv` (env/build/publish), `ruff` (lint/format), `mypy` (types), `pytest` (+cov, +mocks), `bandit` and `safety` (security), `mkdocs` (+ material, mkdocstrings) for docs
 
 ## Project Conventions
 
 ### Code Style
-- PEP 8 with type hints everywhere (mypy strict settings enabled).
-- Formatting via `ruff format`; lint via `ruff` with rules: E,W,F,I,B,C4,UP,S; line length 88; per-file ignores allow `assert` in `tests/` and `examples/`.
-- Imports managed by ruff/isort; prefer explicit names; avoid wildcard imports.
-- Public API exposed via `flowerpower` package; keep module naming snake_case.
+- PEP 8 with full type hints; mypy strict-ish settings via `pyproject.toml`.
+- Format with `ruff format`; lint with `ruff` rules: E,W,F,I,B, C4, UP, S; line length 88; per-file ignores allow `assert` in `tests/` and `examples/`.
+- Imports organized by ruff/isort; avoid wildcard imports; modules use `snake_case`.
+- Public API re-exported from `flowerpower/__init__.py`.
 
-### Architecture Patterns
-- Facade entrypoint: `FlowerPowerProject` encapsulates access to the pipeline subsystem.
-- Pipeline subsystem: `PipelineManager` handles creation, configuration, execution, visualization.
-- Pipeline logic defined as Hamilton functions in Python modules (DAG) under `pipelines/`; configured via YAML under `conf/` (per‑project and per‑pipeline files).
-- Configuration layer under `src/flowerpower/cfg/*` (e.g., `RunConfig`, builders) with msgspec-based models.
-- Plugin/extension points: I/O plugins (`flowerpower-io` optional), adapters, and filesystem abstraction via `fsspec`.
-- CLI built with Typer (`flowerpower.cli:app`); optional UI via `sf-hamilton-ui`.
+### Architecture & Structure
+- Package layout: `src/flowerpower/{cfg,cli,pipeline,settings,utils}`.
+- Facade entrypoint: `FlowerPowerProject` encapsulates project context and pipeline operations; CLI entrypoint: `flowerpower = flowerpower.cli:app`.
+- Pipelines: Hamilton functions in Python modules under `pipelines/`; configured via YAML under `conf/` (`conf/project.yml`, `conf/pipelines/*.yml`).
+- Config layer: `src/flowerpower/cfg/*` (e.g., `RunConfig`, builders) using `msgspec` models with safe path validation.
+- Filesystem abstraction: `fsspec` with optional caching; dirs configurable via env vars `FP_CONFIG_DIR`, `FP_PIPELINES_DIR`, `FP_HOOKS_DIR`, `FP_CACHE_DIR`.
+- Extension points: optional I/O plugins (`flowerpower-io`), adapters, observability backends.
 
-### Testing Strategy
-- Test runner: `pytest` with unit and integration tests under `tests/`.
-- CLI integration tests use Typer’s `CliRunner` (see `tests/cli/test_cli_integration.py`).
-- Pipeline behavior covered by unit tests (see `tests/pipeline/*`).
-- Type checking with `mypy` (strict settings in `pyproject.toml`).
-- Security checks: `bandit` (code) and `safety` (dependencies); ruff includes `S` security rules.
-- Run via `uv run pytest`; type/security audits via `scripts/security-audit.sh`.
+### Testing & Quality
+- Tests: `pytest`; unit + integration under `tests/` (e.g., `tests/cli/test_cli_integration.py`).
+- Types: `mypy` with strict flags; missing-imports ignored for selected third-party modules.
+- Lint/format: `ruff check` and `ruff format`.
+- Security: `bandit` (code), `safety` (deps), ruff security rules (`S`). One-touch script: `scripts/security-audit.sh`.
 
-### Git Workflow
-- Pre-commit hooks: `ruff` (fix + format), `bandit`, and `mypy` (configured in `.pre-commit-config.yaml`).
-- Pre-push versioning: `.github/hooks/version-hook.sh` updates `CHANGELOG.md` and creates annotated git tags (`v<version>` from `pyproject.toml`).
-- CI/CD: GitHub Actions workflow `publish.yml` builds with `uv` and publishes to PyPI on pushes that modify `pyproject.toml` (requires `PYPI_TOKEN`).
-- Branching/commit conventions: Not explicitly documented; typical feature branches + PRs recommended. Confirm if Conventional Commits or a specific branching model should be enforced.
+### Git & Release Workflow
+- Pre-commit: `ruff` (fix + format), `bandit`, `mypy` (see `.pre-commit-config.yaml`).
+- Versioning: pre-push hook `.github/hooks/version-hook.sh` updates `CHANGELOG.md` and creates annotated tag `v<version>` from `pyproject.toml`.
+- CI/CD: `.github/workflows/publish.yml` builds with `uv` and publishes to PyPI on pushes that modify `pyproject.toml` (requires `PYPI_TOKEN`).
+- Branching/commits: feature branches + PRs; Conventional Commit style commonly used (not enforced).
 
 ## Domain Context
-- Data engineering and analytics pipelines implemented as Hamilton DAGs.
+- Data engineering and analytics pipelines as Hamilton DAGs.
 - Configuration-driven execution with layered configs: project (`conf/project.yml`) and per‑pipeline (`conf/pipelines/*.yml`).
-- Example domains included: web scraping, ETL (sales), ML training (customer churn) under `examples/`.
+- Examples: web scraping, ETL (sales), ML training (customer churn), and hello-world under `examples/`.
 
 ## Important Constraints
 - Python >= 3.11.
 - Prefer `uv` for environment management, builds, and publishing.
-- Strong typing (mypy strict) and security scanning (bandit, safety) are part of CI/dev workflow.
-- Use OpenSpec for planning/approval of breaking changes, new capabilities, or architecture shifts (see `openspec/AGENTS.md`).
+- Strong typing and security scanning are part of the dev/CI workflow.
+- Use OpenSpec for proposing breaking changes, new capabilities, or architecture shifts (see `openspec/AGENTS.md`).
 
-## External Dependencies
-- Hamilton (sf-hamilton) for DAG execution.
-- Filesystem backends via `fsspec`/`s3fs` (S3 and other remote stores).
-- Optional observability: OpenTelemetry (Jaeger exporter supported), OpenLineage.
-- Optional execution/UI: Ray, Hamilton UI.
-- Dev/ops (docker/): configurations for Prometheus, Grafana, Mosquitto, and Caddy for local setups.
+## External Integrations & Optional Components
+- Observability: OpenTelemetry (Jaeger exporter), OpenLineage (optional).
+- Execution/UI: Ray (optional), Hamilton UI (optional via `sf-hamilton-ui`; CLI: `flowerpower ui`).
+- I/O Plugins: `flowerpower-io` optional extras for sources/sinks.
+
+## How to Work With Pipelines
+- Create: `PipelineManager.new(name)` or CLI `flowerpower pipeline new <name>`.
+- Configure: edit `conf/pipelines/<name>.yml` (params, `run.final_vars`, executor, adapters).
+- Run: Python API `FlowerPowerProject.run(...)` or CLI `flowerpower pipeline run <name>` using `--run-config` or `--inputs/--final-vars` overrides.
+- Visualize: `PipelineManager.save_dag/show_dag` (Graphviz required for rendering).
+
+## Developer Commands (informal)
+- Lint/format: `uv run ruff check` && `uv run ruff format`
+- Types: `uv run mypy src/flowerpower`
+- Tests: `uv run pytest`
+- Security: `bash scripts/security-audit.sh`
+- Build/Publish: `uv build` && `uv publish` (CI handles standard publish)
