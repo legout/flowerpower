@@ -11,6 +11,7 @@ from ..cfg.pipeline.run import (
     RunConfig,
     ExecutorConfig,
     WithAdapterConfig,
+    RetryConfig,
 )
 from .security import validate_config_dict, validate_callback_function
 def _merge_inputs(run_config: RunConfig, value):
@@ -72,6 +73,14 @@ def _set_project_adapter_cfg(run_config: RunConfig, value):
     run_config.project_adapter_cfg = value
 
 
+def _set_retry_cfg(run_config: RunConfig, value):
+    """Set retry config (nested)."""
+    if isinstance(value, dict):
+        run_config.retry = RetryConfig.from_dict(value)
+    elif isinstance(value, RetryConfig):
+        run_config.retry = value
+
+
 _attr_handlers = {
     'inputs': _merge_inputs,
     'config': _merge_config,
@@ -81,6 +90,7 @@ _attr_handlers = {
     'with_adapter_cfg': _set_with_adapter_cfg,
     'pipeline_adapter_cfg': _set_pipeline_adapter_cfg,
     'project_adapter_cfg': _set_project_adapter_cfg,
+    'retry': _set_retry_cfg,
 }
 
 
@@ -114,7 +124,21 @@ def merge_run_config_with_kwargs(run_config: RunConfig, kwargs: Dict[str, Any]) 
             # Validate callbacks for security
             if attr in ['on_success', 'on_failure']:
                 validate_callback_function(value)
-            setattr(run_config, attr, value)
+                setattr(run_config, attr, value)
+            elif attr in ['max_retries', 'retry_delay', 'jitter_factor', 'retry_exceptions']:
+                # Map deprecated flat fields into nested retry configuration
+                if run_config.retry is None:
+                    run_config.retry = RetryConfig()
+                if attr == 'max_retries' and value is not None:
+                    run_config.retry.max_retries = int(value)
+                elif attr == 'retry_delay' and value is not None:
+                    run_config.retry.retry_delay = float(value)
+                elif attr == 'jitter_factor':
+                    run_config.retry.jitter_factor = value
+                elif attr == 'retry_exceptions' and value is not None:
+                    run_config.retry.retry_exceptions = list(value) if isinstance(value, (list, tuple)) else [value]
+            else:
+                setattr(run_config, attr, value)
     
     return run_config
 
@@ -166,16 +190,18 @@ class RunConfigBuilder:
         return self
     
     def with_retry_config(self, max_retries: int | None = None, retry_delay: float | None = None,
-                         jitter_factor: float | None = None, retry_exceptions: tuple | None = None) -> 'RunConfigBuilder':
+                         jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None) -> 'RunConfigBuilder':
         """Set retry configuration."""
+        if self.config.retry is None:
+            self.config.retry = RetryConfig()
         if max_retries is not None:
-            self.config.max_retries = max_retries
+            self.config.retry.max_retries = max_retries
         if retry_delay is not None:
-            self.config.retry_delay = retry_delay
+            self.config.retry.retry_delay = retry_delay
         if jitter_factor is not None:
-            self.config.jitter_factor = jitter_factor
+            self.config.retry.jitter_factor = jitter_factor
         if retry_exceptions is not None:
-            self.config.retry_exceptions = retry_exceptions
+            self.config.retry.retry_exceptions = list(retry_exceptions) if isinstance(retry_exceptions, (list, tuple)) else [retry_exceptions]
         return self
     
     def with_logging(self, log_level: str | None = None) -> 'RunConfigBuilder':
@@ -239,25 +265,33 @@ class RunConfigBuilder:
     def with_max_retries(self, max_retries: int | None) -> 'RunConfigBuilder':
         """Set max retries."""
         if max_retries is not None:
-            self.config.max_retries = max_retries
+            if self.config.retry is None:
+                self.config.retry = RetryConfig()
+            self.config.retry.max_retries = max_retries
         return self
     
     def with_retry_delay(self, retry_delay: float | None) -> 'RunConfigBuilder':
         """Set retry delay."""
         if retry_delay is not None:
-            self.config.retry_delay = retry_delay
+            if self.config.retry is None:
+                self.config.retry = RetryConfig()
+            self.config.retry.retry_delay = retry_delay
         return self
     
     def with_jitter_factor(self, jitter_factor: float | None) -> 'RunConfigBuilder':
         """Set jitter factor."""
         if jitter_factor is not None:
-            self.config.jitter_factor = jitter_factor
+            if self.config.retry is None:
+                self.config.retry = RetryConfig()
+            self.config.retry.jitter_factor = jitter_factor
         return self
     
     def with_retry_exceptions(self, retry_exceptions: list | None) -> 'RunConfigBuilder':
         """Set retry exceptions."""
         if retry_exceptions is not None:
-            self.config.retry_exceptions = retry_exceptions
+            if self.config.retry is None:
+                self.config.retry = RetryConfig()
+            self.config.retry.retry_exceptions = retry_exceptions
         return self
     
     def with_on_success(self, on_success: Any | None) -> 'RunConfigBuilder':
@@ -297,10 +331,7 @@ class RunConfigBuilder:
             adapter=self.config.adapter,
             reload=self.config.reload,
             log_level=self.config.log_level,
-            max_retries=self.config.max_retries,
-            retry_delay=self.config.retry_delay,
-            jitter_factor=self.config.jitter_factor,
-            retry_exceptions=self.config.retry_exceptions,
+            retry=self.config.retry,
             on_success=self.config.on_success,
             on_failure=self.config.on_failure,
         )

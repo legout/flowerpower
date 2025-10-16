@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
-from .run import RunConfig
+from .run import RunConfig, RetryConfig
 from ..project.adapter import AdapterConfig as ProjectAdapterConfig
 from .builder_executor import ExecutorBuilder
 from .builder_adapter import AdapterBuilder
@@ -194,12 +194,14 @@ class RunConfigBuilder:
         Returns:
             Self for method chaining
         """
-        self._config.max_retries = max_attempts
-        self._config.retry_delay = delay
-        self._config.jitter_factor = jitter
-
+        # Ensure nested retry exists
+        if self._config.retry is None:
+            self._config.retry = RetryConfig()
+        self._config.retry.max_retries = max_attempts
+        self._config.retry.retry_delay = delay
+        self._config.retry.jitter_factor = jitter
         if exceptions:
-            self._config.retry_exceptions = exceptions
+            self._config.retry.retry_exceptions = exceptions
 
         return self
 
@@ -358,13 +360,14 @@ class RunConfigBuilder:
             ValueError: If configuration is invalid
         """
         # Validate retry configuration
-        if config.max_retries < 0:
+        retry_cfg = config.retry or RetryConfig()
+        if retry_cfg.max_retries < 0:
             raise ValueError("max_retries must be non-negative")
 
-        if config.retry_delay < 0:
+        if retry_cfg.retry_delay < 0:
             raise ValueError("retry_delay must be non-negative")
 
-        if config.jitter_factor is not None and config.jitter_factor < 0:
+        if retry_cfg.jitter_factor is not None and retry_cfg.jitter_factor < 0:
             raise ValueError("jitter_factor must be non-negative")
 
         # Validate executor configuration

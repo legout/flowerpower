@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 from ..flowerpower import FlowerPowerProject
 from ..pipeline.manager import HookType, PipelineManager
-from ..cfg.pipeline.run import RunConfig
+from ..cfg.pipeline.run import RunConfig, RetryConfig
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param
 
@@ -168,9 +168,11 @@ def run(
             config=parsed_config,
             cache=parsed_cache,
             with_adapter=with_adapter_config,  # type: ignore
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            jitter_factor=jitter_factor,
+            retry=RetryConfig(
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                jitter_factor=jitter_factor,
+            ),
         )
         
         # Handle executor configuration
