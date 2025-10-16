@@ -1245,7 +1245,7 @@ wheels = [
 
 [[package]]
 name = "flowerpower"
-version = "0.31.5.2"
+version = "0.31.6"
 source = { editable = "." }
 dependencies = [
     { name = "duration-parser" },
