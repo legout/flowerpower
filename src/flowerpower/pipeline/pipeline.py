@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Active Pipeline class for FlowerPower."""
 
 from __future__ import annotations
@@ -9,21 +8,20 @@ import importlib.util
 import random
 import time
 from typing import TYPE_CHECKING, Any, Callable
+
 import humanize
 import msgspec
-from loguru import logger
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
-from hamilton_sdk.api.clients import UnauthorizedException
-from requests.exceptions import HTTPError, ConnectionError, Timeout
+from loguru import logger
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from .. import settings
 from ..utils.adapter import create_adapter_manager
 from ..utils.executor import create_executor_factory
 from ..utils.logging import setup_logging
-
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -41,7 +39,6 @@ else:
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
-    from hamilton.plugins import h_dask
 else:
     distributed = None
 

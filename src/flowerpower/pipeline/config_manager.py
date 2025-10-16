@@ -2,11 +2,12 @@
 
 import os
 from typing import TYPE_CHECKING, Optional
-from fsspec_utils import AbstractFileSystem
-from ..utils.misc import get_filesystem
-from ..cfg import ProjectConfig, PipelineConfig
-from ..settings import CONFIG_DIR
 
+from fsspec_utils import AbstractFileSystem
+
+from ..cfg import PipelineConfig, ProjectConfig
+from ..settings import CONFIG_DIR
+from ..utils.misc import get_filesystem
 
 if TYPE_CHECKING:
     from fsspec_utils import AbstractFileSystem

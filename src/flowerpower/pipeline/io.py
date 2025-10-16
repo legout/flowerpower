@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # mypy: disable-error-code="attr-defined"
 # pylint: disable=no-member, E1136, W0212, W0201
 """
@@ -7,8 +6,12 @@ Manages the import and export of pipelines.
 
 import posixpath
 
-from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
-                          DirFileSystem, filesystem)
+from fsspec_utils import (
+    AbstractFileSystem,
+    BaseStorageOptions,
+    DirFileSystem,
+    filesystem,
+)
 from loguru import logger
 from rich.console import Console
 
