@@ -74,9 +74,13 @@ class PipelineIOManager:
     def _print_export_success(self, names: list[str] | None, dest_base_dir: str) -> None:
         """Print success message for export operations."""
         if names:
-            self._print_export_success(names, dest_base_dir)
+            console.print(
+                f"✅ Exported pipelines [bold blue]{', '.join([self.project_cfg.name + '.' + n for n in names])}[/bold blue] to [green]{dest_base_dir}[/green]"
+            )
         else:
-            self._print_export_success(None, dest_base_dir)
+            console.print(
+                f"✅ Exported all pipelines from [bold blue]{self.project_cfg.name}[/bold blue] to [green]{dest_base_dir}[/green]"
+            )
 
     def _sync_filesystem(
         self,

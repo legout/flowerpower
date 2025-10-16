@@ -9,8 +9,6 @@ import importlib.util
 import random
 import time
 from typing import TYPE_CHECKING, Any, Callable
-from requests.exceptions import HTTPError, ConnectionError, Timeout  # Example exception
-
 import humanize
 import msgspec
 from loguru import logger
@@ -19,7 +17,7 @@ from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
 from hamilton_sdk.api.clients import UnauthorizedException
-from requests.exceptions import ConnectionError, HTTPError
+from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 from .. import settings
 from ..utils.adapter import create_adapter_manager
@@ -299,14 +297,10 @@ class Pipeline(msgspec.Struct):
         executor, shutdown_func, adapters = self._setup_execution_context(
             run_config=run_config
         )
-        if (
-            run_config.executor.type != "synchronous"
-            or run_config.executor.type == "local"
-        ):
-            allow_experimental_mode = True
+        synchronous_executor = True
+        if run_config.executor.type not in ("synchronous", None):
             synchronous_executor = False
-        else:
-            allow_experimental_mode = True
+        allow_experimental_mode = True
         try:
             # Create Hamilton driver
             dr = (
