@@ -173,23 +173,31 @@ print(pipeline_config.run.executor)
 ### ExecutorConfig
 **Module:** `flowerpower.cfg.ExecutorConfig`
 
-Defines the configuration for the pipeline executor (e.g., "local", "threadpool").
+Defines the configuration for the pipeline executor (synchronous or distributed backends).
+
+Supported types: `"synchronous"`, `"threadpool"`, `"processpool"`, `"ray"`, `"dask"`.
 
 **Attributes:**
 
 | Attribute | Type | Description |
 |:----------|:-----|:------------|
-| `type` | `str` | The type of executor (e.g., "local", "threadpool"). |
-| `config` | `dict` | A dictionary of executor-specific configurations. |
+| `type` | `str` | Executor type (see supported types). |
+| `max_workers` | `int | None` | Max parallel tasks for thread/process executors. |
+| `num_cpus` | `int | None` | CPU allocation for distributed executors (ray/dask). |
 
-#### Example
+#### Examples
 
 ```python
 from flowerpower.cfg import ExecutorConfig
 
-# Create an ExecutorConfig
-executor_config = ExecutorConfig(type="threadpool", config={"max_workers": 4})
-print(executor_config.type)
+# Synchronous (sequential) execution
+ExecutorConfig(type="synchronous")
+
+# Thread pool with 4 workers
+ExecutorConfig(type="threadpool", max_workers=4)
+
+# Ray with CPU allocation
+ExecutorConfig(type="ray", num_cpus=4)
 ```
 
 ### WithAdapterConfig
