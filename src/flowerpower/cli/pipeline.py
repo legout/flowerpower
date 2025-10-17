@@ -73,7 +73,7 @@ def run(
         None, help="Adapter configuration as JSON or dict string"
     ),
     max_retries: int = typer.Option(
-        0, help="Maximum number of retry attempts on failure"
+        0, help="Maximum number of retry attempts on failure (0 to disable retries)"
     ),
     retry_delay: float = typer.Option(
         1.0, help="Base delay between retries in seconds"

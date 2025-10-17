@@ -224,6 +224,44 @@ class TestPipeline(unittest.TestCase):
                 f"Pipeline backward compatibility test failed (expected in test environment): {e}"
             )
 
+    def test_max_retries_zero_disables_retries(self):
+        """Test that max_retries=0 properly disables retries."""
+        pipeline = Pipeline(
+            name="test_pipeline",
+            config=self.pipeline_config,
+            module=self.mock_module,
+            project_context=self.project_context,
+        )
+
+        try:
+            # Test the _setup_retry_config method directly
+            retry_config = pipeline._setup_retry_config(
+                max_retries=0,
+                retry_delay=None,
+                jitter_factor=None,
+                retry_exceptions=None
+            )
+            
+            # Should get max_retries=0, not the config default of 3
+            self.assertEqual(retry_config["max_retries"], 0)
+            
+            # Test with retry_delay=0 as well
+            retry_config = pipeline._setup_retry_config(
+                max_retries=0,
+                retry_delay=0,
+                jitter_factor=0,
+                retry_exceptions=None
+            )
+            
+            # All values should be 0
+            self.assertEqual(retry_config["max_retries"], 0)
+            self.assertEqual(retry_config["retry_delay"], 0)
+            self.assertEqual(retry_config["jitter_factor"], 0)
+            
+        except Exception as e:
+            print(f"max_retries=0 test failed: {e}")
+            self.fail(f"max_retries=0 test failed: {e}")
+
     def test_pipeline_properties(self):
         """Test Pipeline properties and attributes."""
         pipeline = Pipeline(
