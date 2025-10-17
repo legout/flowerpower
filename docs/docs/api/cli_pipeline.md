@@ -24,7 +24,7 @@ flowerpower pipeline run [options]
 | --base-dir | str | Base directory for the pipeline/project. | None |
 | --inputs | str | Inputs as JSON/dict string; parsed to dict. | None |
 | --final-vars | str | Final variables as JSON/list string; parsed to list. | None |
-| --config | str | Hamilton executor config as JSON/dict string. | None |
+| --config | str | Hamilton runtime config as JSON/dict string. | None |
 | --cache | str | Cache config as JSON/dict string. | None |
 | --storage-options | str | Storage options as JSON/dict string; parsed to dict. | None |
 | --log-level | str | Logging level: debug, info, warning, error, critical. | None |
@@ -67,6 +67,29 @@ $ flowerpower pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitte
 #   retry_delay: 2.0
 #   jitter_factor: 0.2
 $ flowerpower pipeline run my_pipeline --run-config ./run_config_retries.yaml
+
+### Environment Overrides
+
+You can override run settings using environment variables without changing the YAML:
+
+```bash
+export FP_PIPELINE__RUN__LOG_LEVEL=DEBUG
+export FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool
+export FP_LOG_LEVEL=INFO  # global shim, used only if pipeline-specific not set
+```
+
+YAML values support `${VAR}` interpolation. Example in `conf/pipelines/<name>.yml`:
+
+```yaml
+run:
+  log_level: ${FP_LOG_LEVEL:-INFO}
+```
+
+Executor config JSON example (shell-escaped):
+
+```bash
+flowerpower pipeline run my_pipeline --executor-cfg '{"type":"threadpool","max_workers":4}'
+```
 ```
 
 ---

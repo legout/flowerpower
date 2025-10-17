@@ -77,6 +77,47 @@ config = Config.load(base_dir="my_project", name="project1", pipeline_name="data
 config.save(project=True, pipeline=True)
 ```
 
+## Environment Overlays and YAML Interpolation
+
+FlowerPower applies configuration from multiple sources with a predictable precedence:
+
+1. Programmatic overrides at execution time (kwargs, `RunConfig`)
+2. Environment overlays via namespaced variables `FP_PIPELINE__...` / `FP_PROJECT__...`
+3. YAML files after environment interpolation (see below)
+4. Global env shims like `FP_LOG_LEVEL`, `FP_EXECUTOR`, `FP_MAX_RETRIES` (used only if specific keys are not provided)
+5. Code defaults
+
+### Environment Overlays
+
+- Nested keys are expressed with double-underscores and mapped to config trees.
+- Examples:
+  - `FP_PIPELINE__RUN__LOG_LEVEL=DEBUG`
+  - `FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool`
+  - `FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_KEY=...`
+- Global shims:
+  - `FP_LOG_LEVEL`, `FP_EXECUTOR`, `FP_EXECUTOR_MAX_WORKERS`, `FP_EXECUTOR_NUM_CPUS`
+  - `FP_MAX_RETRIES`, `FP_RETRY_DELAY`, `FP_JITTER_FACTOR`
+- Values are strictly coerced (bool/int/float); JSON values (objects/arrays) are supported.
+
+### YAML Environment Interpolation
+
+String values in YAML support Docker Compose–style variable expansion:
+
+```yaml
+run:
+  log_level: ${FP_LOG_LEVEL:-INFO}
+  executor: ${FP_PIPELINE__RUN__EXECUTOR:-{"type":"synchronous"}}
+adapter:
+  hamilton_tracker:
+    api_key: ${HAMILTON_API_KEY:?Missing tracker key}
+```
+
+Supported syntax: `${VAR}`, `${VAR:-default}`, `${VAR-default}`, `${VAR:?err}`, `${VAR?err}`, `$${...}` to escape. If the final string parses as JSON, it is converted to the corresponding typed value.
+
+### Retry Normalization
+
+`RunConfig.retry` is the canonical place for retry settings. Legacy top-level fields (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) are still accepted but are normalized into the nested `retry` block on load.
+
 ### ProjectConfig
 **Module:** `flowerpower.cfg.ProjectConfig`
 

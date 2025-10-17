@@ -4,26 +4,69 @@ Welcome to the advanced usage guide for FlowerPower. This document covers more c
 
 ## Configuration Flexibility
 
-FlowerPower offers multiple ways to configure your project, ensuring flexibility for different environments and workflows. The configuration is loaded in the following order of precedence:
+FlowerPower offers multiple ways to configure your project, ensuring flexibility for different environments and workflows. Configuration is applied in this order (highest wins):
 
-1.  **Programmatic Overrides**: Highest priority.
-2.  **Environment Variables**: Set in your shell or `.env` file.
-3.  **Settings Module**: Values from the settings/general.py module.
-4.  **YAML files**: conf/project.yml and conf/pipelines/*.yml for project and pipeline settings.
+1.  **Runtime kwargs / RunConfig** (programmatic overrides at execution time)
+2.  **Environment overlays** via `FP_PIPELINE__*` / `FP_PROJECT__*` variables
+3.  **YAML files after env interpolation** (`${VAR}`, `${VAR:-default}`, etc.)
+4.  **Global env shims** like `FP_LOG_LEVEL`, `FP_EXECUTOR`, etc. (applied only if more specific keys not set)
+5.  **Code defaults** (struct defaults)
 
-### Programmatic Configuration
+### Programmatic Configuration (recommended)
 
-You can override configuration settings directly in your Python code. This is useful for dynamic adjustments or for settings that are determined at runtime.
+Use `RunConfig` or kwargs when executing to override YAML/env at runtime.
 
 ```python
-from flowerpower import settings
+from flowerpower.pipeline import PipelineManager
+from flowerpower.cfg.pipeline.run import RunConfig
 
-# Override the default Redis host
-settings.set('redis.host', 'localhost')
+pm = PipelineManager()
+cfg = RunConfig(
+    inputs={"input_data": "path/to/data.csv"},
+    log_level="DEBUG",
+)
+result = pm.run("sales_etl", run_config=cfg)
 
-# You can also update nested settings
-settings.set('pipelines.my_pipeline.retries', 3)
+# or with kwargs (overrides RunConfig fields)
+result = pm.run(
+    "sales_etl",
+    inputs={"input_data": "path/to/other.csv"},
+    log_level="INFO",
+)
 ```
+
+### Environment Variable Overlays
+
+You can set typed, nested overrides using double-underscore paths:
+
+- `FP_PIPELINE__RUN__LOG_LEVEL=DEBUG`
+- `FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool`
+- `FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_KEY=...`
+
+Global shims still work and are applied only if pipeline/project-specific keys are not set:
+
+- `FP_LOG_LEVEL=INFO`
+- `FP_EXECUTOR=threadpool`, `FP_EXECUTOR_MAX_WORKERS=8`, `FP_EXECUTOR_NUM_CPUS=4`
+- `FP_MAX_RETRIES=3`, `FP_RETRY_DELAY=2.0`, `FP_JITTER_FACTOR=0.2`
+
+Values are strictly coerced (bool/int/float) and JSON is supported for objects/lists.
+
+### YAML Environment Interpolation
+
+YAML supports Docker Compose–style expansion inside values. Examples:
+
+```yaml
+run:
+  log_level: ${FP_LOG_LEVEL:-INFO}
+  executor: ${FP_PIPELINE__RUN__EXECUTOR:-{"type":"synchronous"}}
+adapter:
+  hamilton_tracker:
+    api_key: ${HAMILTON_API_KEY:?Missing tracker key}
+params:
+  data_path: ${DATA_PATH:-data/input.csv}
+```
+
+Supported forms: `${VAR}`, `${VAR:-default}` (unset or empty), `${VAR-default}` (unset), `${VAR:?err}` / `${VAR?err}` (require), `$${...}` escapes `$`. If the expanded value is valid JSON, it becomes a typed object/list/number/bool/null.
 
 ## Direct Module Usage
 

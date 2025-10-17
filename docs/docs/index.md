@@ -18,6 +18,8 @@ FlowerPower is built around a few key concepts that make it both powerful and fl
 
 *   **Modular Pipeline Design**: Define your data transformations as a collection of simple Python functions. FlowerPower, using Hamilton, automatically understands their dependencies and assembles them into a Directed Acyclic Graph (DAG).
 *   **Configuration-Driven**: Separate your pipeline logic from its execution parameters. Environments, data sources, and pipeline settings are all managed through clear and simple YAML files.
+    - Precedence (highest wins): runtime kwargs/RunConfig > env overlays (`FP_PIPELINE__*`, `FP_PROJECT__*`) > YAML (after `${VAR}` interpolation) > global shims (`FP_LOG_LEVEL`, `FP_EXECUTOR`, …) > code defaults.
+    - YAML supports Docker Compose–style env interpolation: `${VAR}`, `${VAR:-default}`, `${VAR?err}`; JSON values are coerced when valid.
 *   **Configurable Pipeline Scheduling**: Define scheduling parameters for pipelines via configuration files. FlowerPower supports configuring job scheduling options, but runtime scheduling is not yet implemented.
 *   **Unified Project Interface**: Interact with your pipelines through the method that suits you best—a Python API (`FlowerPowerProject`), a command-line interface (CLI), or a web-based UI for visualization and monitoring.
 *   **Extensible I/O**: Easily read from and write to various data sources with built-in and custom I/O plugins, ensuring your pipelines can connect to any data, anywhere.
