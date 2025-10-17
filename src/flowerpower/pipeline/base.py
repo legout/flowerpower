@@ -7,8 +7,8 @@ from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 
-from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..cfg import PipelineConfig, ProjectConfig
+from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..utils.logging import setup_logging
 
 setup_logging()

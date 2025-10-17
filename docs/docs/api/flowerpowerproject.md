@@ -53,7 +53,7 @@ When both `run_config` and individual parameters (`**kwargs`) are provided, the 
 | `final_vars` | `list[str] \| None` | Specify which output variables to return. Example: `["model", "metrics"]` | `None` |
 | `config` | `dict \| None` | Configuration for Hamilton pipeline executor. Example: `{"model": "LogisticRegression"}` | `None` |
 | `cache` | `dict \| None` | Cache configuration for results. Example: `{"recompute": ["node1", "final_node"]}` | `None` |
-| `executor_cfg` | `str \| dict \| ExecutorConfig \| None` | Execution configuration, can be: <br>- `str`: Executor name, e.g. "threadpool", "local" <br>- `dict`: Raw config, e.g. `{"type": "threadpool", "max_workers": 4}` <br>- `ExecutorConfig`: Structured config object | `None` |
+| `executor_cfg` | `str \| dict \| ExecutorConfig \| None` | Execution configuration, can be: <br>- `str`: Executor type, one of "synchronous", "threadpool", "processpool", "ray", "dask" <br>- `dict`: Raw config, e.g. `{"type": "threadpool", "max_workers": 4}` <br>- `ExecutorConfig`: Structured config object | `None` |
 | `with_adapter_cfg` | `dict \| WithAdapterConfig \| None` | Adapter settings for pipeline execution. Example: `{"opentelemetry": True, "tracker": False}` | `None` |
 | `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. Example: `{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}` | `None` |
 | `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"opentelemetry": {"host": "http://localhost:4317"}}` | `None` |

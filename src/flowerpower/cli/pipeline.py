@@ -42,6 +42,16 @@ def run(
     executor: str | None = typer.Option(
         None, help="Executor to use for running the pipeline"
     ),
+    executor_cfg: str | None = typer.Option(
+        None,
+        help='Executor configuration as JSON/dict string (e.g. "{\"type\":\"threadpool\",\"max_workers\":4}")',
+    ),
+    executor_max_workers: int | None = typer.Option(
+        None, help="Convenience flag: set executor max_workers"
+    ),
+    executor_num_cpus: int | None = typer.Option(
+        None, help="Convenience flag: set executor num_cpus"
+    ),
     base_dir: str | None = typer.Option(None, help="Base directory for the pipeline"),
     inputs: str | None = typer.Option(
         None, help="Input parameters as JSON, dict string, or key=value pairs"
@@ -125,6 +135,7 @@ def run(
     parsed_final_vars = parse_dict_or_list_param(final_vars, "list") or []
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
     parsed_with_adapter = parse_dict_or_list_param(with_adapter, "dict") or {}
+    parsed_executor_cfg = parse_dict_or_list_param(executor_cfg, "dict") or {}
     
     # Ensure proper types for RunConfig
     if parsed_inputs is not None and not isinstance(parsed_inputs, dict):
@@ -174,10 +185,25 @@ def run(
                 jitter_factor=jitter_factor,
             ),
         )
-        
-        # Handle executor configuration
-        if executor is not None:
-            run_config.executor.type = executor
+
+        # Handle executor configuration (type + config + convenience flags)
+        try:
+            if executor is not None:
+                # Validate type
+                from ..utils.security import validate_executor_type
+                validate_executor_type(executor)
+                parsed_executor_cfg["type"] = executor
+            if executor_max_workers is not None:
+                parsed_executor_cfg["max_workers"] = executor_max_workers
+            if executor_num_cpus is not None:
+                parsed_executor_cfg["num_cpus"] = executor_num_cpus
+
+            if parsed_executor_cfg:
+                from ..cfg.pipeline.run import ExecutorConfig
+                run_config.executor = ExecutorConfig.from_dict(parsed_executor_cfg)
+        except Exception as e:
+            logger.error(f"Invalid executor configuration: {e}")
+            raise typer.Exit(1)
 
         _ = project.run(name=name, run_config=run_config)
         logger.info(f"Pipeline '{name}' finished running.")

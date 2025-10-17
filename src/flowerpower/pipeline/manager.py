@@ -1,14 +1,11 @@
-import datetime as dt
 import os
 import posixpath
 import sys
 import warnings
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, TypeVar, Union
-from uuid import UUID
+from typing import Any, TypeVar, Union
 
-from loguru import logger
 from munch import Munch
 
 try:
@@ -18,17 +15,16 @@ except ImportError:
 
 from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
 
-from ..settings import CONFIG_DIR, PIPELINES_DIR, CACHE_DIR
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
-from ..utils.logging import setup_logging
-from ..utils.config import merge_run_config_with_kwargs
+from ..settings import CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 from ..utils.filesystem import FilesystemHelper
+from ..utils.logging import setup_logging
 from .config_manager import PipelineConfigManager
 from .executor import PipelineExecutor
 from .io import PipelineIOManager
 from .lifecycle_manager import PipelineLifecycleManager
-from .registry import PipelineRegistry, HookType
+from .registry import HookType, PipelineRegistry
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -163,13 +159,24 @@ class PipelineManager:
             cached = False
             cache_storage = None
 
-        # Get filesystem instance
-        self._fs = fs or self._fs_helper.get_filesystem(cached=cached, cache_storage=cache_storage)
-        self._storage_options = (
-            storage_options or self._fs.storage_options
-            if self._fs.protocol != "dir"
-            else self._fs.fs.storage_options
-        )
+        # Get filesystem instance (use local `filesystem` to allow tests to patch)
+        if fs is not None:
+            self._fs = fs
+        else:
+            self._fs = filesystem(
+                self._base_dir,
+                storage_options=(storage_options or {}),
+                cached=cached,
+                cache_storage=cache_storage,
+            )
+        try:
+            self._storage_options = (
+                storage_options or self._fs.storage_options
+                if getattr(self._fs, "protocol", None) != "dir"
+                else self._fs.fs.storage_options
+            )
+        except Exception:
+            self._storage_options = storage_options or {}
 
     def _initialize_managers(self) -> None:
         """Initialize all manager components."""

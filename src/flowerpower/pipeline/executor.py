@@ -1,7 +1,6 @@
 """Pipeline execution handling."""
 
 from typing import TYPE_CHECKING, Any, Optional
-from fsspec_utils import AbstractFileSystem
 
 from ..cfg.pipeline.run import RunConfig
 from ..utils.config import merge_run_config_with_kwargs

@@ -1,11 +1,11 @@
 """Pipeline lifecycle management."""
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 import rich
 
 if TYPE_CHECKING:
-    from .registry import PipelineRegistry, HookType
+    from .registry import HookType, PipelineRegistry
 
 
 class PipelineLifecycleManager:

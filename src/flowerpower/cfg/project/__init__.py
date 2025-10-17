@@ -7,6 +7,7 @@ from ...settings import CONFIG_DIR
 from ..base import BaseConfig
 from ..exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
 from .adapter import AdapterConfig
+from ...utils.yaml_env import interpolate_env_in_data
 
 
 class ProjectConfig(BaseConfig):
@@ -118,6 +119,24 @@ class ProjectConfig(BaseConfig):
             fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
         
         return cls._load_project_config(fs, name)
+
+    @classmethod
+    def from_yaml(cls, path: str, fs: AbstractFileSystem):
+        try:
+            with fs.open(path) as f:
+                raw = f.read()
+        except Exception as e:
+            raise ConfigLoadError(f"Failed to load configuration from {path}", path=path, original_error=e)
+        try:
+            import yaml as _yaml
+            data = _yaml.safe_load(raw) or {}
+            data = interpolate_env_in_data(data)
+        except Exception as e:
+            raise ConfigLoadError(f"Failed to parse YAML for {path}", path=path, original_error=e)
+        instance = msgspec.convert(data, cls)
+        if hasattr(instance, "__post_init__"):
+            instance.__post_init__()
+        return instance
 
     def save(
         self,

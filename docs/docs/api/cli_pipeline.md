@@ -20,11 +20,14 @@ flowerpower pipeline run [options]
 | Name | Type | Description | Default |
 |---|---|---|---|
 | name | str (arg) | Name of the pipeline to run. | — |
-| --executor | str | Executor type (e.g., "local", "threadpool"). | None |
+| --executor | str | Executor type: one of "synchronous", "threadpool", "processpool", "ray", "dask". | None |
+| --executor-cfg | str | Executor configuration as JSON/dict; supports keys: `type`, `max_workers`, `num_cpus`. | None |
+| --executor-max-workers | int | Convenience: set `executor.max_workers`. | None |
+| --executor-num-cpus | int | Convenience: set `executor.num_cpus`. | None |
 | --base-dir | str | Base directory for the pipeline/project. | None |
 | --inputs | str | Inputs as JSON/dict string; parsed to dict. | None |
 | --final-vars | str | Final variables as JSON/list string; parsed to list. | None |
-| --config | str | Hamilton executor config as JSON/dict string. | None |
+| --config | str | Hamilton runtime config as JSON/dict string. | None |
 | --cache | str | Cache config as JSON/dict string. | None |
 | --storage-options | str | Storage options as JSON/dict string; parsed to dict. | None |
 | --log-level | str | Logging level: debug, info, warning, error, critical. | None |
@@ -43,30 +46,43 @@ $ flowerpower pipeline run my_pipeline
 # Run with individual parameters (kwargs)
 $ flowerpower pipeline run my_pipeline --inputs '{"data_path": "data/myfile.csv"}' --final-vars '["output_table", "summary_metrics"]'
 
-# Run using a RunConfig from a YAML file
-# Assuming you have a run_config.yaml like:
-# inputs:
-#   data_path: "data/myfile.csv"
-# log_level: "INFO"
-$ flowerpower pipeline run my_pipeline --run-config ./run_config.yaml
-
-# Run using a RunConfig provided as a JSON string
-$ flowerpower pipeline run my_pipeline --run-config '{"inputs": {"data_path": "data/myfile.csv"}, "log_level": "INFO"}'
-
-# Mixing RunConfig with individual parameters (kwargs overrides RunConfig)
-# This will run with log_level="DEBUG" and inputs={"data_path": "new_data.csv"}
-$ flowerpower pipeline run my_pipeline --run-config '{"inputs": {"data_path": "original_data.csv"}, "log_level": "INFO"}' --inputs '{"data_path": "new_data.csv"}' --log-level DEBUG
-
 # Configure automatic retries on failure using kwargs
 $ flowerpower pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
 
-# Configure automatic retries on failure using RunConfig
-# Assuming run_config_retries.yaml contains:
-# retry_config:
-#   max_retries: 3
-#   retry_delay: 2.0
-#   jitter_factor: 0.2
-$ flowerpower pipeline run my_pipeline --run-config ./run_config_retries.yaml
+# Select synchronous executor (sequential)
+$ flowerpower pipeline run my_pipeline --executor synchronous
+
+### Environment Overrides
+
+You can override run settings using environment variables without changing the YAML:
+
+```bash
+export FP_PIPELINE__RUN__LOG_LEVEL=DEBUG
+export FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool
+export FP_LOG_LEVEL=INFO  # global shim, used only if pipeline-specific not set
+```
+
+YAML values support `${VAR}` interpolation. Example in `conf/pipelines/<name>.yml`:
+
+```yaml
+run:
+  log_level: ${FP_LOG_LEVEL:-INFO}
+```
+
+Executor config JSON example (shell-escaped):
+
+```bash
+flowerpower pipeline run my_pipeline --executor-cfg '{"type":"threadpool","max_workers":4}'
+```
+
+Convenience flags example:
+
+```bash
+flowerpower pipeline run my_pipeline \
+  --executor threadpool \
+  --executor-max-workers 8 \
+  --executor-num-cpus 4
+```
 ```
 
 ---

@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
 """Pipeline Registry for discovery, listing, creation, and deletion."""
 
 import datetime as dt
 import os
 import posixpath
 import sys
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict
 
 import msgspec
-
 import rich
 from fsspec_utils import AbstractFileSystem, filesystem
 from loguru import logger
@@ -19,19 +16,20 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
+from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
 from ..utils.logging import setup_logging
+
 # Assuming view_img might be used indirectly or needed later
-from ..utils.templates import (HOOK_TEMPLATE__MQTT_BUILD_CONFIG,
-                               PIPELINE_PY_TEMPLATE)
+from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
+
 # Import base utilities
 from .base import load_module
 
 if TYPE_CHECKING:
-    from .pipeline import Pipeline
     from ..flowerpower import FlowerPowerProject
+    from .pipeline import Pipeline
 
 from enum import Enum
 

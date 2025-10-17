@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Active Pipeline class for FlowerPower."""
 
 from __future__ import annotations
@@ -9,23 +8,20 @@ import importlib.util
 import random
 import time
 from typing import TYPE_CHECKING, Any, Callable
-from requests.exceptions import HTTPError, ConnectionError, Timeout  # Example exception
 
 import humanize
 import msgspec
-from loguru import logger
 from hamilton import driver
 from hamilton.execution import executors
 from hamilton.registry import disable_autoload
 from hamilton.telemetry import disable_telemetry
-from hamilton_sdk.api.clients import UnauthorizedException
-from requests.exceptions import ConnectionError, HTTPError
+from loguru import logger
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from .. import settings
 from ..utils.adapter import create_adapter_manager
 from ..utils.executor import create_executor_factory
 from ..utils.logging import setup_logging
-
 
 if importlib.util.find_spec("opentelemetry"):
     from hamilton.plugins import h_opentelemetry
@@ -43,7 +39,6 @@ else:
 
 if importlib.util.find_spec("distributed"):
     from dask import distributed
-    from hamilton.plugins import h_dask
 else:
     distributed = None
 
@@ -299,14 +294,10 @@ class Pipeline(msgspec.Struct):
         executor, shutdown_func, adapters = self._setup_execution_context(
             run_config=run_config
         )
-        if (
-            run_config.executor.type != "synchronous"
-            or run_config.executor.type == "local"
-        ):
-            allow_experimental_mode = True
+        synchronous_executor = True
+        if run_config.executor.type not in ("synchronous", None):
             synchronous_executor = False
-        else:
-            allow_experimental_mode = True
+        allow_experimental_mode = True
         try:
             # Create Hamilton driver
             dr = (
@@ -346,18 +337,37 @@ class Pipeline(msgspec.Struct):
         """Get the executor based on the provided configuration."""
         logger.debug("Setting up executor...")
 
-        # Merge with default configuration
+        # Merge with default configuration (prefer explicit runtime overrides)
         if executor_cfg:
+            override_raw = executor_cfg
             if isinstance(executor_cfg, str):
-                executor_cfg = ExecutorConfig(type=executor_cfg)
+                pass  # keep raw string
             elif isinstance(executor_cfg, dict):
-                executor_cfg = ExecutorConfig.from_dict(executor_cfg)
+                pass  # keep raw dict
             elif not isinstance(executor_cfg, ExecutorConfig):
                 raise TypeError(
                     "Executor must be a string, dictionary, or ExecutorConfig instance."
                 )
 
-            executor_cfg = self.config.run.executor.merge(executor_cfg)
+            # Prefer explicit override fields over YAML defaults
+            try:
+                from ..utils.config import prefer_executor_override
+
+                executor_cfg = prefer_executor_override(
+                    self.config.run.executor, override_raw
+                )
+            except Exception:
+                # Fallback to existing merge behavior on any unexpected error
+                if isinstance(override_raw, (str, dict)):
+                    # Normalize then merge
+                    norm = (
+                        ExecutorConfig(type=override_raw)
+                        if isinstance(override_raw, str)
+                        else ExecutorConfig.from_dict(override_raw)
+                    )
+                    executor_cfg = self.config.run.executor.merge(norm)
+                else:
+                    executor_cfg = self.config.run.executor.merge(override_raw)
         else:
             executor_cfg = self.config.run.executor
 
