@@ -72,7 +72,6 @@ class PipelineManager:
         fs: AbstractFileSystem | None = None,
         cfg_dir: str | None = CONFIG_DIR,
         pipelines_dir: str | None = PIPELINES_DIR,
-        
         log_level: str | None = None,
     ) -> None:
         """Initialize the PipelineManager.
@@ -91,7 +90,7 @@ class PipelineManager:
                 Example: "config" or "settings".
             pipelines_dir: Override default pipelines directory name ('pipelines').
                 Example: "flows" or "dags".
-            
+
             log_level: Set logging level for the manager.
                 Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
@@ -111,7 +110,7 @@ class PipelineManager:
             ...         "key": "ACCESS_KEY",
             ...         "secret": "SECRET_KEY"
             ...     },
-            
+
             ...     log_level="DEBUG"
             ... )
         """
@@ -129,7 +128,7 @@ class PipelineManager:
         storage_options: dict | Munch | BaseStorageOptions | None,
         fs: AbstractFileSystem | None,
         cfg_dir: str | None,
-        pipelines_dir: str | None
+        pipelines_dir: str | None,
     ) -> None:
         """Setup filesystem and configuration directories.
 
@@ -185,7 +184,7 @@ class PipelineManager:
             base_dir=self._base_dir,
             fs=self._fs,
             storage_options=self._storage_options,
-            cfg_dir=self._cfg_dir
+            cfg_dir=self._cfg_dir,
         )
 
         # Load project configuration
@@ -201,25 +200,21 @@ class PipelineManager:
 
         # Initialize specialized managers
         self._executor = PipelineExecutor(
-            config_manager=self._config_manager,
-            registry=self.registry
+            config_manager=self._config_manager, registry=self.registry
         )
         self._lifecycle_manager = PipelineLifecycleManager(registry=self.registry)
 
         # Initialize other components
         self._project_context = None
         self.visualizer = PipelineVisualizer(
-            project_cfg=self._config_manager.project_config,
-            fs=self._fs
+            project_cfg=self._config_manager.project_config, fs=self._fs
         )
         self.io = PipelineIOManager(registry=self.registry)
 
     def _ensure_directories_exist(self) -> None:
         """Ensure essential directories exist."""
         self._fs_helper.ensure_directories_exist(
-            self._fs,
-            self._cfg_dir,
-            self._pipelines_dir
+            self._fs, self._cfg_dir, self._pipelines_dir
         )
 
     def _add_modules_path(self) -> None:
@@ -289,7 +284,6 @@ class PipelineManager:
         # Add cleanup code if needed
         pass
 
-
     def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load or reload configuration for a specific pipeline.
 
@@ -353,12 +347,8 @@ class PipelineManager:
 
     # --- Core Execution Method ---
 
-
     def run(
-        self,
-        name: str,
-        run_config: RunConfig | None = None,
-        **kwargs
+        self, name: str, run_config: RunConfig | None = None, **kwargs
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -433,7 +423,7 @@ class PipelineManager:
         # Set project context for executor
         if hasattr(self, "_project_context") and self._project_context is not None:
             self._executor._project_context = self._project_context
-        
+
         # Delegate to executor
         return self._executor.run(name=name, run_config=run_config, **kwargs)
 
@@ -600,10 +590,12 @@ class PipelineManager:
         try:
             if fmt == "json":
                 import json
+
                 print(json.dumps(names))
                 return None
             if fmt == "yaml":
                 import yaml  # type: ignore
+
                 print(yaml.safe_dump(names, sort_keys=False))
                 return None
         except Exception as e:
@@ -1054,8 +1046,13 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
+
         return self.visualizer.save_dag(
-            name=name, format=format, reload=reload, output_path=output_path
+            name=name,
+            format=format,
+            reload=reload,
+            output_path=output_path,
+            base_dir=self._base_dir,
         )
 
     def show_dag(

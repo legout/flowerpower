@@ -65,6 +65,7 @@ class PipelineVisualizer:
     def save_dag(
         self,
         name: str,
+        base_dir: str,
         format: str = "png",
         reload: bool = False,
         output_path: str | None = None,
@@ -89,7 +90,7 @@ class PipelineVisualizer:
 
         # Determine final output path
         if output_path is None:
-            graph_dir = posixpath.join(self.project_cfg.base_dir, "graphs")
+            graph_dir = posixpath.join(base_dir, "graphs")
             self._fs.makedirs(graph_dir, exist_ok=True)
             base = posixpath.join(graph_dir, name)
             final_path = f"{base}.{format}"
