@@ -307,7 +307,7 @@ class Pipeline(msgspec.Struct):
             run_config=run_config
         )
         logger.debug(
-            "Starting pipeline execution with executor {executor} and adapters {adapters}"
+            f"Starting pipeline execution with executor {executor} and adapters {adapters}"
         )
         synchronous_executor = True
         if run_config.executor.type not in ("synchronous", None):
