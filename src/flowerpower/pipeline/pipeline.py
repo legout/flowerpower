@@ -306,6 +306,9 @@ class Pipeline(msgspec.Struct):
         executor, shutdown_func, adapters = self._setup_execution_context(
             run_config=run_config
         )
+        logger.debug(
+            "Starting pipeline execution with executor {executor} and adapters {adapters}"
+        )
         synchronous_executor = True
         if run_config.executor.type not in ("synchronous", None):
             synchronous_executor = False
