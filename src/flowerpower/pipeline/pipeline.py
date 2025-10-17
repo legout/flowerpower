@@ -125,7 +125,9 @@ class Pipeline(msgspec.Struct):
             retry_cfg.max_retries,
             retry_cfg.retry_delay,
             retry_cfg.jitter_factor,
-            tuple(retry_cfg.retry_exceptions) if isinstance(retry_cfg.retry_exceptions, (list, tuple)) else retry_cfg.retry_exceptions,
+            tuple(retry_cfg.retry_exceptions)
+            if isinstance(retry_cfg.retry_exceptions, (list, tuple))
+            else retry_cfg.retry_exceptions,
         )
         max_retries = retry_config["max_retries"]
         retry_delay = retry_config["retry_delay"]
@@ -151,9 +153,19 @@ class Pipeline(msgspec.Struct):
     ) -> dict:
         """Set up retry configuration with defaults and validation."""
         cfg = self.config.run.retry
-        max_retries = max_retries if max_retries is not None else (cfg.max_retries if cfg else 0)
-        retry_delay = retry_delay if retry_delay is not None else (cfg.retry_delay if cfg else 1.0)
-        jitter_factor = jitter_factor if jitter_factor is not None else (cfg.jitter_factor if cfg else 0.1)
+        max_retries = (
+            max_retries if max_retries is not None else (cfg.max_retries if cfg else 0)
+        )
+        retry_delay = (
+            retry_delay
+            if retry_delay is not None
+            else (cfg.retry_delay if cfg else 1.0)
+        )
+        jitter_factor = (
+            jitter_factor
+            if jitter_factor is not None
+            else (cfg.jitter_factor if cfg else 0.1)
+        )
 
         # Convert string exceptions to actual exception classes
         if retry_exceptions and isinstance(retry_exceptions, (list, tuple)):

@@ -73,16 +73,23 @@ class ExecutorFactory:
     def _create_executor_by_type(self, executor_cfg: Any) -> Any:
         """Create executor based on type."""
         executor_type = executor_cfg.type or "synchronous"
+        if executor_type == "local":
+            executor_type = "synchronous"
 
         if executor_type in ("synchronous", None):
+            logger.debug("Using synchronous/local executor.")
             return self._create_synchronous_executor()
         elif executor_type == "threadpool":
+            logger.debug("Using thread pool executor.")
             return self._create_threadpool_executor(executor_cfg)
         elif executor_type == "processpool":
+            logger.debug("Using process pool executor.")
             return self._create_processpool_executor(executor_cfg)
         elif executor_type == "ray":
+            logger.debug("Using Ray executor.")
             return self._create_ray_executor(executor_cfg)
         elif executor_type == "dask":
+            logger.debug("Using Dask executor.")
             return self._create_dask_executor(executor_cfg)
         else:
             logger.warning(
