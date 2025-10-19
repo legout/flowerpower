@@ -2,8 +2,9 @@ import warnings
 import msgspec
 import importlib
 from munch import munchify
-from typing import Any, Callable
-from requests.exceptions import HTTPError, ConnectionError, Timeout # Example exception
+from typing import Any
+from collections.abc import Callable
+from requests.exceptions import HTTPError, ConnectionError, Timeout  # Example exception
 from ... import settings
 from ..base import BaseConfig
 
@@ -48,7 +49,11 @@ def migrate_legacy_retry_fields(run_data: dict[str, Any]) -> bool:
                     value = float(value)
                 except (TypeError, ValueError):
                     pass
-            elif field == "retry_exceptions" and value is not None and not isinstance(value, list):
+            elif (
+                field == "retry_exceptions"
+                and value is not None
+                and not isinstance(value, list)
+            ):
                 value = [value]
 
             if field == "retry_exceptions":
@@ -88,6 +93,7 @@ class ExecutorConfig(BaseConfig):
 
 class CallbackSpec(msgspec.Struct):
     """Specification for a callback function with optional arguments."""
+
     func: Callable
     args: tuple | None = None
     kwargs: dict | None = None
@@ -95,6 +101,7 @@ class CallbackSpec(msgspec.Struct):
 
 class RetryConfig(BaseConfig):
     """Retry configuration for pipeline execution."""
+
     max_retries: int = msgspec.field(default=3)
     retry_delay: float = msgspec.field(default=1.0)
     jitter_factor: float | None = msgspec.field(default=0.1)
@@ -103,14 +110,16 @@ class RetryConfig(BaseConfig):
 
     def __post_init__(self):
         if isinstance(self.retry_exceptions, list):
-            self.retry_exceptions = self._convert_exception_strings(self.retry_exceptions)
+            self.retry_exceptions = self._convert_exception_strings(
+                self.retry_exceptions
+            )
 
     def _convert_exception_strings(self, exception_list: list) -> list:
         """Convert exception strings to actual exception classes using dynamic import.
-        
+
         Args:
             exception_list: List of exception names or classes.
-            
+
         Returns:
             List of exception classes.
         """
@@ -139,33 +148,33 @@ class RetryConfig(BaseConfig):
     def _import_exception_class(self, exception_name: str) -> type:
         """Dynamically import an exception class by name."""
         built_in_exceptions = {
-            'Exception': Exception,
-            'ValueError': ValueError,
-            'TypeError': TypeError,
-            'RuntimeError': RuntimeError,
-            'FileNotFoundError': FileNotFoundError,
-            'PermissionError': PermissionError,
-            'KeyError': KeyError,
-            'AttributeError': AttributeError,
-            'ImportError': ImportError,
-            'TimeoutError': TimeoutError,
+            "Exception": Exception,
+            "ValueError": ValueError,
+            "TypeError": TypeError,
+            "RuntimeError": RuntimeError,
+            "FileNotFoundError": FileNotFoundError,
+            "PermissionError": PermissionError,
+            "KeyError": KeyError,
+            "AttributeError": AttributeError,
+            "ImportError": ImportError,
+            "TimeoutError": TimeoutError,
         }
         if exception_name in built_in_exceptions:
             return built_in_exceptions[exception_name]
 
-        if '.' in exception_name:
-            module_name, class_name = exception_name.rsplit('.', 1)
+        if "." in exception_name:
+            module_name, class_name = exception_name.rsplit(".", 1)
             module = importlib.import_module(module_name)
             return getattr(module, class_name)
 
         common_modules = [
-            'requests.exceptions',
-            'urllib.error',
-            'urllib3.exceptions',
-            'http.client',
-            'socket',
-            'os',
-            'io',
+            "requests.exceptions",
+            "urllib.error",
+            "urllib3.exceptions",
+            "http.client",
+            "socket",
+            "os",
+            "io",
         ]
         for module_name in common_modules:
             try:
@@ -178,25 +187,29 @@ class RetryConfig(BaseConfig):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert RetryConfig to dictionary, properly handling exception classes.
-        
+
         This ensures that exception classes are converted to their string names
-        rather than their full string representation (e.g., "ValueError" instead of 
+        rather than their full string representation (e.g., "ValueError" instead of
         "<class 'ValueError'>").
         """
         data = super().to_dict()
-        
+
         # Convert exception classes to their names for proper YAML serialization
         if isinstance(data.get("retry_exceptions"), list):
             converted_exceptions = []
             for exc in data["retry_exceptions"]:
-                if isinstance(exc, str) and exc.startswith("<class '") and exc.endswith("'>"):
+                if (
+                    isinstance(exc, str)
+                    and exc.startswith("<class '")
+                    and exc.endswith("'>")
+                ):
                     # Extract the class name from the full string representation
                     class_name = exc[8:-2]  # Remove "<class '" and "'>"
                     converted_exceptions.append(class_name)
                 else:
                     converted_exceptions.append(exc)
             data["retry_exceptions"] = converted_exceptions
-            
+
         return data
 
 
@@ -207,6 +220,7 @@ class RunConfig(BaseConfig):
     cache: dict | bool | None = msgspec.field(default=False)
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
+    executor_override_raw: Any | None = msgspec.field(default=None)
     log_level: str | None = msgspec.field(default="INFO")
     # New nested retry configuration
     retry: RetryConfig | None = msgspec.field(default=None)
@@ -263,12 +277,19 @@ class RunConfig(BaseConfig):
             self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
         if isinstance(self.executor, dict):
             self.executor = ExecutorConfig.from_dict(self.executor)
+            self.executor_override_raw = self.executor_override_raw or None
         if isinstance(self.pipeline_adapter_cfg, dict):
             from ..pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-            self.pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(self.pipeline_adapter_cfg)
+
+            self.pipeline_adapter_cfg = PipelineAdapterConfig.from_dict(
+                self.pipeline_adapter_cfg
+            )
         if isinstance(self.project_adapter_cfg, dict):
             from ..project.adapter import AdapterConfig as ProjectAdapterConfig
-            self.project_adapter_cfg = ProjectAdapterConfig.from_dict(self.project_adapter_cfg)
+
+            self.project_adapter_cfg = ProjectAdapterConfig.from_dict(
+                self.project_adapter_cfg
+            )
         if isinstance(self.adapter, dict):
             # Convert adapter instances if needed
             pass
@@ -292,7 +313,9 @@ class RunConfig(BaseConfig):
         self.retry_exceptions = list(self.retry.retry_exceptions)
 
         # Handle callback conversions
-        if self.on_success is not None and not isinstance(self.on_success, CallbackSpec):
+        if self.on_success is not None and not isinstance(
+            self.on_success, CallbackSpec
+        ):
             if callable(self.on_success):
                 self.on_success = CallbackSpec(func=self.on_success)
             elif isinstance(self.on_success, tuple) and len(self.on_success) == 3:
@@ -302,10 +325,12 @@ class RunConfig(BaseConfig):
                 self.on_success = None
                 warnings.warn(
                     "Invalid on_success format, must be Callable or (Callable, args, kwargs)",
-                    RuntimeWarning
+                    RuntimeWarning,
                 )
         # Handle on_failure callback conversions (mirror on_success behavior)
-        if self.on_failure is not None and not isinstance(self.on_failure, CallbackSpec):
+        if self.on_failure is not None and not isinstance(
+            self.on_failure, CallbackSpec
+        ):
             if callable(self.on_failure):
                 self.on_failure = CallbackSpec(func=self.on_failure)
             elif isinstance(self.on_failure, tuple) and len(self.on_failure) == 3:

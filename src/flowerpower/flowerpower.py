@@ -370,8 +370,10 @@ class FlowerPowerProject:
                     f"{settings.CONFIG_DIR}",
                     settings.PIPELINES_DIR,
                     hooks_dir,
-                    "README.md"
+                    recursive=True,
                 )
+                if fs.exists("README.md"):
+                    fs.rm("README.md")
             else:
                 error_msg = f"Project already exists at {base_dir}. Use overwrite=True to overwrite the existing project."
                 rich.print(f"[red]{error_msg}[/red]")

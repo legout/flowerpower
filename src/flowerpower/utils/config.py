@@ -15,6 +15,7 @@ from ..cfg.pipeline.run import (
 )
 from .security import validate_config_dict, validate_callback_function
 
+
 def prefer_executor_override(base: ExecutorConfig, override: str | dict | ExecutorConfig | None) -> ExecutorConfig:
     """Merge executor configs preferring explicit runtime overrides.
 
@@ -29,7 +30,11 @@ def prefer_executor_override(base: ExecutorConfig, override: str | dict | Execut
 
     # Normalize override to ExecutorConfig
     if isinstance(override, str):
-        ov = ExecutorConfig(type=override)
+        return ExecutorConfig(
+            type=override,
+            max_workers=base.max_workers,
+            num_cpus=base.num_cpus,
+        )
     elif isinstance(override, dict):
         # Preserve explicit None vs missing by checking keys
         ov = ExecutorConfig.from_dict(override)
@@ -55,6 +60,19 @@ def prefer_executor_override(base: ExecutorConfig, override: str | dict | Execut
         num_cpus=ov.num_cpus if (ov.num_cpus is not None) else base.num_cpus,
     )
     return merged
+
+
+def resolve_executor_config(
+    *,
+    base: ExecutorConfig | None,
+    override: str | dict | ExecutorConfig | None,
+) -> ExecutorConfig:
+    """Resolve executor config from base defaults and runtime overrides."""
+    effective_base = base or ExecutorConfig()
+    if override is None:
+        return effective_base
+    return prefer_executor_override(effective_base, override)
+
 def _merge_inputs(run_config: RunConfig, value):
     """Merge inputs into run config."""
     validate_config_dict(value)
@@ -94,6 +112,7 @@ def _set_executor_cfg(run_config: RunConfig, value):
         run_config.executor = ExecutorConfig.from_dict(value)
     elif isinstance(value, ExecutorConfig):
         run_config.executor = value
+    run_config.executor_override_raw = value
 
 
 def _set_with_adapter_cfg(run_config: RunConfig, value):
@@ -228,6 +247,7 @@ class RunConfigBuilder:
                 self.config.executor = ExecutorConfig.from_dict(executor_cfg)
             elif isinstance(executor_cfg, ExecutorConfig):
                 self.config.executor = executor_cfg
+            self.config.executor_override_raw = executor_cfg
         return self
     
     def with_retry_config(self, max_retries: int | None = None, retry_delay: float | None = None,
@@ -366,6 +386,7 @@ class RunConfigBuilder:
             config=self.config.config,
             cache=self.config.cache,
             executor=self.config.executor,
+            executor_override_raw=self.config.executor_override_raw,
             with_adapter=self.config.with_adapter,
             pipeline_adapter_cfg=self.config.pipeline_adapter_cfg,
             project_adapter_cfg=self.config.project_adapter_cfg,

@@ -1,0 +1,45 @@
+adapter:
+  hamilton_tracker:
+    capture_data_statistics: true
+    dag_name: null
+    max_dict_length_capture: 10
+    max_list_length_capture: 50
+    project_id: null
+    tags: {}
+  mlflow:
+    experiment_description: null
+    experiment_name: null
+    experiment_tags: {}
+    run_description: null
+    run_id: null
+    run_name: null
+    run_tags: {}
+params: {}
+run:
+  adapter: null
+  cache: false
+  config: {}
+  executor:
+    max_workers: 60
+    num_cpus: 12
+    type: threadpool
+  final_vars: []
+  inputs: {}
+  jitter_factor: 0.1
+  log_level: INFO
+  max_retries: 3
+  on_failure: null
+  on_success: null
+  pipeline_adapter_cfg: null
+  project_adapter_cfg: null
+  reload: false
+  retry_delay: 1
+  retry_exceptions:
+  - <class 'Exception'>
+  with_adapter:
+    future: false
+    hamilton_tracker: false
+    mlflow: false
+    opentelemetry: false
+    progressbar: false
+    ray: false

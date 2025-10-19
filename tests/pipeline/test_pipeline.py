@@ -1,7 +1,7 @@
-# tests/pipeline/test_pipeline.py
+import asyncio
 import types
 import unittest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
 from flowerpower.cfg.pipeline.run import ExecutorConfig
@@ -9,273 +9,78 @@ from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.flowerpower import FlowerPowerProject
 from flowerpower.pipeline.pipeline import Pipeline
-from flowerpower.utils.config import RunConfigBuilder
 
 
 class TestPipeline(unittest.TestCase):
-    def setUp(self):
-        """Set up test fixtures for Pipeline tests."""
-        # Create mock project configuration
+    def setUp(self) -> None:
         adapter_cfg = AdapterConfig()
-        self.project_cfg = ProjectConfig(
-            name="test_project", adapter=adapter_cfg
-        )
+        self.project_cfg = ProjectConfig(name="test_project", adapter=adapter_cfg)
 
-        # Create mock project context
-        self.project_context = Mock(spec=FlowerPowerProject)
-        self.project_context.pipeline_manager = Mock()
+        self.project_context = MagicMock(spec=FlowerPowerProject)
+        self.project_context.pipeline_manager = MagicMock()
         self.project_context.pipeline_manager._project_cfg = self.project_cfg
 
-        # Create mock pipeline config
         self.pipeline_config = PipelineConfig(
             name="test_pipeline",
             run=RunConfig(
-                inputs={"x": 5, "y": 3}, executor=ExecutorConfig(type="synchronous")
+                inputs={"x": 1},
+                executor=ExecutorConfig(type="synchronous"),
             ),
         )
 
-        # Create mock module with Hamilton functions
-        self.mock_module = types.ModuleType("test_module")
+        module = types.ModuleType("test_module")
 
-        def add_numbers(x: int, y: int) -> int:
-            """Hamilton function that adds two numbers."""
-            return x + y
+        def node() -> int:
+            return 42
 
-        def multiply_numbers(x: int, y: int) -> int:
-            """Hamilton function that multiplies two numbers."""
-            return x * y
+        module.node = node
+        self.module = module
 
-        def final_result(add_numbers: int, multiply_numbers: int) -> int:
-            """Hamilton function that combines results."""
-            return add_numbers + multiply_numbers
-
-        self.mock_module.add_numbers = add_numbers
-        self.mock_module.multiply_numbers = multiply_numbers
-        self.mock_module.final_result = final_result
-
-    def test_pipeline_creation(self):
-        """Test that Pipeline instances can be created successfully."""
+    def test_pipeline_initialization(self):
         pipeline = Pipeline(
             name="test_pipeline",
             config=self.pipeline_config,
-            module=self.mock_module,
+            module=self.module,
             project_context=self.project_context,
         )
 
         self.assertEqual(pipeline.name, "test_pipeline")
-        self.assertEqual(pipeline.config, self.pipeline_config)
-        self.assertEqual(pipeline.module, self.mock_module)
-        self.assertEqual(pipeline.project_context, self.project_context)
+        self.assertIsNotNone(pipeline.adapter_manager)
+        self.assertIsNotNone(pipeline.executor_factory)
 
-    def test_pipeline_run_simple(self):
-        """Test basic pipeline execution."""
+    @patch("flowerpower.pipeline.pipeline.PipelineRunner")
+    def test_run_delegates_to_runner(self, runner_cls):
+        runner_instance = runner_cls.return_value
         pipeline = Pipeline(
             name="test_pipeline",
             config=self.pipeline_config,
-            module=self.mock_module,
+            module=self.module,
             project_context=self.project_context,
         )
 
-        # Test simple execution - should not raise exceptions
-        try:
-            result = pipeline.run(inputs={"x": 10, "y": 5})
-            # Result might be empty dict but execution should succeed
-            self.assertIsInstance(result, dict)
-        except Exception as e:
-            # If execution fails, at least verify the Pipeline object was created correctly
-            self.assertIsNotNone(pipeline)
-            # Log the error for debugging but don't fail the test
-            print(f"Pipeline execution failed (expected in test environment): {e}")
+        pipeline.run(inputs={"x": 2})
 
-    def test_pipeline_run_with_final_vars(self):
-        """Test pipeline execution with specific output variables."""
+        runner_instance.run.assert_called_once()
+        args, kwargs = runner_instance.run.call_args
+        self.assertIsNone(kwargs.get("run_config"))
+        self.assertEqual(kwargs["inputs"], {"x": 2})
+
+    @patch("flowerpower.pipeline.pipeline.PipelineRunner")
+    def test_run_async_delegates_to_runner(self, runner_cls):
+        runner_instance = runner_cls.return_value
+        runner_instance.run_async = AsyncMock(return_value={"result": 1})
+
         pipeline = Pipeline(
             name="test_pipeline",
             config=self.pipeline_config,
-            module=self.mock_module,
+            module=self.module,
             project_context=self.project_context,
         )
 
-        try:
-            # Request specific outputs that exist in our module
-            result = pipeline.run(
-                inputs={"x": 8, "y": 4}, final_vars=["add_numbers", "multiply_numbers"]
-            )
+        result = asyncio.run(pipeline.run_async(run_config=None))
 
-            # Check if we got the expected results
-            if "add_numbers" in result:
-                self.assertEqual(result["add_numbers"], 12)  # 8 + 4
-            if "multiply_numbers" in result:
-                self.assertEqual(result["multiply_numbers"], 32)  # 8 * 4
-
-        except Exception as e:
-            # Hamilton might not execute in test environment, that's okay
-            print(
-                f"Pipeline execution with final_vars failed (expected in test environment): {e}"
-            )
-
-    def test_pipeline_run_with_config_override(self):
-        """Test pipeline execution with configuration overrides."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        try:
-            # Test with executor configuration override
-            result = pipeline.run(
-                inputs={"x": 6, "y": 7},
-                executor_cfg={"type": "synchronous", "max_workers": 1},
-            )
-            self.assertIsInstance(result, dict)
-        except Exception as e:
-            print(
-                f"Pipeline execution with config override failed (expected in test environment): {e}"
-            )
-
-    def test_pipeline_run_with_run_config(self):
-        """Test pipeline execution with RunConfig object."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        try:
-            # Test with RunConfig object
-            run_config = RunConfig(
-                inputs={"x": 3, "y": 4},
-                final_vars=["add_numbers", "multiply_numbers"],
-                config={"test_param": "test_value"},
-                executor_cfg={"type": "synchronous"},
-                max_retries=2,
-                retry_delay=1.0,
-                log_level="DEBUG"
-            )
-            
-            result = pipeline.run(run_config=run_config)
-            self.assertIsInstance(result, dict)
-        except Exception as e:
-            print(
-                f"Pipeline execution with RunConfig failed (expected in test environment): {e}"
-            )
-
-    def test_pipeline_run_with_run_config_builder(self):
-        """Test pipeline execution with RunConfigBuilder."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        try:
-            # Test with RunConfigBuilder
-            run_config = (
-                RunConfigBuilder()
-                .with_inputs({"x": 5, "y": 2})
-                .with_final_vars(["add_numbers"])
-                .with_config({"builder_test": True})
-                .with_executor_cfg("synchronous")
-                .with_max_retries(1)
-                .build()
-            )
-            
-            result = pipeline.run(run_config=run_config)
-            self.assertIsInstance(result, dict)
-        except Exception as e:
-            print(
-                f"Pipeline execution with RunConfigBuilder failed (expected in test environment): {e}"
-            )
-
-    def test_pipeline_run_backward_compatibility(self):
-        """Test that pipeline run maintains backward compatibility with individual parameters."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        try:
-            # Test with individual parameters (old way)
-            result1 = pipeline.run(
-                inputs={"x": 10, "y": 5},
-                final_vars=["add_numbers"],
-                max_retries=1
-            )
-            
-            # Test with RunConfig (new way)
-            run_config = RunConfig(
-                inputs={"x": 10, "y": 5},
-                final_vars=["add_numbers"],
-                max_retries=1
-            )
-            result2 = pipeline.run(run_config=run_config)
-            
-            # Both should return dict results
-            self.assertIsInstance(result1, dict)
-            self.assertIsInstance(result2, dict)
-        except Exception as e:
-            print(
-                f"Pipeline backward compatibility test failed (expected in test environment): {e}"
-            )
-
-    def test_max_retries_zero_disables_retries(self):
-        """Test that max_retries=0 properly disables retries."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        try:
-            # Test the _setup_retry_config method directly
-            retry_config = pipeline._setup_retry_config(
-                max_retries=0,
-                retry_delay=None,
-                jitter_factor=None,
-                retry_exceptions=None
-            )
-            
-            # Should get max_retries=0, not the config default of 3
-            self.assertEqual(retry_config["max_retries"], 0)
-            
-            # Test with retry_delay=0 as well
-            retry_config = pipeline._setup_retry_config(
-                max_retries=0,
-                retry_delay=0,
-                jitter_factor=0,
-                retry_exceptions=None
-            )
-            
-            # All values should be 0
-            self.assertEqual(retry_config["max_retries"], 0)
-            self.assertEqual(retry_config["retry_delay"], 0)
-            self.assertEqual(retry_config["jitter_factor"], 0)
-            
-        except Exception as e:
-            print(f"max_retries=0 test failed: {e}")
-            self.fail(f"max_retries=0 test failed: {e}")
-
-    def test_pipeline_properties(self):
-        """Test Pipeline properties and attributes."""
-        pipeline = Pipeline(
-            name="test_pipeline",
-            config=self.pipeline_config,
-            module=self.mock_module,
-            project_context=self.project_context,
-        )
-
-        # Test pipeline properties
-        self.assertEqual(pipeline.name, "test_pipeline")
-        self.assertIsNotNone(pipeline.config)
-        self.assertIsNotNone(pipeline.module)
-        self.assertIsNotNone(pipeline.project_context)
+        self.assertEqual(result, {"result": 1})
+        runner_instance.run_async.assert_awaited_once_with(run_config=None)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ from loguru import logger
 
 from ..settings import LOG_LEVEL
 
+_LOGGING_INITIALIZED = False
+
 
 def setup_logging(level: str | None = None) -> None:
     """
@@ -33,3 +35,12 @@ def setup_logging(level: str | None = None) -> None:
             level=effective_level.upper(),
             format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
         )
+
+
+def ensure_logging_initialized(level: str | None = None) -> None:
+    """Ensure logging is configured exactly once using the default precedence."""
+    global _LOGGING_INITIALIZED
+    if _LOGGING_INITIALIZED:
+        return
+    setup_logging(level)
+    _LOGGING_INITIALIZED = True

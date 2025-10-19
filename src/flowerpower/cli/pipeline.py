@@ -56,7 +56,13 @@ def run(
     inputs: str | None = typer.Option(
         None, help="Input parameters as JSON, dict string, or key=value pairs"
     ),
-    final_vars: str | None = typer.Option(None, help="Final variables as JSON or list"),
+    final_vars: str | None = typer.Option(
+        None,
+        "--final-vars",
+        "--outputs",
+        "-o",
+        help="Final variables as JSON or list",
+    ),
     config: str | None = typer.Option(
         None, help="Config for the hamilton pipeline executor"
     ),

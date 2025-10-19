@@ -82,3 +82,6 @@ flowerpower_llm_context7.md
 flowerpower_llm_doc_1.md
 flowerpower_llm_doc_2.md
 flowerpower_llm_doc_3.md
+docs/refactoring/
+docs/cleanup-refactor-plan.md
+.gitignore
