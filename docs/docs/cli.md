@@ -32,15 +32,15 @@ flowerpower pipeline run [OPTIONS] NAME
 - `--executor TEXT`: Executor to use for running the pipeline
 - `--base-dir TEXT`: Base directory for the pipeline
 - `--inputs TEXT`: Input parameters as JSON, dict string, or key=value pairs
-- `--final-vars TEXT`: Final variables as JSON or list
+- `--final-vars TEXT, --outputs TEXT, -o TEXT`: Final variables as JSON or list (alias: `--outputs`)
 - `--config TEXT`: Config for the hamilton pipeline executor
 - `--cache TEXT`: Cache configuration as JSON or dict string
 - `--storage-options TEXT`: Storage options as JSON, dict string, or key=value pairs
 - `--log-level TEXT`: Logging level (debug, info, warning, error, critical)
 - `--with-adapter TEXT`: Adapter configuration as JSON or dict string
-- `--max-retries INTEGER`: Maximum number of retry attempts on failure [default: 0]
-- `--retry-delay FLOAT`: Base delay between retries in seconds [default: 1.0]
-- `--jitter-factor FLOAT`: Random factor applied to delay for jitter (0-1) [default: 0.1]
+- `--max-retries INTEGER`: Maximum number of retry attempts on failure [default: 0] *(deprecated; prefer nested `retry` config)*
+- `--retry-delay FLOAT`: Base delay between retries in seconds [default: 1.0] *(deprecated; prefer nested `retry` config)*
+- `--jitter-factor FLOAT`: Random factor applied to delay for jitter (0-1) [default: 0.1] *(deprecated; prefer nested `retry` config)*
 
 **Examples:**
 ```bash
@@ -52,6 +52,9 @@ flowerpower pipeline run my_pipeline --inputs '{"data_date": "2025-04-28"}'
 
 # Specify final variables
 flowerpower pipeline run my_pipeline --final-vars '["result"]' --log-level DEBUG
+
+# Provide nested retry configuration via RunConfig
+flowerpower pipeline run my_pipeline --run-config '{"retry": {"max_retries": 3, "retry_delay": 2.0}}'
 ```
 
 #### pipeline new

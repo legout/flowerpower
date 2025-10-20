@@ -116,7 +116,7 @@ Supported syntax: `${VAR}`, `${VAR:-default}`, `${VAR-default}`, `${VAR:?err}`, 
 
 ### Retry Normalization
 
-`RunConfig.retry` is the canonical place for retry settings. Legacy top-level fields (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) are still accepted but are normalized into the nested `retry` block on load.
+`RunConfig.retry` is the canonical place for retry settings. Legacy top-level fields (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) are still accepted but are normalized into the nested `retry` block on load and now emit `DeprecationWarning` when set explicitly. Update configuration files to prefer the nested structure (e.g. `retry: {max_retries: 3, retry_delay: 2.0}`). Environment shims (`FP_MAX_RETRIES`, etc.) continue to work but likewise trigger deprecation notices.
 
 ### ProjectConfig
 **Module:** `flowerpower.cfg.ProjectConfig`

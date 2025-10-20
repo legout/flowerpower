@@ -39,12 +39,12 @@ run(self, name: str, run_config: RunConfig | None = None, **kwargs) -> dict[str,
 
 Execute a pipeline synchronously and return its results.
 
-This is the main method for running pipelines directly. It handles configuration loading, adapter setup, and execution via Pipeline objects.
+This is the main method for running pipelines directly. It loads configuration, builds an execution context, and delegates to the `PipelineRunner` for Hamilton execution.
 
 **Parameters:**
 - `name`: Name of the pipeline to run. Must be a valid identifier.
 - `run_config`: Run configuration object containing all execution parameters. If None, the default configuration from the pipeline will be used.
-- `**kwargs`: Additional parameters to override the run_config. Supported parameters include inputs, final_vars, config, cache, executor_cfg, with_adapter_cfg, pipeline_adapter_cfg, project_adapter_cfg, adapter, reload, log_level, max_retries, retry_delay, jitter_factor, retry_exceptions, on_success, on_failure.
+- `**kwargs`: Additional parameters to override the run_config. Supported parameters include inputs, final_vars, config, cache, executor_cfg, with_adapter_cfg, pipeline_adapter_cfg, project_adapter_cfg, adapter, reload, log_level, on_success, on_failure. Legacy retry kwargs (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) are still accepted but emit a `DeprecationWarning`; prefer setting `run_config.retry`.
 
 **Returns:**
 - `dict[str, Any]`: Pipeline execution results, mapping output variable names to their computed values.
@@ -60,27 +60,8 @@ from flowerpower.pipeline import PipelineManager
 from flowerpower.cfg.pipeline.run import RunConfig
 
 manager = PipelineManager()
-executor = manager._executor  # Internal access, use manager.run() in practice
-
-# Load pipeline configuration
-pipeline_config = manager._config_manager.load_pipeline_config("my_pipeline")
-
-# Initialize run_config with pipeline defaults if not provided
-run_config = pipeline_config.run
-
-# Merge kwargs into run_config if needed
-if kwargs:
-    run_config = merge_run_config_with_kwargs(run_config, kwargs)
-
-# Set up logging for this specific run if log_level is provided
-if run_config.log_level is not None:
-    setup_logging(level=run_config.log_level)
-
-# Get the pipeline object from registry
-pipeline = manager._registry.get_pipeline(name="my_pipeline", project_context=manager._project_context)
-
-# Execute the pipeline
-return pipeline.run(run_config=run_config)
+config = RunConfig(retry={"max_retries": 3, "retry_delay": 2.0})
+results = manager.run("my_pipeline", run_config=config)
 ```
 
 ### run_async
@@ -105,24 +86,5 @@ from flowerpower.pipeline import PipelineManager
 from flowerpower.cfg.pipeline.run import RunConfig
 
 manager = PipelineManager()
-executor = manager._executor
-
-# Load pipeline configuration
-pipeline_config = manager._config_manager.load_pipeline_config("my_pipeline")
-
-# Initialize run_config with pipeline defaults if not provided
-run_config = pipeline_config.run
-
-# Merge kwargs into run_config if needed
-if kwargs:
-    run_config = merge_run_config_with_kwargs(run_config, kwargs)
-
-# Set up logging for this specific run if log_level is provided
-if run_config.log_level is not None:
-    setup_logging(level=run_config.log_level)
-
-# Get the pipeline object from registry
-pipeline = manager._registry.get_pipeline(name="my_pipeline", project_context=manager._project_context)
-
-# Execute the pipeline asynchronously
-return await pipeline.run_async(run_config=run_config)
+config = RunConfig(retry={"max_retries": 2})
+results = await manager.run_async("my_pipeline", run_config=config)
