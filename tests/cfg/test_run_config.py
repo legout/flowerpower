@@ -159,7 +159,7 @@ class TestRunConfig:
     def test_run_config_from_dict_with_defaults(self):
         """Test RunConfig from_dict with minimal data."""
         data = {"inputs": {"x": 1}}
-        
+
         run_config = RunConfig.from_dict(data)
         
         assert run_config.inputs == {"x": 1}
@@ -170,6 +170,11 @@ class TestRunConfig:
         assert run_config.reload is False
         assert run_config.log_level == "INFO"  # Has default
         assert run_config.max_retries == 3  # Has default
+
+    def test_run_config_warns_on_legacy_retry_fields(self):
+        """Using deprecated top-level retry fields should emit a warning."""
+        with pytest.warns(DeprecationWarning):
+            RunConfig(max_retries=5)
 
 
 class TestRunConfigBuilder:

@@ -16,6 +16,13 @@ DEPRECATED_RETRY_FIELDS = (
     "retry_exceptions",
 )
 
+_LEGACY_RETRY_DEFAULTS: dict[str, Any] = {
+    "max_retries": 3,
+    "retry_delay": 1,
+    "jitter_factor": 0.1,
+    "retry_exceptions": ["Exception"],
+}
+
 
 def migrate_legacy_retry_fields(run_data: dict[str, Any]) -> bool:
     """Normalize legacy retry fields into nested retry configuration.
@@ -267,6 +274,28 @@ class RunConfig(BaseConfig):
         return data
 
     def __post_init__(self):
+        legacy_overrides: dict[str, Any] = {}
+        for field, default_value in _LEGACY_RETRY_DEFAULTS.items():
+            current_value = getattr(self, field)
+            if field == "retry_exceptions":
+                def _normalise(values):
+                    normalised: list[str] = []
+                    iterable = values if isinstance(values, (list, tuple)) else [values]
+                    for item in iterable:
+                        if isinstance(item, str):
+                            normalised.append(item)
+                        elif isinstance(item, type) and issubclass(item, BaseException):
+                            normalised.append(item.__name__)
+                        else:
+                            normalised.append(str(item))
+                    return normalised
+
+                if _normalise(current_value) != _normalise(default_value):
+                    legacy_overrides[field] = current_value
+            else:
+                if current_value != default_value:
+                    legacy_overrides[field] = current_value
+
         # if isinstance(self.inputs, dict):
         #     self.inputs = munchify(self.inputs)
         if isinstance(self.config, dict):
@@ -311,6 +340,16 @@ class RunConfig(BaseConfig):
         self.jitter_factor = self.retry.jitter_factor
         # Ensure top-level exceptions reflect converted classes
         self.retry_exceptions = list(self.retry.retry_exceptions)
+
+        if legacy_overrides:
+            warnings.warn(
+                (
+                    "RunConfig retry fields {fields} are deprecated; configure values via the nested "
+                    "`retry` block instead."
+                ).format(fields=", ".join(sorted(legacy_overrides))),
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # Handle callback conversions
         if self.on_success is not None and not isinstance(

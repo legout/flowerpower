@@ -25,17 +25,18 @@ run:
     type: threadpool
   final_vars: []
   inputs: {}
-  jitter_factor: 0.1
   log_level: INFO
-  max_retries: 3
   on_failure: null
   on_success: null
   pipeline_adapter_cfg: null
   project_adapter_cfg: null
   reload: false
-  retry_delay: 1
-  retry_exceptions:
-  - <class 'Exception'>
+  retry:
+    max_retries: 3
+    retry_delay: 1
+    jitter_factor: 0.1
+    retry_exceptions:
+      - Exception
   with_adapter:
     future: false
     hamilton_tracker: false

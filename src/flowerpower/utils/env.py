@@ -15,6 +15,7 @@ import json
 import os
 import re
 from typing import Any, Mapping
+import warnings
 
 
 def _coerce_value(raw: str) -> Any:
@@ -151,12 +152,27 @@ def apply_global_shims(overrides: dict, project_overlay: dict, pipeline_overlay:
         tgt.setdefault("num_cpus", g["EXECUTOR_NUM_CPUS"])
 
     if "MAX_RETRIES" in g:
+        warnings.warn(
+            "Environment variable FP_MAX_RETRIES is deprecated; use FP_PIPELINE__RUN__RETRY__MAX_RETRIES instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "retry"])
         tgt.setdefault("max_retries", g["MAX_RETRIES"])
     if "RETRY_DELAY" in g:
+        warnings.warn(
+            "Environment variable FP_RETRY_DELAY is deprecated; use FP_PIPELINE__RUN__RETRY__RETRY_DELAY instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "retry"])
         tgt.setdefault("retry_delay", g["RETRY_DELAY"])
     if "JITTER_FACTOR" in g:
+        warnings.warn(
+            "Environment variable FP_JITTER_FACTOR is deprecated; use FP_PIPELINE__RUN__RETRY__JITTER_FACTOR instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "retry"])
         tgt.setdefault("jitter_factor", g["JITTER_FACTOR"])
 
@@ -172,4 +188,3 @@ def merge_overlays_into_config(config_struct, project_overlay: dict, pipeline_ov
         cfg = getattr(config_struct, "pipeline")
         if hasattr(cfg, "update"):
             cfg.update(pipeline_overlay.get("pipeline", {}))
-
