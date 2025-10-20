@@ -201,7 +201,7 @@ config = (
     .with_inputs({"greeting_message": "Hello", "target_name": "World"})
     .with_final_vars(["full_greeting"])
     .with_log_level("DEBUG")
-    .with_retries(max_attempts=3, delay=1.0)
+    .with_retry_config(max_retries=3, retry_delay=1.0)
     .build()
 )
 

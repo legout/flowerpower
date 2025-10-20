@@ -104,3 +104,20 @@ def test_runner_async_path_parity(context_builder, pipeline_stub):
 
     assert result["remote"] is False
     assert FakeBuilder.last_instance.with_remote is False
+
+
+@patch("flowerpower.pipeline.runner.setup_logging")
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_applies_log_level(context_builder, mock_setup_logging, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    run_config = RunConfig(executor=ExecutorConfig(type="synchronous"), log_level="DEBUG")
+    runner.run(run_config=run_config)
+
+    mock_setup_logging.assert_called_with(level="DEBUG")

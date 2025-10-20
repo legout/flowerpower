@@ -39,9 +39,20 @@ The `FlowerPowerProject` class is the main entry point and public-facing API of 
 The `PipelineManager` is responsible for everything related to data pipelines:
 
 -   **Configuration:** It loads and manages pipeline definitions from YAML files.
--   **Execution:** It uses the Hamilton library to execute dataflows defined as a Directed Acyclic Graph (DAG) of Python functions.
+-   **Execution orchestration:** It coordinates with the new runtime stack (`PipelineRunner`, `ExecutionContextBuilder`, `RetryManager`) to execute Hamilton dataflows defined as a Directed Acyclic Graph (DAG) of Python functions.
 -   **Visualization:** It provides tools for visualizing pipeline graphs.
 -   **I/O:** It handles data loading and saving through an extensible system of I/O adapters.
+
+### Execution Runtime Stack
+
+To keep the `Pipeline` class lean and focused on configuration, the runtime responsibilities are delegated to specialised helpers:
+
+-   **`PipelineRunner`** – Owns the sync/async execution flow, applies `RunConfig` overrides, reloads modules when requested, and ensures logging/telemetry are initialised once per process.
+-   **`ExecutionContextBuilder`** – Resolves adapters and executors based on the merged configuration, including Ray shutdown hooks and custom adapters supplied at runtime.
+-   **`RetryManager`** – Implements retry/backoff logic, including jitter, callbacks, and parity between synchronous and asynchronous execution paths.
+-   **Telemetry & Logging helpers** – Consolidated utilities (`initialize_telemetry`, `ensure_logging_initialized`) eliminate import-time side effects and make log-level overrides predictable.
+
+This separation keeps responsibilities clear and makes it easier to extend or test the execution pipeline without touching configuration loading.
 
 #### Hamilton Integration
 

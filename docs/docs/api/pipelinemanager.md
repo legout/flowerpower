@@ -60,6 +60,9 @@ run(self, name: str, run_config: RunConfig | None = None, inputs: dict | None = 
 
 Execute a pipeline synchronously and return its results. Parameters related to retries (`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`) configure the internal retry mechanism.
 
+!!! warning "Legacy retry kwargs"
+    The standalone retry kwargs are retained for backwards compatibility and now emit `DeprecationWarning`. Prefer supplying retry settings via `run_config.retry` or the builder helpers.
+
 This method supports two primary ways of providing execution configuration:
 1. Using a `RunConfig` object (recommended): Provides a structured way to pass all execution parameters.
 2. Using individual parameters (`**kwargs`): Allows specifying parameters directly, which will override corresponding values in the `RunConfig` if both are provided.
@@ -81,10 +84,10 @@ When both `run_config` and individual parameters (`**kwargs`) are provided, the 
 | `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
 | `reload` | `bool` | Force reload of pipeline configuration. | `False` |
 | `log_level` | `str \| None` | Logging level for the execution. Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `None` |
-| `max_retries` | `int \| None` | Maximum number of retries for execution. | `None` |
-| `retry_delay` | `float \| None` | Delay between retries in seconds. | `None` |
-| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay | `None` |
-| `retry_exceptions` | `tuple \| list \| None` | Exceptions that trigger a retry. | `None` |
+| `max_retries` | `int \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `retry_delay` | `float \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `jitter_factor` | `float \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `retry_exceptions` | `tuple \| list \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
 | `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. | `None` |
 | `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. | `None` |
 

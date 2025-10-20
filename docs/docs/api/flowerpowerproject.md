@@ -37,6 +37,9 @@ run(self, name: str, run_config: RunConfig | None = None, inputs: dict | None = 
 
 Execute a pipeline synchronously and return its results.
 
+!!! warning "Legacy retry kwargs"
+    The standalone retry kwargs are retained for backwards compatibility and now emit `DeprecationWarning`. Prefer supplying retry settings via `run_config.retry` or the builder helpers.
+
 This is a convenience method that delegates to the pipeline manager. It provides the same functionality as `self.pipeline_manager.run()`.
 
 This method supports two primary ways of providing execution configuration:
@@ -60,10 +63,10 @@ When both `run_config` and individual parameters (`**kwargs`) are provided, the 
 | `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
 | `reload` | `bool` | Force reload of pipeline configuration. | `False` |
 | `log_level` | `str \| None` | Logging level for the execution. Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `None` |
-| `max_retries` | `int \| None` | Maximum number of retries for execution. | `None` |
-| `retry_delay` | `float \| None` | Delay between retries in seconds. | `None` |
-| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay | `None` |
-| `retry_exceptions` | `tuple \| list \| None` | Exceptions that trigger a retry. | `None` |
+| `max_retries` | `int \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `retry_delay` | `float \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `jitter_factor` | `float \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
+| `retry_exceptions` | `tuple \| list \| None` | **Deprecated.** Legacy retry override; use `run_config.retry`. | `None` |
 | `on_success` | `Callable \| tuple[Callable, tuple | None, dict | None] \| None` | Callback to run on successful pipeline execution. | `None` |
 | `on_failure` | `Callable \| tuple[Callable, tuple | None, dict | None] \| None` | Callback to run on pipeline execution failure. | `None` |
 
@@ -98,7 +101,8 @@ result = project.run(
 config = RunConfig(
     inputs={"data_date": "2025-01-01"},
     final_vars=["model", "metrics"],
-    log_level="DEBUG"
+    log_level="DEBUG",
+    retry={"max_retries": 2, "retry_delay": 1.0}
 )
 result = project.run("ml_pipeline", run_config=config)
 

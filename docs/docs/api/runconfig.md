@@ -16,6 +16,7 @@ __init__(
   cache: dict[str, Any] | bool | None = None,
   with_adapter: WithAdapterConfig | dict = WithAdapterConfig(),
   executor: ExecutorConfig | dict = ExecutorConfig(),
+  retry: RetryConfig | dict | None = None,
   log_level: str | None = "INFO",
   max_retries: int = 3,
   retry_delay: int | float = 1,
@@ -39,16 +40,17 @@ Initializes a `RunConfig` instance with execution parameters.
 | `config` | `dict[str, Any] \| None` | Configuration for Hamilton pipeline executor. Example: `{"model": "LogisticRegression"}` | `None` |
 | `cache` | `dict[str, Any] \| bool \| None` | Cache configuration for results or `False` to disable. | `False` |
 | `executor` | `ExecutorConfig \| dict` | Execution configuration; dict will be coerced to `ExecutorConfig`. | `ExecutorConfig()` |
+| `retry` | `RetryConfig \| dict \| None` | Canonical location for retry settings (max attempts, delay, jitter, exceptions). | `None` |
 | `with_adapter` | `WithAdapterConfig \| dict` | Adapter settings for pipeline execution; dict will be coerced to `WithAdapterConfig`. | `WithAdapterConfig()` |
 | `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. Example: `{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}` | `None` |
 | `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"opentelemetry": {"host": "http://localhost:4317"}}` | `None` |
 | `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
 | `reload` | `bool` | Force reload of pipeline configuration. | `False` |
 | `log_level` | `str \| None` | Logging level: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `"INFO"` |
-| `max_retries` | `int` | Maximum number of retries for execution. | `3` |
-| `retry_delay` | `int \| float` | Delay between retries in seconds. | `1` |
-| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay | `0.1` |
-| `retry_exceptions` | `list[str]` | Exception class names to trigger a retry (converted to classes). | `["Exception"]` |
+| `max_retries` | `int` | **Deprecated.** Legacy top-level value normalised into `retry`. | `3` |
+| `retry_delay` | `int \| float` | **Deprecated.** Legacy top-level value normalised into `retry`. | `1` |
+| `jitter_factor` | `float \| None` | **Deprecated.** Legacy top-level value normalised into `retry`. | `0.1` |
+| `retry_exceptions` | `list[str]` | **Deprecated.** Legacy top-level value normalised into `retry`. | `["Exception"]` |
 | `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. | `None` |
 | `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. | `None` |
 
@@ -61,16 +63,18 @@ Initializes a `RunConfig` instance with execution parameters.
 | `config` | `dict[str, Any] \| None` | Configuration for Hamilton pipeline executor. |
 | `cache` | `dict[str, Any] \| None` | Cache configuration for results. |
 | `executor` | `ExecutorConfig` | Execution configuration. |
+| `executor_override_raw` | `Any \| None` | Raw executor override provided at runtime (string/dict/ExecutorConfig). |
 | `with_adapter` | `WithAdapterConfig` | Adapter settings for pipeline execution. |
+| `retry` | `RetryConfig` | Structured retry configuration used by the runner. |
 | `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. |
 | `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. |
 | `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline. |
 | `reload` | `bool` | Force reload of pipeline configuration. |
 | `log_level` | `str \| None` | Logging level for the execution. |
-| `max_retries` | `int \| None` | Maximum number of retries for execution. |
-| `retry_delay` | `float \| None` | Delay between retries in seconds. |
-| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay. |
-| `retry_exceptions` | `tuple \| list \| None` | Exceptions that trigger a retry. |
+| `max_retries` | `int \| None` | **Deprecated.** Mirrors `retry.max_retries` for backwards compatibility. |
+| `retry_delay` | `float \| None` | **Deprecated.** Mirrors `retry.retry_delay`. |
+| `jitter_factor` | `float \| None` | **Deprecated.** Mirrors `retry.jitter_factor`. |
+| `retry_exceptions` | `tuple \| list \| None` | **Deprecated.** Mirrors `retry.retry_exceptions`. |
 | `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. |
 | `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. |
 
@@ -601,3 +605,5 @@ manager = PipelineManager()
 # Run with different configurations
 training_result = manager.run("ml_pipeline", run_config=training_config)
 inference_result = manager.run("ml_pipeline", run_config=inference_config)
+!!! warning "Legacy retry fields"
+    The `max_retries`, `retry_delay`, `jitter_factor`, and `retry_exceptions` attributes are accepted for backwards compatibility but now trigger a `DeprecationWarning` when set explicitly. Prefer configuring retries via the nested `retry` block or the builder helpers.
