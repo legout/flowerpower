@@ -2,7 +2,7 @@ import copy
 from collections.abc import Callable
 from typing import Any, Optional, Union
 
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from .run import RunConfig, RetryConfig
 from ..project.adapter import AdapterConfig as ProjectAdapterConfig

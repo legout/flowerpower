@@ -127,7 +127,7 @@ Integrate with popular MLOps and observability tools using adapters.
 
 ## Filesystem Abstraction
 
-FlowerPower uses the library [`fsspec-utils`](https://legout.github.io/fsspec-utils) to provide a unified interface for interacting with different filesystems, including local storage, S3, and GCS. This allows you to switch between storage backends without changing your code.
+FlowerPower uses the library [`fsspeckit`](https://legout.github.io/fsspeckit) to provide a unified interface for interacting with different filesystems, including local storage, S3, and GCS. This allows you to switch between storage backends without changing your code.
 
 ### Security
 

@@ -49,7 +49,7 @@
 - Refactor code structure and remove redundant sections for improved readability and maintainability
 - Refactor code structure for improved readability and maintainability
 - refactor: Remove unnecessary blank line for improved code clarity
-- refactor: Update import statements to use fsspec_utils for consistency and clarity
+- refactor: Update import statements to use fsspeckit for consistency and clarity
 - Refactor code structure and remove redundant sections for improved readability and maintainability
 - fix(ext): Correct method call from is_file to isfile for path validation
 - refactor(cli): Simplify options and logging in job queue and pipeline commands

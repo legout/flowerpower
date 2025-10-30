@@ -6,7 +6,7 @@ Manages the import and export of pipelines.
 
 import posixpath
 
-from fsspec_utils import (
+from fsspeckit import (
     AbstractFileSystem,
     BaseStorageOptions,
     DirFileSystem,

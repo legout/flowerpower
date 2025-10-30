@@ -6,7 +6,7 @@ FlowerPower is a Python framework for building, configuring, and executing data 
 ## Tech Stack
 - Runtime: Python >= 3.11
 - Core libraries: sf-hamilton, sf-hamilton-sdk, msgspec, pyyaml, munch
-- Filesystems: fsspec, fsspec-utils, s3fs (others via fsspec)
+- Filesystems: fsspec, fsspeckit, s3fs (others via fsspec)
 - CLI/UX: typer, rich
 - Logging: loguru
 - Optional extras: openlineage-python, opentelemetry-* (Jaeger), ray, sf-hamilton-ui, flowerpower-io

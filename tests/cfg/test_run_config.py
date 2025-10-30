@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 import yaml
-from fsspec_utils import filesystem
+from fsspeckit import filesystem
 
 from flowerpower.cfg.pipeline import PipelineConfig
 from flowerpower.cfg.pipeline.run import (

@@ -4,7 +4,7 @@ from typing import Any, Self, Optional
 from functools import lru_cache
 
 import msgspec
-from fsspec_utils import AbstractFileSystem, filesystem
+from fsspeckit import AbstractFileSystem, filesystem
 from munch import Munch
 from ..utils.misc import get_filesystem
 from ..utils.security import validate_file_path as security_validate_file_path

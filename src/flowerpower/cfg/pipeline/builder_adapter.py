@@ -3,7 +3,7 @@ Adapter builder for RunConfig.
 """
 
 from typing import Any, Optional
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ..base import BaseConfig
 from .run import WithAdapterConfig

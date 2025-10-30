@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict
 
 import msgspec
 import rich
-from fsspec_utils import AbstractFileSystem, filesystem
+from fsspeckit import AbstractFileSystem, filesystem
 from loguru import logger
 from rich.console import Console
 from rich.panel import Panel

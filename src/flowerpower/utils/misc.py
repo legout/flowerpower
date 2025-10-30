@@ -7,9 +7,9 @@ import time
 from typing import Any
 
 import msgspec
-from fsspec_utils import AbstractFileSystem, filesystem
+from fsspeckit import AbstractFileSystem, filesystem
 from .security import validate_file_path
-from fsspec_utils.utils import run_parallel
+from fsspeckit.utils import run_parallel
 
 # if importlib.util.find_spec("joblib"):
 #     from joblib import Parallel, delayed

@@ -8,7 +8,7 @@ used throughout the FlowerPower codebase.
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fsspec_utils import AbstractFileSystem, filesystem
+from fsspeckit import AbstractFileSystem, filesystem
 from loguru import logger
 from .security import validate_file_path
 

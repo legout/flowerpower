@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import msgspec
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 from munch import Munch
 
 from ..settings import CONFIG_DIR, PIPELINES_DIR

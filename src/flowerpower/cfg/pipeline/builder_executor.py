@@ -3,7 +3,7 @@ Executor builder for RunConfig.
 """
 
 from typing import Any, Optional, Union
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ... import settings
 from ..base import BaseConfig

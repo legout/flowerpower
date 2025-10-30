@@ -1,5 +1,5 @@
 import msgspec
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 import posixpath
 from typing import Optional
 

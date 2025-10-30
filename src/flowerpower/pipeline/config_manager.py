@@ -3,7 +3,7 @@
 import os
 from typing import TYPE_CHECKING, Optional
 
-from fsspec_utils import AbstractFileSystem
+from fsspeckit import AbstractFileSystem
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..settings import CONFIG_DIR
@@ -15,7 +15,7 @@ from ..utils.env import (
 )
 
 if TYPE_CHECKING:
-    from fsspec_utils import AbstractFileSystem
+    from fsspeckit import AbstractFileSystem
 
 
 class PipelineConfigManager:

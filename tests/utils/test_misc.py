@@ -58,7 +58,7 @@ class TestGetFilesystem:
     def test_get_filesystem_real_filesystem(self):
         """Test get_filesystem with real filesystem creation."""
         # Test with actual filesystem creation (no mocking)
-        # Use fsspec directly for memory filesystem since fsspec_utils doesn't support memory protocol
+        # Use fsspec directly for memory filesystem since fsspeckit doesn't support memory protocol
         from fsspec.implementations.memory import MemoryFileSystem
         from fsspec.implementations.local import LocalFileSystem
         from fsspec.implementations.dirfs import DirFileSystem

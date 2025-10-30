@@ -1,6 +1,6 @@
 import msgspec
 import yaml
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
 from typing import Optional

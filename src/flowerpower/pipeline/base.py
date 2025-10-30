@@ -3,7 +3,7 @@ import posixpath
 import sys
 from types import TracebackType
 
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 from loguru import logger
 from munch import Munch
 

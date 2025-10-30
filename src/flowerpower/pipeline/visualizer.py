@@ -1,6 +1,6 @@
 import posixpath
 
-from fsspec_utils import AbstractFileSystem
+from fsspeckit import AbstractFileSystem
 from hamilton import driver
 from rich import print
 

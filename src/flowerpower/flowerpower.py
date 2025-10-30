@@ -6,7 +6,7 @@ from typing import Any, Callable, Optional, TYPE_CHECKING
 from functools import wraps
 
 import rich
-from fsspec_utils import (AbstractFileSystem, BaseStorageOptions,
+from fsspeckit import (AbstractFileSystem, BaseStorageOptions,
                           DirFileSystem, filesystem)
 from loguru import logger
 

@@ -13,7 +13,7 @@ try:
 except ImportError:
     Digraph = Any  # Type alias for when graphviz isn't installed
 
-from fsspec_utils import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
