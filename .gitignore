@@ -85,3 +85,4 @@ flowerpower_llm_doc_3.md
 docs/refactoring/
 docs/cleanup-refactor-plan.md
 .gitignore
+docs/site/*
