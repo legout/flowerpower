@@ -296,6 +296,59 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
     ```
 
 
+### Compose Pipelines With Additional Modules
+
+Hamilton can build a DAG from more than one Python module. FlowerPower surfaces this through the `additional_modules` argument so you can split shared setup, teardown, or utility nodes into their own files.
+
+```python
+from flowerpower import FlowerPowerProject
+
+project = FlowerPowerProject.load('.')
+
+# Combine the hello_world pipeline with its setup companion module
+result = project.run(
+    'hello_world',
+    additional_modules=['pipeline_setup'],
+    final_vars=["full_greeting"],
+)
+print(result)
+
+# PipelineManager exposes the same capability
+from flowerpower.pipeline import PipelineManager
+
+pm = PipelineManager(base_dir='.')
+composed = pm.run(
+    name='hello_world',
+    additional_modules=['pipeline_setup'],
+    final_vars=['full_greeting'],
+)
+print(composed)
+
+# Visualize the composed DAG
+pm.visualizer.save_dag(
+    name='hello_world',
+    base_dir='.',
+    additional_modules=['pipeline_setup'],
+)
+```
+
+How module resolution works:
+
+- Each string is imported as-is, with a fallback to the underscored variant (replacing `-` with `_`) and to `pipelines.<name>`.
+- You can mix strings and already-imported module objects in the same list.
+- If multiple modules define the same node, the last module passed to `additional_modules` (and finally the primary pipeline module) wins—matching Hamilton’s precedence rules.
+
+Reload behaviour:
+
+- Setting `reload=True` ensures that every module in `additional_modules` and the main pipeline module is reloaded before execution, making it easy to iterate during development.
+
+Examples:
+
+- The hello-world example demonstrates this pattern: `examples/hello-world/pipelines/setup.py` pairs with `hello_world.py` to provide initialization nodes. The snippets above mirror that structure.
+
+> ℹ️ The Python API currently exposes `additional_modules`. The CLI does not yet forward this option.
+
+
 ## ⚙️ Configuration Overview
 
 FlowerPower uses a layered configuration system:
@@ -380,6 +433,8 @@ print(f"Pipeline config: {info}")
 # Delete a pipeline
 pm.delete('old_pipeline')
 ```
+
+See [Compose Pipelines With Additional Modules](#compose-pipelines-with-additional-modules) for an example that loads `pipeline_setup` alongside the pipeline module.
 
 **When to use Pipeline-only approach:**
 - Simple synchronous workflows

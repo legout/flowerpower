@@ -47,6 +47,13 @@ class PipelineVisualizer:
         Raises:
             ImportError: If the module cannot be loaded.
 
+        Notes:
+            - String entries in ``additional_modules`` are resolved using the same
+              strategy as pipeline execution: the raw name, a hyphen-to-underscore
+              variant, and ``pipelines.<name>`` are attempted in order.
+            - ``reload=True`` reloads every module (primary + additional) before the
+              driver is constructed, which mirrors runtime execution behaviour.
+
         """
         # Load pipeline-specific config
         pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
@@ -90,6 +97,10 @@ class PipelineVisualizer:
         Raises:
             ImportError: If any module cannot be loaded.
 
+        Notes:
+            - ``additional_modules`` uses the same resolution strategy as pipeline execution.
+            - Pass ``reload=True`` to reload the primary and additional modules before rendering.
+
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
@@ -99,6 +110,7 @@ class PipelineVisualizer:
             ...     format="png",
             ...     additional_modules=["setup"],
             ... )
+            >>> # Compose hello_world + setup from examples/hello-world/pipelines/
         """
         dag = self._get_dag_object(
             name=name, reload=reload, additional_modules=additional_modules
@@ -160,6 +172,10 @@ class PipelineVisualizer:
         Raises:
             ImportError: If any module cannot be loaded.
 
+        Notes:
+            - ``additional_modules`` follows the same resolution strategy as pipeline execution.
+            - Use ``reload=True`` to pull in code changes from every module before rendering.
+
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
@@ -169,6 +185,7 @@ class PipelineVisualizer:
             ...     format="png",
             ...     additional_modules=["setup"],
             ... )
+            >>> # Compose hello_world + setup modules during development
         """
         dag = self._get_dag_object(
             name=name, reload=reload, additional_modules=additional_modules

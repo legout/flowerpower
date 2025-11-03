@@ -381,6 +381,11 @@ class PipelineManager:
                 additional_modules (list[str | ModuleType] | None): Extra modules to
                     load alongside the primary pipeline for Hamilton execution.
                     Example: ["setup", setup_module]
+                    Notes:
+                        - String entries are attempted as-is, with fallbacks to a
+                          hyphen-to-underscore variant and to `pipelines.<name>`.
+                        - When multiple modules provide the same node, later modules
+                          take precedence following Hamilton semantics.
                 reload (bool): Force reload of pipeline configuration.
                 log_level (str | None): Logging level for the execution. Default None uses project config.
                     Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
