@@ -85,15 +85,17 @@ class PipelineExecutor:
     async def run_async(
         self, name: str, run_config: Optional[RunConfig] = None, **kwargs
     ) -> dict[str, Any]:
-        """Execute a pipeline asynchronously and return its results.
+        """Execute a pipeline asynchronously and return its results using Hamilton's async driver.
 
         Args:
-            name: Name of the pipeline to run
-            run_config: Run configuration object
-            **kwargs: Additional parameters to override the run_config
+            name: Name of the pipeline to run.
+            run_config: Run configuration object. When ``async_driver`` is ``None`` or ``True``
+                the Hamilton async driver is used; setting it to ``False`` raises a
+                ``ValueError``.
+            **kwargs: Additional parameters to override the run_config.
 
         Returns:
-            dict[str, Any]: Results of pipeline execution
+            dict[str, Any]: Results of pipeline execution.
         """
         # Load pipeline configuration
         pipeline_config = self._config_manager.load_pipeline_config(name=name)

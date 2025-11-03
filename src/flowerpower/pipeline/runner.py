@@ -19,6 +19,11 @@ from .retry import RetryManager
 if TYPE_CHECKING:
     from .pipeline import Pipeline
 
+try:  # Optional import; handled gracefully in async path
+    from hamilton import async_driver as hamilton_async_driver
+except ImportError:  # pragma: no cover - handled at runtime
+    hamilton_async_driver = None
+
 
 class PipelineRunner:
     """Facade responsible for executing a single pipeline instance."""
@@ -64,8 +69,24 @@ class PipelineRunner:
             setup_logging(level=configured_run.log_level)
         retry_manager = self._create_retry_manager(configured_run)
 
+        use_async_driver = configured_run.async_driver
+        if use_async_driver is None:
+            use_async_driver = True
+        if not use_async_driver:
+            raise ValueError(
+                "Asynchronous execution requires RunConfig.async_driver=True. "
+                "Set async_driver to True or invoke PipelineManager.run for synchronous execution."
+            )
+
+        async_driver_module = self._get_async_driver_module()
+
         async def operation_async() -> dict[str, Any]:
-            return await self._execute_async(context_builder, configured_run, modules)
+            return await self._execute_async(
+                context_builder,
+                configured_run,
+                modules,
+                async_driver_module,
+            )
 
         return await retry_manager.execute_async(
             operation=operation_async,
@@ -149,6 +170,7 @@ class PipelineRunner:
         context_builder: ExecutionContextBuilder,
         run_config: RunConfig,
         modules: list[ModuleType],
+        async_driver_module,
     ) -> dict[str, Any]:
         executor, shutdown, adapters = context_builder.build(run_config)
         synchronous_executor = run_config.executor.type in ("synchronous", None)
@@ -156,7 +178,7 @@ class PipelineRunner:
 
         try:
             dr_builder = (
-                driver.Builder()
+                async_driver_module.Builder()
                 .with_modules(*modules)
                 .with_config(run_config.config)
                 .with_adapters(*adapters)
@@ -168,8 +190,8 @@ class PipelineRunner:
             if not synchronous_executor:
                 dr_builder = dr_builder.with_remote_executor(executor)
 
-            dr = dr_builder.build()
-            return await dr.execute_async(
+            dr = await dr_builder.build()
+            return await dr.execute(
                 final_vars=run_config.final_vars,
                 inputs=run_config.inputs,
             )
@@ -242,6 +264,14 @@ class PipelineRunner:
             "Ensure the module is importable or resides under the pipelines package."
         )
         raise ImportError(error_message) from errors[-1] if errors else None
+
+    def _get_async_driver_module(self):
+        if hamilton_async_driver is None:
+            raise ImportError(
+                "Hamilton's async driver is unavailable. Upgrade the 'hamilton' package "
+                "to a version that provides hamilton.async_driver (e.g., pip install -U hamilton)."
+            )
+        return hamilton_async_driver
 
     def _reload_modules(self, modules: list[ModuleType]) -> None:
         seen: set[str] = set()

@@ -4,6 +4,7 @@
 
 ### Added
 - Allow `PipelineManager.run`/`RunConfig` to load `additional_modules`, enabling multi-module pipeline execution and visualization.
+- Fix asynchronous execution by adopting `hamilton.async_driver` and adding `RunConfig.async_driver` in pipeline APIs.
 
 ## [0.31.0] - 2025-09-26
 
@@ -991,7 +992,6 @@
 - added clean_session, client_id and qos to cli
 - added client_id
 - added clean_session and qos in run_pipieline_on_message command
-
 
 
 

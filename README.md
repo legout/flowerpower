@@ -349,6 +349,37 @@ Examples:
 > ℹ️ The Python API currently exposes `additional_modules`. The CLI does not yet forward this option.
 
 
+### Asynchronous Execution
+
+FlowerPower integrates with Hamilton’s async driver so you can await pipeline
+runs in event loops (e.g., FastAPI, notebooks, or asyncio scripts).
+
+```python
+import asyncio
+from flowerpower.pipeline import PipelineManager
+
+pm = PipelineManager(base_dir='.')
+
+async def run_async_pipeline():
+    result = await pm.run_async(
+        'hello_world',
+        additional_modules=['pipeline_setup'],
+        final_vars=['full_greeting'],
+    )
+    print(result['full_greeting'])
+
+asyncio.run(run_async_pipeline())
+```
+
+- `pm.run_async(...)` automatically uses Hamilton’s async driver. Setting
+  `RunConfig(async_driver=False)` raises an error—use the synchronous
+  `pm.run(...)` if you want to opt out.
+- `reload=True`, logging, and adapter configuration behave exactly like the
+  synchronous path.
+- If the installed Hamilton version predates the async driver, FlowerPower
+  raises an ImportError with guidance to upgrade (`pip install -U hamilton`).
+
+
 ## ⚙️ Configuration Overview
 
 FlowerPower uses a layered configuration system:

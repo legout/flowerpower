@@ -244,6 +244,7 @@ class RunConfig(BaseConfig):
     on_success: CallbackSpec | None = msgspec.field(default=None)
     on_failure: CallbackSpec | None = msgspec.field(default=None)
     additional_modules: list[str | Any] | None = msgspec.field(default=None)
+    async_driver: bool | None = msgspec.field(default=None)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -282,6 +283,9 @@ class RunConfig(BaseConfig):
                 else:
                     serialised_modules.append(getattr(module, "__name__", str(module)))
             data["additional_modules"] = serialised_modules
+
+        if data.get("async_driver") is None:
+            data.pop("async_driver", None)
         return data
 
     def __post_init__(self):
@@ -339,6 +343,9 @@ class RunConfig(BaseConfig):
                 self.additional_modules = [self.additional_modules]
             elif not isinstance(self.additional_modules, list):
                 self.additional_modules = list(self.additional_modules)  # type: ignore[arg-type]
+
+        if self.async_driver is not None:
+            self.async_driver = bool(self.async_driver)
 
         # Normalize retry configuration (prefer nested RetryConfig)
         if isinstance(self.retry, dict):

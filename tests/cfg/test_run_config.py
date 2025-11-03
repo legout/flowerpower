@@ -46,6 +46,8 @@ class TestRunConfig:
         assert run_config.on_success is None
         assert run_config.on_failure is None
         assert run_config.additional_modules is None
+        assert run_config.async_driver is None
+        assert run_config.async_driver is None
 
     def test_run_config_creation_with_values(self):
         """Test RunConfig creation with specific values."""
@@ -82,6 +84,7 @@ class TestRunConfig:
             on_success=on_success,
             on_failure=on_failure,
             additional_modules=additional_modules,
+            async_driver=True,
         )
 
         assert run_config.inputs == inputs
@@ -103,6 +106,7 @@ class TestRunConfig:
         assert run_config.on_failure.func == on_failure
         assert run_config.additional_modules[0] == "setup"
         assert run_config.additional_modules[1].__name__ == "custom_mod"
+        assert run_config.async_driver is True
 
     def test_run_config_to_dict(self):
         """Test RunConfig to_dict conversion."""
@@ -133,6 +137,12 @@ class TestRunConfig:
         assert "retry" in result_dict
         assert result_dict["retry"]["max_retries"] == run_config.retry.max_retries
         assert result_dict["additional_modules"] == ["setup", "setup"]
+        assert "async_driver" not in result_dict
+
+    def test_run_config_to_dict_includes_async_driver_when_set(self):
+        run_config = RunConfig(async_driver=True)
+        result_dict = run_config.to_dict()
+        assert result_dict["async_driver"] is True
 
     def test_run_config_from_dict(self):
         """Test RunConfig from_dict creation."""
@@ -179,6 +189,7 @@ class TestRunConfig:
         assert run_config.reload is False
         assert run_config.log_level == "INFO"  # Has default
         assert run_config.max_retries == 3  # Has default
+        assert run_config.async_driver is None
 
     def test_run_config_warns_on_legacy_retry_fields(self):
         """Using deprecated top-level retry fields should emit a warning."""
@@ -226,6 +237,12 @@ class TestRunConfigBuilder:
         assert run_config.additional_modules[0] == "setup"
         assert run_config.additional_modules[1] is module_obj
         assert len(run_config.additional_modules) == 2
+
+    def test_builder_with_async_driver_toggle(self):
+        builder = RunConfigBuilder()
+        builder.with_async_driver(True)
+        run_config = builder.build()
+        assert run_config.async_driver is True
 
     def test_builder_fluent_interface(self):
         """Test RunConfigBuilder fluent interface."""
@@ -403,6 +420,11 @@ class TestMergeRunConfig:
         assert run_config.additional_modules[0] == "setup"
         assert run_config.additional_modules[1] is module_obj
         assert len(run_config.additional_modules) == 2
+
+    def test_merge_async_driver_toggle(self):
+        run_config = RunConfig()
+        merge_run_config_with_kwargs(run_config, {"async_driver": True})
+        assert run_config.async_driver is True
 
 
 class TestRunConfigPersistence:

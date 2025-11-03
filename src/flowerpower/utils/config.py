@@ -141,6 +141,14 @@ def _set_retry_cfg(run_config: RunConfig, value):
         run_config.retry = value
 
 
+def _set_async_driver(run_config: RunConfig, value):
+    """Set async driver toggle."""
+    if value is None:
+        run_config.async_driver = None
+    else:
+        run_config.async_driver = bool(value)
+
+
 def _merge_additional_modules(run_config: RunConfig, value):
     """Merge additional modules while preserving order and removing duplicates."""
 
@@ -186,6 +194,7 @@ _attr_handlers = {
     'project_adapter_cfg': _set_project_adapter_cfg,
     'retry': _set_retry_cfg,
     'additional_modules': _merge_additional_modules,
+    'async_driver': _set_async_driver,
 }
 
 
@@ -271,6 +280,14 @@ class RunConfigBuilder:
                 self.config.adapter = adapter
             else:
                 self.config.adapter.update(adapter)
+        return self
+
+    def with_async_driver(self, enabled: bool | None) -> 'RunConfigBuilder':
+        """Enable or disable Hamilton's async driver for async runs."""
+        if enabled is None:
+            self.config.async_driver = None
+        else:
+            self.config.async_driver = bool(enabled)
         return self
 
     def with_additional_modules(self, modules: Any | None) -> 'RunConfigBuilder':
@@ -462,4 +479,5 @@ class RunConfigBuilder:
             on_success=self.config.on_success,
             on_failure=self.config.on_failure,
             additional_modules=self.config.additional_modules,
+            async_driver=self.config.async_driver,
         )
