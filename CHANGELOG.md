@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.34.0] - 2025-11-03
+
+### Added
+- Allow `PipelineManager.run`/`RunConfig` to load `additional_modules`, enabling multi-module pipeline execution and visualization.
+
 ## [0.31.0] - 2025-09-26
 
 ### Changes
@@ -986,7 +991,6 @@
 - added clean_session, client_id and qos to cli
 - added client_id
 - added clean_session and qos in run_pipieline_on_message command
-
 
 
 

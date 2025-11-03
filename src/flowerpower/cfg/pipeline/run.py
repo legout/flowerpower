@@ -243,6 +243,7 @@ class RunConfig(BaseConfig):
     reload: bool = msgspec.field(default=False)
     on_success: CallbackSpec | None = msgspec.field(default=None)
     on_failure: CallbackSpec | None = msgspec.field(default=None)
+    additional_modules: list[str | Any] | None = msgspec.field(default=None)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -271,6 +272,16 @@ class RunConfig(BaseConfig):
                             exceptions.append(str(exc))
             if exceptions:
                 retry_data["retry_exceptions"] = exceptions
+
+        modules = data.get("additional_modules")
+        if modules is not None:
+            serialised_modules: list[str] = []
+            for module in modules:
+                if isinstance(module, str):
+                    serialised_modules.append(module)
+                else:
+                    serialised_modules.append(getattr(module, "__name__", str(module)))
+            data["additional_modules"] = serialised_modules
         return data
 
     def __post_init__(self):
@@ -322,6 +333,12 @@ class RunConfig(BaseConfig):
         if isinstance(self.adapter, dict):
             # Convert adapter instances if needed
             pass
+
+        if self.additional_modules is not None:
+            if isinstance(self.additional_modules, (str, bytes)):
+                self.additional_modules = [self.additional_modules]
+            elif not isinstance(self.additional_modules, list):
+                self.additional_modules = list(self.additional_modules)  # type: ignore[arg-type]
 
         # Normalize retry configuration (prefer nested RetryConfig)
         if isinstance(self.retry, dict):

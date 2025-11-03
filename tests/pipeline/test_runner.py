@@ -1,5 +1,5 @@
 import asyncio
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,9 +14,11 @@ class FakeBuilder:
 
     def __init__(self):
         self.with_remote = False
+        self.modules = ()
         FakeBuilder.last_instance = self
 
-    def with_modules(self, *_args, **_kwargs):
+    def with_modules(self, *args, **_kwargs):
+        self.modules = args
         return self
 
     def with_config(self, *_args, **_kwargs):
@@ -60,7 +62,7 @@ def pipeline_stub():
             inputs={},
         ),
     )
-    module = SimpleNamespace()
+    module = ModuleType("pipeline_module")
     project_context = SimpleNamespace()
     return SimpleNamespace(
         name="test",
@@ -121,3 +123,111 @@ def test_runner_applies_log_level(context_builder, mock_setup_logging, pipeline_
     runner.run(run_config=run_config)
 
     mock_setup_logging.assert_called_with(level="DEBUG")
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_additional_modules_are_imported_and_passed(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    setup_module = ModuleType("setup")
+
+    def fake_import(name: str):
+        if name in ("setup", "pipelines.setup"):
+            return setup_module
+        raise ImportError(name)
+
+    with patch("flowerpower.pipeline.runner.importlib.import_module", side_effect=fake_import):
+        run_config = RunConfig(
+            executor=ExecutorConfig(type="synchronous"),
+            additional_modules=["setup"],
+        )
+        runner.run(run_config=run_config)
+
+    assert FakeBuilder.last_instance.modules[0] is setup_module
+    assert FakeBuilder.last_instance.modules[1] is pipeline_stub.module
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_additional_modules_async_path(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    setup_module = ModuleType("setup_async")
+
+    def fake_import(name: str):
+        if name in ("setup_async", "pipelines.setup_async"):
+            return setup_module
+        raise ImportError(name)
+
+    with patch("flowerpower.pipeline.runner.importlib.import_module", side_effect=fake_import):
+        run_config = RunConfig(
+            executor=ExecutorConfig(type="synchronous"),
+            additional_modules=["setup_async"],
+        )
+        result = asyncio.run(runner.run_async(run_config=run_config))
+
+    assert result["remote"] is False
+    assert FakeBuilder.last_instance.modules[0] is setup_module
+    assert FakeBuilder.last_instance.modules[1] is pipeline_stub.module
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_additional_modules_missing_raises_clear_error(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    with patch(
+        "flowerpower.pipeline.runner.importlib.import_module",
+        side_effect=ImportError("boom"),
+    ):
+        run_config = RunConfig(
+            executor=ExecutorConfig(type="synchronous"),
+            additional_modules=["missing"],
+        )
+        with pytest.raises(ImportError) as exc:
+            runner.run(run_config=run_config)
+
+    message = str(exc.value)
+    assert "missing" in message
+    assert "Tried" in message
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_reload_reloads_additional_modules(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    setup_module = ModuleType("setup_reload")
+
+    run_config = RunConfig(
+        executor=ExecutorConfig(type="synchronous"),
+        additional_modules=[setup_module],
+        reload=True,
+    )
+
+    with patch("flowerpower.pipeline.runner.importlib.reload") as import_reload:
+        runner.run(run_config=run_config)
+
+    reloaded = [call.args[0].__name__ for call in import_reload.call_args_list]
+    assert "setup_reload" in reloaded

@@ -4,7 +4,7 @@ Configuration utilities for FlowerPower.
 This module provides shared configuration handling utilities to avoid code duplication.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
 from dataclasses import fields
 
 from ..cfg.pipeline.run import (
@@ -141,6 +141,40 @@ def _set_retry_cfg(run_config: RunConfig, value):
         run_config.retry = value
 
 
+def _merge_additional_modules(run_config: RunConfig, value):
+    """Merge additional modules while preserving order and removing duplicates."""
+
+    def _normalise_modules(mods: Any) -> list:
+        if mods is None:
+            return []
+        if isinstance(mods, (str, bytes)):
+            return [mods]
+        if isinstance(mods, Iterable) and not isinstance(mods, (dict,)):  # type: ignore[arg-type]
+            return list(mods)
+        return [mods]
+
+    existing = _normalise_modules(run_config.additional_modules)
+    incoming = _normalise_modules(value)
+    combined: list[Any] = []
+
+    def _append_unique(module_obj: Any) -> None:
+        for existing_module in combined:
+            if existing_module is module_obj:
+                return
+            if (
+                isinstance(existing_module, str)
+                and isinstance(module_obj, str)
+                and existing_module == module_obj
+            ):
+                return
+        combined.append(module_obj)
+
+    for module_obj in existing + incoming:
+        _append_unique(module_obj)
+
+    run_config.additional_modules = combined if combined else None
+
+
 _attr_handlers = {
     'inputs': _merge_inputs,
     'config': _merge_config,
@@ -151,6 +185,7 @@ _attr_handlers = {
     'pipeline_adapter_cfg': _set_pipeline_adapter_cfg,
     'project_adapter_cfg': _set_project_adapter_cfg,
     'retry': _set_retry_cfg,
+    'additional_modules': _merge_additional_modules,
 }
 
 
@@ -237,7 +272,37 @@ class RunConfigBuilder:
             else:
                 self.config.adapter.update(adapter)
         return self
-    
+
+    def with_additional_modules(self, modules: Any | None) -> 'RunConfigBuilder':
+        """Set additional modules for Hamilton driver composition."""
+        if modules is None:
+            return self
+
+        merged = self.config.additional_modules or []
+        to_add = modules
+        if isinstance(to_add, (str, bytes)):
+            to_add = [to_add]
+        elif not isinstance(to_add, list):
+            to_add = list(to_add)  # type: ignore[arg-type]
+
+        for module_obj in to_add:
+            if merged is None:
+                merged = []
+            if merged and any(
+                (existing is module_obj)
+                or (
+                    isinstance(existing, str)
+                    and isinstance(module_obj, str)
+                    and existing == module_obj
+                )
+                for existing in merged
+            ):
+                continue
+            merged.append(module_obj)
+
+        self.config.additional_modules = merged
+        return self
+
     def with_executor(self, executor_cfg: str | Dict[str, Any] | ExecutorConfig | None) -> 'RunConfigBuilder':
         """Set executor configuration."""
         if executor_cfg is not None:
@@ -396,4 +461,5 @@ class RunConfigBuilder:
             retry=self.config.retry,
             on_success=self.config.on_success,
             on_failure=self.config.on_failure,
+            additional_modules=self.config.additional_modules,
         )

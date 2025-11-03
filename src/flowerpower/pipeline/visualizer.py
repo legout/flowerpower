@@ -1,4 +1,6 @@
+import importlib
 import posixpath
+from types import ModuleType
 
 from fsspeckit import AbstractFileSystem
 from hamilton import driver
@@ -25,12 +27,19 @@ class PipelineVisualizer:
         self._fs = fs
         # Attributes like fs and base_dir are accessed via self.project_cfg
 
-    def _get_dag_object(self, name: str, reload: bool = False):
+    def _get_dag_object(
+        self,
+        name: str,
+        reload: bool = False,
+        additional_modules: list[str | ModuleType] | None = None,
+    ):
         """Get the Hamilton DAG object for a pipeline.
 
         Args:
             name (str): The name of the pipeline.
             reload (bool): Whether to reload the module.
+            additional_modules (list[str | ModuleType] | None): Optional modules to
+                load alongside the primary pipeline for visualization.
 
         Returns:
             Hamilton DAG object.
@@ -42,16 +51,15 @@ class PipelineVisualizer:
         # Load pipeline-specific config
         pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
 
-        # Load the pipeline module
-        # Ensure the pipelines directory is in sys.path (handled by PipelineManager usually)
-        module = load_module(name=name, reload=reload)
+        # Load modules (primary + optional additional)
+        modules = self._resolve_modules(name, additional_modules, reload)
 
         # Create a basic driver builder for visualization purposes
         # Use the run config from the loaded pipeline_cfg
         builder = (
             driver.Builder()
             .enable_dynamic_execution(allow_experimental_mode=True)
-            .with_modules(module)
+            .with_modules(*modules)
             .with_config(pipeline_cfg.run.config or {})
             # No adapters or complex executors needed for display_all_functions
         )
@@ -69,6 +77,7 @@ class PipelineVisualizer:
         format: str = "png",
         reload: bool = False,
         output_path: str | None = None,
+        additional_modules: list[str | ModuleType] | None = None,
     ) -> str:
         """
         Save an image of the graph of functions for a given pipeline name.
@@ -79,14 +88,21 @@ class PipelineVisualizer:
             reload (bool, optional): Whether to reload the pipeline data. Defaults to False.
 
         Raises:
-            ImportError: If the module cannot be loaded.
+            ImportError: If any module cannot be loaded.
 
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
             >>> visualizer.save_dag(name="example_pipeline", format="png")
+            >>> visualizer.save_dag(
+            ...     name="example_pipeline",
+            ...     format="png",
+            ...     additional_modules=["setup"],
+            ... )
         """
-        dag = self._get_dag_object(name=name, reload=reload)
+        dag = self._get_dag_object(
+            name=name, reload=reload, additional_modules=additional_modules
+        )
 
         # Determine final output path
         if output_path is None:
@@ -127,6 +143,7 @@ class PipelineVisualizer:
         format: str = "png",
         reload: bool = False,
         raw: bool = False,
+        additional_modules: list[str | ModuleType] | None = None,
     ):
         """
         Display the graph of functions for a given pipeline name.
@@ -141,16 +158,75 @@ class PipelineVisualizer:
             Optional[graphviz.Digraph]: The generated graph object if raw=True, else None.
 
         Raises:
-            ImportError: If the module cannot be loaded.
+            ImportError: If any module cannot be loaded.
 
         Example:
             >>> from flowerpower.pipeline.visualizer import PipelineVisualizer
             >>> visualizer = PipelineVisualizer(project_cfg, fs)
             >>> visualizer.show_dag(name="example_pipeline", format="png")
+            >>> visualizer.show_dag(
+            ...     name="example_pipeline",
+            ...     format="png",
+            ...     additional_modules=["setup"],
+            ... )
         """
-        dag = self._get_dag_object(name=name, reload=reload)
+        dag = self._get_dag_object(
+            name=name, reload=reload, additional_modules=additional_modules
+        )
         if raw:
             return dag
         # Use view_img utility to display the rendered graph
         view_img(dag.pipe(format=format), format=format)
         return None  # Explicitly return None when not raw
+
+    def _resolve_modules(
+        self,
+        name: str,
+        additional_modules: list[str | ModuleType] | None,
+        reload: bool,
+    ) -> list[ModuleType]:
+        modules: list[ModuleType] = []
+
+        def _append_unique(module_obj: ModuleType) -> None:
+            if any(existing is module_obj for existing in modules):
+                return
+            modules.append(module_obj)
+
+        if additional_modules:
+            for entry in additional_modules:
+                module_obj = self._coerce_to_module(entry, reload=reload)
+                _append_unique(module_obj)
+
+        primary_module = self._coerce_to_module(name, reload=reload)
+        _append_unique(primary_module)
+
+        return modules
+
+    def _coerce_to_module(
+        self, entry: str | ModuleType, reload: bool = False
+    ) -> ModuleType:
+        if isinstance(entry, ModuleType):
+            if reload:
+                importlib.reload(entry)
+            return entry
+
+        try:
+            module_obj = load_module(name=entry, reload=reload)
+        except ImportError as original_error:
+            formatted = entry.replace("-", "_")
+            candidates = [formatted]
+            if not formatted.startswith("pipelines."):
+                candidates.append(f"pipelines.{formatted}")
+
+            for candidate in candidates:
+                try:
+                    module_obj = load_module(name=candidate, reload=reload)
+                    break
+                except ImportError:
+                    continue
+            else:
+                raise ImportError(
+                    f"Could not import module '{entry}'. Tried: {candidates}"
+                ) from original_error
+
+        return module_obj

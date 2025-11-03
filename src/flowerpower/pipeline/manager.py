@@ -378,6 +378,9 @@ class PipelineManager:
                     Example: {"opentelemetry": {"host": "http://localhost:4317"}}
                 adapter (dict[str, Any] | None): Custom adapter instance for pipeline
                     Example: {"ray_graph_adapter": RayGraphAdapter()}
+                additional_modules (list[str | ModuleType] | None): Extra modules to
+                    load alongside the primary pipeline for Hamilton execution.
+                    Example: ["setup", setup_module]
                 reload (bool): Force reload of pipeline configuration.
                 log_level (str | None): Logging level for the execution. Default None uses project config.
                     Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
@@ -415,6 +418,7 @@ class PipelineManager:
             ...     "ml_pipeline",
             ...     inputs={"training_date": "2025-04-28"},
             ...     final_vars=["model", "metrics"],
+            ...     additional_modules=["setup"],
             ...     executor_cfg={"type": "threadpool", "max_workers": 4},
             ...     with_adapter_cfg={"tracker": True},
             ...     reload=True

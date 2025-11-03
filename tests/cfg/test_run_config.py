@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import Mock
 
 import pytest
@@ -16,7 +17,7 @@ from flowerpower.cfg.pipeline.run import (
 )
 from flowerpower.cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from flowerpower.utils.config import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder, merge_run_config_with_kwargs
 
 
 class TestRunConfig:
@@ -44,6 +45,7 @@ class TestRunConfig:
         assert run_config.retry_exceptions == [Exception]
         assert run_config.on_success is None
         assert run_config.on_failure is None
+        assert run_config.additional_modules is None
 
     def test_run_config_creation_with_values(self):
         """Test RunConfig creation with specific values."""
@@ -59,6 +61,7 @@ class TestRunConfig:
         retry_exceptions = [ValueError, TypeError]
         on_success = Mock()
         on_failure = Mock()
+        additional_modules = ["setup", ModuleType("custom_mod")]
 
         run_config = RunConfig(
             inputs=inputs,
@@ -78,6 +81,7 @@ class TestRunConfig:
             retry_exceptions=retry_exceptions,
             on_success=on_success,
             on_failure=on_failure,
+            additional_modules=additional_modules,
         )
 
         assert run_config.inputs == inputs
@@ -97,6 +101,8 @@ class TestRunConfig:
         assert run_config.retry_exceptions == retry_exceptions
         assert run_config.on_success.func == on_success
         assert run_config.on_failure.func == on_failure
+        assert run_config.additional_modules[0] == "setup"
+        assert run_config.additional_modules[1].__name__ == "custom_mod"
 
     def test_run_config_to_dict(self):
         """Test RunConfig to_dict conversion."""
@@ -105,13 +111,15 @@ class TestRunConfig:
         config = {"param": "value"}
         executor = ExecutorConfig(type="synchronous")
         
+        extra_module = ModuleType("setup")
         run_config = RunConfig(
             inputs=inputs,
             final_vars=final_vars,
             config=config,
             executor=executor,
+            additional_modules=["setup", extra_module],
         )
-        
+
         result_dict = run_config.to_dict()
         
         assert result_dict["inputs"] == inputs
@@ -124,6 +132,7 @@ class TestRunConfig:
         assert "retry_exceptions" not in result_dict
         assert "retry" in result_dict
         assert result_dict["retry"]["max_retries"] == run_config.retry.max_retries
+        assert result_dict["additional_modules"] == ["setup", "setup"]
 
     def test_run_config_from_dict(self):
         """Test RunConfig from_dict creation."""
@@ -203,6 +212,20 @@ class TestRunConfigBuilder:
         assert run_config.retry_exceptions == [Exception]
         assert run_config.on_success is None
         assert run_config.on_failure is None
+        assert run_config.additional_modules is None
+
+    def test_builder_with_additional_modules(self):
+        builder = RunConfigBuilder()
+        module_obj = ModuleType("builder_mod")
+
+        builder.with_additional_modules(["setup"])
+        builder.with_additional_modules([module_obj, "setup"])
+
+        run_config = builder.build()
+
+        assert run_config.additional_modules[0] == "setup"
+        assert run_config.additional_modules[1] is module_obj
+        assert len(run_config.additional_modules) == 2
 
     def test_builder_fluent_interface(self):
         """Test RunConfigBuilder fluent interface."""
@@ -365,6 +388,21 @@ class TestRunConfigBuilder:
         # First config should not be affected
         assert run_config1.inputs == {"x": 1}
         assert run_config2.inputs == {"x": 2}
+
+
+class TestMergeRunConfig:
+    def test_merge_additional_modules_merges_and_deduplicates(self):
+        module_obj = ModuleType("merge_mod")
+        run_config = RunConfig(additional_modules=["setup"])
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {"additional_modules": [module_obj, "setup"]},
+        )
+
+        assert run_config.additional_modules[0] == "setup"
+        assert run_config.additional_modules[1] is module_obj
+        assert len(run_config.additional_modules) == 2
 
 
 class TestRunConfigPersistence:

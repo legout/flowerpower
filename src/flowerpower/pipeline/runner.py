@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 from hamilton import driver
@@ -30,13 +31,17 @@ class PipelineRunner:
         configured_run = self._prepare_run_config(run_config, kwargs)
         context_builder = self._build_context_builder()
 
+        modules = self._resolve_modules(configured_run)
+
         if configured_run.log_level:
             setup_logging(level=configured_run.log_level)
         if configured_run.reload:
-            self._reload_pipeline_module()
+            self._reload_modules(modules)
 
         retry_manager = self._create_retry_manager(configured_run)
-        operation = lambda: self._execute_sync(context_builder, configured_run)
+        operation = lambda: self._execute_sync(
+            context_builder, configured_run, modules
+        )
         return retry_manager.execute(
             operation=operation,
             on_success=configured_run.on_success,
@@ -50,15 +55,17 @@ class PipelineRunner:
         configured_run = self._prepare_run_config(run_config, kwargs)
         context_builder = self._build_context_builder()
 
+        modules = self._resolve_modules(configured_run)
+
         if configured_run.reload:
-            self._reload_pipeline_module()
+            self._reload_modules(modules)
 
         if configured_run.log_level:
             setup_logging(level=configured_run.log_level)
         retry_manager = self._create_retry_manager(configured_run)
 
         async def operation_async() -> dict[str, Any]:
-            return await self._execute_async(context_builder, configured_run)
+            return await self._execute_async(context_builder, configured_run, modules)
 
         return await retry_manager.execute_async(
             operation=operation_async,
@@ -94,7 +101,10 @@ class PipelineRunner:
         )
 
     def _execute_sync(
-        self, context_builder: ExecutionContextBuilder, run_config: RunConfig
+        self,
+        context_builder: ExecutionContextBuilder,
+        run_config: RunConfig,
+        modules: list[ModuleType],
     ) -> dict[str, Any]:
         executor, shutdown, adapters = context_builder.build(run_config)
         synchronous_executor = run_config.executor.type in ("synchronous", None)
@@ -103,7 +113,7 @@ class PipelineRunner:
         try:
             dr_builder = (
                 driver.Builder()
-                .with_modules(self._pipeline.module)
+                .with_modules(*modules)
                 .with_config(run_config.config)
                 .with_adapters(*adapters)
                 .enable_dynamic_execution(
@@ -135,7 +145,10 @@ class PipelineRunner:
                     )
 
     async def _execute_async(
-        self, context_builder: ExecutionContextBuilder, run_config: RunConfig
+        self,
+        context_builder: ExecutionContextBuilder,
+        run_config: RunConfig,
+        modules: list[ModuleType],
     ) -> dict[str, Any]:
         executor, shutdown, adapters = context_builder.build(run_config)
         synchronous_executor = run_config.executor.type in ("synchronous", None)
@@ -144,7 +157,7 @@ class PipelineRunner:
         try:
             dr_builder = (
                 driver.Builder()
-                .with_modules(self._pipeline.module)
+                .with_modules(*modules)
                 .with_config(run_config.config)
                 .with_adapters(*adapters)
                 .enable_dynamic_execution(
@@ -171,16 +184,86 @@ class PipelineRunner:
                         error=error,
                     )
 
-    def _reload_pipeline_module(self) -> None:
-        try:
-            importlib.reload(self._pipeline.module)
-            logger.debug(
-                "Reloaded module for pipeline '{name}'", name=self._pipeline.name
-            )
-        except Exception as error:
-            logger.error(
-                "Failed to reload module for pipeline '{name}': {error}",
-                name=self._pipeline.name,
-                error=error,
-            )
-            raise
+    def _resolve_modules(self, run_config: RunConfig) -> list[ModuleType]:
+        modules: list[ModuleType] = []
+
+        def _append_unique(module_obj: ModuleType) -> None:
+            if any(existing is module_obj for existing in modules):
+                return
+            modules.append(module_obj)
+
+        additional = run_config.additional_modules or []
+        if isinstance(additional, (str, bytes)):
+            additional = [additional]
+
+        for module_entry in additional:
+            module_obj = self._coerce_to_module(module_entry)
+            _append_unique(module_obj)
+
+        _append_unique(self._pipeline.module)
+        return modules
+
+    def _coerce_to_module(self, module_entry: Any) -> ModuleType:
+        if isinstance(module_entry, ModuleType):
+            return module_entry
+        if isinstance(module_entry, str):
+            return self._import_additional_module(module_entry)
+
+        raise TypeError(
+            "additional_modules entries must be module objects or import strings"
+        )
+
+    def _import_additional_module(self, name: str) -> ModuleType:
+        formatted = name.replace("-", "_")
+        attempted: list[str] = []
+        errors: list[ImportError] = []
+
+        def _try(candidate: str) -> ModuleType | None:
+            attempted.append(candidate)
+            try:
+                return importlib.import_module(candidate)
+            except ImportError as error:
+                errors.append(error)
+                return None
+
+        candidates = [name]
+        if formatted not in candidates:
+            candidates.append(formatted)
+        if not formatted.startswith("pipelines."):
+            candidates.append(f"pipelines.{formatted}")
+
+        for candidate in candidates:
+            module_obj = _try(candidate)
+            if module_obj is not None:
+                return module_obj
+
+        error_message = (
+            f"Could not import additional module '{name}'. Tried: {attempted}. "
+            "Ensure the module is importable or resides under the pipelines package."
+        )
+        raise ImportError(error_message) from errors[-1] if errors else None
+
+    def _reload_modules(self, modules: list[ModuleType]) -> None:
+        seen: set[str] = set()
+        for module_obj in modules:
+            module_name = getattr(module_obj, "__name__", None)
+            if module_name is None:
+                continue
+            if module_name in seen:
+                continue
+            seen.add(module_name)
+            try:
+                importlib.reload(module_obj)
+                logger.debug(
+                    "Reloaded module for pipeline '{pipeline}' -> '{module}'",
+                    pipeline=self._pipeline.name,
+                    module=module_name,
+                )
+            except Exception as error:
+                logger.error(
+                    "Failed to reload module '{module}' for pipeline '{pipeline}': {error}",
+                    module=module_name,
+                    pipeline=self._pipeline.name,
+                    error=error,
+                )
+                raise
