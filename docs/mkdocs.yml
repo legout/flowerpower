@@ -39,6 +39,8 @@ nav:
   - Quickstart: quickstart.md
   - Architecture: architecture.md
   - Examples: examples.md
+  - Guides:
+      - Compose Pipelines With Additional Modules: guide/additional-modules.md
   - Advanced Usage: advanced.md
   - CLI Reference: cli.md
   - API Reference:

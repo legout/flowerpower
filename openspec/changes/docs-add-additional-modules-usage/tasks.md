@@ -7,12 +7,12 @@
 - [x] 1.6 Confirm CHANGELOG Unreleased entry includes this feature.
 
 ## 2. Optional Guides (if docs site in use)
-- [ ] 2.1 Create `docs/guide/additional-modules.md` with deeper explanation (import resolution, tips, troubleshooting, best practices).
+- [x] 2.1 Create `docs/guide/additional-modules.md` with deeper explanation (import resolution, tips, troubleshooting, best practices).
 
 ## 3. Validation
 - [x] 3.1 Render README locally to verify code blocks and formatting.
-- [ ] 3.2 (If docs site) run docs build locally to ensure no broken links.
+- [x] 3.2 (If docs site) run docs build locally to ensure no broken links.
 
 ## 4. Rollout
-- [ ] 4.1 Submit PR for review.
-- [ ] 4.2 After merge/deploy, archive change with `openspec archive docs-add-additional-modules-usage --skip-specs --yes`.
+- [ ] 4.1 Submit PR for review. *(Pending – requires repository push and PR creation outside this environment.)*
+- [ ] 4.2 After merge/deploy, archive change with `openspec archive docs-add-additional-modules-usage --skip-specs --yes`. *(Pending until deployment.)*
