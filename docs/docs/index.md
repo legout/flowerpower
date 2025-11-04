@@ -12,6 +12,11 @@ FlowerPower streamlines complex data workflows by integrating the modularity of 
 
 Ready to dive in? Our **[Quickstart Guide](quickstart.md)** will walk you through installing FlowerPower and running your first pipeline in just a few minutes.
 
+Looking for more? Check out these guides:
+
+- [Compose Pipelines With Additional Modules](guide/additional-modules.md)
+- [Asynchronous Execution](guide/async-execution.md)
+
 ## Core Concepts
 
 FlowerPower is built around a few key concepts that make it both powerful and flexible:

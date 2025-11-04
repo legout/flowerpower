@@ -2,6 +2,11 @@
 
 Welcome to the advanced usage guide for FlowerPower. This document covers more complex configurations and use cases to help you get the most out of the library.
 
+See also:
+
+- Guides → [Compose Pipelines With Additional Modules](guide/additional-modules.md)
+- Guides → [Asynchronous Execution](guide/async-execution.md)
+
 ## Configuration Flexibility
 
 FlowerPower offers multiple ways to configure your project, ensuring flexibility for different environments and workflows. Configuration is applied in this order (highest wins):

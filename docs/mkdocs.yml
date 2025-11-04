@@ -41,6 +41,7 @@ nav:
   - Examples: examples.md
   - Guides:
       - Compose Pipelines With Additional Modules: guide/additional-modules.md
+      - Asynchronous Execution: guide/async-execution.md
   - Advanced Usage: advanced.md
   - CLI Reference: cli.md
   - API Reference:
