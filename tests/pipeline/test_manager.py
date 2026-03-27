@@ -1,9 +1,10 @@
 import types
 import unittest
+import warnings
 from unittest.mock import Mock, patch, MagicMock
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
-from flowerpower.cfg.pipeline.run import ExecutorConfig, WithAdapterConfig
+from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
 from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
@@ -77,8 +78,7 @@ class TestPipelineManager(unittest.TestCase):
             final_vars=["add_numbers"],
             config={"test_param": "test_value"},
             executor=ExecutorConfig(type="synchronous"),
-            max_retries=2,
-            retry_delay=1.0,
+            retry=RetryConfig(max_retries=2, retry_delay=1.0),
             log_level="DEBUG"
         )
         
@@ -191,13 +191,15 @@ class TestPipelineManager(unittest.TestCase):
         
         try:
             # Test with individual parameters (old way)
-            result1 = manager.run(
-                "test_pipeline",
-                inputs={"x": 10, "y": 5},
-                final_vars=["add_numbers"],
-                max_retries=1,
-                log_level="DEBUG"
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result1 = manager.run(
+                    "test_pipeline",
+                    inputs={"x": 10, "y": 5},
+                    final_vars=["add_numbers"],
+                    max_retries=1,
+                    log_level="DEBUG"
+                )
             
             # Reset mock to track next call
             mock_pipeline.run.reset_mock()
@@ -206,7 +208,7 @@ class TestPipelineManager(unittest.TestCase):
             run_config = RunConfig(
                 inputs={"x": 10, "y": 5},
                 final_vars=["add_numbers"],
-                max_retries=1,
+                retry=RetryConfig(max_retries=1),
                 log_level="DEBUG"
             )
             result2 = manager.run("test_pipeline", run_config=run_config)
@@ -252,18 +254,20 @@ class TestPipelineManager(unittest.TestCase):
             # Create RunConfig with some parameters
             run_config = RunConfig(
                 inputs={"x": 5, "y": 5},
-                max_retries=2
+                retry=RetryConfig(max_retries=2)
             )
             
             # Call run with both individual parameters and RunConfig
             # RunConfig should take precedence
-            result = manager.run(
-                "test_pipeline",
-                inputs={"x": 99, "y": 99},  # This should be ignored
-                final_vars=["add_numbers"],  # This should be ignored
-                max_retries=5,  # This should be ignored
-                run_config=run_config
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result = manager.run(
+                    "test_pipeline",
+                    inputs={"x": 99, "y": 99},  # This should be ignored
+                    final_vars=["add_numbers"],  # This should be ignored
+                    max_retries=5,  # This should be ignored
+                    run_config=run_config
+                )
             
             # Verify pipeline.run was called with RunConfig values
             mock_pipeline.run.assert_called_once_with(run_config=run_config)

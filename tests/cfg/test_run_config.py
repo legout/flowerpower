@@ -1,4 +1,5 @@
 import tempfile
+import warnings
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import Mock
@@ -65,27 +66,29 @@ class TestRunConfig:
         on_failure = Mock()
         additional_modules = ["setup", ModuleType("custom_mod")]
 
-        run_config = RunConfig(
-            inputs=inputs,
-            final_vars=final_vars,
-            config=config,
-            cache=cache,
-            executor=executor,
-            with_adapter=with_adapter,
-            pipeline_adapter_cfg=pipeline_adapter_cfg,
-            project_adapter_cfg=project_adapter_cfg,
-            adapter=adapter,
-            reload=True,
-            log_level="DEBUG",
-            max_retries=3,
-            retry_delay=2.0,
-            jitter_factor=0.2,
-            retry_exceptions=retry_exceptions,
-            on_success=on_success,
-            on_failure=on_failure,
-            additional_modules=additional_modules,
-            async_driver=True,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            run_config = RunConfig(
+                inputs=inputs,
+                final_vars=final_vars,
+                config=config,
+                cache=cache,
+                executor=executor,
+                with_adapter=with_adapter,
+                pipeline_adapter_cfg=pipeline_adapter_cfg,
+                project_adapter_cfg=project_adapter_cfg,
+                adapter=adapter,
+                reload=True,
+                log_level="DEBUG",
+                max_retries=3,
+                retry_delay=2.0,
+                jitter_factor=0.2,
+                retry_exceptions=retry_exceptions,
+                on_success=on_success,
+                on_failure=on_failure,
+                additional_modules=additional_modules,
+                async_driver=True,
+            )
 
         assert run_config.inputs == inputs
         assert run_config.final_vars == final_vars
@@ -160,7 +163,9 @@ class TestRunConfig:
             "jitter_factor": 0.2,
         }
         
-        run_config = RunConfig.from_dict(data)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            run_config = RunConfig.from_dict(data)
         
         assert run_config.inputs == {"x": 1, "y": 2}
         assert run_config.final_vars == ["result1", "result2"]
@@ -431,15 +436,19 @@ class TestRunConfigPersistence:
     def test_pipeline_save_omits_deprecated_retry_fields(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = filesystem(tmpdir, cached=False, dirfs=True)
-            pipeline_cfg = PipelineConfig(
-                name="retry-clean",
-                run=RunConfig(
-                    max_retries=5,
-                    retry_delay=2.5,
-                    jitter_factor=0.3,
-                    retry_exceptions=["ValueError"],
-                ),
-            )
+            from flowerpower.cfg.pipeline.run import RetryConfig
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                pipeline_cfg = PipelineConfig(
+                    name="retry-clean",
+                    run=RunConfig(
+                        max_retries=5,
+                        retry_delay=2.5,
+                        jitter_factor=0.3,
+                        retry_exceptions=["ValueError"],
+                    ),
+                )
 
             pipeline_cfg.save(name="retry-clean", base_dir=tmpdir, fs=fs)
 
