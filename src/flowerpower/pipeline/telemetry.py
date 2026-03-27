@@ -21,8 +21,16 @@ def initialize_telemetry(
     if _TELEMETRY_INITIALIZED:
         return
 
-    telemetry = settings.HAMILTON_TELEMETRY_ENABLED if telemetry_enabled is None else telemetry_enabled
-    autoload = settings.HAMILTON_AUTOLOAD_EXTENSIONS if autoload_enabled is None else autoload_enabled
+    telemetry = (
+        settings.HAMILTON_TELEMETRY_ENABLED
+        if telemetry_enabled is None
+        else telemetry_enabled
+    )
+    autoload = (
+        settings.HAMILTON_AUTOLOAD_EXTENSIONS
+        if autoload_enabled is None
+        else autoload_enabled
+    )
 
     if not telemetry:
         disable_telemetry()

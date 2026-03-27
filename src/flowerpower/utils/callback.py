@@ -14,13 +14,21 @@ from .logging import setup_logging
 setup_logging(level=LOG_LEVEL)
 
 
-def _add_exception_to_simple_callback(callback_fn: Callable, context_exception: Exception, cb_args: list, cb_kwargs: Dict[str, Any]):
+def _add_exception_to_simple_callback(
+    callback_fn: Callable,
+    context_exception: Exception,
+    cb_args: list,
+    cb_kwargs: Dict[str, Any],
+):
     """Add exception to simple callback arguments."""
     try:
         sig = inspect.signature(callback_fn)
         if len(sig.parameters) == 1:
             first_param = next(iter(sig.parameters.values()))
-            if first_param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY):
+            if first_param.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.POSITIONAL_ONLY,
+            ):
                 cb_args.append(context_exception)
         elif "exception" in sig.parameters:
             cb_kwargs["exception"] = context_exception
@@ -30,7 +38,9 @@ def _add_exception_to_simple_callback(callback_fn: Callable, context_exception: 
         )
 
 
-def _parse_tuple_callback_args(callback_info: tuple, cb_args: list, cb_kwargs: Dict[str, Any]):
+def _parse_tuple_callback_args(
+    callback_info: tuple, cb_args: list, cb_kwargs: Dict[str, Any]
+):
     """Parse args and kwargs from tuple callback info."""
     callback_fn = callback_info[0]
 
@@ -55,7 +65,9 @@ def _parse_tuple_callback_args(callback_info: tuple, cb_args: list, cb_kwargs: D
             )
 
 
-def _add_exception_to_tuple_callback(callback_fn: Callable, context_exception: Exception, cb_kwargs: Dict[str, Any]):
+def _add_exception_to_tuple_callback(
+    callback_fn: Callable, context_exception: Exception, cb_kwargs: Dict[str, Any]
+):
     """Add exception to tuple callback kwargs if accepted."""
     try:
         sig = inspect.signature(callback_fn)
@@ -65,7 +77,9 @@ def _add_exception_to_tuple_callback(callback_fn: Callable, context_exception: E
         pass
 
 
-def _prepare_callback_details(callback_info: Any, context_exception: Exception = None) -> tuple[Callable | None, tuple, Dict[str, Any]]:
+def _prepare_callback_details(
+    callback_info: Any, context_exception: Exception = None
+) -> tuple[Callable | None, tuple, Dict[str, Any]]:
     """Prepare callback function and arguments for execution."""
     if not callback_info:
         return None, (), {}
@@ -77,8 +91,14 @@ def _prepare_callback_details(callback_info: Any, context_exception: Exception =
     if isinstance(callback_info, Callable):
         callback_fn = callback_info
         if context_exception:
-            _add_exception_to_simple_callback(callback_fn, context_exception, cb_args, cb_kwargs)
-    elif isinstance(callback_info, tuple) and len(callback_info) > 0 and isinstance(callback_info[0], Callable):
+            _add_exception_to_simple_callback(
+                callback_fn, context_exception, cb_args, cb_kwargs
+            )
+    elif (
+        isinstance(callback_info, tuple)
+        and len(callback_info) > 0
+        and isinstance(callback_info[0], Callable)
+    ):
         callback_fn = callback_info[0]
         _parse_tuple_callback_args(callback_info, cb_args, cb_kwargs)
         if context_exception and "exception" not in cb_kwargs:
@@ -93,7 +113,9 @@ def _execute_callback(callback_info: Any, context_exception: Exception = None):
     The callback_info can be a callable, or a tuple (callable, args_tuple, kwargs_dict).
     If context_exception is provided (for on_failure), it can be passed to the callback.
     """
-    callback_fn, cb_args, cb_kwargs = _prepare_callback_details(callback_info, context_exception)
+    callback_fn, cb_args, cb_kwargs = _prepare_callback_details(
+        callback_info, context_exception
+    )
 
     if callback_fn:
         try:

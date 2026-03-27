@@ -36,7 +36,9 @@ class FilesystemHelper:
         self._storage_options = storage_options or {}
         self._fs_cache: Dict[str, AbstractFileSystem] = {}
 
-    def get_filesystem(self, cached: bool = False, cache_storage: Optional[str] = None) -> AbstractFileSystem:
+    def get_filesystem(
+        self, cached: bool = False, cache_storage: Optional[str] = None
+    ) -> AbstractFileSystem:
         """
         Get a filesystem instance with optional caching.
 
@@ -65,10 +67,7 @@ class FilesystemHelper:
         return self._fs_cache[cache_key]
 
     def ensure_directories_exist(
-        self,
-        fs: AbstractFileSystem,
-        *directories: str,
-        exist_ok: bool = True
+        self, fs: AbstractFileSystem, *directories: str, exist_ok: bool = True
     ) -> None:
         """
         Ensure that the specified directories exist.
@@ -88,10 +87,14 @@ class FilesystemHelper:
                 fs.makedirs(directory, exist_ok=exist_ok)
             except (OSError, PermissionError) as e:
                 logger.error(f"Error creating directory {directory}: {e}")
-                raise RuntimeError(f"Failed to create directory {directory}: {e}") from e
+                raise RuntimeError(
+                    f"Failed to create directory {directory}: {e}"
+                ) from e
             except Exception as e:
                 logger.error(f"Unexpected error creating directory {directory}: {e}")
-                raise RuntimeError(f"Unexpected filesystem error for {directory}: {e}") from e
+                raise RuntimeError(
+                    f"Unexpected filesystem error for {directory}: {e}"
+                ) from e
 
     def resolve_path(self, fs: AbstractFileSystem, *path_parts: str) -> str:
         """
@@ -104,7 +107,7 @@ class FilesystemHelper:
         Returns:
             str: Resolved path
         """
-        if hasattr(fs, 'path'):
+        if hasattr(fs, "path"):
             base_path = fs.path
         else:
             base_path = self._base_dir
@@ -115,10 +118,7 @@ class FilesystemHelper:
         return resolved_path
 
     def clean_directory(
-        self,
-        fs: AbstractFileSystem,
-        *paths: str,
-        recursive: bool = True
+        self, fs: AbstractFileSystem, *paths: str, recursive: bool = True
     ) -> None:
         """
         Clean specified paths if they exist.
@@ -144,11 +144,11 @@ class FilesystemHelper:
         Args:
             fs: Filesystem instance to sync
         """
-        if hasattr(fs, 'is_cache_fs') and fs.is_cache_fs:
+        if hasattr(fs, "is_cache_fs") and fs.is_cache_fs:
             fs.sync_cache()
 
             # Log sync information if available
-            if hasattr(fs, '_mapper') and hasattr(fs, 'cache_path'):
+            if hasattr(fs, "_mapper") and hasattr(fs, "cache_path"):
                 logger.debug(
                     f"Synced filesystem cache: {fs._mapper.directory} -> {fs.cache_path}"
                 )
@@ -163,11 +163,11 @@ class FilesystemHelper:
         Returns:
             str: Project path
         """
-        if hasattr(fs, 'is_cache_fs') and fs.is_cache_fs:
+        if hasattr(fs, "is_cache_fs") and fs.is_cache_fs:
             project_path = fs._mapper.directory
         else:
-            project_path = getattr(fs, 'path', self._base_dir)
-        
+            project_path = getattr(fs, "path", self._base_dir)
+
         # Validate project path for security
         validate_file_path(project_path, allow_relative=True)
         return project_path
@@ -178,8 +178,7 @@ class FilesystemHelper:
 
 
 def create_filesystem_helper(
-    base_dir: str,
-    storage_options: Optional[Dict[str, Any]] = None
+    base_dir: str, storage_options: Optional[Dict[str, Any]] = None
 ) -> FilesystemHelper:
     """
     Factory function to create a FilesystemHelper instance.

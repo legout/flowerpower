@@ -58,10 +58,12 @@ class PipelineIOManager:
         """Get the list of files for multiple pipelines."""
         files = ["conf/project.yml"]
         for name in names:
-            files.extend([
-                f"conf/pipelines/{name}.yml",
-                f"pipelines/{name}.py",
-            ])
+            files.extend(
+                [
+                    f"conf/pipelines/{name}.yml",
+                    f"pipelines/{name}.py",
+                ]
+            )
         return files
 
     def _get_all_pipeline_files(self) -> list[str] | None:
@@ -74,7 +76,9 @@ class PipelineIOManager:
             f"✅ Imported pipelines [bold blue]{', '.join(names)}[/bold blue] from [green]{src_base_dir}[/green] to [bold blue]{self.project_cfg.name}[/bold blue]"
         )
 
-    def _print_export_success(self, names: list[str] | None, dest_base_dir: str) -> None:
+    def _print_export_success(
+        self, names: list[str] | None, dest_base_dir: str
+    ) -> None:
         """Print success message for export operations."""
         if names:
             console.print(

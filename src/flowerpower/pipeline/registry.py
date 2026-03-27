@@ -50,6 +50,7 @@ class HookType(str, Enum):
 
 class CachedPipelineData(msgspec.Struct):
     """Container for cached pipeline data."""
+
     pipeline: "Pipeline"
     config: PipelineConfig
     module: Any
@@ -539,7 +540,9 @@ class PipelineRegistry:
                     logger.error(
                         f"Unexpected error reading module file for pipeline '{name}': {e}"
                     )
-                    pipeline_summary["module"] = f"# Unexpected error reading module file: {e}"
+                    pipeline_summary["module"] = (
+                        f"# Unexpected error reading module file: {e}"
+                    )
 
             if pipeline_summary:  # Only add if cfg or code was requested and found
                 summary["pipelines"][name] = pipeline_summary
@@ -715,12 +718,14 @@ class PipelineRegistry:
                 logger.warning(f"Unexpected error getting size for {path}: {e}")
                 size = "Error"
 
-            pipeline_info.append({
-                "name": name,
-                "path": path,
-                "mod_time": mod_time,
-                "size": size,
-            })
+            pipeline_info.append(
+                {
+                    "name": name,
+                    "path": path,
+                    "mod_time": mod_time,
+                    "size": size,
+                }
+            )
 
         if show:
             table = Table(title="Available Pipelines")
@@ -831,8 +836,8 @@ class PipelineRegistry:
             f.write(template.format(function_name=function_name))
 
         rich.print(
-            f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}")
-       
+            f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}"
+        )
 
     def create_pipeline(
         self,
@@ -840,7 +845,7 @@ class PipelineRegistry:
         overwrite: bool = False,
         template: str | None = None,
         tags: list[str] | None = None,
-        description: str | None = None
+        description: str | None = None,
     ) -> None:
         """Create a new pipeline.
 
@@ -857,10 +862,7 @@ class PipelineRegistry:
         self.new(name=name, overwrite=overwrite)
 
     def delete_pipeline(
-        self,
-        name: str,
-        cfg: bool = True,
-        module: bool = False
+        self, name: str, cfg: bool = True, module: bool = False
     ) -> None:
         """Delete a pipeline.
 
@@ -872,4 +874,3 @@ class PipelineRegistry:
             module: Whether to delete module files
         """
         self.delete(name=name, cfg=cfg, module=module)
-        

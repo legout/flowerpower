@@ -27,7 +27,9 @@ class ExecutionContextBuilder:
         self._pipeline_config = pipeline_config
         self._project_context = project_context
 
-    def build(self, run_config: RunConfig) -> tuple[h_executors.BaseExecutor, Callable | None, list]:
+    def build(
+        self, run_config: RunConfig
+    ) -> tuple[h_executors.BaseExecutor, Callable | None, list]:
         """Create executor, shutdown function, and adapters for a pipeline run."""
         executor_cfg = resolve_executor_config(
             base=self._pipeline_config.run.executor,
@@ -51,9 +53,9 @@ class ExecutionContextBuilder:
         # Only ray currently needs special shutdown handling
         ray_module = self._get_optional_ray()
         if executor_cfg.type == "ray" and ray_module is not None:
-            project_cfg = getattr(self._project_context, "project_cfg", None) or getattr(
-                self._project_context, "_project_cfg", None
-            )
+            project_cfg = getattr(
+                self._project_context, "project_cfg", None
+            ) or getattr(self._project_context, "_project_cfg", None)
             if project_cfg and getattr(project_cfg.adapter, "ray", None):
                 should_shutdown = getattr(
                     project_cfg.adapter.ray, "shutdown_ray_on_completion", False

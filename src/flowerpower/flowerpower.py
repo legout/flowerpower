@@ -6,8 +6,7 @@ from typing import Any, Callable, Optional, TYPE_CHECKING
 from functools import wraps
 
 import rich
-from fsspeckit import (AbstractFileSystem, BaseStorageOptions,
-                          DirFileSystem, filesystem)
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, DirFileSystem, filesystem
 from loguru import logger
 
 from . import settings
@@ -23,22 +22,29 @@ from .utils.filesystem import FilesystemHelper
 
 setup_logging()
 
+
 def handle_errors(func):
     """Decorator to handle exceptions, log them, and re-raise as RuntimeError."""
+
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
         except Exception as e:
             # Extract operation name from function name for better logging
-            operation_name = func.__name__.replace('_', ' ').title()
+            operation_name = func.__name__.replace("_", " ").title()
             # For methods like 'run', we want to log the pipeline name if available
-            if 'name' in kwargs and func.__name__ in ['run']:
-                logger.error(f"Failed to {operation_name.lower()} pipeline '{kwargs.get('name')}': {e}")
-                raise RuntimeError(f"Pipeline {operation_name.lower()} failed for '{kwargs.get('name')}': {e}") from e
+            if "name" in kwargs and func.__name__ in ["run"]:
+                logger.error(
+                    f"Failed to {operation_name.lower()} pipeline '{kwargs.get('name')}': {e}"
+                )
+                raise RuntimeError(
+                    f"Pipeline {operation_name.lower()} failed for '{kwargs.get('name')}': {e}"
+                ) from e
             else:
                 logger.error(f"Failed to {operation_name.lower()}: {e}")
                 raise RuntimeError(f"{operation_name} failed: {e}") from e
+
     return wrapper
 
 
@@ -69,15 +75,11 @@ class FlowerPowerProject:
         # This will be used when creating Pipeline instances
         self.pipeline_manager._project_context = self
 
-
     # --- Convenience Methods for Pipeline Operations ---
 
     @handle_errors
     def run(
-        self,
-        name: str,
-        run_config: RunConfig | None = None,
-        **kwargs
+        self, name: str, run_config: RunConfig | None = None, **kwargs
     ) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -160,7 +162,7 @@ class FlowerPowerProject:
 
         # Initialize run_config - use provided config or create empty one
         run_config = run_config or RunConfig()
-        
+
         # Merge kwargs into run_config
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
@@ -171,22 +173,27 @@ class FlowerPowerProject:
         )
 
     @staticmethod
-    def _check_project_exists(base_dir: str, fs: AbstractFileSystem | None = None) -> tuple[bool, str]:
+    def _check_project_exists(
+        base_dir: str, fs: AbstractFileSystem | None = None
+    ) -> tuple[bool, str]:
         if fs is None:
             fs = filesystem(base_dir, dirfs=True)
-        
+
         # Determine the root path for existence checks
         # For DirFileSystem, paths are relative to its root, so we check "." for the project root.
         # For other filesystems, we use the base_dir directly.
         root_path = "." if isinstance(fs, DirFileSystem) else base_dir
 
         if not fs.exists(root_path):
-            return False, "Project directory does not exist. Please initialize it first."
-        
+            return (
+                False,
+                "Project directory does not exist. Please initialize it first.",
+            )
+
         # Check for required subdirectories
         config_path = posixpath.join(root_path, settings.CONFIG_DIR)
         pipelines_path = posixpath.join(root_path, settings.PIPELINES_DIR)
-        
+
         if not fs.exists(config_path) or not fs.exists(pipelines_path):
             return False, "Project configuration or pipelines directory is missing"
 
@@ -318,9 +325,7 @@ class FlowerPowerProject:
 
     @classmethod
     def _resolve_project_params(
-        cls,
-        name: str | None,
-        base_dir: str | None
+        cls, name: str | None, base_dir: str | None
     ) -> tuple[str, str]:
         """Resolve project name and base directory."""
         if name is None:
@@ -337,7 +342,7 @@ class FlowerPowerProject:
         cls,
         base_dir: str,
         storage_options: dict | BaseStorageOptions | None,
-        fs: AbstractFileSystem | None
+        fs: AbstractFileSystem | None,
     ) -> AbstractFileSystem:
         """Setup filesystem for project operations."""
         if fs is None:
@@ -350,11 +355,7 @@ class FlowerPowerProject:
 
     @classmethod
     def _handle_existing_project(
-        cls,
-        base_dir: str,
-        fs: AbstractFileSystem,
-        hooks_dir: str,
-        overwrite: bool
+        cls, base_dir: str, fs: AbstractFileSystem, hooks_dir: str, overwrite: bool
     ) -> None:
         """Handle existing project directory."""
         project_exists, _ = cls._check_project_exists(base_dir, fs)
@@ -381,11 +382,7 @@ class FlowerPowerProject:
                 raise FileExistsError(error_msg)
 
     @classmethod
-    def _create_project_structure(
-        cls,
-        fs: AbstractFileSystem,
-        hooks_dir: str
-    ) -> None:
+    def _create_project_structure(cls, fs: AbstractFileSystem, hooks_dir: str) -> None:
         """Create project directory structure."""
         fs.makedirs(f"{settings.CONFIG_DIR}/pipelines", exist_ok=True)
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
@@ -393,9 +390,7 @@ class FlowerPowerProject:
 
     @classmethod
     def _initialize_project_config(
-        cls,
-        name: str,
-        fs: AbstractFileSystem
+        cls, name: str, fs: AbstractFileSystem
     ) -> ProjectConfig:
         """Initialize project configuration and create README."""
         # Load project configuration
@@ -467,11 +462,11 @@ def initialize_project(
 ) -> FlowerPowerProject:
     """
     Initialize a new FlowerPower project.
-    
-    
+
+
     This is a standalone function that directly calls FlowerPowerProject.new
     with the same arguments, providing easier, separately importable access.
-    
+
     Args:
         name (str | None): The name of the project. If None, it defaults to the current directory name.
         base_dir (str | None): The base directory where the project will be created. If None, it defaults to the current working directory.
@@ -479,7 +474,7 @@ def initialize_project(
         fs (AbstractFileSystem | None): An instance of AbstractFileSystem to use for file operations.
         hooks_dir (str): The directory where the project hooks will be stored.
         log_level (str | None): The logging level to set for the project.
-    
+
     Returns:
         FlowerPowerProject: An instance of FlowerPowerProject initialized with the new project.
     """
@@ -491,6 +486,7 @@ def initialize_project(
         hooks_dir=hooks_dir,
         log_level=log_level,
     )
+
 
 def create_project(
     name: str | None = None,
@@ -505,7 +501,9 @@ def create_project(
     # Note: _check_project_exists expects base_dir to be a string.
     # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
     # We pass fs directly, as _check_project_exists can handle fs being None.
-    project_exists, _ = FlowerPowerProject._check_project_exists(base_dir or str(Path.cwd()), fs=fs)
+    project_exists, _ = FlowerPowerProject._check_project_exists(
+        base_dir or str(Path.cwd()), fs=fs
+    )
 
     if project_exists:
         return FlowerPowerProject.load(
@@ -518,6 +516,7 @@ def create_project(
         rich.print(f"[red]{error_message}[/red]")
         logger.error(error_message)
         raise FileNotFoundError(error_message)
+
 
 # Alias for backward compatibility or alternative naming
 FlowerPower = create_project

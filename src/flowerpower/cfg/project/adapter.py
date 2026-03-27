@@ -12,7 +12,7 @@ class HamiltonTrackerConfig(BaseConfig):
     ui_url: str = msgspec.field(default=settings.HAMILTON_UI_URL)
     api_key: str | None = msgspec.field(default=None)
     verify: bool = msgspec.field(default=False)
-    
+
     def __post_init__(self):
         # Load API key from environment variable if not explicitly set
         if self.api_key is None:
@@ -28,7 +28,6 @@ class MLFlowConfig(BaseConfig):
 class OpenTelemetryConfig(BaseConfig):
     host: str = msgspec.field(default="localhost")
     port: int = msgspec.field(default=6831)
-
 
 
 class RayConfig(BaseConfig):

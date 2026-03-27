@@ -39,36 +39,40 @@ class ProjectConfig(BaseConfig):
     def __post_init__(self):
         if isinstance(self.adapter, dict):
             self.adapter = AdapterConfig.from_dict(self.adapter)
-        
+
         # Validate project name if provided
         if self.name is not None:
             self._validate_project_name()
 
     def _validate_project_name(self) -> None:
         """Validate project name parameter.
-        
+
         Raises:
             ValueError: If project name contains invalid characters.
         """
         if not isinstance(self.name, str):
             raise ValueError(f"Project name must be a string, got {type(self.name)}")
-        
+
         # Check for directory traversal attempts
-        if '..' in self.name or '/' in self.name or '\\' in self.name:
-            raise ValueError(f"Invalid project name: {self.name}. Contains path traversal characters.")
-        
+        if ".." in self.name or "/" in self.name or "\\" in self.name:
+            raise ValueError(
+                f"Invalid project name: {self.name}. Contains path traversal characters."
+            )
+
         # Check for empty string
         if not self.name.strip():
             raise ValueError("Project name cannot be empty or whitespace only.")
 
     @classmethod
-    def _load_project_config(cls, fs: AbstractFileSystem, name: str | None) -> "ProjectConfig":
+    def _load_project_config(
+        cls, fs: AbstractFileSystem, name: str | None
+    ) -> "ProjectConfig":
         """Centralized project configuration loading logic.
-        
+
         Args:
             fs: Filesystem instance.
             name: Project name.
-            
+
         Returns:
             Loaded project configuration.
         """
@@ -80,7 +84,7 @@ class ProjectConfig(BaseConfig):
 
     def _save_project_config(self, fs: AbstractFileSystem) -> None:
         """Centralized project configuration saving logic.
-        
+
         Args:
             fs: Filesystem instance.
         """
@@ -117,7 +121,7 @@ class ProjectConfig(BaseConfig):
             # Use cached filesystem for better performance
             storage_options_hash = cls._hash_storage_options(storage_options)
             fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
-        
+
         return cls._load_project_config(fs, name)
 
     @classmethod
@@ -126,13 +130,18 @@ class ProjectConfig(BaseConfig):
             with fs.open(path) as f:
                 raw = f.read()
         except Exception as e:
-            raise ConfigLoadError(f"Failed to load configuration from {path}", path=path, original_error=e)
+            raise ConfigLoadError(
+                f"Failed to load configuration from {path}", path=path, original_error=e
+            )
         try:
             import yaml as _yaml
+
             data = _yaml.safe_load(raw) or {}
             data = interpolate_env_in_data(data)
         except Exception as e:
-            raise ConfigLoadError(f"Failed to parse YAML for {path}", path=path, original_error=e)
+            raise ConfigLoadError(
+                f"Failed to parse YAML for {path}", path=path, original_error=e
+            )
         instance = msgspec.convert(data, cls)
         if hasattr(instance, "__post_init__"):
             instance.__post_init__()
@@ -200,4 +209,3 @@ def init_project_config(
     )
     project.save(base_dir=base_dir, fs=fs, storage_options=storage_options)
     return project
-

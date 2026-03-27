@@ -44,9 +44,7 @@ class PipelineRunner:
             self._reload_modules(modules)
 
         retry_manager = self._create_retry_manager(configured_run)
-        operation = lambda: self._execute_sync(
-            context_builder, configured_run, modules
-        )
+        operation = lambda: self._execute_sync(context_builder, configured_run, modules)
         return retry_manager.execute(
             operation=operation,
             on_success=configured_run.on_success,

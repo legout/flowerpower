@@ -19,7 +19,6 @@ app.add_typer(
 )
 
 
-
 @app.command()
 def init(
     project_name: str = typer.Option(

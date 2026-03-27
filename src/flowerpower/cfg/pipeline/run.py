@@ -293,6 +293,7 @@ class RunConfig(BaseConfig):
         for field, default_value in _LEGACY_RETRY_DEFAULTS.items():
             current_value = getattr(self, field)
             if field == "retry_exceptions":
+
                 def _normalise(values):
                     normalised: list[str] = []
                     iterable = values if isinstance(values, (list, tuple)) else [values]

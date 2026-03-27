@@ -55,18 +55,18 @@ class PipelineConfig(BaseConfig):
         if isinstance(self.params, dict):
             self.h_params = munchify(self.to_h_params(self.params))
             self.params = munchify(self.params)
-        
+
         # Validate pipeline name if provided
         if self.name is not None:
             self._validate_pipeline_name()
 
     def to_yaml(self, path: str, fs: AbstractFileSystem):
         """Save pipeline configuration to YAML file.
-        
+
         Args:
             path: Path to the YAML file.
             fs: Filesystem instance.
-            
+
         Raises:
             ConfigSaveError: If saving the configuration fails.
             ConfigPathError: If the path contains directory traversal attempts.
@@ -75,8 +75,10 @@ class PipelineConfig(BaseConfig):
             # Validate the path to prevent directory traversal
             validated_path = validate_file_path(path)
         except ConfigPathError as e:
-            raise ConfigSaveError(f"Path validation failed: {e}", path=path, original_error=e)
-            
+            raise ConfigSaveError(
+                f"Path validation failed: {e}", path=path, original_error=e
+            )
+
         try:
             fs.makedirs(fs._parent(validated_path), exist_ok=True)
             with fs.open(validated_path, "w") as f:
@@ -88,24 +90,24 @@ class PipelineConfig(BaseConfig):
             raise ConfigSaveError(
                 f"The filesystem does not support writing files.",
                 path=validated_path,
-                original_error=e
+                original_error=e,
             )
         except Exception as e:
             raise ConfigSaveError(
                 f"Failed to write configuration to {validated_path}",
                 path=validated_path,
-                original_error=e
+                original_error=e,
             )
 
     @classmethod
     def from_dict(cls, name: str, data: dict | Munch):
         data.update({"name": name})
-        
+
         # Handle null params field by converting to empty dict
         # This fixes the issue where YAML parses empty sections with comments as null
-        if data.get('params') is None:
-            data['params'] = {}
-        
+        if data.get("params") is None:
+            data["params"] = {}
+
         instance = msgspec.convert(data, cls)
         # Manually call __post_init__ since msgspec.convert doesn't call it
         instance.__post_init__()
@@ -114,15 +116,15 @@ class PipelineConfig(BaseConfig):
     @classmethod
     def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem):
         """Load pipeline configuration from YAML file.
-        
+
         Args:
             name: Pipeline name.
             path: Path to the YAML file.
             fs: Filesystem instance.
-            
+
         Returns:
             Loaded pipeline configuration.
-            
+
         Raises:
             ConfigLoadError: If loading the configuration fails.
             ConfigPathError: If the path contains directory traversal attempts.
@@ -131,16 +133,18 @@ class PipelineConfig(BaseConfig):
             # Validate the path to prevent directory traversal
             validated_path = validate_file_path(path)
         except ConfigPathError as e:
-            raise ConfigLoadError(f"Path validation failed: {e}", path=path, original_error=e)
-            
+            raise ConfigLoadError(
+                f"Path validation failed: {e}", path=path, original_error=e
+            )
+
         try:
             with fs.open(validated_path) as f:
                 raw = yaml.safe_load(f) or {}
                 data = interpolate_env_in_data(raw)
 
             migrated = False
-            if isinstance(data, dict) and isinstance(data.get('run'), dict):
-                migrated = migrate_legacy_retry_fields(data['run'])
+            if isinstance(data, dict) and isinstance(data.get("run"), dict):
+                migrated = migrate_legacy_retry_fields(data["run"])
 
             pipeline = cls.from_dict(name=name, data=data)
 
@@ -152,13 +156,13 @@ class PipelineConfig(BaseConfig):
             raise ConfigLoadError(
                 f"Failed to load configuration from {validated_path}",
                 path=validated_path,
-                original_error=e
+                original_error=e,
             )
 
     def update(self, d: dict | Munch):
         for k, v in d.items():
             # Safe attribute access instead of eval()
-            if hasattr(self, k) and hasattr(getattr(self, k), 'update'):
+            if hasattr(self, k) and hasattr(getattr(self, k), "update"):
                 getattr(self, k).update(v)
             if k == "params":
                 self.params.update(munchify(v))
@@ -209,9 +213,11 @@ class PipelineConfig(BaseConfig):
                 return value(val)
             # For all other values
             return val
-        
-        result = {k: {k: d[k]} for k in d}  # Step 1: Wrap each parameter in its own dict
-        
+
+        result = {
+            k: {k: d[k]} for k in d
+        }  # Step 1: Wrap each parameter in its own dict
+
         # Step 2: Transform each parameter value recursively
         return {k: transform_recursive(v, d) for k, v in result.items()}
 
@@ -247,7 +253,6 @@ class PipelineConfig(BaseConfig):
             storage_options_hash = cls._hash_storage_options(storage_options)
             fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
         if fs.exists("conf/pipelines") and name is not None:
-            
             pipeline = PipelineConfig.from_yaml(
                 name=name,
                 path=f"conf/pipelines/{name}.yml",
@@ -257,18 +262,19 @@ class PipelineConfig(BaseConfig):
             pipeline = PipelineConfig(name=name)
 
         return pipeline
-    
-    
+
     # Helper methods for centralized load/save logic
     @classmethod
-    def _load_pipeline_config(cls, base_dir: str, name: str | None, fs: AbstractFileSystem) -> "PipelineConfig":
+    def _load_pipeline_config(
+        cls, base_dir: str, name: str | None, fs: AbstractFileSystem
+    ) -> "PipelineConfig":
         """Centralized pipeline configuration loading logic.
-        
+
         Args:
             base_dir: Base directory for the pipeline.
             name: Pipeline name.
             fs: Filesystem instance.
-            
+
         Returns:
             Loaded pipeline configuration.
         """
@@ -281,31 +287,32 @@ class PipelineConfig(BaseConfig):
         else:
             pipeline = cls(name=name)
         return pipeline
-    
-    
+
     def _save_pipeline_config(self, fs: AbstractFileSystem) -> None:
         """Centralized pipeline configuration saving logic.
-        
+
         Args:
             fs: Filesystem instance.
         """
         h_params = getattr(self, "h_params")
         self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
         setattr(self, "h_params", h_params)
-    
+
     def _validate_pipeline_name(self) -> None:
         """Validate pipeline name parameter.
-        
+
         Raises:
             ValueError: If pipeline name contains invalid characters.
         """
         if not isinstance(self.name, str):
             raise ValueError(f"Pipeline name must be a string, got {type(self.name)}")
-        
+
         # Check for directory traversal attempts
-        if '..' in self.name or '/' in self.name or '\\' in self.name:
-            raise ValueError(f"Invalid pipeline name: {self.name}. Contains path traversal characters.")
-        
+        if ".." in self.name or "/" in self.name or "\\" in self.name:
+            raise ValueError(
+                f"Invalid pipeline name: {self.name}. Contains path traversal characters."
+            )
+
         # Check for empty string
         if not self.name.strip():
             raise ValueError("Pipeline name cannot be empty or whitespace only.")
@@ -345,8 +352,10 @@ class PipelineConfig(BaseConfig):
             raise ValueError("Pipeline name is not set. Please provide a name.")
 
         # Validate pipeline name to prevent directory traversal
-        if self.name and ('..' in self.name or '/' in self.name or '\\' in self.name):
-            raise ValueError(f"Invalid pipeline name: {self.name}. Contains path traversal characters.")
+        if self.name and (".." in self.name or "/" in self.name or "\\" in self.name):
+            raise ValueError(
+                f"Invalid pipeline name: {self.name}. Contains path traversal characters."
+            )
 
         h_params = getattr(self, "h_params")
 

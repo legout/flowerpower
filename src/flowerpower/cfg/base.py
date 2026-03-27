@@ -14,13 +14,13 @@ from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
 def validate_file_path(path: str) -> str:
     """
     Validate a file path to prevent directory traversal attacks.
-    
+
     Args:
         path: The file path to validate
-        
+
     Returns:
         str: The validated path
-        
+
     Raises:
         ConfigPathError: If the path contains directory traversal attempts
     """
@@ -29,7 +29,7 @@ def validate_file_path(path: str) -> str:
         validated_path = security_validate_file_path(
             path,
             allow_absolute=False,  # Config files should be relative
-            allow_relative=True
+            allow_relative=True,
         )
         return str(validated_path)
     except Exception as e:
@@ -40,16 +40,18 @@ def validate_file_path(path: str) -> str:
 class BaseConfig(msgspec.Struct, kw_only=True):
     # Class-level cache for filesystem instances
     _fs_cache = {}
-    
+
     @classmethod
     @lru_cache(maxsize=32)
-    def _get_cached_filesystem(cls, base_dir: str, storage_options_hash: int) -> AbstractFileSystem:
+    def _get_cached_filesystem(
+        cls, base_dir: str, storage_options_hash: int
+    ) -> AbstractFileSystem:
         """Get a cached filesystem instance.
-        
+
         Args:
             base_dir: Base directory for the filesystem.
             storage_options_hash: Hash of storage options for cache key.
-            
+
         Returns:
             Cached filesystem instance.
         """
@@ -57,26 +59,27 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         if cache_key not in cls._fs_cache:
             cls._fs_cache[cache_key] = filesystem(base_dir, cached=True, dirfs=True)
         return cls._fs_cache[cache_key]
-    
+
     @classmethod
     def _hash_storage_options(cls, storage_options: dict | None) -> int:
         """Create a hash of storage options for caching.
-        
+
         Args:
             storage_options: Storage options to hash.
-            
+
         Returns:
             Hash of storage options.
         """
         if not storage_options:
             return hash(())
-        
+
         # Convert to frozenset of items for consistent hashing
         try:
             return hash(frozenset(sorted(storage_options.items())))
         except TypeError:
             # If items are not hashable, use string representation
             return hash(str(sorted(storage_options.items())))
+
     def to_dict(self) -> dict[str, Any]:
         # Convert to dictionary, handling special cases like type objects
         result = {}
@@ -85,10 +88,10 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             if isinstance(value, type):
                 # Convert type objects to string representation
                 result[field] = str(value)
-            elif hasattr(value, '__struct_fields__'):
+            elif hasattr(value, "__struct_fields__"):
                 # Recursively convert nested msgspec structs
                 result[field] = value.to_dict()
-            elif hasattr(value, 'toDict'):
+            elif hasattr(value, "toDict"):
                 # Handle Munch objects by converting to regular dict
                 result[field] = value.toDict()
             elif isinstance(value, dict):
@@ -100,7 +103,7 @@ class BaseConfig(msgspec.Struct, kw_only=True):
                 for item in value:
                     if isinstance(item, type):
                         converted_list.append(str(item))
-                    elif hasattr(item, 'toDict'):
+                    elif hasattr(item, "toDict"):
                         # Handle Munch objects in lists
                         converted_list.append(item.toDict())
                     elif isinstance(item, dict):
@@ -112,12 +115,12 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             else:
                 result[field] = value
         return result
-    
+
     def _convert_dict_recursively(self, d: dict) -> dict:
         """Recursively convert dictionaries, handling Munch objects."""
         result = {}
         for key, value in d.items():
-            if hasattr(value, 'toDict'):
+            if hasattr(value, "toDict"):
                 # Convert Munch objects to regular dict
                 result[key] = value.toDict()
             elif isinstance(value, dict):
@@ -127,7 +130,7 @@ class BaseConfig(msgspec.Struct, kw_only=True):
                 # Handle lists within dictionaries
                 converted_list = []
                 for item in value:
-                    if hasattr(item, 'toDict'):
+                    if hasattr(item, "toDict"):
                         converted_list.append(item.toDict())
                     elif isinstance(item, dict):
                         converted_list.append(self._convert_dict_recursively(item))
@@ -154,12 +157,15 @@ class BaseConfig(msgspec.Struct, kw_only=True):
         try:
             validated_path = validate_file_path(path)
         except ConfigPathError as e:
-            raise ConfigSaveError(f"Path validation failed: {e}", path=path, original_error=e)
-            
+            raise ConfigSaveError(
+                f"Path validation failed: {e}", path=path, original_error=e
+            )
+
         # Default to fsspec.filesystem when fs is not provided (testable/mocked)
         if fs is None:
             try:
                 import fsspec  # type: ignore
+
                 fs = fsspec.filesystem("file")
             except Exception:
                 # Fallback to project helper if fsspec is unavailable in context
@@ -171,7 +177,11 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             # Surface underlying capability error as-is (expected by tests)
             raise e
         except Exception as e:
-            raise ConfigSaveError(f"Failed to write configuration to {validated_path}", path=validated_path, original_error=e)
+            raise ConfigSaveError(
+                f"Failed to write configuration to {validated_path}",
+                path=validated_path,
+                original_error=e,
+            )
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BaseConfig":
@@ -208,20 +218,26 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             try:
                 validated_path = validate_file_path(path)
             except ConfigPathError as e:
-                raise ConfigLoadError(f"Path validation failed: {e}", path=path, original_error=e)
-            
+                raise ConfigLoadError(
+                    f"Path validation failed: {e}", path=path, original_error=e
+                )
+
         fs = get_filesystem(fs)
         try:
             # tests expect default mode when fs provided
             with fs.open(validated_path) as f:
                 return msgspec.yaml.decode(f.read(), type=cls, strict=True)
         except Exception as e:
-            raise ConfigLoadError(f"Failed to load configuration from {validated_path}", path=validated_path, original_error=e)
+            raise ConfigLoadError(
+                f"Failed to load configuration from {validated_path}",
+                path=validated_path,
+                original_error=e,
+            )
 
     def _apply_dict_updates(self, target: Self, d: dict[str, Any]) -> None:
         """
         Helper method to apply dictionary updates to a target instance.
-        
+
         Args:
             target: The target instance to apply updates to.
             d: The dictionary containing updates to apply.
@@ -234,7 +250,7 @@ class BaseConfig(msgspec.Struct, kw_only=True):
                     new_dict = dict(current_value)
                     new_dict.update(v)
                     setattr(target, k, new_dict)
-                elif hasattr(current_value, '__struct_fields__'):
+                elif hasattr(current_value, "__struct_fields__"):
                     # For nested msgspec structs, create a new instance with merged values
                     setattr(target, k, current_value.merge_dict(v))
                 else:
@@ -247,7 +263,7 @@ class BaseConfig(msgspec.Struct, kw_only=True):
     def update(self, d: dict[str, Any]) -> None:
         """
         Updates this instance with values from the provided dictionary.
-        
+
         Args:
             d: The dictionary containing updates to apply.
         """

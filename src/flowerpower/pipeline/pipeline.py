@@ -15,6 +15,7 @@ from .telemetry import initialize_telemetry
 if TYPE_CHECKING:
     from ..flowerpower import FlowerPowerProject
 
+
 class Pipeline(msgspec.Struct):
     """Represents a single pipeline with configuration and execution context."""
 

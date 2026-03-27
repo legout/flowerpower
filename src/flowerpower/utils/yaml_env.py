@@ -25,9 +25,7 @@ import re
 from typing import Any, Mapping
 
 
-_VAR_PATTERN = re.compile(
-    r"\$\$|\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*"
-)
+_VAR_PATTERN = re.compile(r"\$\$|\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*")
 
 
 def _is_empty(value: str | None) -> bool:
@@ -104,7 +102,9 @@ def _maybe_json(value: str) -> Any:
     return value
 
 
-def interpolate_string(s: str, env: Mapping[str, str] | None = None, json_coerce: bool = True) -> Any:
+def interpolate_string(
+    s: str, env: Mapping[str, str] | None = None, json_coerce: bool = True
+) -> Any:
     """Interpolate variables in a single string.
 
     Returns a possibly type-coerced value when json_coerce is True.
@@ -118,7 +118,9 @@ def interpolate_string(s: str, env: Mapping[str, str] | None = None, json_coerce
     return _maybe_json(expanded) if json_coerce else expanded
 
 
-def interpolate_env_in_data(data: Any, env: Mapping[str, str] | None = None, json_coerce: bool = True) -> Any:
+def interpolate_env_in_data(
+    data: Any, env: Mapping[str, str] | None = None, json_coerce: bool = True
+) -> Any:
     """Recursively interpolate environment variables for all string values in data.
 
     Modifies lists and dicts recursively; returns the transformed structure.
@@ -126,9 +128,14 @@ def interpolate_env_in_data(data: Any, env: Mapping[str, str] | None = None, jso
     env = env or os.environ
 
     if isinstance(data, dict):
-        return {k: interpolate_env_in_data(v, env=env, json_coerce=json_coerce) for k, v in data.items()}
+        return {
+            k: interpolate_env_in_data(v, env=env, json_coerce=json_coerce)
+            for k, v in data.items()
+        }
     if isinstance(data, list):
-        return [interpolate_env_in_data(v, env=env, json_coerce=json_coerce) for v in data]
+        return [
+            interpolate_env_in_data(v, env=env, json_coerce=json_coerce) for v in data
+        ]
     if isinstance(data, str):
         return interpolate_string(data, env=env, json_coerce=json_coerce)
     return data

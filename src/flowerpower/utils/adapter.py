@@ -31,9 +31,7 @@ class AdapterManager:
         return base_config.merge(override_config) if base_config else override_config
 
     def resolve_with_adapter_config(
-        self,
-        with_adapter_cfg: dict | Any | None,
-        base_config: Any
+        self, with_adapter_cfg: dict | Any | None, base_config: Any
     ) -> Any:
         """
         Resolve and merge WithAdapterConfig.
@@ -60,9 +58,7 @@ class AdapterManager:
         return base_config
 
     def resolve_pipeline_adapter_config(
-        self,
-        pipeline_adapter_cfg: dict | Any | None,
-        base_config: Any
+        self, pipeline_adapter_cfg: dict | Any | None, base_config: Any
     ) -> Any:
         """
         Resolve and merge PipelineAdapterConfig.
@@ -91,9 +87,7 @@ class AdapterManager:
         return base_config
 
     def resolve_project_adapter_config(
-        self,
-        project_adapter_cfg: dict | Any | None,
-        project_context: Any
+        self, project_adapter_cfg: dict | Any | None, project_context: Any
     ) -> Any:
         """
         Resolve and merge ProjectAdapterConfig from project context.
@@ -125,10 +119,7 @@ class AdapterManager:
             # Use base configuration or create default
             return base_cfg or ProjectAdapterConfig()
 
-    def _extract_project_adapter_config(
-        self,
-        project_context: Any
-    ) -> Optional[Any]:
+    def _extract_project_adapter_config(self, project_context: Any) -> Optional[Any]:
         """
         Extract adapter configuration from project context.
 
@@ -139,24 +130,25 @@ class AdapterManager:
             ProjectAdapterConfig or None: Extracted configuration
         """
         # Try direct access to project config
-        project_cfg = getattr(project_context, "project_cfg", None) or getattr(project_context, "_project_cfg", None)
+        project_cfg = getattr(project_context, "project_cfg", None) or getattr(
+            project_context, "_project_cfg", None
+        )
         if project_cfg and hasattr(project_cfg, "adapter"):
             return project_cfg.adapter
 
         # Try via pipeline_manager if available
         if hasattr(project_context, "pipeline_manager"):
             pm = project_context.pipeline_manager
-            pm_cfg = getattr(pm, "project_cfg", None) or getattr(pm, "_project_cfg", None)
+            pm_cfg = getattr(pm, "project_cfg", None) or getattr(
+                pm, "_project_cfg", None
+            )
             if pm_cfg and hasattr(pm_cfg, "adapter"):
                 return pm_cfg.adapter
 
         return None
 
     def create_adapters(
-        self,
-        with_adapter_cfg: Any,
-        pipeline_adapter_cfg: Any,
-        project_adapter_cfg: Any
+        self, with_adapter_cfg: Any, pipeline_adapter_cfg: Any, project_adapter_cfg: Any
     ) -> list:
         """
         Create adapter instances based on configurations.
@@ -175,7 +167,7 @@ class AdapterManager:
         if with_adapter_cfg.hamilton_tracker:
             adapter = self._create_hamilton_tracker(
                 pipeline_adapter_cfg.hamilton_tracker,
-                project_adapter_cfg.hamilton_tracker
+                project_adapter_cfg.hamilton_tracker,
             )
             if adapter:
                 adapters.append(adapter)
@@ -183,8 +175,7 @@ class AdapterManager:
         # MLFlow adapter
         if with_adapter_cfg.mlflow:
             adapter = self._create_mlflow_adapter(
-                pipeline_adapter_cfg.mlflow,
-                project_adapter_cfg.mlflow
+                pipeline_adapter_cfg.mlflow, project_adapter_cfg.mlflow
             )
             if adapter:
                 adapters.append(adapter)
@@ -192,8 +183,7 @@ class AdapterManager:
         # OpenTelemetry adapter
         if with_adapter_cfg.opentelemetry:
             adapter = self._create_opentelemetry_adapter(
-                pipeline_adapter_cfg.opentelemetry,
-                project_adapter_cfg.opentelemetry
+                pipeline_adapter_cfg.opentelemetry, project_adapter_cfg.opentelemetry
             )
             if adapter:
                 adapters.append(adapter)
@@ -201,9 +191,7 @@ class AdapterManager:
         return adapters
 
     def _create_hamilton_tracker(
-        self,
-        pipeline_config: Any,
-        project_config: Any
+        self, pipeline_config: Any, project_config: Any
     ) -> Optional[Any]:
         """Create HamiltonTracker adapter instance."""
         try:
@@ -236,9 +224,7 @@ class AdapterManager:
         return HamiltonTracker(**tracker_kwargs)
 
     def _create_mlflow_adapter(
-        self,
-        pipeline_config: Any,
-        project_config: Any
+        self, pipeline_config: Any, project_config: Any
     ) -> Optional[Any]:
         """Create MLFlow adapter instance."""
         try:
@@ -252,9 +238,7 @@ class AdapterManager:
         return h_mlflow.MLFlowTracker(**mlflow_kwargs)
 
     def _create_opentelemetry_adapter(
-        self,
-        pipeline_config: Any,
-        project_config: Any
+        self, pipeline_config: Any, project_config: Any
     ) -> Optional[Any]:
         """Create OpenTelemetry adapter instance."""
         try:

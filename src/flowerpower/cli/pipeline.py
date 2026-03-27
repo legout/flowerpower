@@ -31,7 +31,9 @@ def parse_common_options(
         parsed_storage_options = {}
     elif not isinstance(parsed_storage_options, dict):
         # This should not happen with param_type="dict", but being safe
-        logger.warning(f"Expected dict for storage_options, got {type(parsed_storage_options)}")
+        logger.warning(
+            f"Expected dict for storage_options, got {type(parsed_storage_options)}"
+        )
         parsed_storage_options = {}
     return base_dir, parsed_storage_options, log_level
 
@@ -44,7 +46,7 @@ def run(
     ),
     executor_cfg: str | None = typer.Option(
         None,
-        help='Executor configuration as JSON/dict string (e.g. "{\"type\":\"threadpool\",\"max_workers\":4}")',
+        help='Executor configuration as JSON/dict string (e.g. "{"type":"threadpool","max_workers":4}")',
     ),
     executor_max_workers: int | None = typer.Option(
         None, help="Convenience flag: set executor max_workers"
@@ -142,7 +144,7 @@ def run(
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict") or {}
     parsed_with_adapter = parse_dict_or_list_param(with_adapter, "dict") or {}
     parsed_executor_cfg = parse_dict_or_list_param(executor_cfg, "dict") or {}
-    
+
     # Ensure proper types for RunConfig
     if parsed_inputs is not None and not isinstance(parsed_inputs, dict):
         parsed_inputs = {}
@@ -154,13 +156,16 @@ def run(
         parsed_final_vars = []
     if parsed_with_adapter is not None and not isinstance(parsed_with_adapter, dict):
         parsed_with_adapter = {}
-    
+
     # Ensure storage_options is a dict for FlowerPowerProject.load
-    if parsed_storage_options is not None and not isinstance(parsed_storage_options, dict):
+    if parsed_storage_options is not None and not isinstance(
+        parsed_storage_options, dict
+    ):
         parsed_storage_options = {}
-    
+
     # Create WithAdapterConfig object if needed
     from ..cfg.pipeline.run import WithAdapterConfig
+
     if isinstance(parsed_with_adapter, dict):
         with_adapter_config = WithAdapterConfig.from_dict(parsed_with_adapter)
     else:
@@ -197,6 +202,7 @@ def run(
             if executor is not None:
                 # Validate type
                 from ..utils.security import validate_executor_type
+
                 validate_executor_type(executor)
                 parsed_executor_cfg["type"] = executor
             if executor_max_workers is not None:
@@ -206,6 +212,7 @@ def run(
 
             if parsed_executor_cfg:
                 from ..cfg.pipeline.run import ExecutorConfig
+
                 run_config.executor = ExecutorConfig.from_dict(parsed_executor_cfg)
         except Exception as e:
             logger.error(f"Invalid executor configuration: {e}")
@@ -227,9 +234,20 @@ def run(
 @app.command()
 def new(
     name: str = typer.Argument(..., help="Name of the pipeline to create"),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     overwrite: bool = typer.Option(
         False, help="Overwrite existing pipeline if it exists"
     ),
@@ -273,9 +291,20 @@ def new(
 @app.command()
 def delete(
     name: str = typer.Argument(..., help="Name of the pipeline to delete"),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     cfg: bool = typer.Option(
         False, "--cfg", "-c", help="Delete only the configuration file"
     ),
@@ -337,9 +366,20 @@ def delete(
 @app.command()
 def show_dag(
     name: str = typer.Argument(..., help="Name of the pipeline to visualize"),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     format: str = typer.Option(
         "png", help="Output format (e.g., png, svg, pdf). If 'raw', returns object."
     ),
@@ -404,9 +444,20 @@ def show_dag(
 @app.command()
 def save_dag(
     name: str = typer.Argument(..., help="Name of the pipeline to visualize"),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     format: str = typer.Option("png", help="Output format (e.g., png, svg, pdf)"),
     output_path: str | None = typer.Option(
         None, help="Custom path to save the file (default: <name>.<format>)"
@@ -463,9 +514,20 @@ def save_dag(
 
 @app.command()
 def show_pipelines(
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     format: str = typer.Option("table", help="Output format (table, json, yaml)"),
 ):
     """
@@ -509,9 +571,20 @@ def show_summary(
     cfg: bool = typer.Option(True, help="Include configuration details"),
     code: bool = typer.Option(True, help="Include code/module details"),
     project: bool = typer.Option(True, help="Include project context"),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
     to_html: bool = typer.Option(False, help="Output summary as HTML"),
     to_svg: bool = typer.Option(False, help="Output summary as SVG (if applicable)"),
     output_file: str | None = typer.Option(
@@ -593,9 +666,20 @@ def add_hook(
     to: str | None = typer.Option(
         None, help="Target node name or tag (required for node hooks)"
     ),
-    base_dir: str | None = typer.Option(None, "--base-dir", "-d", help="Base directory for the pipeline"),
-    storage_options: str | None = typer.Option(None, "--storage-options", "-s", help="Storage options as JSON, dict string, or key=value pairs"),
-    log_level: str | None = typer.Option(None, "--log-level", help="Logging level (debug, info, warning, error, critical)"),
+    base_dir: str | None = typer.Option(
+        None, "--base-dir", "-d", help="Base directory for the pipeline"
+    ),
+    storage_options: str | None = typer.Option(
+        None,
+        "--storage-options",
+        "-s",
+        help="Storage options as JSON, dict string, or key=value pairs",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical)",
+    ),
 ):
     """
     Add a hook to a pipeline configuration.

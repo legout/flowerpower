@@ -22,7 +22,11 @@ def _coerce_value(raw: str) -> Any:
     s = raw.strip()
     # JSON object/array/bool/null/number
     try:
-        if (s and s[0] in "[{") or s in ("true", "false", "null") or re.fullmatch(r"-?\d+(\.\d+)?", s):
+        if (
+            (s and s[0] in "[{")
+            or s in ("true", "false", "null")
+            or re.fullmatch(r"-?\d+(\.\d+)?", s)
+        ):
             return json.loads(s)
     except Exception:
         pass
@@ -57,7 +61,9 @@ def _set_nested(dct: dict, path: list[str], value: Any) -> None:
     cur[path[-1]] = value
 
 
-def parse_env_overrides(env: Mapping[str, str] | None = None, prefix: str = "FP_") -> dict:
+def parse_env_overrides(
+    env: Mapping[str, str] | None = None, prefix: str = "FP_"
+) -> dict:
     """Parse env vars into nested overrides dict.
 
     Supports keys like:
@@ -71,7 +77,7 @@ def parse_env_overrides(env: Mapping[str, str] | None = None, prefix: str = "FP_
     for key, raw in env.items():
         if not key.startswith(prefix):
             continue
-        rest = key[len(prefix):]
+        rest = key[len(prefix) :]
         if not rest:
             continue
         value = _coerce_value(raw)
@@ -115,7 +121,9 @@ def build_specific_overlays(overrides: dict) -> tuple[dict, dict]:
     return project, pipeline
 
 
-def apply_global_shims(overrides: dict, project_overlay: dict, pipeline_overlay: dict) -> None:
+def apply_global_shims(
+    overrides: dict, project_overlay: dict, pipeline_overlay: dict
+) -> None:
     """Map legacy global FP_* envs into reasonable defaults if specific keys are absent.
 
     Example mappings:
@@ -142,13 +150,19 @@ def apply_global_shims(overrides: dict, project_overlay: dict, pipeline_overlay:
         tgt.setdefault("log_level", g["LOG_LEVEL"])
 
     if "EXECUTOR" in g:
-        tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"])
+        tgt = ensure_path(
+            pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"]
+        )
         tgt.setdefault("type", g["EXECUTOR"])
     if "EXECUTOR_MAX_WORKERS" in g:
-        tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"])
+        tgt = ensure_path(
+            pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"]
+        )
         tgt.setdefault("max_workers", g["EXECUTOR_MAX_WORKERS"])
     if "EXECUTOR_NUM_CPUS" in g:
-        tgt = ensure_path(pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"])
+        tgt = ensure_path(
+            pipeline_overlay.setdefault("pipeline", {}), ["run", "executor"]
+        )
         tgt.setdefault("num_cpus", g["EXECUTOR_NUM_CPUS"])
 
     if "MAX_RETRIES" in g:
@@ -177,7 +191,9 @@ def apply_global_shims(overrides: dict, project_overlay: dict, pipeline_overlay:
         tgt.setdefault("jitter_factor", g["JITTER_FACTOR"])
 
 
-def merge_overlays_into_config(config_struct, project_overlay: dict, pipeline_overlay: dict):
+def merge_overlays_into_config(
+    config_struct, project_overlay: dict, pipeline_overlay: dict
+):
     """Merge parsed overlays into a Config-like struct (has .project and .pipeline)."""
     # Use BaseConfig.merge_dict semantics via .update/merge_dict if present
     if hasattr(config_struct, "project") and project_overlay:

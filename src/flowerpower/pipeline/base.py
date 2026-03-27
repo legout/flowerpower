@@ -41,14 +41,12 @@ class BasePipeline:
         base_dir: str | None = None,
         storage_options: dict | Munch | BaseStorageOptions = {},
         fs: AbstractFileSystem | None = None,
-        
     ):
         self._base_dir = base_dir
         self._storage_options = storage_options
         if fs is None:
             fs = filesystem(self._base_dir, **self._storage_options)
         self._fs = fs
-        
 
         self._setup_paths()
         self._setup_directories()

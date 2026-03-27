@@ -16,7 +16,9 @@ from ..cfg.pipeline.run import (
 from .security import validate_config_dict, validate_callback_function
 
 
-def prefer_executor_override(base: ExecutorConfig, override: str | dict | ExecutorConfig | None) -> ExecutorConfig:
+def prefer_executor_override(
+    base: ExecutorConfig, override: str | dict | ExecutorConfig | None
+) -> ExecutorConfig:
     """Merge executor configs preferring explicit runtime overrides.
 
     Rules:
@@ -38,9 +40,9 @@ def prefer_executor_override(base: ExecutorConfig, override: str | dict | Execut
     elif isinstance(override, dict):
         # Preserve explicit None vs missing by checking keys
         ov = ExecutorConfig.from_dict(override)
-        type_set = 'type' in override
-        max_workers_set = 'max_workers' in override
-        num_cpus_set = 'num_cpus' in override
+        type_set = "type" in override
+        max_workers_set = "max_workers" in override
+        num_cpus_set = "num_cpus" in override
         merged = ExecutorConfig(
             type=ov.type if type_set else base.type,
             max_workers=ov.max_workers if max_workers_set else base.max_workers,
@@ -56,7 +58,9 @@ def prefer_executor_override(base: ExecutorConfig, override: str | dict | Execut
     # Note: for dict-based overrides, explicit None is kept as None (clears base)
     merged = ExecutorConfig(
         type=ov.type if (ov.type is not None) else base.type,
-        max_workers=ov.max_workers if (ov.max_workers is not None) else base.max_workers,
+        max_workers=ov.max_workers
+        if (ov.max_workers is not None)
+        else base.max_workers,
         num_cpus=ov.num_cpus if (ov.num_cpus is not None) else base.num_cpus,
     )
     return merged
@@ -72,6 +76,7 @@ def resolve_executor_config(
     if override is None:
         return effective_base
     return prefer_executor_override(effective_base, override)
+
 
 def _merge_inputs(run_config: RunConfig, value):
     """Merge inputs into run config."""
@@ -184,30 +189,32 @@ def _merge_additional_modules(run_config: RunConfig, value):
 
 
 _attr_handlers = {
-    'inputs': _merge_inputs,
-    'config': _merge_config,
-    'cache': _set_cache,
-    'adapter': _merge_adapter,
-    'executor_cfg': _set_executor_cfg,
-    'with_adapter_cfg': _set_with_adapter_cfg,
-    'pipeline_adapter_cfg': _set_pipeline_adapter_cfg,
-    'project_adapter_cfg': _set_project_adapter_cfg,
-    'retry': _set_retry_cfg,
-    'additional_modules': _merge_additional_modules,
-    'async_driver': _set_async_driver,
+    "inputs": _merge_inputs,
+    "config": _merge_config,
+    "cache": _set_cache,
+    "adapter": _merge_adapter,
+    "executor_cfg": _set_executor_cfg,
+    "with_adapter_cfg": _set_with_adapter_cfg,
+    "pipeline_adapter_cfg": _set_pipeline_adapter_cfg,
+    "project_adapter_cfg": _set_project_adapter_cfg,
+    "retry": _set_retry_cfg,
+    "additional_modules": _merge_additional_modules,
+    "async_driver": _set_async_driver,
 }
 
 
-def merge_run_config_with_kwargs(run_config: RunConfig, kwargs: Dict[str, Any]) -> RunConfig:
+def merge_run_config_with_kwargs(
+    run_config: RunConfig, kwargs: Dict[str, Any]
+) -> RunConfig:
     """Merge kwargs into a RunConfig object.
-    
+
     This utility function updates the RunConfig object with values from kwargs,
     handling different types of attributes appropriately.
-    
+
     Args:
         run_config: The RunConfig object to update
         kwargs: Dictionary of additional parameters to merge
-        
+
     Returns:
         RunConfig: Updated RunConfig object
     """
@@ -218,62 +225,76 @@ def merge_run_config_with_kwargs(run_config: RunConfig, kwargs: Dict[str, Any]) 
 
     # Handle simple attributes
     simple_attrs = [
-        'final_vars', 'reload', 'log_level', 'max_retries', 'retry_delay',
-        'jitter_factor', 'retry_exceptions', 'on_success', 'on_failure'
+        "final_vars",
+        "reload",
+        "log_level",
+        "max_retries",
+        "retry_delay",
+        "jitter_factor",
+        "retry_exceptions",
+        "on_success",
+        "on_failure",
     ]
-    
+
     for attr in simple_attrs:
         if attr in kwargs and kwargs[attr] is not None:
             value = kwargs[attr]
             # Validate callbacks for security
-            if attr in ['on_success', 'on_failure']:
+            if attr in ["on_success", "on_failure"]:
                 validate_callback_function(value)
                 setattr(run_config, attr, value)
-            elif attr in ['max_retries', 'retry_delay', 'jitter_factor', 'retry_exceptions']:
+            elif attr in [
+                "max_retries",
+                "retry_delay",
+                "jitter_factor",
+                "retry_exceptions",
+            ]:
                 # Map deprecated flat fields into nested retry configuration
                 if run_config.retry is None:
                     run_config.retry = RetryConfig()
-                if attr == 'max_retries' and value is not None:
+                if attr == "max_retries" and value is not None:
                     run_config.retry.max_retries = int(value)
-                elif attr == 'retry_delay' and value is not None:
+                elif attr == "retry_delay" and value is not None:
                     run_config.retry.retry_delay = float(value)
-                elif attr == 'jitter_factor':
+                elif attr == "jitter_factor":
                     run_config.retry.jitter_factor = value
-                elif attr == 'retry_exceptions' and value is not None:
-                    run_config.retry.retry_exceptions = list(value) if isinstance(value, (list, tuple)) else [value]
+                elif attr == "retry_exceptions" and value is not None:
+                    run_config.retry.retry_exceptions = (
+                        list(value) if isinstance(value, (list, tuple)) else [value]
+                    )
             else:
                 setattr(run_config, attr, value)
-    
+
     return run_config
 
 
 class RunConfigBuilder:
     """Builder pattern for constructing RunConfig objects with fluent interface."""
-    
+
     def __init__(self, base_config: RunConfig | None = None):
         self.config = base_config or RunConfig()
-    
-    def with_inputs(self, inputs: Dict[str, Any] | None) -> 'RunConfigBuilder':
+
+    def with_inputs(self, inputs: Dict[str, Any] | None) -> "RunConfigBuilder":
         """Set inputs configuration."""
         if inputs is not None:
             validate_config_dict(inputs)
             self.config.inputs = inputs
         return self
-    
-    def with_config(self, config: Dict[str, Any] | None) -> 'RunConfigBuilder':
+
+    def with_config(self, config: Dict[str, Any] | None) -> "RunConfigBuilder":
         """Set pipeline configuration."""
         if config is not None:
             validate_config_dict(config)
             self.config.config = config
         return self
-    
-    def with_cache(self, cache: bool | None) -> 'RunConfigBuilder':
+
+    def with_cache(self, cache: bool | None) -> "RunConfigBuilder":
         """Set caching configuration."""
         if cache is not None:
             self.config.cache = cache
         return self
-    
-    def with_adapter(self, adapter: Dict[str, Any] | None) -> 'RunConfigBuilder':
+
+    def with_adapter(self, adapter: Dict[str, Any] | None) -> "RunConfigBuilder":
         """Set adapter configuration."""
         if adapter is not None:
             if self.config.adapter is None:
@@ -282,7 +303,7 @@ class RunConfigBuilder:
                 self.config.adapter.update(adapter)
         return self
 
-    def with_async_driver(self, enabled: bool | None) -> 'RunConfigBuilder':
+    def with_async_driver(self, enabled: bool | None) -> "RunConfigBuilder":
         """Enable or disable Hamilton's async driver for async runs."""
         if enabled is None:
             self.config.async_driver = None
@@ -290,7 +311,7 @@ class RunConfigBuilder:
             self.config.async_driver = bool(enabled)
         return self
 
-    def with_additional_modules(self, modules: Any | None) -> 'RunConfigBuilder':
+    def with_additional_modules(self, modules: Any | None) -> "RunConfigBuilder":
         """Set additional modules for Hamilton driver composition."""
         if modules is None:
             return self
@@ -320,7 +341,9 @@ class RunConfigBuilder:
         self.config.additional_modules = merged
         return self
 
-    def with_executor(self, executor_cfg: str | Dict[str, Any] | ExecutorConfig | None) -> 'RunConfigBuilder':
+    def with_executor(
+        self, executor_cfg: str | Dict[str, Any] | ExecutorConfig | None
+    ) -> "RunConfigBuilder":
         """Set executor configuration."""
         if executor_cfg is not None:
             if isinstance(executor_cfg, str):
@@ -331,9 +354,14 @@ class RunConfigBuilder:
                 self.config.executor = executor_cfg
             self.config.executor_override_raw = executor_cfg
         return self
-    
-    def with_retry_config(self, max_retries: int | None = None, retry_delay: float | None = None,
-                         jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None) -> 'RunConfigBuilder':
+
+    def with_retry_config(
+        self,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
+        jitter_factor: float | None = None,
+        retry_exceptions: tuple | list | None = None,
+    ) -> "RunConfigBuilder":
         """Set retry configuration."""
         if self.config.retry is None:
             self.config.retry = RetryConfig()
@@ -344,16 +372,22 @@ class RunConfigBuilder:
         if jitter_factor is not None:
             self.config.retry.jitter_factor = jitter_factor
         if retry_exceptions is not None:
-            self.config.retry.retry_exceptions = list(retry_exceptions) if isinstance(retry_exceptions, (list, tuple)) else [retry_exceptions]
+            self.config.retry.retry_exceptions = (
+                list(retry_exceptions)
+                if isinstance(retry_exceptions, (list, tuple))
+                else [retry_exceptions]
+            )
         return self
-    
-    def with_logging(self, log_level: str | None = None) -> 'RunConfigBuilder':
+
+    def with_logging(self, log_level: str | None = None) -> "RunConfigBuilder":
         """Set logging configuration."""
         if log_level is not None:
             self.config.log_level = log_level
         return self
-    
-    def with_callbacks(self, on_success: str | None = None, on_failure: str | None = None) -> 'RunConfigBuilder':
+
+    def with_callbacks(
+        self, on_success: str | None = None, on_failure: str | None = None
+    ) -> "RunConfigBuilder":
         """Set callback configurations."""
         if on_success is not None:
             validate_callback_function(on_success)
@@ -362,19 +396,23 @@ class RunConfigBuilder:
             validate_callback_function(on_failure)
             self.config.on_failure = on_failure
         return self
-    
+
     # Additional methods for backward compatibility with tests
-    def with_final_vars(self, final_vars: list[str] | None) -> 'RunConfigBuilder':
+    def with_final_vars(self, final_vars: list[str] | None) -> "RunConfigBuilder":
         """Set final variables."""
         if final_vars is not None:
             self.config.final_vars = final_vars
         return self
-    
-    def with_executor_cfg(self, executor_cfg: str | Dict[str, Any] | ExecutorConfig | None) -> 'RunConfigBuilder':
+
+    def with_executor_cfg(
+        self, executor_cfg: str | Dict[str, Any] | ExecutorConfig | None
+    ) -> "RunConfigBuilder":
         """Set executor configuration (alias for with_executor)."""
         return self.with_executor(executor_cfg)
-    
-    def with_with_adapter_cfg(self, with_adapter_cfg: Dict[str, Any] | WithAdapterConfig | None) -> 'RunConfigBuilder':
+
+    def with_with_adapter_cfg(
+        self, with_adapter_cfg: Dict[str, Any] | WithAdapterConfig | None
+    ) -> "RunConfigBuilder":
         """Set with_adapter configuration."""
         if with_adapter_cfg is not None:
             if isinstance(with_adapter_cfg, dict):
@@ -382,83 +420,89 @@ class RunConfigBuilder:
             elif isinstance(with_adapter_cfg, WithAdapterConfig):
                 self.config.with_adapter = with_adapter_cfg
         return self
-    
-    def with_pipeline_adapter_cfg(self, pipeline_adapter_cfg: Any | None) -> 'RunConfigBuilder':
+
+    def with_pipeline_adapter_cfg(
+        self, pipeline_adapter_cfg: Any | None
+    ) -> "RunConfigBuilder":
         """Set pipeline adapter configuration."""
         if pipeline_adapter_cfg is not None:
             self.config.pipeline_adapter_cfg = pipeline_adapter_cfg
         return self
-    
-    def with_project_adapter_cfg(self, project_adapter_cfg: Any | None) -> 'RunConfigBuilder':
+
+    def with_project_adapter_cfg(
+        self, project_adapter_cfg: Any | None
+    ) -> "RunConfigBuilder":
         """Set project adapter configuration."""
         if project_adapter_cfg is not None:
             self.config.project_adapter_cfg = project_adapter_cfg
         return self
-    
-    def with_reload(self, reload: bool | None) -> 'RunConfigBuilder':
+
+    def with_reload(self, reload: bool | None) -> "RunConfigBuilder":
         """Set reload flag."""
         if reload is not None:
             self.config.reload = reload
         return self
-    
-    def with_log_level(self, log_level: str | None) -> 'RunConfigBuilder':
+
+    def with_log_level(self, log_level: str | None) -> "RunConfigBuilder":
         """Set log level (alias for with_logging)."""
         return self.with_logging(log_level)
-    
-    def with_max_retries(self, max_retries: int | None) -> 'RunConfigBuilder':
+
+    def with_max_retries(self, max_retries: int | None) -> "RunConfigBuilder":
         """Set max retries."""
         if max_retries is not None:
             if self.config.retry is None:
                 self.config.retry = RetryConfig()
             self.config.retry.max_retries = max_retries
         return self
-    
-    def with_retry_delay(self, retry_delay: float | None) -> 'RunConfigBuilder':
+
+    def with_retry_delay(self, retry_delay: float | None) -> "RunConfigBuilder":
         """Set retry delay."""
         if retry_delay is not None:
             if self.config.retry is None:
                 self.config.retry = RetryConfig()
             self.config.retry.retry_delay = retry_delay
         return self
-    
-    def with_jitter_factor(self, jitter_factor: float | None) -> 'RunConfigBuilder':
+
+    def with_jitter_factor(self, jitter_factor: float | None) -> "RunConfigBuilder":
         """Set jitter factor."""
         if jitter_factor is not None:
             if self.config.retry is None:
                 self.config.retry = RetryConfig()
             self.config.retry.jitter_factor = jitter_factor
         return self
-    
-    def with_retry_exceptions(self, retry_exceptions: list | None) -> 'RunConfigBuilder':
+
+    def with_retry_exceptions(
+        self, retry_exceptions: list | None
+    ) -> "RunConfigBuilder":
         """Set retry exceptions."""
         if retry_exceptions is not None:
             if self.config.retry is None:
                 self.config.retry = RetryConfig()
             self.config.retry.retry_exceptions = retry_exceptions
         return self
-    
-    def with_on_success(self, on_success: Any | None) -> 'RunConfigBuilder':
+
+    def with_on_success(self, on_success: Any | None) -> "RunConfigBuilder":
         """Set on_success callback."""
         if on_success is not None:
             self.config.on_success = on_success
         return self
-    
-    def with_on_failure(self, on_failure: Any | None) -> 'RunConfigBuilder':
+
+    def with_on_failure(self, on_failure: Any | None) -> "RunConfigBuilder":
         """Set on_failure callback."""
         if on_failure is not None:
             self.config.on_failure = on_failure
         return self
-    
-    def reset(self) -> 'RunConfigBuilder':
+
+    def reset(self) -> "RunConfigBuilder":
         """Reset builder to default values."""
         self.config = RunConfig()
         return self
-    
+
     @classmethod
-    def from_config(cls, config: RunConfig) -> 'RunConfigBuilder':
+    def from_config(cls, config: RunConfig) -> "RunConfigBuilder":
         """Create builder from existing config."""
         return cls(base_config=config)
-    
+
     def build(self) -> RunConfig:
         """Build and return the RunConfig object."""
         # Create a new copy to ensure immutability
