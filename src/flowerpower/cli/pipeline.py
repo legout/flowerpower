@@ -128,7 +128,7 @@ def run(
         $ pipeline run my_pipeline --executor distributed
 
         # Enable adapters for monitoring/tracking
-        $ pipeline run my_pipeline --with-adapter '{"tracker": true, "opentelemetry": true}'
+        $ pipeline run my_pipeline --with-adapter '{"hamilton_tracker": true, "mlflow": false}'
 
         # Set a specific logging level
         $ pipeline run my_pipeline --log-level debug

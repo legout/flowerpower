@@ -467,3 +467,199 @@ class TestPipelineRegistry:
         mock_fs.open.assert_called_once_with(expected_hook_file_path, "a")
         handle = mock_fs.open()
         handle.write.assert_called_once_with(expected_content)
+
+
+# --- Regression tests for name formatting (hyphens/dots) ---
+
+
+class TestPipelineNameFormatting:
+    """Tests for consistent name formatting between new() and delete()."""
+
+    def test_new_and_delete_with_hyphenated_name(
+        self, mocker
+    ):
+        """Test that new() and delete() use consistent name formatting for hyphenated names."""
+        pipeline_name = "my-pipeline"  # Has hyphen
+        expected_formatted_name = "my_pipeline"  # Hyphen becomes underscore
+
+        # Setup mocks
+        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
+        mock_fs.makedirs = mocker.MagicMock()
+        mock_fs.rm = mocker.MagicMock()
+        mock_fs.open = mocker.mock_open()
+
+        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
+        mock_project_cfg.name = "test_project"
+
+        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
+        mock_cfg_instance.save = mocker.MagicMock()
+
+        mocker.patch(
+            "flowerpower.pipeline.registry.PipelineConfig",
+            return_value=mock_cfg_instance,
+        )
+
+        # Create registry
+        registry = PipelineRegistry(
+            project_cfg=mock_project_cfg,
+            fs=mock_fs,
+        )
+
+        # Mock exists to simulate creating new files (return False for new files)
+        def exists_side_effect(path):
+            if expected_formatted_name in path:
+                return False
+            return True
+
+        mock_fs.exists.side_effect = exists_side_effect
+
+        # Create the pipeline
+        registry.new(pipeline_name)
+
+        # Verify new() creates files with formatted name
+        expected_pipeline_file = posixpath.join(
+            registry._pipelines_dir, f"{expected_formatted_name}.py"
+        )
+        expected_cfg_file = posixpath.join(
+            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
+        )
+        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
+        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
+
+        # Reset mock to simulate files now exist for deletion
+        mock_fs.reset_mock()
+        mock_fs.exists.return_value = True
+        mock_fs.exists.side_effect = None
+
+        # Delete the pipeline
+        registry.delete(pipeline_name, cfg=True, module=True)
+
+        # Verify delete() removes the same files that new() created
+        mock_fs.rm.assert_any_call(expected_cfg_file)
+        mock_fs.rm.assert_any_call(expected_pipeline_file)
+
+    def test_new_and_delete_with_dotted_name(
+        self, mocker
+    ):
+        """Test that new() and delete() use consistent name formatting for dotted (nested) names."""
+        pipeline_name = "sub.module"  # Has dot
+        expected_formatted_name = "sub/module"  # Dot becomes slash
+
+        # Setup mocks
+        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
+        mock_fs.makedirs = mocker.MagicMock()
+        mock_fs.rm = mocker.MagicMock()
+        mock_fs.open = mocker.mock_open()
+
+        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
+        mock_project_cfg.name = "test_project"
+
+        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
+        mock_cfg_instance.save = mocker.MagicMock()
+
+        mocker.patch(
+            "flowerpower.pipeline.registry.PipelineConfig",
+            return_value=mock_cfg_instance,
+        )
+
+        # Create registry
+        registry = PipelineRegistry(
+            project_cfg=mock_project_cfg,
+            fs=mock_fs,
+        )
+
+        # Mock exists to simulate creating new files
+        def exists_side_effect(path):
+            if expected_formatted_name in path:
+                return False
+            return True
+
+        mock_fs.exists.side_effect = exists_side_effect
+
+        # Create the pipeline
+        registry.new(pipeline_name)
+
+        # Verify new() creates files with formatted name
+        expected_pipeline_file = posixpath.join(
+            registry._pipelines_dir, f"{expected_formatted_name}.py"
+        )
+        expected_cfg_file = posixpath.join(
+            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
+        )
+        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
+        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
+
+        # Reset mock to simulate files now exist for deletion
+        mock_fs.reset_mock()
+        mock_fs.exists.return_value = True
+        mock_fs.exists.side_effect = None
+
+        # Delete the pipeline
+        registry.delete(pipeline_name, cfg=True, module=True)
+
+        # Verify delete() removes the same files that new() created
+        mock_fs.rm.assert_any_call(expected_cfg_file)
+        mock_fs.rm.assert_any_call(expected_pipeline_file)
+
+    def test_new_and_delete_with_mixed_special_chars(
+        self, mocker
+    ):
+        """Test name formatting with both hyphens and dots."""
+        pipeline_name = "my-pipeline.sub-module"  # Both hyphen and dot
+        expected_formatted_name = "my_pipeline/sub_module"  # Hyphen to underscore, dot to slash
+
+        # Setup mocks
+        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
+        mock_fs.makedirs = mocker.MagicMock()
+        mock_fs.rm = mocker.MagicMock()
+        mock_fs.open = mocker.mock_open()
+
+        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
+        mock_project_cfg.name = "test_project"
+
+        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
+        mock_cfg_instance.save = mocker.MagicMock()
+
+        mocker.patch(
+            "flowerpower.pipeline.registry.PipelineConfig",
+            return_value=mock_cfg_instance,
+        )
+
+        # Create registry
+        registry = PipelineRegistry(
+            project_cfg=mock_project_cfg,
+            fs=mock_fs,
+        )
+
+        # Mock exists to simulate creating new files
+        def exists_side_effect(path):
+            if expected_formatted_name in path:
+                return False
+            return True
+
+        mock_fs.exists.side_effect = exists_side_effect
+
+        # Create the pipeline
+        registry.new(pipeline_name)
+
+        # Verify new() creates files with formatted name
+        expected_pipeline_file = posixpath.join(
+            registry._pipelines_dir, f"{expected_formatted_name}.py"
+        )
+        expected_cfg_file = posixpath.join(
+            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
+        )
+        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
+        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
+
+        # Reset mock to simulate files now exist for deletion
+        mock_fs.reset_mock()
+        mock_fs.exists.return_value = True
+        mock_fs.exists.side_effect = None
+
+        # Delete the pipeline
+        registry.delete(pipeline_name, cfg=True, module=True)
+
+        # Verify delete() removes the same files that new() created
+        mock_fs.rm.assert_any_call(expected_cfg_file)
+        mock_fs.rm.assert_any_call(expected_pipeline_file)

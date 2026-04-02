@@ -68,20 +68,21 @@ class AdapterBuilder:
             self._adapter_configs["ray"] = kwargs
         return self
 
-    def enable_opentelemetry(self, enabled: bool = True, **kwargs) -> "AdapterBuilder":
-        """Enable or disable OpenTelemetry adapter.
-
-        Args:
-            enabled: Whether to enable the adapter
-            **kwargs: Additional configuration options
-
-        Returns:
-            Self for method chaining
-        """
-        self._config.opentelemetry = enabled
-        if enabled and kwargs:
-            self._adapter_configs["opentelemetry"] = kwargs
-        return self
+    # Note: OpenTelemetry support removed - see ticket flo-apob
+    # def enable_opentelemetry(self, enabled: bool = True, **kwargs) -> "AdapterBuilder":
+    #     """Enable or disable OpenTelemetry adapter.
+    #
+    #     Args:
+    #         enabled: Whether to enable the adapter
+    #         **kwargs: Additional configuration options
+    #
+    #     Returns:
+    #         Self for method chaining
+    #     """
+    #     self._config.opentelemetry = enabled
+    #     if enabled and kwargs:
+    #         self._adapter_configs["opentelemetry"] = kwargs
+    #     return self
 
     def enable_progressbar(self, enabled: bool = True, **kwargs) -> "AdapterBuilder":
         """Enable or disable progress bar adapter.

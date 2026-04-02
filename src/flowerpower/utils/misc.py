@@ -225,35 +225,6 @@ from fsspeckit.utils import run_parallel
 #         raise ImportError("joblib not installed")
 
 
-def get_partitions_from_path(
-    path: str, partitioning: str | list[str] | None = None
-) -> list[tuple]:
-    """Get the dataset partitions from the file path.
-
-    Args:
-        path (str): File path.
-        partitioning (str | list[str] | None, optional): Partitioning type. Defaults to None.
-
-    Returns:
-        list[tuple]: Partitions.
-    """
-    if "." in path:
-        path = os.path.dirname(path)
-
-    parts = path.split("/")
-
-    if isinstance(partitioning, str):
-        if partitioning == "hive":
-            return [tuple(p.split("=")) for p in parts if "=" in p]
-
-        else:
-            return [
-                (partitioning, parts[0]),
-            ]
-    else:
-        return list(zip(partitioning, parts[-len(partitioning) :]))
-
-
 def _validate_image_format(format: str) -> str:
     """Validate image format to prevent injection attacks.
 

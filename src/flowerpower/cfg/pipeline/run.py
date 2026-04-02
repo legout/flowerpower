@@ -87,7 +87,7 @@ class WithAdapterConfig(BaseConfig):
     mlflow: bool = msgspec.field(default=False)
     # openlineage: bool = msgspec.field(default=False)
     ray: bool = msgspec.field(default=False)
-    opentelemetry: bool = msgspec.field(default=False)
+    # opentelemetry: bool = msgspec.field(default=False)  # Removed - see flo-apob
     progressbar: bool = msgspec.field(default=False)
     future: bool = msgspec.field(default=False)
 

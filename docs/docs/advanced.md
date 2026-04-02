@@ -128,7 +128,6 @@ Integrate with popular MLOps and observability tools using adapters.
 
 *   **Hamilton Tracker**: For dataflow and lineage tracking.
 *   **MLflow**: For experiment tracking.
-*   **OpenTelemetry**: For distributed tracing and metrics.
 
 ## Filesystem Abstraction
 

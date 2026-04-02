@@ -92,6 +92,29 @@ class PipelineRegistry:
         # Ensure module paths are added
         self._add_modules_path()
 
+    @staticmethod
+    def _format_pipeline_name(name: str) -> str:
+        """Format a pipeline name for use in file paths.
+
+        Transforms the name by replacing dots with forward slashes
+        and hyphens with underscores to create valid Python module paths.
+
+        Args:
+            name: The raw pipeline name.
+
+        Returns:
+            The formatted pipeline name suitable for file paths.
+
+        Examples:
+            >>> PipelineRegistry._format_pipeline_name("my-pipeline")
+            'my_pipeline'
+            >>> PipelineRegistry._format_pipeline_name("sub.module")
+            'sub/module'
+            >>> PipelineRegistry._format_pipeline_name("my-pipeline.sub")
+            'my_pipeline/sub'
+        """
+        return name.replace(".", "/").replace("-", "_")
+
     @classmethod
     def from_filesystem(
         cls,
@@ -293,8 +316,8 @@ class PipelineRegistry:
 
         logger.debug(f"Loading module for pipeline '{name}'")
 
-        # Convert pipeline name to module name
-        formatted_name = name.replace(".", "/").replace("-", "_")
+        # Convert pipeline name to module name using the shared helper
+        formatted_name = self._format_pipeline_name(name)
         module_name = f"pipelines.{formatted_name}"
 
         # Load the module
@@ -353,7 +376,7 @@ class PipelineRegistry:
                     f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first."
                 )
 
-        formatted_name = name.replace(".", "/").replace("-", "_")
+        formatted_name = self._format_pipeline_name(name)
         pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
         cfg_file = posixpath.join(self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml")
 
@@ -410,9 +433,11 @@ class PipelineRegistry:
             >>> pm.delete("my_pipeline")
         """
         deleted_files = []
+        formatted_name = self._format_pipeline_name(name)
+
         if cfg:
             pipeline_cfg_path = posixpath.join(
-                self._cfg_dir, PIPELINES_DIR, f"{name}.yml"
+                self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml"
             )
             if self._fs.exists(pipeline_cfg_path):
                 self._fs.rm(pipeline_cfg_path)
@@ -426,7 +451,7 @@ class PipelineRegistry:
                 )
 
         if module:
-            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{name}.py")
+            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
             if self._fs.exists(pipeline_py_path):
                 self._fs.rm(pipeline_py_path)
                 deleted_files.append(pipeline_py_path)

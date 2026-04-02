@@ -219,7 +219,7 @@ Defines settings for using adapters during pipeline execution.
 from flowerpower.cfg import WithAdapterConfig
 
 # Create a WithAdapterConfig
-adapter_config = WithAdapterConfig(adapter_name="opentelemetry", enabled=True)
+adapter_config = WithAdapterConfig(adapter_name="hamilton_tracker", enabled=True)
 print(adapter_config.enabled)
 ```
 

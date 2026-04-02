@@ -25,9 +25,10 @@ class MLFlowConfig(BaseConfig):
     artifact_location: str | None = msgspec.field(default=None)
 
 
-class OpenTelemetryConfig(BaseConfig):
-    host: str = msgspec.field(default="localhost")
-    port: int = msgspec.field(default=6831)
+# Note: OpenTelemetry support removed - see ticket flo-apob
+# class OpenTelemetryConfig(BaseConfig):
+#     host: str = msgspec.field(default="localhost")
+#     port: int = msgspec.field(default=6831)
 
 
 class RayConfig(BaseConfig):
@@ -45,6 +46,7 @@ class AdapterConfig(BaseConfig):
     )
     mlflow: MLFlowConfig = msgspec.field(default_factory=MLFlowConfig)
     ray: RayConfig = msgspec.field(default_factory=RayConfig)
-    opentelemetry: OpenTelemetryConfig = msgspec.field(
-        default_factory=OpenTelemetryConfig
-    )
+    # Note: OpenTelemetry support removed - see ticket flo-apob
+    # opentelemetry: OpenTelemetryConfig = msgspec.field(
+    #     default_factory=OpenTelemetryConfig
+    # )

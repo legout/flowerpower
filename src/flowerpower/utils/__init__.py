@@ -7,7 +7,7 @@ the main codebase by centralizing common operations.
 
 from .adapter import AdapterManager, create_adapter_manager
 from .executor import ExecutorFactory, create_executor_factory
-from .filesystem import FilesystemHelper, create_filesystem_helper
+from .filesystem import FilesystemHelper
 
 __all__ = [
     "AdapterManager",
@@ -15,5 +15,4 @@ __all__ = [
     "ExecutorFactory",
     "create_executor_factory",
     "FilesystemHelper",
-    "create_filesystem_helper",
 ]

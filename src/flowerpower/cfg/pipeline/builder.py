@@ -163,7 +163,7 @@ class RunConfigBuilder:
         """Enable and configure a specific adapter.
 
         Args:
-            adapter_name: Name of the adapter ('hamilton_tracker', 'mlflow', 'opentelemetry', etc.)
+            adapter_name: Name of the adapter ('hamilton_tracker', 'mlflow', etc.)
             **kwargs: Adapter-specific configuration options
 
         Returns:
@@ -337,7 +337,7 @@ class RunConfigBuilder:
 
         # Merge project adapter defaults
         for adapter_name, adapter_config in adapter_configs.items():
-            if adapter_name in ["hamilton_tracker", "mlflow", "opentelemetry"]:
+            if adapter_name in ["hamilton_tracker", "mlflow"]:
                 # Merge with project config
                 if hasattr(self._project_adapter_cfg, adapter_name):
                     project_config = getattr(

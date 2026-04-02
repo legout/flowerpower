@@ -43,7 +43,7 @@ Initializes a `RunConfig` instance with execution parameters.
 | `retry` | `RetryConfig \| dict \| None` | Canonical location for retry settings (max attempts, delay, jitter, exceptions). | `None` |
 | `with_adapter` | `WithAdapterConfig \| dict` | Adapter settings for pipeline execution; dict will be coerced to `WithAdapterConfig`. | `WithAdapterConfig()` |
 | `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. Example: `{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}` | `None` |
-| `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"opentelemetry": {"host": "http://localhost:4317"}}` | `None` |
+| `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"hamilton_tracker": {"api_url": "http://localhost:8241"}}` | `None` |
 | `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
 | `reload` | `bool` | Force reload of pipeline configuration. | `False` |
 | `log_level` | `str \| None` | Logging level: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `"INFO"` |
@@ -285,7 +285,7 @@ Set the adapter settings for pipeline execution.
 from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
-builder.with_adapter_config({"opentelemetry": True, "tracker": False})
+builder.with_adapter_config({"hamilton_tracker": True, "mlflow": False})
 ```
 
 ### with_pipeline_adapter_config
@@ -332,7 +332,7 @@ from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 
 builder = RunConfigBuilder()
 builder.with_project_adapter_config({
-    "opentelemetry": {"host": "http://localhost:4317"}
+    "hamilton_tracker": {"project_id": "123", "tags": {"env": "prod"}}
 })
 ```
 
@@ -558,9 +558,9 @@ config = (
     .with_config({"model": "LogisticRegression", "params": {"C": 1.0}})
     .with_cache({"recompute": ["preprocessing"]})
     .with_executor_config({"type": "threadpool", "max_workers": 4})
-    .with_adapter_config({"opentelemetry": True})
+    .with_adapter_config({"hamilton_tracker": True})
     .with_pipeline_adapter_config({"tracker": {"project_id": "123"}})
-    .with_project_adapter_config({"opentelemetry": {"host": "localhost:4317"}})
+    .with_project_adapter_config({"hamilton_tracker": {"api_url": "http://localhost:8241"}})
     .with_log_level("DEBUG")
     .with_retry_config(max_retries=3, retry_delay=1.0)
     .with_success_callback(success_handler)

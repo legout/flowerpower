@@ -180,13 +180,14 @@ class AdapterManager:
             if adapter:
                 adapters.append(adapter)
 
-        # OpenTelemetry adapter
-        if with_adapter_cfg.opentelemetry:
-            adapter = self._create_opentelemetry_adapter(
-                pipeline_adapter_cfg.opentelemetry, project_adapter_cfg.opentelemetry
-            )
-            if adapter:
-                adapters.append(adapter)
+        # OpenTelemetry adapter - removed, see ticket flo-apob
+        # if getattr(with_adapter_cfg, "opentelemetry", None):
+        #     adapter = self._create_opentelemetry_adapter(
+        #         getattr(pipeline_adapter_cfg, "opentelemetry", None),
+        #         getattr(project_adapter_cfg, "opentelemetry", None),
+        #     )
+        #     if adapter:
+        #         adapters.append(adapter)
 
         return adapters
 
@@ -240,20 +241,17 @@ class AdapterManager:
     def _create_opentelemetry_adapter(
         self, pipeline_config: Any, project_config: Any
     ) -> Optional[Any]:
-        """Create OpenTelemetry adapter instance."""
-        try:
-            from hamilton.experimental import h_opentelemetry
-            from ..utils.open_telemetry import init_tracer
-        except ImportError:
-            logger.warning(
-                "OpenTelemetry is not installed. Skipping OpenTelemetry adapter."
-            )
-            return None
+        """Create OpenTelemetry adapter instance.
 
-        otel_kwargs = project_config.to_dict()
-        otel_kwargs.update(pipeline_config.to_dict())
-        init_tracer()
-        return h_opentelemetry.OpenTelemetryTracker(**otel_kwargs)
+        Note: OpenTelemetry adapter support is currently not implemented.
+        This method exists as a placeholder for future implementation.
+        See ticket flo-apob for context.
+        """
+        logger.warning(
+            "OpenTelemetry adapter is not implemented. "
+            "Set opentelemetry=False in adapter config to suppress this warning."
+        )
+        return None
 
     def clear_cache(self) -> None:
         """Clear the adapter cache."""

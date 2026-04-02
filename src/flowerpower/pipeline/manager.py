@@ -371,11 +371,11 @@ class PipelineManager:
                     - dict: Raw config, e.g. {"type": "threadpool", "max_workers": 4}
                     - ExecutorConfig: Structured config object
                 with_adapter_cfg (dict | WithAdapterConfig | None): Adapter settings for pipeline execution.
-                    Example: {"opentelemetry": True, "tracker": False}
+                    Example: {"hamilton_tracker": True, "mlflow": False}
                 pipeline_adapter_cfg (dict | PipelineAdapterConfig | None): Pipeline-specific adapter settings.
-                    Example: {"tracker": {"project_id": "123", "tags": {"env": "prod"}}}
+                    Example: {"hamilton_tracker": {"project_id": "123", "tags": {"env": "prod"}}}
                 project_adapter_cfg (dict | ProjectAdapterConfig | None): Project-level adapter settings.
-                    Example: {"opentelemetry": {"host": "http://localhost:4317"}}
+                    Example: {"hamilton_tracker": {"api_url": "http://localhost:8241"}}
                 adapter (dict[str, Any] | None): Custom adapter instance for pipeline
                     Example: {"ray_graph_adapter": RayGraphAdapter()}
                 additional_modules (list[str | ModuleType] | None): Extra modules to

@@ -5,11 +5,14 @@ from __future__ import annotations
 import datetime as dt
 import random
 import time
-from typing import Any, Awaitable, Callable, Tuple, Type
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Tuple, Type
 
 import humanize
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from ..cfg.pipeline.run import CallbackSpec
 
 
 class RetryManager:
@@ -145,20 +148,59 @@ class RetryManager:
         await asyncio.sleep(delay)
 
     @staticmethod
-    def _handle_success(callback, result):
-        if callback:
-            try:
-                callback(result, None)
-            except Exception as callback_error:  # pragma: no cover - defensive
-                logger.error("Success callback failed: {error}", error=callback_error)
+    def _is_callback_spec(callback: Any) -> bool:
+        """Check if callback is a CallbackSpec instance.
+
+        CallbackSpec is a msgspec.Struct with func, args, kwargs fields.
+        It is NOT callable, unlike a raw callback function.
+        """
+        # Check if it's not callable (CallbackSpec is a struct, not a function)
+        # but has the attributes that define a CallbackSpec
+        if callable(callback):
+            return False
+        return hasattr(callback, "func") and hasattr(callback, "args") and hasattr(callback, "kwargs")
 
     @staticmethod
-    def _handle_failure(callback, error):
-        if callback:
-            try:
+    def _handle_success(callback: Any, result: Any) -> None:
+        """Handle success callback execution.
+        
+        Supports both raw callables and CallbackSpec objects.
+        """
+        if callback is None:
+            return
+        
+        try:
+            if RetryManager._is_callback_spec(callback):
+                # CallbackSpec: call func(result, None, *args, **kwargs)
+                args = callback.args or ()
+                kwargs = callback.kwargs or {}
+                callback.func(result, None, *args, **kwargs)
+            else:
+                # Raw callable: call callback(result, None)
+                callback(result, None)
+        except Exception as callback_error:  # pragma: no cover - defensive
+            logger.error("Success callback failed: {error}", error=callback_error)
+
+    @staticmethod
+    def _handle_failure(callback: Any, error: Exception) -> None:
+        """Handle failure callback execution.
+        
+        Supports both raw callables and CallbackSpec objects.
+        """
+        if callback is None:
+            return
+        
+        try:
+            if RetryManager._is_callback_spec(callback):
+                # CallbackSpec: call func(None, error, *args, **kwargs)
+                args = callback.args or ()
+                kwargs = callback.kwargs or {}
+                callback.func(None, error, *args, **kwargs)
+            else:
+                # Raw callable: call callback(None, error)
                 callback(None, error)
-            except Exception as callback_error:  # pragma: no cover - defensive
-                logger.error("Failure callback failed: {error}", error=callback_error)
+        except Exception as callback_error:  # pragma: no cover - defensive
+            logger.error("Failure callback failed: {error}", error=callback_error)
 
     @staticmethod
     def _log_success(context_name: str, start_time: dt.datetime) -> None:
