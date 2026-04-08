@@ -1,4 +1,5 @@
 import copy
+import warnings
 from collections.abc import Callable
 from typing import Any, Optional, Union
 
@@ -12,6 +13,11 @@ from .builder_adapter import AdapterBuilder
 
 class RunConfigBuilder:
     """A fluent builder for creating RunConfig objects.
+
+    .. deprecated::
+        This builder is deprecated. Use ``RunConfigBuilder`` from
+        ``flowerpower.utils.config`` instead, which provides a simpler,
+        more focused interface for building RunConfig objects.
 
     This builder provides a clean interface for constructing RunConfig objects
     with proper configuration merging from project and pipeline defaults.
@@ -32,6 +38,12 @@ class RunConfigBuilder:
             fs: Optional filesystem instance
             storage_options: Options for filesystem access
         """
+        warnings.warn(
+            "RunConfigBuilder from flowerpower.cfg.pipeline.builder is deprecated. "
+            "Use RunConfigBuilder from flowerpower.utils.config instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.pipeline_name = pipeline_name
         self.base_dir = base_dir or "."
         self._fs = fs

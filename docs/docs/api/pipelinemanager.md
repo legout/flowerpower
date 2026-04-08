@@ -104,7 +104,7 @@ When both `run_config` and individual parameters (`**kwargs`) are provided, the 
 ```python
 from flowerpower.pipeline import PipelineManager
 from flowerpower.cfg.pipeline.run import RunConfig
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 
 manager = PipelineManager()
 
@@ -126,7 +126,7 @@ config = RunConfig(
 )
 result = manager.run("ml_pipeline", run_config=config)
 
-# Using RunConfigBuilder from flowerpower.cfg.pipeline.builder (recommended)
+# Using RunConfigBuilder (recommended)
 config = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01"})

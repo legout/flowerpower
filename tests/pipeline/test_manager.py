@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
 from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.pipeline.manager import PipelineManager
