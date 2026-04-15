@@ -7,25 +7,49 @@ from hamilton import driver
 from rich import print
 
 # Import necessary config types and utility functions
-from ..cfg import PipelineConfig, ProjectConfig
-from ..utils.misc import view_img
+from ..cfg import ProjectConfig
+from ..settings import CONFIG_DIR, PIPELINES_DIR
+from ..utils.filesystem import add_modules_path, format_pipeline_package_root
+from ..utils.security import validate_directory_fragment, validate_pipeline_name
+from ..utils.visualization import view_img
 from .base import load_module  # Import module loading utility
+from .config_manager import PipelineConfigManager
 
 
 class PipelineVisualizer:
     """Handles the visualization of pipeline DAGs."""
 
-    def __init__(self, project_cfg: ProjectConfig, fs: AbstractFileSystem):
+    def __init__(
+        self,
+        project_cfg: ProjectConfig,
+        fs: AbstractFileSystem,
+        base_dir: str = ".",
+        cfg_dir: str = CONFIG_DIR,
+        pipelines_dir: str = PIPELINES_DIR,
+    ):
         """
         Initializes the PipelineVisualizer.
 
         Args:
             project_cfg: The project configuration object.
             fs: The filesystem instance.
+            base_dir: Project root used for config loading and import path setup.
+            cfg_dir: Configuration directory containing project/pipeline YAML files.
+            pipelines_dir: Python package / directory containing pipeline modules.
         """
         self.project_cfg = project_cfg
         self._fs = fs
-        # Attributes like fs and base_dir are accessed via self.project_cfg
+        self._base_dir = base_dir
+        self._cfg_dir = validate_directory_fragment(cfg_dir)
+        self._pipelines_dir = validate_directory_fragment(pipelines_dir)
+        self._config_manager = PipelineConfigManager(
+            base_dir=base_dir,
+            fs=fs,
+            storage_options={},
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        )
+        add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
     def _get_dag_object(
         self,
@@ -48,15 +72,15 @@ class PipelineVisualizer:
             ImportError: If the module cannot be loaded.
 
         Notes:
-            - String entries in ``additional_modules`` are resolved using the same
-              strategy as pipeline execution: the raw name, a hyphen-to-underscore
-              variant, and ``pipelines.<name>`` are attempted in order.
+            - Unqualified string entries in ``additional_modules`` are resolved
+              using the configured pipeline package first, then via raw imports,
+              with hyphen-to-underscore and ``pipelines.<name>`` fallbacks.
             - ``reload=True`` reloads every module (primary + additional) before the
               driver is constructed, which mirrors runtime execution behaviour.
 
         """
-        # Load pipeline-specific config
-        pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
+        name = validate_pipeline_name(name)
+        pipeline_cfg = self._config_manager.load_pipeline_config(name, reload=reload)
 
         # Load modules (primary + optional additional)
         modules = self._resolve_modules(name, additional_modules, reload)
@@ -80,7 +104,7 @@ class PipelineVisualizer:
     def save_dag(
         self,
         name: str,
-        base_dir: str,
+        base_dir: str = ".",
         format: str = "png",
         reload: bool = False,
         output_path: str | None = None,
@@ -112,6 +136,7 @@ class PipelineVisualizer:
             ... )
             >>> # Compose hello_world + setup from examples/hello-world/pipelines/
         """
+        name = validate_pipeline_name(name)
         dag = self._get_dag_object(
             name=name, reload=reload, additional_modules=additional_modules
         )
@@ -144,8 +169,11 @@ class PipelineVisualizer:
             cleanup=True,
             view=False,
         )
+        project_label = name
+        if self.project_cfg.name:
+            project_label = f"{self.project_cfg.name}.{name}"
         print(
-            f"📊 Saved graph for [bold blue]{self.project_cfg.name}.{name}[/bold blue] to [green]{final_path}[/green]"
+            f"📊 Saved graph for [bold blue]{project_label}[/bold blue] to [green]{final_path}[/green]"
         )
         return final_path
 
@@ -187,6 +215,7 @@ class PipelineVisualizer:
             ... )
             >>> # Compose hello_world + setup modules during development
         """
+        name = validate_pipeline_name(name)
         dag = self._get_dag_object(
             name=name, reload=reload, additional_modules=additional_modules
         )
@@ -227,23 +256,30 @@ class PipelineVisualizer:
                 importlib.reload(entry)
             return entry
 
-        try:
-            module_obj = load_module(name=entry, reload=reload)
-        except ImportError as original_error:
-            formatted = entry.replace("-", "_")
-            candidates = [formatted]
-            if not formatted.startswith("pipelines."):
-                candidates.append(f"pipelines.{formatted}")
+        formatted = entry.replace("-", "_")
+        package_root = format_pipeline_package_root(self._pipelines_dir)
+        candidates: list[str] = []
+        if package_root and "." not in formatted:
+            candidates.append(f"{package_root}.{formatted}")
+        for candidate in (entry, formatted):
+            if candidate not in candidates:
+                candidates.append(candidate)
+        if package_root and not formatted.startswith(f"{package_root}."):
+            qualified_candidate = f"{package_root}.{formatted}"
+            if qualified_candidate not in candidates:
+                candidates.append(qualified_candidate)
+        if package_root != PIPELINES_DIR and not formatted.startswith(
+            f"{PIPELINES_DIR}."
+        ):
+            candidates.append(f"{PIPELINES_DIR}.{formatted}")
 
-            for candidate in candidates:
-                try:
-                    module_obj = load_module(name=candidate, reload=reload)
-                    break
-                except ImportError:
-                    continue
-            else:
-                raise ImportError(
-                    f"Could not import module '{entry}'. Tried: {candidates}"
-                ) from original_error
+        errors: list[ImportError] = []
+        for candidate in candidates:
+            try:
+                return load_module(name=candidate, reload=reload)
+            except ImportError as error:
+                errors.append(error)
 
-        return module_obj
+        raise ImportError(
+            f"Could not import module '{entry}'. Tried: {candidates}"
+        ) from errors[-1] if errors else None

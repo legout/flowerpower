@@ -1,12 +1,13 @@
 # Import necessary libraries
+from typing import Annotated
+
 import typer
 from loguru import logger
-from typing_extensions import Annotated, Callable, Any
-from typing import Dict, List, Optional, Tuple
 
+from ..cfg.pipeline.run import RetryConfig, RunConfig
 from ..flowerpower import FlowerPowerProject
-from ..pipeline.manager import HookType, PipelineManager
-from ..cfg.pipeline.run import RunConfig, RetryConfig
+from ..pipeline.manager import PipelineManager
+from ..pipeline.registry import HookType
 from ..utils.logging import setup_logging
 from .utils import parse_dict_or_list_param
 
@@ -20,10 +21,10 @@ app = typer.Typer(help="Pipeline management commands")
 
 
 def parse_common_options(
-    base_dir: Optional[str] = None,
-    storage_options: Optional[str] = None,
-    log_level: Optional[str] = None,
-) -> Tuple[Optional[str], Dict, Optional[str]]:
+    base_dir: str | None = None,
+    storage_options: str | None = None,
+    log_level: str | None = None,
+) -> tuple[str | None, dict, str | None]:
     """Parse common CLI options and return processed values."""
     parsed_storage_options = parse_dict_or_list_param(storage_options, "dict")
     # Ensure storage_options is always a dict, not None or list
@@ -218,7 +219,9 @@ def run(
             logger.error(f"Invalid executor configuration: {e}")
             raise typer.Exit(1)
 
-        _ = project.run(name=name, run_config=run_config)
+        result = project.run(name=name, run_config=run_config)
+        output_names = ", ".join(result.keys()) if result else "<none>"
+        typer.echo(f"Pipeline '{name}' finished. Outputs: {output_names}")
         logger.info(f"Pipeline '{name}' finished running.")
     except (FileNotFoundError, PermissionError, OSError) as e:
         logger.error(f"File system error during pipeline execution: {e}")
@@ -284,7 +287,7 @@ def new(
         storage_options=parsed_storage_options,
         log_level=log_level,
     ) as manager:
-        manager.new(name=name, overwrite=overwrite)
+        manager.creator.create_pipeline(name=name, overwrite=overwrite)
     logger.info(f"New pipeline structure created for '{name}'.")
 
 
@@ -349,7 +352,7 @@ def delete(
         storage_options=parsed_storage_options,
         log_level=log_level,
     ) as manager:
-        manager.delete(name=name, cfg=delete_cfg, module=delete_module)
+        manager.creator.delete_pipeline(name=name, cfg=delete_cfg, module=delete_module)
 
     deleted_parts = []
     if delete_cfg:
@@ -419,7 +422,7 @@ def show_dag(
     ) as manager:
         # Manager's show_dag likely handles rendering or returning raw object
         try:
-            graph_or_none = manager.show_dag(
+            graph_or_none = manager.visualizer.show_dag(
                 name=name, format=format if not is_raw else "png", raw=is_raw
             )
             if is_raw and graph_or_none:
@@ -496,8 +499,8 @@ def save_dag(
         log_level=log_level,
     ) as manager:
         try:
-            file_path = manager.save_dag(
-                name=name, format=format, output_path=output_path
+            file_path = manager.visualizer.save_dag(
+                name=name, base_dir=base_dir or ".", format=format, output_path=output_path
             )
             logger.info(f"DAG for pipeline '{name}' saved to {file_path}.")
         except ImportError:
@@ -560,7 +563,20 @@ def show_pipelines(
         storage_options=parsed_storage_options,
         log_level=log_level,
     ) as manager:
-        manager.show_pipelines(format=format)
+        fmt = (format or "table").lower()
+        if fmt == "table":
+            manager.registry.show_pipelines()
+        else:
+            pipeline_info = manager.registry.list_pipeline_info()
+            if fmt == "json":
+                import json
+                print(json.dumps(pipeline_info))
+            elif fmt == "yaml":
+                import yaml  # type: ignore
+                print(yaml.safe_dump(pipeline_info, sort_keys=False))
+            else:
+                logger.warning(f"Unknown format '{format}', using table.")
+                manager.registry.show_pipelines()
 
 
 @app.command()
@@ -632,7 +648,7 @@ def show_summary(
         log_level=log_level,
     ) as manager:
         # Assumes manager.show_summary handles printing/returning formatted output
-        summary_output = manager.show_summary(
+        summary_output = manager.registry.show_summary(
             name=name,
             cfg=cfg,
             code=code,
@@ -726,7 +742,7 @@ def add_hook(
         log_level=log_level,
     ) as manager:
         try:
-            manager.add_hook(
+            manager.registry.add_hook(
                 name=name,
                 type=type,
                 to=to,

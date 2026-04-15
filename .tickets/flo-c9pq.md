@@ -1,6 +1,6 @@
 ---
 id: flo-c9pq
-status: open
+status: closed
 deps: [flo-b3nm]
 links: [flo-b3nm, flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -56,3 +56,15 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - Registry methods (new, delete, get_summary, show_summary, list_pipelines, show_pipelines, add_hook) still delegate (~150 lines).
 - Visualizer methods (save_dag, show_dag) still delegate (~80 lines).
 - Depends on flo-b3nm (lifecycle manager removal) which is also not done.
+
+**2026-04-10T16:16:57Z**
+
+Gate: REVISE (Review Attempt: 1/3) — Notebook example still calls removed PipelineManager.list_pipelines() at examples/data-etl-pipeline/notebook.ipynb:108. Update to pipeline_manager.registry.list_pipelines() or pipeline_manager.pipelines and re-validate.
+
+**2026-04-10T16:39:00Z**
+
+Gate: REVISE (Review Attempt: 2/3) — Two issues remain: (1) dev/run_pipeline.py calls obsolete sub-manager signatures (base_dir→dest_base_dir, extra kwargs on get_summary/show_summary). (2) PipelineManager.run_async() was removed but is still documented/required per acceptance criteria — must be restored.
+
+**2026-04-10T17:02:52Z**
+
+Gate: PASS — PipelineManager slimmed from ~1109 to ~497 lines. All 15 delegation methods removed, run_async() restored, CLI/docs/examples/dev-scripts aligned to sub-manager API. Passed on revise attempt 3/3 after fixing notebook (round 2), dev script signatures, and restoring run_async() (round 3).

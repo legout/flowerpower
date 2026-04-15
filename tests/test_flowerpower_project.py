@@ -8,6 +8,7 @@ from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.flowerpower import FlowerPowerProject
 from flowerpower.pipeline import PipelineManager
+from flowerpower.utils.security import SecurityError
 
 
 class TestFlowerPowerProject(unittest.TestCase):
@@ -147,10 +148,19 @@ class TestFlowerPowerProject(unittest.TestCase):
             # Verify load was called
             mock_load.assert_called_once_with(
                 base_dir="/tmp/test_path",
-                storage_options={},
+                storage_options=None,
                 fs=mock_fs,
                 log_level=None
             )
+
+    def test_new_method_rejects_invalid_hooks_dir(self):
+        with pytest.raises(SecurityError, match="Directory traversal"):
+            FlowerPowerProject.new(
+                name="test_project",
+                base_dir="/tmp/test_path",
+                hooks_dir="../escape",
+            )
+
     @patch('flowerpower.flowerpower.filesystem')
     @patch('flowerpower.flowerpower.Path')
     @patch('flowerpower.flowerpower.rich.print')
@@ -270,7 +280,7 @@ class TestFlowerPowerProject(unittest.TestCase):
         # Verify load was called
         mock_load.assert_called_once_with(
             base_dir="/test/path",
-            storage_options={},
+            storage_options=None,
             fs=None
         )
 
@@ -327,7 +337,7 @@ class TestFlowerPowerProject(unittest.TestCase):
         mock_new.assert_called_once_with(
             name="test_project",
             base_dir="/test/path",
-            storage_options={},
+            storage_options=None,
             fs=None,
             hooks_dir="custom_hooks",
             log_level="DEBUG"
@@ -379,7 +389,7 @@ class TestFlowerPowerProject(unittest.TestCase):
             # Verify manager creation
             mock_pipeline_manager.assert_called_once_with(
                 base_dir="/tmp/test/path",
-                storage_options={},
+                storage_options=None,
                 fs=mock_fs,
                 log_level=None
             )

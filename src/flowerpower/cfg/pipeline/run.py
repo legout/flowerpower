@@ -4,7 +4,6 @@ import importlib
 from munch import munchify
 from typing import Any
 from collections.abc import Callable
-from requests.exceptions import HTTPError, ConnectionError, Timeout  # Example exception
 from ... import settings
 from ..base import BaseConfig
 
@@ -226,11 +225,13 @@ class RunConfig(BaseConfig):
     config: dict | None = msgspec.field(default_factory=dict)
     cache: dict | bool | None = msgspec.field(default=False)
     with_adapter: WithAdapterConfig = msgspec.field(default_factory=WithAdapterConfig)
+    with_adapter_override_raw: Any | None = msgspec.field(default=None)
     executor: ExecutorConfig = msgspec.field(default_factory=ExecutorConfig)
     executor_override_raw: Any | None = msgspec.field(default=None)
     log_level: str | None = msgspec.field(default="INFO")
     # New nested retry configuration
     retry: RetryConfig | None = msgspec.field(default=None)
+    retry_override_raw: Any | None = msgspec.field(default=None)
     # Deprecated top-level retry fields (kept for backward compatibility)
     max_retries: int = msgspec.field(default=3)
     retry_delay: int | float = msgspec.field(default=1)
@@ -238,17 +239,29 @@ class RunConfig(BaseConfig):
     retry_exceptions: list[str] = msgspec.field(default_factory=lambda: ["Exception"])  # type: ignore[assignment]
     # New fields for comprehensive configuration
     pipeline_adapter_cfg: dict | None = msgspec.field(default=None)
+    pipeline_adapter_cfg_override_raw: Any | None = msgspec.field(default=None)
     project_adapter_cfg: dict | None = msgspec.field(default=None)
+    project_adapter_cfg_override_raw: Any | None = msgspec.field(default=None)
     adapter: dict[str, Any] | None = msgspec.field(default=None)
     reload: bool = msgspec.field(default=False)
     on_success: CallbackSpec | None = msgspec.field(default=None)
     on_failure: CallbackSpec | None = msgspec.field(default=None)
     additional_modules: list[str | Any] | None = msgspec.field(default=None)
     async_driver: bool | None = msgspec.field(default=None)
+    explicit_overrides: list[str] | None = msgspec.field(default=None)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         for field in DEPRECATED_RETRY_FIELDS:
+            data.pop(field, None)
+        for field in (
+            "with_adapter_override_raw",
+            "retry_override_raw",
+            "pipeline_adapter_cfg_override_raw",
+            "project_adapter_cfg_override_raw",
+            "executor_override_raw",
+            "explicit_overrides",
+        ):
             data.pop(field, None)
         retry_data = data.get("retry")
         if isinstance(retry_data, dict):
@@ -312,11 +325,9 @@ class RunConfig(BaseConfig):
                 if current_value != default_value:
                     legacy_overrides[field] = current_value
 
-        # if isinstance(self.inputs, dict):
-        #     self.inputs = munchify(self.inputs)
         if isinstance(self.config, dict):
             self.config = munchify(self.config)
-        if isinstance(self.cache, (dict)):
+        if isinstance(self.cache, dict):
             self.cache = munchify(self.cache)
         if isinstance(self.with_adapter, dict):
             self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
@@ -335,15 +346,17 @@ class RunConfig(BaseConfig):
             self.project_adapter_cfg = ProjectAdapterConfig.from_dict(
                 self.project_adapter_cfg
             )
-        if isinstance(self.adapter, dict):
-            # Convert adapter instances if needed
-            pass
 
         if self.additional_modules is not None:
             if isinstance(self.additional_modules, (str, bytes)):
                 self.additional_modules = [self.additional_modules]
             elif not isinstance(self.additional_modules, list):
                 self.additional_modules = list(self.additional_modules)  # type: ignore[arg-type]
+
+        if self.explicit_overrides is not None:
+            if not isinstance(self.explicit_overrides, list):
+                self.explicit_overrides = list(self.explicit_overrides)
+            self.explicit_overrides = list(dict.fromkeys(self.explicit_overrides))
 
         if self.async_driver is not None:
             self.async_driver = bool(self.async_driver)

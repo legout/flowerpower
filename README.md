@@ -124,7 +124,7 @@ from flowerpower import FlowerPowerProject
 project = FlowerPowerProject.load('.')
 
 # Create a new pipeline
-project.pipeline_manager.new(name='hello_world')
+project.pipeline_manager.registry.create_pipeline(name='hello_world')
 ```
 
 This will create a new file `hello_world.py` in the `pipelines/` directory and a corresponding configuration file `hello_world.yml` in `conf/pipelines/`.
@@ -442,7 +442,7 @@ from flowerpower.cfg.pipeline.builder import RunConfigBuilder
 pm = PipelineManager(base_dir='.')
 
 # Create a new pipeline
-pm.new(name='my_pipeline')
+pm.registry.create_pipeline(name='my_pipeline')
 
 # Run a pipeline synchronously using RunConfig
 config = RunConfig(inputs={'param': 'value'}, final_vars=['output_var'])
@@ -462,7 +462,7 @@ info = pm.get('my_pipeline')
 print(f"Pipeline config: {info}")
 
 # Delete a pipeline
-pm.delete('old_pipeline')
+pm.registry.delete_pipeline('old_pipeline')
 ```
 
 See [Compose Pipelines With Additional Modules](#compose-pipelines-with-additional-modules) for an example that loads `pipeline_setup` alongside the pipeline module.

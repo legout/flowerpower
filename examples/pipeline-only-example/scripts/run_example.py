@@ -238,7 +238,7 @@ def inspect_pipeline():
     )
 
     # Get pipeline information
-    pipelines = pipeline_manager.list_pipelines()
+    pipelines = pipeline_manager.registry.list_pipelines()
     print(f"📋 Available pipelines: {pipelines}")
 
     if "text_processor" in pipelines:

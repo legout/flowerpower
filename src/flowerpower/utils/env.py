@@ -14,8 +14,11 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Mapping
 import warnings
+from collections.abc import Mapping
+from typing import Any
+
+from loguru import logger
 
 
 def _coerce_value(raw: str) -> Any:
@@ -91,21 +94,13 @@ def parse_env_overrides(
     return overrides
 
 
-def _merge_dict(target: dict, source: dict) -> dict:
-    for k, v in source.items():
-        if isinstance(v, dict) and isinstance(target.get(k), dict):
-            _merge_dict(target[k], v)
-        else:
-            target[k] = v
-    return target
-
 
 def build_specific_overlays(overrides: dict) -> tuple[dict, dict]:
     """Return (project_overlay, pipeline_overlay) from parsed overrides.
 
     Example output paths (lowercased):
     - project: {"project": {"adapter": {"hamilton_tracker": {"api_key": "..."}}}}
-    - pipeline: {"pipeline": {"run": {"log_level": "DEBUG"}}}
+    - pipeline: {"pipeline": {"run": {"log_level": "DEBUG"}}}}
     """
     project: dict[str, Any] = {}
     pipeline: dict[str, Any] = {}
@@ -191,16 +186,47 @@ def apply_global_shims(
         tgt.setdefault("jitter_factor", g["JITTER_FACTOR"])
 
 
-def merge_overlays_into_config(
-    config_struct, project_overlay: dict, pipeline_overlay: dict
-):
-    """Merge parsed overlays into a Config-like struct (has .project and .pipeline)."""
-    # Use BaseConfig.merge_dict semantics via .update/merge_dict if present
-    if hasattr(config_struct, "project") and project_overlay:
-        cfg = getattr(config_struct, "project")
-        if hasattr(cfg, "update"):
-            cfg.update(project_overlay.get("project", {}))
-    if hasattr(config_struct, "pipeline") and pipeline_overlay:
-        cfg = getattr(config_struct, "pipeline")
-        if hasattr(cfg, "update"):
-            cfg.update(pipeline_overlay.get("pipeline", {}))
+def get_env_overlays(overrides: dict | None = None) -> tuple[dict, dict]:
+    """Parse and prepare environment overlays into structured configs.
+
+    Centralizes the env-overlay pipeline so callers only need to apply
+    the returned project and pipeline overlays to their config objects.
+
+    Args:
+        overrides: Optional pre-parsed overrides dict. If None, env vars
+            are parsed automatically via :func:`parse_env_overrides`.
+
+    Returns:
+        Tuple of (project_overlay, pipeline_overlay) ready to apply.
+    """
+    if overrides is None:
+        overrides = parse_env_overrides()
+    proj_overlay, pipe_overlay = build_specific_overlays(overrides)
+    apply_global_shims(overrides, proj_overlay, pipe_overlay)
+    return proj_overlay, pipe_overlay
+
+
+def apply_env_overlays(
+    project_cfg=None,
+    pipeline_cfg=None,
+    overlays: tuple[dict, dict] | None = None,
+) -> tuple[dict, dict]:
+    """Apply environment overlays to config objects in one canonical path.
+
+    Parses environment overrides and merges them into the provided
+    project and/or pipeline configuration objects. This is the single
+    place where overlay application logic lives; all config loaders
+    should call this helper rather than reimplementing the merge.
+    """
+    try:
+        proj_overlay, pipe_overlay = overlays or get_env_overlays()
+        if project_cfg is not None and proj_overlay:
+            if hasattr(project_cfg, "update"):
+                project_cfg.update(proj_overlay.get("project", {}))
+        if pipeline_cfg is not None and pipe_overlay:
+            if hasattr(pipeline_cfg, "update"):
+                pipeline_cfg.update(pipe_overlay.get("pipeline", {}))
+        return proj_overlay, pipe_overlay
+    except Exception as e:
+        logger.debug(f"Env overlay application failed: {e}")
+        return {}, {}

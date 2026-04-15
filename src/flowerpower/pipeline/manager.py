@@ -1,35 +1,26 @@
 import os
 import posixpath
-import sys
-import warnings
 from pathlib import Path
 from types import TracebackType
-from typing import Any, TypeVar, Union
-
-from munch import Munch
-
-try:
-    from graphviz import Digraph
-except ImportError:
-    Digraph = Any  # Type alias for when graphviz isn't installed
+from typing import Any
 
 from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
+from munch import Munch
 
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
 from ..settings import CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
-from ..utils.filesystem import FilesystemHelper
+from ..utils.filesystem import FilesystemHelper, add_modules_path
 from ..utils.logging import setup_logging
+from ..utils.security import validate_directory_fragment
 from .config_manager import PipelineConfigManager
+from .creator import PipelineCreator
 from .executor import PipelineExecutor
 from .io import PipelineIOManager
-from .lifecycle_manager import PipelineLifecycleManager
-from .registry import HookType, PipelineRegistry
+from .registry import PipelineRegistry
 from .visualizer import PipelineVisualizer
 
 setup_logging()
-
-GraphType = TypeVar("GraphType")  # Type variable for graphviz.Digraph
 
 
 class PipelineManager:
@@ -37,15 +28,20 @@ class PipelineManager:
 
     This class provides a unified interface for managing pipelines, including:
     - Configuration management and loading
-    - Pipeline creation, deletion, and discovery
-    - Pipeline execution via PipelineRunner
-    - Visualization via PipelineVisualizer
-    - Import/export operations via PipelineIOManager
+    - Pipeline execution via PipelineExecutor
+    - Access to sub-managers for registry, IO, visualization, and execution
+
+    Sub-managers are accessible as properties:
+    - ``registry`` — Pipeline creation, deletion, discovery, hooks
+    - ``io`` — Pipeline import/export operations
+    - ``visualizer`` — DAG visualization
+    - ``executor`` — Pipeline execution engine
 
     Attributes:
         registry (PipelineRegistry): Handles pipeline registration and discovery
         visualizer (PipelineVisualizer): Handles pipeline visualization
         io (PipelineIOManager): Manages pipeline import/export operations
+        executor (PipelineExecutor): Handles pipeline execution
         project_cfg (ProjectConfig): Current project configuration
         pipeline_cfg (PipelineConfig): Current pipeline configuration
         pipelines (list[str]): List of available pipeline names
@@ -63,6 +59,15 @@ class PipelineManager:
         ...     base_dir="/path/to/project",
         ...     log_level="DEBUG"
         ... )
+        >>>
+        >>> # Run a pipeline
+        >>> result = manager.run("my_pipeline")
+        >>>
+        >>> # Access sub-managers directly
+        >>> manager.creator.create_pipeline("new_pipeline")
+        >>> manager.io.import_pipeline("new", "/path/to/source")
+        >>> manager.visualizer.save_dag("my_pipeline", base_dir=".")
+        >>> manager.visualizer.show_dag("my_pipeline")
     """
 
     def __init__(
@@ -109,8 +114,7 @@ class PipelineManager:
             ...     storage_options={
             ...         "key": "ACCESS_KEY",
             ...         "secret": "SECRET_KEY"
-            ...     },
-
+            ... },
             ...     log_level="DEBUG"
             ... )
         """
@@ -120,7 +124,7 @@ class PipelineManager:
         self._setup_filesystem(base_dir, storage_options, fs, cfg_dir, pipelines_dir)
         self._initialize_managers()
         self._ensure_directories_exist()
-        self._add_modules_path()
+        add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
     def _setup_filesystem(
         self,
@@ -140,8 +144,12 @@ class PipelineManager:
             pipelines_dir: Pipelines directory name
         """
         self._base_dir = base_dir or str(Path.cwd())
-        self._cfg_dir = cfg_dir
-        self._pipelines_dir = pipelines_dir
+        self._cfg_dir = validate_directory_fragment(
+            cfg_dir if cfg_dir is not None else CONFIG_DIR
+        )
+        self._pipelines_dir = validate_directory_fragment(
+            pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
+        )
 
         # Setup filesystem helper
         self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
@@ -185,6 +193,7 @@ class PipelineManager:
             fs=self._fs,
             storage_options=self._storage_options,
             cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
         )
 
         # Load project configuration
@@ -196,49 +205,44 @@ class PipelineManager:
             fs=self._fs,
             base_dir=self._base_dir,
             storage_options=self._storage_options,
+            config_manager=self._config_manager,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
         )
 
-        # Initialize specialized managers
+        # Initialize creator
+        self._creator = PipelineCreator(
+            project_cfg=self._config_manager.project_config,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        )
+
+        # Initialize executor
         self._executor = PipelineExecutor(
             config_manager=self._config_manager, registry=self.registry
         )
-        self._lifecycle_manager = PipelineLifecycleManager(registry=self.registry)
 
         # Initialize other components
         self._project_context = None
         self.visualizer = PipelineVisualizer(
-            project_cfg=self._config_manager.project_config, fs=self._fs
+            project_cfg=self._config_manager.project_config,
+            fs=self._fs,
+            base_dir=self._base_dir,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
         )
         self.io = PipelineIOManager(registry=self.registry)
 
     def _ensure_directories_exist(self) -> None:
         """Ensure essential directories exist."""
         self._fs_helper.ensure_directories_exist(
-            self._fs, self._cfg_dir, self._pipelines_dir
+            self._fs,
+            self._cfg_dir or ".",
+            self._pipelines_dir or ".",
+            posixpath.join(self._cfg_dir or ".", self._pipelines_dir or "."),
         )
 
-    def _add_modules_path(self) -> None:
-        """Add pipeline module paths to Python path.
-
-        This internal method ensures that pipeline modules can be imported by:
-        1. Syncing filesystem cache if needed
-        2. Adding project root to Python path
-        3. Adding pipelines directory to Python path
-        """
-        if self._fs.is_cache_fs:
-            self._fs.sync_cache()
-            project_path = self._fs._mapper.directory
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-        else:
-            # Use the base directory directly if not using cache
-            project_path = self._fs.path
-            modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-        if project_path not in sys.path:
-            sys.path.insert(0, project_path)
-
-        if modules_path not in sys.path:
-            sys.path.insert(0, modules_path)
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -270,18 +274,7 @@ class PipelineManager:
             exc_type: Type of exception that occurred, if any
             exc_val: Exception instance that occurred, if any
             exc_tb: Traceback of exception that occurred, if any
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> with PipelineManager() as manager:
-            ...     try:
-            ...         result = manager.run("my_pipeline")
-            ...     except Exception as e:
-            ...         print(f"Error: {e}")
-            ...     # Resources automatically cleaned up here
         """
-        # Add cleanup code if needed
         pass
 
     def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
@@ -296,6 +289,8 @@ class PipelineManager:
             PipelineConfig: The loaded pipeline configuration object
         """
         return self._config_manager.load_pipeline_config(name, reload)
+
+    # --- Properties ---
 
     @property
     def current_pipeline_name(self) -> str:
@@ -314,9 +309,6 @@ class PipelineManager:
 
         Returns:
             ProjectConfig: Project-wide configuration object.
-
-        Raises:
-            RuntimeError: If configuration loading fails.
 
         Example:
             >>> manager = PipelineManager()
@@ -338,12 +330,70 @@ class PipelineManager:
 
         Example:
             >>> manager = PipelineManager()
-            >>> manager._load_pipeline_cfg("example_pipeline")
+            >>> manager.load_pipeline("example_pipeline")
             >>> cfg = manager.pipeline_cfg
             >>> print(cfg.run.executor)
             'local'
         """
         return self._config_manager.pipeline_config
+
+    @property
+    def creator(self) -> PipelineCreator:
+        """Get the pipeline creator.
+
+        Returns:
+            PipelineCreator: The pipeline creation/deletion helper.
+        """
+        return self._creator
+
+    @property
+    def executor(self) -> PipelineExecutor:
+        """Get the pipeline executor.
+
+        Returns:
+            PipelineExecutor: The pipeline execution engine.
+        """
+        return self._executor
+
+    @property
+    def pipelines(self) -> list[str]:
+        """Get list of all available pipeline names.
+
+        Delegates to ``registry.pipelines``.
+
+        Returns:
+            list[str]: Names of all registered pipelines, sorted alphabetically.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>>
+            >>> manager = PipelineManager()
+            >>> print(manager.pipelines)
+            ['data_ingestion', 'model_training', 'reporting']
+        """
+        return self.registry.pipelines
+
+    @property
+    def summary(self) -> dict[str, dict | str]:
+        """Get complete summary of all pipelines.
+
+        Delegates to ``registry.summary``.
+
+        Returns:
+            dict[str, dict | str]: Full summary including configuration,
+            code, and project settings for all pipelines.
+
+        Example:
+            >>> from flowerpower.pipeline import PipelineManager
+            >>>
+            >>> manager = PipelineManager()
+            >>> summary = manager.summary
+            >>> for name, details in summary.items():
+            ...     print(f"{name}: {details['config']['type']}")
+            data_pipeline: batch
+            ml_pipeline: streaming
+        """
+        return self.registry.summary
 
     # --- Core Execution Method ---
 
@@ -353,7 +403,7 @@ class PipelineManager:
         """Execute a pipeline synchronously and return its results.
 
         This is the main method for running pipelines directly. It handles configuration
-        loading, adapter setup, and execution via PipelineRunner.
+        loading, adapter setup, and execution via PipelineExecutor.
 
         Args:
             name (str): Name of the pipeline to run. Must be a valid identifier.
@@ -382,8 +432,10 @@ class PipelineManager:
                     load alongside the primary pipeline for Hamilton execution.
                     Example: ["setup", setup_module]
                     Notes:
-                        - String entries are attempted as-is, with fallbacks to a
-                          hyphen-to-underscore variant and to `pipelines.<name>`.
+                        - Unqualified string entries are first resolved against the
+                          configured pipeline package, then attempted as raw imports,
+                          with hyphen-to-underscore and `pipelines.<name>` fallbacks
+                          for compatibility.
                         - When multiple modules provide the same node, later modules
                           take precedence following Hamilton semantics.
                 reload (bool): Force reload of pipeline configuration.
@@ -436,674 +488,32 @@ class PipelineManager:
         # Delegate to executor
         return self._executor.run(name=name, run_config=run_config, **kwargs)
 
-    # --- Delegated Methods ---
+    async def run_async(
+        self, name: str, run_config: RunConfig | None = None, **kwargs
+    ) -> dict[str, Any]:
+        """Execute a pipeline asynchronously and return its results.
 
-    # Registry Delegations
-    def new(self, name: str, overwrite: bool = False) -> None:
-        """Create a new pipeline with the given name.
-
-        Creates necessary configuration files and pipeline module template.
-
-        Args:
-            name: Name for the new pipeline. Must be a valid Python identifier.
-            overwrite: Whether to overwrite existing pipeline with same name.
-                Default False for safety.
-
-        Raises:
-            ValueError: If name is invalid or pipeline exists and overwrite=False
-            RuntimeError: If file creation fails
-            PermissionError: If lacking write permissions
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> # Create new pipeline
-            >>> manager = PipelineManager()
-            >>> manager.new("data_transformation")
-            >>>
-            >>> # Overwrite existing pipeline
-            >>> manager.new("data_transformation", overwrite=True)
-        """
-        self._lifecycle_manager.create_pipeline(name=name, overwrite=overwrite)
-
-    def delete(self, name: str, cfg: bool = True, module: bool = False) -> None:
-        """
-        Delete a pipeline and its associated files.
+        This is the async counterpart to :meth:`run`. It uses Hamilton's async
+        driver internally.
 
         Args:
-            name: Name of the pipeline to delete
-            cfg: Whether to delete configuration files. Default True.
-            module: Whether to delete Python module file. Default False
-                for safety since it may contain custom code.
-
-        Raises:
-            FileNotFoundError: If specified pipeline files don't exist
-            PermissionError: If lacking delete permissions
-            RuntimeError: If deletion fails partially, leaving inconsistent state
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> # Delete pipeline config only
-            >>> manager = PipelineManager()
-            >>> manager.delete("old_pipeline")
-            >>>
-            >>> # Delete both config and module
-            >>> manager.delete("test_pipeline", module=True)
-        """
-        self._lifecycle_manager.delete_pipeline(name=name, cfg=cfg, module=module)
-
-    def get_summary(
-        self,
-        name: str | None = None,
-        cfg: bool = True,
-        code: bool = True,
-        project: bool = True,
-    ) -> dict[str, dict | str]:
-        """Get a detailed summary of pipeline(s) configuration and code.
-
-        Args:
-            name: Specific pipeline to summarize. If None, summarizes all.
-            cfg: Include pipeline configuration details. Default True.
-            code: Include pipeline module code. Default True.
-            project: Include project configuration. Default True.
+            name: Name of the pipeline to run.
+            run_config: Run configuration object. When ``async_driver`` is
+                ``None`` or ``True`` the Hamilton async driver is used; setting
+                it to ``False`` raises a ``ValueError``.
+            **kwargs: Additional parameters to override the run_config. See
+                :meth:`run` for the full list of supported keyword arguments.
 
         Returns:
-            dict[str, dict | str]: Nested dictionary containing requested
-                summaries. Structure varies based on input parameters:
-                - With name: {"config": dict, "code": str, "project": dict}
-                - Without name: {pipeline_name: {"config": dict, ...}, ...}
+            dict[str, Any]: Results of pipeline execution.
 
         Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
             >>> manager = PipelineManager()
-            >>>
-            >>> # Get summary of specific pipeline
-            >>> summary = manager.get_summary("data_pipeline")
-            >>> print(summary["config"]["schedule"]["enabled"])
-            True
-            >>>
-            >>> # Get summary of all pipelines' code
-            >>> all_code = manager.get_summary(
-            ...     cfg=False,
-            ...     code=True,
-            ...     project=False
-            ... )
+            >>> result = await manager.run_async("my_pipeline")
         """
-        return self.registry.get_summary(name=name, cfg=cfg, code=code, project=project)
+        if hasattr(self, "_project_context") and self._project_context is not None:
+            self._executor._project_context = self._project_context
 
-    def show_summary(
-        self,
-        name: str | None = None,
-        cfg: bool = True,
-        code: bool = True,
-        project: bool = True,
-        to_html: bool = False,
-        to_svg: bool = False,
-    ) -> None | str:
-        """
-        Show a summary of the pipelines.
-
-        Args:
-            name (str | None, optional): The name of the pipeline. Defaults to None.
-            cfg (bool, optional): Whether to show the configuration. Defaults to True.
-            code (bool, optional): Whether to show the module. Defaults to True.
-            project (bool, optional): Whether to show the project configuration. Defaults to True.
-            to_html (bool, optional): Whether to export the summary to HTML. Defaults to False.
-            to_svg (bool, optional): Whether to export the summary to SVG. Defaults to False.
-
-        Returns:
-            None | str: The summary of the pipelines. If `to_html` is True, returns the HTML string.
-                If `to_svg` is True, returns the SVG string.
-
-        Examples:
-            >>> pm = PipelineManager()
-            >>> pm.show_summary()
-        """
-        return self._lifecycle_manager.show_summary(
-            name=name,
-            cfg=cfg,
-            code=code,
-            project=project,
-            to_html=to_html,
-            to_svg=to_svg,
-        )
-
-    def list_pipelines(self) -> list[str]:
-        """Get list of all available pipeline names.
-
-        Returns:
-            list[str]: Names of all registered pipelines, sorted alphabetically.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> pipelines = manager.list_pipelines()
-            >>> print(pipelines)
-            ['data_ingestion', 'model_training', 'reporting']
-        """
-        return self._lifecycle_manager.list_pipelines()
-
-    def show_pipelines(self, format: str = "table") -> None:
-        """Display all available pipelines in a selected format.
-
-        Args:
-            format: One of "table", "json", or "yaml". Defaults to "table".
-        """
-        fmt = (format or "table").lower()
-        if fmt == "table":
-            return self.registry.show_pipelines()
-        names = self._lifecycle_manager.list_pipelines()
-        try:
-            if fmt == "json":
-                import json
-
-                print(json.dumps(names))
-                return None
-            if fmt == "yaml":
-                import yaml  # type: ignore
-
-                print(yaml.safe_dump(names, sort_keys=False))
-                return None
-        except Exception as e:
-            warnings.warn(
-                f"Failed to format pipelines as {fmt}: {e}. Falling back to table.",
-                RuntimeWarning,
-            )
-            return self.registry.show_pipelines()
-        warnings.warn(f"Unknown format '{format}', using table.", RuntimeWarning)
-        return self.registry.show_pipelines()
-
-    @property
-    def pipelines(self) -> list[str]:
-        """Get list of all available pipeline names.
-
-        Similar to list_pipelines() but as a property.
-
-        Returns:
-            list[str]: Names of all registered pipelines, sorted alphabetically.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> print(manager.pipelines)
-            ['data_ingestion', 'model_training', 'reporting']
-        """
-        return self._lifecycle_manager.pipelines
-
-    @property
-    def summary(self) -> dict[str, dict | str]:
-        """Get complete summary of all pipelines.
-
-        Returns:
-            dict[str, dict | str]: Full summary including configuration,
-            code, and project settings for all pipelines.
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> summary = manager.summary
-            >>> for name, details in summary.items():
-            ...     print(f"{name}: {details['config']['type']}")
-            data_pipeline: batch
-            ml_pipeline: streaming
-        """
-        return self._lifecycle_manager.summary
-
-    def add_hook(
-        self,
-        name: str,
-        type: HookType,
-        to: str | None,
-        function_name: str | None,
-    ) -> None:
-        """Add a hook to the pipeline module.
-
-        Args:
-            name (str): The name of the pipeline
-            type (HookType): The type of the hook.
-            to (str | None, optional): The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
-            function_name (str | None, optional): The name of the function. If not provided uses default name of hook type.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the hook type is not valid
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>> manager.add_hook(
-            ...     name="data_pipeline",
-            ...     type=HookType.PRE_EXECUTE,
-            ...     to="pre_execute_hook",
-            ...     function_name="my_pre_execute_function"
-            ... )
-        """
-        self._lifecycle_manager.add_hook(
-            name=name,
-            type=type,
-            to=to,
-            function_name=function_name,
-        )
-
-    # IO Delegations
-    def import_pipeline(
-        self,
-        name: str,
-        src_base_dir: str,
-        src_fs: AbstractFileSystem | None = None,
-        src_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Import a pipeline from another FlowerPower project.
-
-        Copies both pipeline configuration and code files from the source location
-        to the current project.
-
-        Args:
-            name (str): Name for the new pipeline in the current project
-            src_base_dir (str): Source FlowerPower project directory or URI
-                Examples:
-                    - Local: "/path/to/other/project"
-                    - S3: "s3://bucket/project"
-                    - GitHub: "github://org/repo/project"
-            src_fs (AbstractFileSystem | None): Pre-configured source filesystem
-                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
-            src_storage_options (dict | BaseStorageOptions | None): Options for source filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite: Whether to replace existing pipeline if name exists
-
-        Raises:
-            ValueError: If pipeline name exists and overwrite=False
-            FileNotFoundError: If source pipeline not found
-            RuntimeError: If import fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>> from s3fs import S3FileSystem
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Import from local filesystem
-            >>> manager.import_pipeline(
-            ...     "new_pipeline",
-            ...     "/path/to/other/project"
-            ... )
-            >>>
-            >>> # Import from S3 with custom filesystem
-            >>> s3 = S3FileSystem(anon=False)
-            >>> manager.import_pipeline(
-            ...     "s3_pipeline",
-            ...     "s3://bucket/project",
-            ...     src_fs=s3
-            ... )
-        """
-        return self.io.import_pipeline(
-            name=name,
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
-
-    def import_many(
-        self,
-        names: list[str],
-        src_base_dir: str,  # Base dir for source if pipelines is a list
-        src_fs: AbstractFileSystem | None = None,
-        src_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Import multiple pipelines from another project or location.
-
-
-        Args:
-            pipelines(list[str]): List of pipeline names to import
-            src_base_dir (str, optional): Source project directory or URI
-                Examples:
-                    - Local: "/path/to/other/project"
-                    - S3: "s3://bucket/project"
-                    - GitHub: "github://org/repo/project"
-            src_fs (AbstractFileSystem | None, optional): Pre-configured source filesystem
-                Example: S3FileSystem(key='ACCESS_KEY', secret="SECRET_KEY")
-            storage_options (dict | BaseStorageOptions | None, optional): Options for source filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite (bool, optional): Whether to replace existing pipelines
-
-        Raises:
-            ValueError: If any pipeline exists and overwrite=False
-            FileNotFoundError: If source pipelines not found
-            RuntimeError: If import operation fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Import keeping original names
-            >>> manager.import_many(
-            ...     names=["pipeline1", "pipeline2"],
-            ...     src_base_dir="s3://bucket/source",
-            ...     src_storage_options={
-            ...         "key": "ACCESS_KEY",
-            ...         "secret": "SECRET_KEY"
-            ...     }
-            ... )
-        """
-        return self.io.import_many(
-            names=names,
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
-
-    def import_all(
-        self,
-        src_base_dir: str,
-        src_fs: AbstractFileSystem | None = None,
-        src_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Import all pipelines from another FlowerPower project.
-
-        Args:
-            src_base_dir (str): Source project directory or URI
-                Examples:
-                    - Local: "/path/to/other/project"
-                    - S3: "s3://bucket/project"
-                    - GitHub: "github://org/repo/project"
-            src_fs (AbstractFileSystem | None): Pre-configured source filesystem
-                Example: S3FileSystem(key='KEY',secret='SECRET')
-            src_storage_options (dict | BaseStorageOptions | None): Options for source filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite (bool): Whether to replace existing pipelines
-
-        Raises:
-            FileNotFoundError: If source location not found
-            RuntimeError: If import fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Import all from backup
-            >>> manager.import_all("/path/to/backup")
-            >>>
-            >>> # Import all from S3 with credentials
-            >>> manager.import_all(
-            ...     "s3://bucket/backup",
-            ...     src_storage_options={
-            ...         "key": "ACCESS_KEY",
-            ...         "secret": "SECRET_KEY"
-            ...     }
-            ... )
-        """
-        return self.io.import_all(
-            src_base_dir=src_base_dir,
-            src_fs=src_fs,
-            src_storage_options=src_storage_options,
-            overwrite=overwrite,
-        )
-
-    def export_pipeline(
-        self,
-        name: str,
-        dest_base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Export a pipeline to another location or project.
-
-        Copies pipeline configuration and code files to the destination location
-        while preserving directory structure.
-
-        Args:
-            name (str): Name of the pipeline to export
-            dest_base_dir (str): Destination directory or URI
-                Examples:
-                    - Local: "/path/to/exports"
-                    - S3: "s3://bucket/exports"
-                    - Azure: "abfs://container/exports"
-            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
-                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
-            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite (bool): Whether to replace existing files at destination
-
-        Raises:
-            ValueError: If pipeline doesn't exist
-            FileNotFoundError: If destination not accessible
-            RuntimeError: If export fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>> from gcsfs import GCSFileSystem
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Export to local backup
-            >>> manager.export_pipeline(
-            ...     "my_pipeline",
-            ...     "/path/to/backup"
-            ... )
-            >>>
-            >>> # Export to Google Cloud Storage
-            >>> gcs = GCSFileSystem(project='my-project')
-            >>> manager.export_pipeline(
-            ...     "prod_pipeline",
-            ...     "gs://my-bucket/backups",
-            ...     dest_fs=gcs
-            ... )
-        """
-        return self.io.export_pipeline(
-            name=name,
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
-
-    def export_many(
-        self,
-        names: list[str],
-        dest_base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Export multiple pipelines to another location.
-
-        Efficiently exports multiple pipelines in a single operation,
-        preserving directory structure and metadata.
-
-        Args:
-            names (list[str]): List of pipeline names to export
-            dest_base_dir (str): Destination directory or URI
-                Examples:
-                    - Local: "/path/to/exports"
-                    - S3: "s3://bucket/exports"
-                    - Azure: "abfs://container/exports"
-            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
-                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
-            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite (bool): Whether to replace existing files at destination
-
-        Raises:
-            ValueError: If any pipeline doesn't exist
-            FileNotFoundError: If destination not accessible
-            RuntimeError: If export operation fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>> from azure.storage.filedatalake import DataLakeServiceClient
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Export multiple pipelines to Azure Data Lake
-            >>> manager.export_many(
-            ...     pipelines=["ingest", "process", "report"],
-            ...     base_dir="abfs://data/backups",
-            ...     dest_storage_options={
-            ...         "account_name": "myaccount",
-            ...         "sas_token": "...",
-            ...     }
-            ... )
-        """
-        return self.io.export_many(
-            names=names,
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
-
-    def export_all(
-        self,
-        dest_base_dir: str,
-        dest_fs: AbstractFileSystem | None = None,
-        dest_storage_options: dict | BaseStorageOptions | None = {},
-        overwrite: bool = False,
-    ) -> None:
-        """Export all pipelines to another location.
-
-        Args:
-            dest_base_dir (str): Destination directory or URI
-                Examples:
-                    - Local: "/path/to/exports"
-                    - S3: "s3://bucket/exports"
-                    - Azure: "abfs://container/exports"
-            dest_fs (AbstractFileSystem | None): Pre-configured destination filesystem
-                Example: S3FileSystem(key='ACCESS_KEY', secret='SECRET_KEY')
-            dest_storage_options (dict | BaseStorageOptions | None): Options for destination filesystem access
-                Example: {"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-            overwrite (bool): Whether to replace existing files at destination
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Export all to backup directory
-            >>> manager.export_all("/path/to/backup")
-            >>>
-            >>> # Export all to cloud storage
-            >>> manager.export_all(
-            ...     "gs://bucket/pipelines",
-            ...     dest_storage_options={
-            ...         "token": "SERVICE_ACCOUNT_TOKEN",
-            ...         "project": "my-project"
-            ...     }
-            ... )
-        """
-        return self.io.export_all(
-            dest_base_dir=dest_base_dir,
-            dest_fs=dest_fs,
-            dest_storage_options=dest_storage_options,
-            overwrite=overwrite,
-        )
-
-    # Visualizer Delegations
-    def save_dag(
-        self,
-        name: str,
-        format: str = "png",
-        reload: bool = False,
-        output_path: str | None = None,
-    ) -> str:
-        """Save pipeline DAG visualization to a file.
-
-        Creates a visual representation of the pipeline's directed acyclic graph (DAG)
-        showing function dependencies and data flow.
-
-        Args:
-            name: Name of the pipeline to visualize
-            format: Output file format. Supported formats:
-                - "png": Standard bitmap image
-                - "svg": Scalable vector graphic
-                - "pdf": Portable document format
-                - "dot": Graphviz DOT format
-            reload: Whether to reload pipeline before visualization
-
-        Raises:
-            ValueError: If pipeline name doesn't exist
-            ImportError: If required visualization dependencies missing
-            RuntimeError: If graph generation fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Save as PNG
-            >>> manager.save_dag("data_pipeline")
-            >>>
-            >>> # Save as SVG with reload
-            >>> manager.save_dag(
-            ...     name="ml_pipeline",
-            ...     format="svg",
-            ...     reload=True
-            ... )
-        """
-
-        return self.visualizer.save_dag(
-            name=name,
-            format=format,
-            reload=reload,
-            output_path=output_path,
-            base_dir=self._base_dir,
-        )
-
-    def show_dag(
-        self, name: str, format: str = "png", reload: bool = False, raw: bool = False
-    ) -> Union[GraphType, None]:
-        """Display pipeline DAG visualization interactively.
-
-        Similar to save_dag() but displays the graph immediately in notebook
-        environments or returns the raw graph object for custom rendering.
-
-        Args:
-            name: Name of the pipeline to visualize
-            format: Output format (see save_dag() for options)
-            reload: Whether to reload pipeline before visualization
-            raw: If True, return the raw graph object instead of displaying
-
-        Returns:
-            Union[GraphType, None]: Raw graph object if raw=True, else None after
-                displaying the visualization
-
-        Raises:
-            ValueError: If pipeline name doesn't exist
-            ImportError: If visualization dependencies missing
-            RuntimeError: If graph generation fails
-
-        Example:
-            >>> from flowerpower.pipeline import PipelineManager
-            >>>
-            >>> manager = PipelineManager()
-            >>>
-            >>> # Display in notebook
-            >>> manager.show_dag("data_pipeline")
-            >>>
-            >>> # Get raw graph for custom rendering
-            >>> graph = manager.show_dag(
-            ...     name="ml_pipeline",
-            ...     format="svg",
-            ...     raw=True
-            ... )
-            >>> # Custom rendering
-            >>> graph.render("custom_vis", view=True)
-        """
-        return self.visualizer.show_dag(
-            name=name, format=format, reload=reload, raw=raw
+        return await self._executor.run_async(
+            name=name, run_config=run_config, **kwargs
         )

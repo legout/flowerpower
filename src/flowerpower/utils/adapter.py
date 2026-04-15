@@ -1,15 +1,10 @@
-"""
-Adapter utilities for FlowerPower pipeline management.
+"""Adapter utilities for FlowerPower pipeline management."""
 
-This module provides helper classes for managing adapter configurations
-and creating adapter instances with proper error handling and validation.
-"""
+from typing import Any, Optional
 
-import sys
-from typing import Any, Dict, Optional
-
-import msgspec
 from loguru import logger
+
+from .config import build_sparse_struct_patch
 
 
 class AdapterManager:
@@ -20,15 +15,19 @@ class AdapterManager:
     and instance creation to reduce complexity in the Pipeline class.
     """
 
-    def __init__(self):
-        """Initialize the adapter manager."""
-        self._adapter_cache: Dict[str, Any] = {}
-
     def _merge_configs(self, base_config: Any, override_config: Any) -> Any:
         """Merge override config into base config."""
         if not override_config:
             return base_config
-        return base_config.merge(override_config) if base_config else override_config
+        if base_config is None:
+            return override_config
+        if hasattr(base_config, "merge_dict") and hasattr(override_config, "__struct_fields__"):
+            patch = build_sparse_struct_patch(
+                override_config,
+                type(override_config)(),
+            )
+            return base_config.merge_dict(patch) if patch else base_config
+        return base_config.merge(override_config)
 
     def resolve_with_adapter_config(
         self, with_adapter_cfg: dict | Any | None, base_config: Any
@@ -180,15 +179,6 @@ class AdapterManager:
             if adapter:
                 adapters.append(adapter)
 
-        # OpenTelemetry adapter - removed, see ticket flo-apob
-        # if getattr(with_adapter_cfg, "opentelemetry", None):
-        #     adapter = self._create_opentelemetry_adapter(
-        #         getattr(pipeline_adapter_cfg, "opentelemetry", None),
-        #         getattr(project_adapter_cfg, "opentelemetry", None),
-        #     )
-        #     if adapter:
-        #         adapters.append(adapter)
-
         return adapters
 
     def _create_hamilton_tracker(
@@ -237,26 +227,6 @@ class AdapterManager:
         mlflow_kwargs = project_config.to_dict()
         mlflow_kwargs.update(pipeline_config.to_dict())
         return h_mlflow.MLFlowTracker(**mlflow_kwargs)
-
-    def _create_opentelemetry_adapter(
-        self, pipeline_config: Any, project_config: Any
-    ) -> Optional[Any]:
-        """Create OpenTelemetry adapter instance.
-
-        Note: OpenTelemetry adapter support is currently not implemented.
-        This method exists as a placeholder for future implementation.
-        See ticket flo-apob for context.
-        """
-        logger.warning(
-            "OpenTelemetry adapter is not implemented. "
-            "Set opentelemetry=False in adapter config to suppress this warning."
-        )
-        return None
-
-    def clear_cache(self) -> None:
-        """Clear the adapter cache."""
-        self._adapter_cache.clear()
-
 
 def create_adapter_manager() -> AdapterManager:
     """

@@ -1,12 +1,8 @@
 """Security utilities for input validation and sanitization."""
 
-import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from typing import Any
 
 
 class SecurityError(Exception):
@@ -16,8 +12,8 @@ class SecurityError(Exception):
 
 
 def validate_file_path(
-    path: Union[str, Path],
-    allowed_extensions: Optional[List[str]] = None,
+    path: str | Path,
+    allowed_extensions: list[str] | None = None,
     allow_absolute: bool = True,
     allow_relative: bool = True,
 ) -> Path:
@@ -56,7 +52,8 @@ def validate_file_path(
 
     # Validate file extension if specified
     if allowed_extensions:
-        if not path_obj.suffix.lower() in [ext.lower() for ext in allowed_extensions]:
+        allowed_suffixes = {ext.lower() for ext in allowed_extensions}
+        if path_obj.suffix.lower() not in allowed_suffixes:
             raise SecurityError(
                 f"File extension '{path_obj.suffix}' not allowed. "
                 f"Allowed: {allowed_extensions}"
@@ -90,11 +87,18 @@ def validate_pipeline_name(name: str) -> str:
     if not name:
         raise ValueError("Pipeline name cannot be empty or only whitespace")
 
-    # Check for dangerous characters
-    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+    # Check for dangerous characters (dots allowed for dotted pipeline names like group.name)
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", name):
         raise SecurityError(
             f"Pipeline name '{name}' contains invalid characters. "
-            "Only alphanumeric, underscore, and hyphen are allowed."
+            "Only alphanumeric, underscore, hyphen, and dot are allowed."
+        )
+
+    # Reject leading, trailing, or consecutive dots
+    if name.startswith(".") or name.endswith(".") or ".." in name:
+        raise SecurityError(
+            f"Pipeline name '{name}' has invalid dot usage "
+            "(leading, trailing, or consecutive dots are not allowed)."
         )
 
     # Check length constraints
@@ -104,11 +108,28 @@ def validate_pipeline_name(name: str) -> str:
     return name
 
 
+def validate_directory_fragment(path: str | None) -> str | None:
+    """Validate a relative directory fragment used to build config paths.
+
+    Empty strings are preserved so callers can intentionally target the project
+    root. Absolute paths and traversal segments are rejected.
+    """
+    if path is None:
+        return None
+
+    if path == "":
+        return ""
+
+    return str(
+        validate_file_path(path, allow_absolute=False, allow_relative=True)
+    )
+
+
 def validate_config_dict(
-    config: Dict[str, Any],
-    allowed_keys: Optional[List[str]] = None,
+    config: dict[str, Any],
+    allowed_keys: list[str] | None = None,
     max_depth: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate configuration dictionary to prevent malicious content.
 
     Args:
@@ -189,7 +210,14 @@ def validate_executor_type(executor_type: str) -> str:
     if not executor_type or not isinstance(executor_type, str):
         raise ValueError("Executor type must be a non-empty string")
 
-    allowed_executors = {"synchronous", "threadpool", "processpool", "ray", "dask"}
+    allowed_executors = {
+        "synchronous",
+        "local",
+        "threadpool",
+        "processpool",
+        "ray",
+        "dask",
+    }
 
     if executor_type not in allowed_executors:
         raise SecurityError(

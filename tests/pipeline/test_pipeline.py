@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
-from flowerpower.cfg.pipeline.run import ExecutorConfig
+from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.flowerpower import FlowerPowerProject
@@ -81,6 +81,38 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(result, {"result": 1})
         runner_instance.run_async.assert_awaited_once_with(run_config=None)
+
+    @patch("flowerpower.pipeline.pipeline.PipelineRunner")
+    def test_run_merges_partial_run_config_with_pipeline_defaults(self, runner_cls):
+        pipeline = Pipeline(
+            name="test_pipeline",
+            config=PipelineConfig(
+                name="test_pipeline",
+                run=RunConfig(
+                    executor=ExecutorConfig(type="local", max_workers=None, num_cpus=None),
+                    retry=RetryConfig(max_retries=5, retry_delay=9.0, jitter_factor=0.3),
+                    with_adapter=WithAdapterConfig(mlflow=True),
+                ),
+            ),
+            module=self.module,
+            project_context=self.project_context,
+        )
+
+        partial = RunConfig(
+            executor=ExecutorConfig(max_workers=2),
+            retry=RetryConfig(max_retries=1),
+            with_adapter=WithAdapterConfig(hamilton_tracker=True),
+        )
+
+        pipeline.run(run_config=partial)
+
+        passed = runner_cls.return_value.run.call_args.kwargs["run_config"]
+        self.assertEqual(passed.executor.type, "local")
+        self.assertEqual(passed.executor.max_workers, 2)
+        self.assertEqual(passed.retry.max_retries, 1)
+        self.assertEqual(passed.retry.retry_delay, 9.0)
+        self.assertTrue(passed.with_adapter.hamilton_tracker)
+        self.assertTrue(passed.with_adapter.mlflow)
 
 
 if __name__ == "__main__":

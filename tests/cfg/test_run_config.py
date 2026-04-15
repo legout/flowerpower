@@ -10,15 +10,20 @@ from fsspeckit import filesystem
 
 from flowerpower.cfg.pipeline import PipelineConfig
 from flowerpower.cfg.pipeline.run import (
-    CallbackSpec,
     DEPRECATED_RETRY_FIELDS,
     ExecutorConfig,
+    RetryConfig,
     RunConfig,
     WithAdapterConfig,
 )
 from flowerpower.cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
 from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-from flowerpower.utils.config import RunConfigBuilder, merge_run_config_with_kwargs
+from flowerpower.utils.config import (
+    RunConfigBuilder,
+    merge_run_config_with_kwargs,
+    merge_run_configs,
+)
+from flowerpower.utils.security import SecurityError
 
 
 class TestRunConfig:
@@ -411,6 +416,200 @@ class TestRunConfigBuilder:
         assert run_config1.inputs == {"x": 1}
         assert run_config2.inputs == {"x": 2}
 
+    def test_builder_immutability_for_nested_retry_config(self):
+        """Built configs should not share nested retry state with the builder."""
+        builder = RunConfigBuilder().with_retry_config(max_retries=1, retry_delay=2.0)
+        run_config1 = builder.build()
+
+        builder.with_retry_delay(99.0)
+        run_config2 = builder.build()
+
+        assert run_config1.retry.retry_delay == 2.0
+        assert run_config2.retry.retry_delay == 99.0
+
+    def test_builder_copies_mutable_inputs_from_caller(self):
+        """Builder should not retain references to caller-owned mutable inputs."""
+        inputs = {"x": 1}
+        final_vars = ["result"]
+        adapter = {"custom": Mock()}
+
+        builder = (
+            RunConfigBuilder()
+            .with_inputs(inputs)
+            .with_final_vars(final_vars)
+            .with_adapter(adapter)
+        )
+
+        inputs["x"] = 2
+        final_vars.append("other")
+        adapter["extra"] = Mock()
+
+        run_config = builder.build()
+
+        assert run_config.inputs == {"x": 1}
+        assert run_config.final_vars == ["result"]
+        assert list(run_config.adapter) == ["custom"]
+
+    def test_builder_copies_adapter_config_structs_from_caller(self):
+        """Builder should not retain references to caller-owned adapter config structs."""
+        pipeline_cfg = PipelineAdapterConfig.from_dict(
+            {"hamilton_tracker": {"project_id": 123}}
+        )
+        project_cfg = ProjectAdapterConfig.from_dict(
+            {"hamilton_tracker": {"api_key": "secret"}}
+        )
+
+        builder = (
+            RunConfigBuilder()
+            .with_pipeline_adapter_cfg(pipeline_cfg)
+            .with_project_adapter_cfg(project_cfg)
+        )
+
+        pipeline_cfg.hamilton_tracker.project_id = 999
+        project_cfg.hamilton_tracker.api_key = "changed"
+
+        run_config = builder.build()
+
+        assert run_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+        assert run_config.project_adapter_cfg.hamilton_tracker.api_key == "secret"
+
+    def test_builder_copies_callback_spec_state(self):
+        """Built configs should not share mutable callback kwargs with the builder."""
+        callback = Mock()
+        builder = RunConfigBuilder().with_on_success(
+            (callback, ("extra",), {"flag": True})
+        )
+
+        run_config1 = builder.build()
+        run_config1.on_success.kwargs["flag"] = False
+        run_config2 = builder.build()
+
+        assert run_config2.on_success.kwargs == {"flag": True}
+
+    def test_builder_from_config_does_not_mutate_original_on_partial_overrides(self):
+        """Builder should clone the base config and merge partial nested overrides."""
+        original = RunConfig(
+            executor=ExecutorConfig(type="local", max_workers=None, num_cpus=None),
+            with_adapter=WithAdapterConfig(mlflow=True),
+            pipeline_adapter_cfg=PipelineAdapterConfig.from_dict(
+                {"hamilton_tracker": {"project_id": 123}}
+            ),
+        )
+
+        new_config = (
+            RunConfigBuilder.from_config(original)
+            .with_executor({"max_workers": 2})
+            .with_with_adapter_cfg({"hamilton_tracker": True})
+            .with_pipeline_adapter_cfg({"hamilton_tracker": {"tags": {"env": "prod"}}})
+            .build()
+        )
+
+        assert original.executor.type == "local"
+        assert original.executor.max_workers is None
+        assert original.with_adapter.mlflow is True
+        assert original.with_adapter.hamilton_tracker is False
+        assert original.pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+        assert original.pipeline_adapter_cfg.hamilton_tracker.tags == {}
+
+        assert new_config.executor.type == "local"
+        assert new_config.executor.max_workers == 2
+        assert new_config.with_adapter.mlflow is True
+        assert new_config.with_adapter.hamilton_tracker is True
+        assert new_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+        assert new_config.pipeline_adapter_cfg.hamilton_tracker.tags == {"env": "prod"}
+
+    def test_builder_from_config_can_explicitly_reset_nested_structs_to_defaults(self):
+        """Struct-based builder overrides should survive later pipeline-default merging."""
+        base = RunConfig(
+            executor=ExecutorConfig(type="local", max_workers=None, num_cpus=None),
+            with_adapter=WithAdapterConfig(mlflow=True),
+            retry=RetryConfig(max_retries=5, retry_delay=9.0, jitter_factor=0.3),
+        )
+
+        override = (
+            RunConfigBuilder.from_config(base)
+            .with_executor(ExecutorConfig(type="threadpool"))
+            .with_with_adapter_cfg(WithAdapterConfig())
+            .with_retry_config(max_retries=3, retry_delay=1.0, jitter_factor=0.1)
+            .build()
+        )
+
+        merged = merge_run_configs(base, override)
+
+        assert merged.executor.type == "threadpool"
+        assert merged.with_adapter.mlflow is False
+        assert merged.with_adapter.hamilton_tracker is False
+        assert merged.retry.max_retries == 3
+        assert merged.retry.retry_delay == 1.0
+        assert merged.retry.jitter_factor == 0.1
+
+    def test_builder_from_config_can_explicitly_reset_simple_fields_to_defaults(self):
+        """Builder should preserve explicit resets of simple fields during merge."""
+        base = RunConfig(
+            inputs={"x": 1},
+            final_vars=["out"],
+            config={"a": 1},
+            log_level="DEBUG",
+            reload=True,
+            async_driver=True,
+        )
+
+        override = (
+            RunConfigBuilder.from_config(base)
+            .with_inputs({})
+            .with_final_vars([])
+            .with_config({})
+            .with_log_level("INFO")
+            .with_reload(False)
+            .with_async_driver(None)
+            .build()
+        )
+
+        merged = merge_run_configs(base, override)
+
+        assert merged.inputs == {}
+        assert merged.final_vars == []
+        assert merged.config == {}
+        assert merged.log_level == "INFO"
+        assert merged.reload is False
+        assert merged.async_driver is None
+
+    def test_explicit_simple_resets_survive_repeated_merges(self):
+        """Merged configs should retain explicit reset intent for later merges."""
+        base = RunConfig(
+            inputs={"x": 1},
+            final_vars=["out"],
+            config={"a": 1},
+            log_level="DEBUG",
+            reload=True,
+            async_driver=True,
+        )
+
+        override = (
+            RunConfigBuilder.from_config(base)
+            .with_inputs({})
+            .with_final_vars([])
+            .with_config({})
+            .with_log_level("INFO")
+            .with_reload(False)
+            .with_async_driver(None)
+            .build()
+        )
+
+        merged_once = merge_run_configs(base, override)
+        merged_twice = merge_run_configs(base, merged_once)
+
+        assert merged_twice.inputs == {}
+        assert merged_twice.final_vars == []
+        assert merged_twice.config == {}
+        assert merged_twice.log_level == "INFO"
+        assert merged_twice.reload is False
+        assert merged_twice.async_driver is None
+
+    def test_builder_rejects_dangerous_callbacks(self):
+        with pytest.raises(SecurityError, match="Dangerous callback function"):
+            RunConfigBuilder().with_on_success(eval)
+
 
 class TestMergeRunConfig:
     def test_merge_additional_modules_merges_and_deduplicates(self):
@@ -431,12 +630,86 @@ class TestMergeRunConfig:
         merge_run_config_with_kwargs(run_config, {"async_driver": True})
         assert run_config.async_driver is True
 
+    def test_merge_executor_cfg_preserves_existing_fields(self):
+        run_config = RunConfig(executor=ExecutorConfig(type="local", max_workers=None, num_cpus=None))
+
+        merge_run_config_with_kwargs(run_config, {"executor_cfg": {"max_workers": 2}})
+
+        assert run_config.executor.type == "local"
+        assert run_config.executor.max_workers == 2
+        assert run_config.executor.num_cpus is None
+        assert run_config.executor_override_raw == {"max_workers": 2}
+
+    def test_merge_retry_patch_preserves_existing_fields(self):
+        run_config = RunConfig(retry=RetryConfig(max_retries=5, retry_delay=9.0, jitter_factor=0.3))
+
+        merge_run_config_with_kwargs(run_config, {"retry": {"max_retries": 1}})
+
+        assert run_config.retry.max_retries == 1
+        assert run_config.retry.retry_delay == 9.0
+        assert run_config.retry.jitter_factor == 0.3
+        assert run_config.max_retries == 1
+        assert run_config.retry_delay == 9.0
+
+    def test_merge_with_adapter_cfg_preserves_existing_flags(self):
+        run_config = RunConfig(with_adapter=WithAdapterConfig(mlflow=True))
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {"with_adapter_cfg": {"hamilton_tracker": True}},
+        )
+
+        assert run_config.with_adapter.hamilton_tracker is True
+        assert run_config.with_adapter.mlflow is True
+
+    def test_merge_pipeline_adapter_cfg_preserves_existing_nested_values(self):
+        run_config = RunConfig(
+            pipeline_adapter_cfg=PipelineAdapterConfig.from_dict(
+                {"hamilton_tracker": {"project_id": 123}}
+            )
+        )
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {"pipeline_adapter_cfg": {"hamilton_tracker": {"tags": {"env": "prod"}}}},
+        )
+
+        assert run_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+        assert run_config.pipeline_adapter_cfg.hamilton_tracker.tags == {"env": "prod"}
+
+    def test_merge_project_adapter_cfg_preserves_existing_nested_values(self):
+        run_config = RunConfig(
+            project_adapter_cfg=ProjectAdapterConfig.from_dict(
+                {"hamilton_tracker": {"api_key": "secret"}}
+            )
+        )
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {"project_adapter_cfg": {"hamilton_tracker": {"ui_url": "http://ui.local"}}},
+        )
+
+        assert run_config.project_adapter_cfg.hamilton_tracker.api_key == "secret"
+        assert run_config.project_adapter_cfg.hamilton_tracker.ui_url == "http://ui.local"
+
+    def test_merge_callback_tuple_normalizes_to_callback_spec(self):
+        run_config = RunConfig()
+        callback = Mock()
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {"on_success": (callback, ("extra",), {"flag": True})},
+        )
+
+        assert run_config.on_success.func is callback
+        assert run_config.on_success.args == ("extra",)
+        assert run_config.on_success.kwargs == {"flag": True}
+
 
 class TestRunConfigPersistence:
     def test_pipeline_save_omits_deprecated_retry_fields(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = filesystem(tmpdir, cached=False, dirfs=True)
-            from flowerpower.cfg.pipeline.run import RetryConfig
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
@@ -452,7 +725,7 @@ class TestRunConfigPersistence:
 
             pipeline_cfg.save(name="retry-clean", base_dir=tmpdir, fs=fs)
 
-            config_path = Path(tmpdir) / "conf" / "pipelines" / "retry-clean.yml"
+            config_path = Path(tmpdir) / "conf" / "pipelines" / "retry_clean.yml"
             with config_path.open() as fh:
                 data = yaml.safe_load(fh)
 
@@ -509,8 +782,7 @@ class TestRetryConfig:
 
     def test_retry_config_to_dict_converts_exceptions_to_strings(self):
         """Test that RetryConfig.to_dict() converts exception classes to their string names."""
-        from flowerpower.cfg.pipeline.run import RetryConfig
-        
+
         # Create a RetryConfig with exception classes
         retry_config = RetryConfig(
             max_retries=3,
@@ -536,8 +808,7 @@ class TestRetryConfig:
 
     def test_retry_config_to_dict_handles_string_exceptions(self):
         """Test that RetryConfig.to_dict() preserves known string exceptions as-is."""
-        from flowerpower.cfg.pipeline.run import RetryConfig
-        
+
         # Create a RetryConfig with known string exceptions
         retry_config = RetryConfig(
             max_retries=2,
@@ -554,8 +825,7 @@ class TestRetryConfig:
 
     def test_retry_config_to_dict_handles_mixed_exceptions(self):
         """Test that RetryConfig.to_dict() handles mixed string and class exceptions."""
-        from flowerpower.cfg.pipeline.run import RetryConfig
-        
+
         # Create a RetryConfig and manually set mixed exceptions
         retry_config = RetryConfig(
             max_retries=1,

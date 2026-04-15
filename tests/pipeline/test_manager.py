@@ -377,6 +377,43 @@ class TestPipelineManager(unittest.TestCase):
         except Exception as e:
             print(f"PipelineManager reload parameter test failed (expected in test environment): {e}")
 
+def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
+    fs = MagicMock()
+    project_cfg = MagicMock(name="project_cfg")
+    config_manager = MagicMock()
+    config_manager.project_config = project_cfg
+
+    with patch("flowerpower.pipeline.manager.PipelineConfigManager") as mock_config_manager_class:
+        with patch("flowerpower.pipeline.manager.PipelineRegistry"):
+            with patch("flowerpower.pipeline.manager.PipelineCreator"):
+                with patch("flowerpower.pipeline.manager.PipelineExecutor"):
+                    with patch("flowerpower.pipeline.manager.PipelineVisualizer") as mock_visualizer_class:
+                        with patch("flowerpower.pipeline.manager.PipelineIOManager"):
+                            with patch("flowerpower.pipeline.manager.add_modules_path") as mock_add_modules_path:
+                                mock_config_manager_class.return_value = config_manager
+
+                                manager = PipelineManager(
+                                    base_dir="/test/base",
+                                    fs=fs,
+                                    cfg_dir="settings",
+                                    pipelines_dir="flows",
+                                )
+
+    config_manager_kwargs = mock_config_manager_class.call_args.kwargs
+    assert config_manager_kwargs["base_dir"] == "/test/base"
+    assert config_manager_kwargs["fs"] is fs
+    assert config_manager_kwargs["cfg_dir"] == "settings"
+    assert config_manager_kwargs["pipelines_dir"] == "flows"
+    mock_visualizer_class.assert_called_once_with(
+        project_cfg=project_cfg,
+        fs=fs,
+        base_dir="/test/base",
+        cfg_dir="settings",
+        pipelines_dir="flows",
+    )
+    mock_add_modules_path.assert_called_once_with(fs, "flows", "/test/base")
+    assert manager._config_manager is config_manager
+
 
 if __name__ == "__main__":
     unittest.main()

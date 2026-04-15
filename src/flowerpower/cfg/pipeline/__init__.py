@@ -1,18 +1,30 @@
+import posixpath
+
 import msgspec
 import yaml
-from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions
 from hamilton.function_modifiers import source, value
 from munch import Munch, munchify
-from typing import Optional
 
-from ..base import BaseConfig, validate_file_path
-from ..exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
+from ...settings import CONFIG_DIR, PIPELINES_DIR
+from ...utils.filesystem import (
+    find_first_existing_path,
+    format_pipeline_file_path,
+    get_pipeline_config_paths,
+)
+from ...utils.security import (
+    SecurityError,
+    validate_directory_fragment,
+    validate_file_path,
+    validate_pipeline_name,
+)
+from ...utils.yaml_env import interpolate_env_in_data
+from ..base import BaseConfig
+from ..exceptions import ConfigLoadError, ConfigSaveError
 from .adapter import AdapterConfig
 from .run import ExecutorConfig as ExecutorConfig
-from .run import RunConfig
+from .run import RunConfig, migrate_legacy_retry_fields
 from .run import WithAdapterConfig as WithAdapterConfig
-from .run import migrate_legacy_retry_fields
-from ...utils.yaml_env import interpolate_env_in_data
 
 
 class PipelineConfig(BaseConfig):
@@ -58,7 +70,7 @@ class PipelineConfig(BaseConfig):
 
         # Validate pipeline name if provided
         if self.name is not None:
-            self._validate_pipeline_name()
+            self.name = validate_pipeline_name(self.name)
 
     def to_yaml(self, path: str, fs: AbstractFileSystem):
         """Save pipeline configuration to YAML file.
@@ -68,50 +80,51 @@ class PipelineConfig(BaseConfig):
             fs: Filesystem instance.
 
         Raises:
-            ConfigSaveError: If saving the configuration fails.
-            ConfigPathError: If the path contains directory traversal attempts.
+            ConfigSaveError: If saving the configuration fails or path validation fails.
         """
-        try:
-            # Validate the path to prevent directory traversal
-            validated_path = validate_file_path(path)
-        except ConfigPathError as e:
-            raise ConfigSaveError(
-                f"Path validation failed: {e}", path=path, original_error=e
-            )
+        if fs is not None and "://" in str(path):
+            validated_path = path
+        else:
+            try:
+                # Validate the path to prevent directory traversal
+                validated_path = validate_file_path(
+                    path, allow_absolute=False, allow_relative=True
+                )
+            except SecurityError as e:
+                raise ConfigSaveError(
+                    f"Path validation failed: {e}", path=path, original_error=e
+                ) from e
 
         try:
-            fs.makedirs(fs._parent(validated_path), exist_ok=True)
-            with fs.open(validated_path, "w") as f:
+            fs.makedirs(posixpath.dirname(str(validated_path)) or ".", exist_ok=True)
+            with fs.open(str(validated_path), "w") as f:
                 d = self.to_dict()
-                d.pop("name")
                 d.pop("h_params")
                 yaml.dump(d, f, default_flow_style=False)
         except NotImplementedError as e:
             raise ConfigSaveError(
-                f"The filesystem does not support writing files.",
-                path=validated_path,
+                "The filesystem does not support writing files.",
+                path=str(validated_path),
                 original_error=e,
-            )
+            ) from e
         except Exception as e:
             raise ConfigSaveError(
                 f"Failed to write configuration to {validated_path}",
-                path=validated_path,
+                path=str(validated_path),
                 original_error=e,
-            )
+            ) from e
 
     @classmethod
     def from_dict(cls, name: str, data: dict | Munch):
-        data.update({"name": name})
+        payload = dict(data)
+        payload["name"] = name
 
         # Handle null params field by converting to empty dict
         # This fixes the issue where YAML parses empty sections with comments as null
-        if data.get("params") is None:
-            data["params"] = {}
+        if payload.get("params") is None:
+            payload["params"] = {}
 
-        instance = msgspec.convert(data, cls)
-        # Manually call __post_init__ since msgspec.convert doesn't call it
-        instance.__post_init__()
-        return instance
+        return msgspec.convert(payload, cls)
 
     @classmethod
     def from_yaml(cls, name: str, path: str, fs: AbstractFileSystem):
@@ -126,19 +139,23 @@ class PipelineConfig(BaseConfig):
             Loaded pipeline configuration.
 
         Raises:
-            ConfigLoadError: If loading the configuration fails.
-            ConfigPathError: If the path contains directory traversal attempts.
+            ConfigLoadError: If loading the configuration fails or path validation fails.
         """
-        try:
-            # Validate the path to prevent directory traversal
-            validated_path = validate_file_path(path)
-        except ConfigPathError as e:
-            raise ConfigLoadError(
-                f"Path validation failed: {e}", path=path, original_error=e
-            )
+        if fs is not None and "://" in str(path):
+            validated_path = path
+        else:
+            try:
+                # Validate the path to prevent directory traversal
+                validated_path = validate_file_path(
+                    path, allow_absolute=False, allow_relative=True
+                )
+            except SecurityError as e:
+                raise ConfigLoadError(
+                    f"Path validation failed: {e}", path=path, original_error=e
+                ) from e
 
         try:
-            with fs.open(validated_path) as f:
+            with fs.open(str(validated_path)) as f:
                 raw = yaml.safe_load(f) or {}
                 data = interpolate_env_in_data(raw)
 
@@ -146,7 +163,10 @@ class PipelineConfig(BaseConfig):
             if isinstance(data, dict) and isinstance(data.get("run"), dict):
                 migrated = migrate_legacy_retry_fields(data["run"])
 
-            pipeline = cls.from_dict(name=name, data=data)
+            stored_name = data.get("name") if isinstance(data, dict) else None
+            pipeline_name = stored_name if isinstance(stored_name, str) else name
+
+            pipeline = cls.from_dict(name=pipeline_name, data=data)
 
             if migrated:
                 pipeline.to_yaml(path=validated_path, fs=fs)
@@ -155,22 +175,21 @@ class PipelineConfig(BaseConfig):
         except Exception as e:
             raise ConfigLoadError(
                 f"Failed to load configuration from {validated_path}",
-                path=validated_path,
+                path=str(validated_path),
                 original_error=e,
-            )
+            ) from e
 
     def update(self, d: dict | Munch):
-        for k, v in d.items():
-            # Safe attribute access instead of eval()
-            if hasattr(self, k) and hasattr(getattr(self, k), "update"):
-                getattr(self, k).update(v)
-            if k == "params":
-                self.params.update(munchify(v))
-                self.h_params = munchify(self.to_h_params(self.params))
-                # self.params = munchify(self.params)
-        if "params" in d:
-            self.h_params = munchify(self.to_h_params(self.params))
+        updates = dict(d)
+        params = updates.pop("params", None)
+
+        if updates:
+            super().update(updates)
+
+        if params is not None:
+            self.params.update(munchify(params))
             self.params = munchify(self.params)
+            self.h_params = munchify(self.to_h_params(self.params))
 
     @staticmethod
     def to_h_params(d: dict) -> dict:
@@ -227,7 +246,9 @@ class PipelineConfig(BaseConfig):
         base_dir: str = ".",
         name: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
+        cfg_dir: str | None = None,
+        pipelines_dir: str | None = None,
     ):
         """Load pipeline configuration from a YAML file.
 
@@ -236,93 +257,52 @@ class PipelineConfig(BaseConfig):
             name (str | None, optional): Pipeline name. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
+            pipelines_dir (str, optional): Pipelines subdirectory. Defaults to PIPELINES_DIR.
 
         Returns:
             PipelineConfig: Loaded pipeline configuration.
-
-        Example:
-            ```python
-            pipeline = PipelineConfig.load(
-                base_dir="my_project",
-                name="data-pipeline"
-            )
-            ```
         """
+        if name is not None:
+            name = validate_pipeline_name(name)
+
+        if cfg_dir is None:
+            cfg_dir = CONFIG_DIR
+        if pipelines_dir is None:
+            pipelines_dir = PIPELINES_DIR
+        cfg_dir = validate_directory_fragment(cfg_dir)
+        pipelines_dir = validate_directory_fragment(pipelines_dir)
         if fs is None:
-            # Use cached filesystem for better performance
-            storage_options_hash = cls._hash_storage_options(storage_options)
-            fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
-        if fs.exists("conf/pipelines") and name is not None:
-            pipeline = PipelineConfig.from_yaml(
-                name=name,
-                path=f"conf/pipelines/{name}.yml",
-                fs=fs,
-            )
-        else:
-            pipeline = PipelineConfig(name=name)
+            fs = cls._get_cached_filesystem(base_dir, storage_options)
 
-        return pipeline
+        if name is None:
+            return cls(name=name)
 
-    # Helper methods for centralized load/save logic
-    @classmethod
-    def _load_pipeline_config(
-        cls, base_dir: str, name: str | None, fs: AbstractFileSystem
-    ) -> "PipelineConfig":
-        """Centralized pipeline configuration loading logic.
+        formatted_name = format_pipeline_file_path(name)
+        possible_paths = get_pipeline_config_paths(
+            formatted_name,
+            cfg_dir,
+            pipelines_dir,
+        )
 
-        Args:
-            base_dir: Base directory for the pipeline.
-            name: Pipeline name.
-            fs: Filesystem instance.
+        existing_path = find_first_existing_path(
+            fs,
+            possible_paths,
+            purpose="pipeline config",
+        )
+        if existing_path is not None:
+            return cls.from_yaml(name=name, path=existing_path, fs=fs)
 
-        Returns:
-            Loaded pipeline configuration.
-        """
-        if fs.exists("conf/pipelines") and name is not None:
-            pipeline = cls.from_yaml(
-                name=name,
-                path=f"conf/pipelines/{name}.yml",
-                fs=fs,
-            )
-        else:
-            pipeline = cls(name=name)
-        return pipeline
-
-    def _save_pipeline_config(self, fs: AbstractFileSystem) -> None:
-        """Centralized pipeline configuration saving logic.
-
-        Args:
-            fs: Filesystem instance.
-        """
-        h_params = getattr(self, "h_params")
-        self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
-        setattr(self, "h_params", h_params)
-
-    def _validate_pipeline_name(self) -> None:
-        """Validate pipeline name parameter.
-
-        Raises:
-            ValueError: If pipeline name contains invalid characters.
-        """
-        if not isinstance(self.name, str):
-            raise ValueError(f"Pipeline name must be a string, got {type(self.name)}")
-
-        # Check for directory traversal attempts
-        if ".." in self.name or "/" in self.name or "\\" in self.name:
-            raise ValueError(
-                f"Invalid pipeline name: {self.name}. Contains path traversal characters."
-            )
-
-        # Check for empty string
-        if not self.name.strip():
-            raise ValueError("Pipeline name cannot be empty or whitespace only.")
+        return cls(name=name)
 
     def save(
         self,
         name: str | None = None,
         base_dir: str = ".",
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
+        cfg_dir: str | None = None,
+        pipelines_dir: str | None = None,
     ):
         """Save pipeline configuration to a YAML file.
 
@@ -331,44 +311,46 @@ class PipelineConfig(BaseConfig):
             base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
+            pipelines_dir (str, optional): Pipelines subdirectory. Defaults to PIPELINES_DIR.
 
         Raises:
             ValueError: If pipeline name is not set.
-
-        Example:
-            ```python
-            pipeline_config.save(name="data-pipeline", base_dir="my_project")
-            ```
         """
+        if cfg_dir is None:
+            cfg_dir = CONFIG_DIR
+        if pipelines_dir is None:
+            pipelines_dir = PIPELINES_DIR
+        cfg_dir = validate_directory_fragment(cfg_dir)
+        pipelines_dir = validate_directory_fragment(pipelines_dir)
         if fs is None:
-            # Use cached filesystem for better performance
-            storage_options_hash = self._hash_storage_options(storage_options)
-            fs = self._get_cached_filesystem(base_dir, storage_options_hash)
+            fs = self._get_cached_filesystem(base_dir, storage_options)
 
-        fs.makedirs("conf/pipelines", exist_ok=True)
         if name is not None:
             self.name = name
         if self.name is None:
             raise ValueError("Pipeline name is not set. Please provide a name.")
 
-        # Validate pipeline name to prevent directory traversal
-        if self.name and (".." in self.name or "/" in self.name or "\\" in self.name):
-            raise ValueError(
-                f"Invalid pipeline name: {self.name}. Contains path traversal characters."
-            )
+        # Validate pipeline name
+        self.name = validate_pipeline_name(self.name)
 
-        h_params = getattr(self, "h_params")
+        formatted_name = format_pipeline_file_path(self.name)
+        file_path = get_pipeline_config_paths(
+            formatted_name,
+            cfg_dir,
+            pipelines_dir,
+        )[0]
 
-        self.to_yaml(path=f"conf/pipelines/{self.name}.yml", fs=fs)
-
-        setattr(self, "h_params", h_params)
+        self.to_yaml(path=file_path, fs=fs)
 
 
 def init_pipeline_config(
     base_dir: str = ".",
     name: str | None = None,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
+    cfg_dir: str | None = None,
+    pipelines_dir: str | None = None,
 ):
     """Initialize a new pipeline configuration.
 
@@ -392,7 +374,19 @@ def init_pipeline_config(
         ```
     """
     pipeline = PipelineConfig.load(
-        base_dir=base_dir, name=name, fs=fs, storage_options=storage_options
+        base_dir=base_dir,
+        name=name,
+        fs=fs,
+        storage_options=storage_options,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
     )
-    pipeline.save(name=name, base_dir=base_dir, fs=fs, storage_options=storage_options)
+    pipeline.save(
+        name=name,
+        base_dir=base_dir,
+        fs=fs,
+        storage_options=storage_options,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
+    )
     return pipeline

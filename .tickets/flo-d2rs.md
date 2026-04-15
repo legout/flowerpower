@@ -1,6 +1,6 @@
 ---
 id: flo-d2rs
-status: open
+status: closed
 deps: [flo-c9pq]
 links: [flo-c9pq, flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -50,3 +50,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - Rich rendering code (show_summary, show_pipelines with Table/Panel/Syntax/Tree) is still in registry (~200 lines, lines 551-838).
 - `PipelinePresenter` class exists (184 lines) but is **never imported or used** anywhere — it's dead code.
 - `_add_modules_path` still in registry (not extracted to utils/filesystem.py).
+
+**2026-04-13T15:16:40Z**
+
+Gate: PASS — Review passed on first attempt. PipelineRegistry split into PipelineCreator (CRUD), PipelineRegistry (discovery/caching/hook management), PipelinePresenter (Rich rendering). All 40 targeted tests pass. No material issues found.

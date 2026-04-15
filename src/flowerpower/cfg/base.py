@@ -1,84 +1,87 @@
 import copy
-from pathlib import Path
-from typing import Any, Self, Optional
-from functools import lru_cache
+import json
+from collections import OrderedDict
+from typing import Any, ClassVar, Self
 
 import msgspec
-from fsspeckit import AbstractFileSystem, filesystem
-from munch import Munch
+from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
+
 from ..utils.misc import get_filesystem
-from ..utils.security import validate_file_path as security_validate_file_path
-from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
-
-
-def validate_file_path(path: str) -> str:
-    """
-    Validate a file path to prevent directory traversal attacks.
-
-    Args:
-        path: The file path to validate
-
-    Returns:
-        str: The validated path
-
-    Raises:
-        ConfigPathError: If the path contains directory traversal attempts
-    """
-    try:
-        # Use the comprehensive security validation
-        validated_path = security_validate_file_path(
-            path,
-            allow_absolute=False,  # Config files should be relative
-            allow_relative=True,
-        )
-        return str(validated_path)
-    except Exception as e:
-        # Convert security errors to config path errors for consistency
-        raise ConfigPathError(f"Invalid file path: {path}. {str(e)}", path=path) from e
+from ..utils.security import SecurityError, validate_file_path
+from .exceptions import ConfigLoadError, ConfigSaveError
 
 
 class BaseConfig(msgspec.Struct, kw_only=True):
-    # Class-level cache for filesystem instances
-    _fs_cache = {}
+    _filesystem_cache: ClassVar[
+        OrderedDict[tuple[str | None, str], AbstractFileSystem]
+    ] = OrderedDict()
+    _filesystem_cache_maxsize: ClassVar[int] = 32
 
     @classmethod
-    @lru_cache(maxsize=32)
     def _get_cached_filesystem(
-        cls, base_dir: str, storage_options_hash: int
+        cls,
+        base_dir: str | None,
+        storage_options: dict | BaseStorageOptions | None = None,
     ) -> AbstractFileSystem:
         """Get a cached filesystem instance.
 
         Args:
             base_dir: Base directory for the filesystem.
-            storage_options_hash: Hash of storage options for cache key.
+            storage_options: Storage options used to create the filesystem.
 
         Returns:
             Cached filesystem instance.
         """
-        cache_key = (base_dir, storage_options_hash)
-        if cache_key not in cls._fs_cache:
-            cls._fs_cache[cache_key] = filesystem(base_dir, cached=True, dirfs=True)
-        return cls._fs_cache[cache_key]
+        normalized_options = cls._normalize_storage_options(storage_options)
+        cache_key = (
+            base_dir,
+            cls._storage_options_cache_key(normalized_options),
+        )
+        cached_fs = cls._filesystem_cache.get(cache_key)
+        if cached_fs is not None:
+            cls._filesystem_cache.move_to_end(cache_key)
+            return cached_fs
+
+        cls._filesystem_cache[cache_key] = filesystem(
+                base_dir,
+                storage_options=normalized_options,
+                cached=True,
+                dirfs=True,
+            )
+        if len(cls._filesystem_cache) > cls._filesystem_cache_maxsize:
+            cls._filesystem_cache.popitem(last=False)
+        return cls._filesystem_cache[cache_key]
 
     @classmethod
-    def _hash_storage_options(cls, storage_options: dict | None) -> int:
-        """Create a hash of storage options for caching.
+    def _normalize_storage_options(
+        cls,
+        storage_options: dict | BaseStorageOptions | None,
+    ) -> dict[str, Any] | None:
+        """Normalize storage options to a plain dictionary."""
+        if storage_options is None:
+            return None
 
-        Args:
-            storage_options: Storage options to hash.
+        if isinstance(storage_options, BaseStorageOptions):
+            normalized = storage_options.to_dict(with_protocol=True)
+        elif hasattr(storage_options, "toDict"):
+            normalized = storage_options.toDict()
+        else:
+            normalized = dict(storage_options)
 
-        Returns:
-            Hash of storage options.
-        """
+        return normalized or None
+
+    @classmethod
+    def _storage_options_cache_key(
+        cls, storage_options: dict[str, Any] | None
+    ) -> str:
+        """Create a stable cache key for storage options."""
         if not storage_options:
-            return hash(())
+            return "{}"
 
-        # Convert to frozenset of items for consistent hashing
         try:
-            return hash(frozenset(sorted(storage_options.items())))
+            return json.dumps(storage_options, sort_keys=True, default=str)
         except TypeError:
-            # If items are not hashable, use string representation
-            return hash(str(sorted(storage_options.items())))
+            return repr(storage_options)
 
     def to_dict(self) -> dict[str, Any]:
         # Convert to dictionary, handling special cases like type objects
@@ -150,16 +153,20 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             fs: An optional filesystem instance to use for file operations.
 
         Raises:
-            ConfigSaveError: If saving the configuration fails.
-            ConfigPathError: If the path contains directory traversal attempts.
+            ConfigSaveError: If saving the configuration fails or the path is invalid.
         """
         # Validate the path to prevent directory traversal
-        try:
-            validated_path = validate_file_path(path)
-        except ConfigPathError as e:
-            raise ConfigSaveError(
-                f"Path validation failed: {e}", path=path, original_error=e
-            )
+        if fs is not None and "://" in str(path):
+            validated_path = path
+        else:
+            try:
+                validated_path = validate_file_path(
+                    path, allow_absolute=False, allow_relative=True
+                )
+            except SecurityError as e:
+                raise ConfigSaveError(
+                    f"Path validation failed: {e}", path=path, original_error=e
+                ) from e
 
         # Default to fsspec.filesystem when fs is not provided (testable/mocked)
         if fs is None:
@@ -171,17 +178,17 @@ class BaseConfig(msgspec.Struct, kw_only=True):
                 # Fallback to project helper if fsspec is unavailable in context
                 fs = get_filesystem(fs)
         try:
-            with fs.open(validated_path, "wb") as f:
+            with fs.open(str(validated_path), "wb") as f:
                 f.write(msgspec.yaml.encode(self, order="deterministic"))
-        except NotImplementedError as e:
+        except NotImplementedError:
             # Surface underlying capability error as-is (expected by tests)
-            raise e
+            raise
         except Exception as e:
             raise ConfigSaveError(
                 f"Failed to write configuration to {validated_path}",
                 path=validated_path,
                 original_error=e,
-            )
+            ) from e
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BaseConfig":
@@ -208,31 +215,32 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             An instance of the class with the values from the YAML file.
 
         Raises:
-            ConfigLoadError: If loading the configuration fails.
-            ConfigPathError: If the path contains directory traversal attempts.
+            ConfigLoadError: If loading the configuration fails or the path is invalid.
         """
         # Validate the path to prevent directory traversal (skip for fsspec URLs when fs provided)
-        if fs is not None and "://" in path:
+        if fs is not None and "://" in str(path):
             validated_path = path
         else:
             try:
-                validated_path = validate_file_path(path)
-            except ConfigPathError as e:
+                validated_path = validate_file_path(
+                    path, allow_absolute=False, allow_relative=True
+                )
+            except SecurityError as e:
                 raise ConfigLoadError(
                     f"Path validation failed: {e}", path=path, original_error=e
-                )
+                ) from e
 
         fs = get_filesystem(fs)
         try:
             # tests expect default mode when fs provided
-            with fs.open(validated_path) as f:
+            with fs.open(str(validated_path)) as f:
                 return msgspec.yaml.decode(f.read(), type=cls, strict=True)
         except Exception as e:
             raise ConfigLoadError(
                 f"Failed to load configuration from {validated_path}",
                 path=validated_path,
                 original_error=e,
-            )
+            ) from e
 
     def _apply_dict_updates(self, target: Self, d: dict[str, Any]) -> None:
         """

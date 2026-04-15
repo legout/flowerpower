@@ -1,31 +1,37 @@
-"""Pipeline Registry for discovery, listing, creation, and deletion."""
+"""Pipeline Registry for discovery, listing, caching, and module loading."""
 
-import datetime as dt
-import os
 import posixpath
-import sys
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import msgspec
 import rich
+import yaml
 from fsspeckit import AbstractFileSystem, filesystem
 from loguru import logger
-from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.table import Table
-from rich.tree import Tree
 
 # Import necessary config types and utility functions
 from ..cfg import PipelineConfig, ProjectConfig
-from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
+from ..settings import CONFIG_DIR, HOOKS_DIR, LOG_LEVEL, PIPELINES_DIR
+from ..utils.filesystem import (
+    add_modules_path,
+    format_pipeline_file_path,
+    format_pipeline_module_path,
+    format_pipeline_package_root,
+    get_pipeline_config_paths,
+)
 from ..utils.logging import setup_logging
-
-# Assuming view_img might be used indirectly or needed later
-from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG, PIPELINE_PY_TEMPLATE
+from ..utils.security import (
+    SecurityError,
+    validate_directory_fragment,
+    validate_file_path,
+    validate_pipeline_name,
+)
+from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 # Import base utilities
 from .base import load_module
+from .config_manager import PipelineConfigManager
+from .presenter import PipelinePresenter
 
 if TYPE_CHECKING:
     from ..flowerpower import FlowerPowerProject
@@ -38,11 +44,7 @@ class HookType(str, Enum):
     MQTT_BUILD_CONFIG = "mqtt-build-config"
 
     def default_function_name(self) -> str:
-        match self.value:
-            case HookType.MQTT_BUILD_CONFIG:
-                return self.value.replace("-", "_")
-            case _:
-                return self.value
+        return self.value.replace("-", "_")
 
     def __str__(self) -> str:
         return self.value
@@ -51,16 +53,19 @@ class HookType(str, Enum):
 class CachedPipelineData(msgspec.Struct):
     """Container for cached pipeline data."""
 
-    pipeline: "Pipeline"
-    config: PipelineConfig
-    module: Any
+    pipeline: "Pipeline | None" = None
+    config: PipelineConfig | None = None
+    module: Any = None
 
 
 setup_logging(level=LOG_LEVEL)
 
 
 class PipelineRegistry:
-    """Manages discovery, listing, creation, and deletion of pipelines."""
+    """Manages discovery, listing, caching, and module loading of pipelines.
+
+    Rendering / presentation is delegated to :class:`PipelinePresenter`.
+    """
 
     def __init__(
         self,
@@ -68,6 +73,9 @@ class PipelineRegistry:
         fs: AbstractFileSystem,
         base_dir: str | None = None,
         storage_options: dict | None = None,
+        config_manager: "PipelineConfigManager | None" = None,
+        cfg_dir: str = CONFIG_DIR,
+        pipelines_dir: str = PIPELINES_DIR,
     ):
         """
         Initializes the PipelineRegistry.
@@ -77,43 +85,55 @@ class PipelineRegistry:
             fs: The filesystem instance.
             base_dir: The base directory path.
             storage_options: Storage options for filesystem operations.
+            config_manager: Optional PipelineConfigManager to delegate config loading to.
+                If not provided, one is automatically instantiated.
+            cfg_dir: Configuration directory name.
+            pipelines_dir: Pipelines directory name.
         """
         self.project_cfg = project_cfg
         self._fs = fs
-        self._cfg_dir = CONFIG_DIR
-        self._pipelines_dir = PIPELINES_DIR
-        self._base_dir = base_dir
-        self._storage_options = storage_options or {}
-        self._console = Console()
+        if config_manager is not None:
+            self._base_dir = getattr(config_manager, "_base_dir", base_dir)
+            self._cfg_dir = getattr(config_manager, "_cfg_dir", CONFIG_DIR)
+            self._pipelines_dir = getattr(
+                config_manager, "_pipelines_dir", PIPELINES_DIR
+            )
+        else:
+            self._base_dir = base_dir
+            self._cfg_dir = validate_directory_fragment(
+                cfg_dir if cfg_dir is not None else CONFIG_DIR
+            )
+            self._pipelines_dir = validate_directory_fragment(
+                pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
+            )
+        self._hooks_dir = getattr(project_cfg, "hooks_dir", HOOKS_DIR) or HOOKS_DIR
+        if config_manager is None:
+            config_manager = PipelineConfigManager(
+                base_dir=base_dir or ".",
+                fs=fs,
+                storage_options=storage_options or {},
+                cfg_dir=cfg_dir,
+                pipelines_dir=pipelines_dir,
+            )
+        self._config_manager = config_manager
 
         # Consolidated cache for pipeline data
-        self._pipeline_data_cache: Dict[str, CachedPipelineData] = {}
+        self._pipeline_data_cache: dict[str, CachedPipelineData] = {}
 
-        # Ensure module paths are added
-        self._add_modules_path()
+        # Presenter for all Rich rendering
+        self._presenter = PipelinePresenter()
 
-    @staticmethod
-    def _format_pipeline_name(name: str) -> str:
-        """Format a pipeline name for use in file paths.
+        self._sync_project_state()
 
-        Transforms the name by replacing dots with forward slashes
-        and hyphens with underscores to create valid Python module paths.
+        # Ensure module paths are added (delegated to shared utility)
+        add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
-        Args:
-            name: The raw pipeline name.
-
-        Returns:
-            The formatted pipeline name suitable for file paths.
-
-        Examples:
-            >>> PipelineRegistry._format_pipeline_name("my-pipeline")
-            'my_pipeline'
-            >>> PipelineRegistry._format_pipeline_name("sub.module")
-            'sub/module'
-            >>> PipelineRegistry._format_pipeline_name("my-pipeline.sub")
-            'my_pipeline/sub'
-        """
-        return name.replace(".", "/").replace("-", "_")
+    def _sync_project_state(self) -> None:
+        try:
+            self.project_cfg = self._config_manager.project_config
+        except ValueError:
+            return
+        self._hooks_dir = getattr(self.project_cfg, "hooks_dir", HOOKS_DIR) or HOOKS_DIR
 
     @classmethod
     def from_filesystem(
@@ -121,6 +141,8 @@ class PipelineRegistry:
         base_dir: str,
         fs: AbstractFileSystem | None = None,
         storage_options: dict | None = None,
+        cfg_dir: str = CONFIG_DIR,
+        pipelines_dir: str = PIPELINES_DIR,
     ) -> "PipelineRegistry":
         """
         Create a PipelineRegistry from filesystem parameters.
@@ -134,6 +156,8 @@ class PipelineRegistry:
             base_dir: The base directory path for the FlowerPower project
             fs: Optional filesystem instance. If None, will be created from base_dir
             storage_options: Optional storage options for filesystem access
+            cfg_dir: Configuration directory name.
+            pipelines_dir: Pipelines directory name.
 
         Returns:
             PipelineRegistry: A fully configured registry instance
@@ -162,8 +186,17 @@ class PipelineRegistry:
                 cached=storage_options is not None,
             )
 
-        # Load project configuration
-        project_cfg = ProjectConfig.load(base_dir=base_dir, fs=fs)
+        # Set up a config manager so env overlays are applied consistently
+        config_manager = PipelineConfigManager(
+            base_dir=base_dir,
+            fs=fs,
+            storage_options=storage_options or {},
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
+        )
+
+        # Load project configuration through the manager (applies env overlays)
+        project_cfg = config_manager.load_project_config()
 
         # Ensure we have a ProjectConfig instance
         if not isinstance(project_cfg, ProjectConfig):
@@ -175,34 +208,10 @@ class PipelineRegistry:
             fs=fs,
             base_dir=base_dir,
             storage_options=storage_options,
+            config_manager=config_manager,
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
         )
-
-    def _add_modules_path(self) -> None:
-        """Add pipeline module paths to Python path."""
-        try:
-            if hasattr(self._fs, "is_cache_fs") and self._fs.is_cache_fs:
-                self._fs.sync_cache()
-                project_path = self._fs._mapper.directory
-                modules_path = posixpath.join(project_path, self._pipelines_dir)
-            else:
-                # Use the base directory directly if not using cache
-                if hasattr(self._fs, "path"):
-                    project_path = self._fs.path
-                elif self._base_dir:
-                    project_path = self._base_dir
-                else:
-                    # Fallback for mocked filesystems
-                    project_path = "."
-                modules_path = posixpath.join(project_path, self._pipelines_dir)
-
-            if project_path not in sys.path:
-                sys.path.insert(0, project_path)
-
-            if modules_path not in sys.path:
-                sys.path.insert(0, modules_path)
-        except (AttributeError, TypeError):
-            # Handle case where filesystem is mocked or doesn't have required properties
-            logger.debug("Could not add modules path - using default Python path")
 
     # --- Pipeline Factory Methods ---
 
@@ -227,10 +236,14 @@ class PipelineRegistry:
             ImportError: If pipeline module cannot be imported
             ValueError: If pipeline configuration is invalid
         """
+        name = validate_pipeline_name(name)
+
         # Use cache if available and not reloading
-        if not reload and name in self._pipeline_data_cache:
+        cached_data = self._pipeline_data_cache.get(name)
+        if not reload and cached_data is not None and cached_data.pipeline is not None:
+            self._sync_project_state()
             logger.debug(f"Returning cached pipeline '{name}'")
-            return self._pipeline_data_cache[name].pipeline
+            return cached_data.pipeline
 
         logger.debug(f"Creating pipeline instance for '{name}'")
 
@@ -271,29 +284,27 @@ class PipelineRegistry:
         Returns:
             PipelineConfig instance
         """
+        name = validate_pipeline_name(name)
+
         # Use cache if available and not reloading
-        if not reload and name in self._pipeline_data_cache:
+        cached_data = self._pipeline_data_cache.get(name)
+        if not reload and cached_data is not None and cached_data.config is not None:
+            self._sync_project_state()
             logger.debug(f"Returning cached config for pipeline '{name}'")
-            return self._pipeline_data_cache[name].config
+            return cached_data.config
 
         logger.debug(f"Loading configuration for pipeline '{name}'")
 
-        # Load configuration from disk
-        config = PipelineConfig.load(
-            base_dir=self._base_dir,
-            name=name,
-            fs=self._fs,
-            storage_options=self._storage_options,
-        )
+        config = self._config_manager.load_pipeline_config(name, reload=reload)
+        self._sync_project_state()
 
-        # Cache the configuration (will be stored in consolidated cache when pipeline is created)
-        # For now, we'll create a temporary cache entry if it doesn't exist
-        if name not in self._pipeline_data_cache:
-            self._pipeline_data_cache[name] = CachedPipelineData(
-                pipeline=None,  # type: ignore
-                config=config,
-                module=None,  # type: ignore
-            )
+        if cached_data is None:
+            self._pipeline_data_cache[name] = CachedPipelineData(config=config)
+        else:
+            cached_data.config = config
+            if reload:
+                cached_data.pipeline = None
+                cached_data.module = None
 
         return config
 
@@ -307,32 +318,32 @@ class PipelineRegistry:
         Returns:
             Loaded Python module
         """
+        name = validate_pipeline_name(name)
+
         # Use cache if available and not reloading
-        if not reload and name in self._pipeline_data_cache:
-            cached_data = self._pipeline_data_cache[name]
-            if cached_data.module is not None:
-                logger.debug(f"Returning cached module for pipeline '{name}'")
-                return cached_data.module
+        cached_data = self._pipeline_data_cache.get(name)
+        if not reload and cached_data is not None and cached_data.module is not None:
+            logger.debug(f"Returning cached module for pipeline '{name}'")
+            return cached_data.module
 
         logger.debug(f"Loading module for pipeline '{name}'")
 
         # Convert pipeline name to module name using the shared helper
-        formatted_name = self._format_pipeline_name(name)
-        module_name = f"pipelines.{formatted_name}"
+        formatted_name = format_pipeline_module_path(name)
+        package_root = format_pipeline_package_root(self._pipelines_dir)
+        module_name = (
+            f"{package_root}.{formatted_name}" if package_root else formatted_name
+        )
 
         # Load the module
         module = load_module(module_name, reload=reload)
 
-        # Cache the module (will be stored in consolidated cache when pipeline is created)
-        # For now, we'll update the existing cache entry if it exists
-        if name in self._pipeline_data_cache:
-            self._pipeline_data_cache[name].module = module
+        if cached_data is None:
+            self._pipeline_data_cache[name] = CachedPipelineData(module=module)
         else:
-            self._pipeline_data_cache[name] = CachedPipelineData(
-                pipeline=None,  # type: ignore
-                config=None,  # type: ignore
-                module=module,
-            )
+            cached_data.module = module
+            if reload:
+                cached_data.pipeline = None
 
         return module
 
@@ -350,129 +361,7 @@ class PipelineRegistry:
             logger.debug("Clearing entire pipeline cache")
             self._pipeline_data_cache.clear()
 
-    # --- Methods moved from PipelineManager ---
-    def new(self, name: str, overwrite: bool = False):
-        """
-        Adds a pipeline with the given name.
-
-        Args:
-            name (str): The name of the pipeline.
-            overwrite (bool): Whether to overwrite an existing pipeline. Defaults to False.
-
-        Raises:
-            ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
-
-        Examples:
-            >>> pm = PipelineManager()
-            >>> pm.new("my_pipeline")
-        """
-        # Use attributes derived from self.project_cfg
-        for dir_path, label in (
-            (self._cfg_dir, "configuration"),
-            (self._pipelines_dir, "pipeline"),
-        ):
-            if not self._fs.exists(dir_path):
-                raise ValueError(
-                    f"{label.capitalize()} path {dir_path} does not exist. Please run flowerpower init first."
-                )
-
-        formatted_name = self._format_pipeline_name(name)
-        pipeline_file = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
-        cfg_file = posixpath.join(self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml")
-
-        def check_and_handle(path: str):
-            if self._fs.exists(path):
-                if overwrite:
-                    self._fs.rm(path)
-                else:
-                    raise ValueError(
-                        f"Pipeline {self.project_cfg.name}.{formatted_name} already exists. Use `overwrite=True` to overwrite."
-                    )
-
-        check_and_handle(pipeline_file)
-        check_and_handle(cfg_file)
-
-        # Ensure directories for the new files exist
-        for file_path in (pipeline_file, cfg_file):
-            self._fs.makedirs(file_path.rsplit("/", 1)[0], exist_ok=True)
-
-        # Write pipeline code template
-        with self._fs.open(pipeline_file, "w") as f:
-            f.write(
-                PIPELINE_PY_TEMPLATE.format(
-                    name=name,
-                    date=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                )
-            )
-
-        # Create default pipeline config and save it directly
-        new_pipeline_cfg = PipelineConfig(name=name)
-        new_pipeline_cfg.save(fs=self._fs)  # Save only the pipeline part
-
-        rich.print(
-            f"🔧 Created new pipeline [bold blue]{self.project_cfg.name}.{name}[/bold blue]"
-        )
-
-    def delete(self, name: str, cfg: bool = True, module: bool = False):
-        """
-        Delete a pipeline.
-
-        Args:
-            name (str): The name of the pipeline.
-            cfg (bool, optional): Whether to delete the config file. Defaults to True.
-            module (bool, optional): Whether to delete the module file. Defaults to False.
-
-        Returns:
-            None
-
-        Raises:
-            FileNotFoundError: If the specified files do not exist.
-
-        Examples:
-            >>> pm = PipelineManager()
-            >>> pm.delete("my_pipeline")
-        """
-        deleted_files = []
-        formatted_name = self._format_pipeline_name(name)
-
-        if cfg:
-            pipeline_cfg_path = posixpath.join(
-                self._cfg_dir, PIPELINES_DIR, f"{formatted_name}.yml"
-            )
-            if self._fs.exists(pipeline_cfg_path):
-                self._fs.rm(pipeline_cfg_path)
-                deleted_files.append(pipeline_cfg_path)
-                logger.debug(
-                    f"Deleted pipeline config: {pipeline_cfg_path}"
-                )  # Changed to DEBUG
-            else:
-                logger.warning(
-                    f"Config file not found, skipping deletion: {pipeline_cfg_path}"
-                )
-
-        if module:
-            pipeline_py_path = posixpath.join(self._pipelines_dir, f"{formatted_name}.py")
-            if self._fs.exists(pipeline_py_path):
-                self._fs.rm(pipeline_py_path)
-                deleted_files.append(pipeline_py_path)
-                logger.debug(
-                    f"Deleted pipeline module: {pipeline_py_path}"
-                )  # Changed to DEBUG
-            else:
-                logger.warning(
-                    f"Module file not found, skipping deletion: {pipeline_py_path}"
-                )
-
-        if not deleted_files:
-            logger.warning(
-                f"No files found or specified for deletion for pipeline '{name}'."
-            )
-
-        # Sync filesystem if needed (using _fs)
-        if hasattr(self._fs, "sync_cache") and callable(
-            getattr(self._fs, "sync_cache")
-        ):
-            self._fs.sync_cache()
+    # --- Pipeline Discovery & Listing ---
 
     def _get_files(self) -> list[str]:
         """
@@ -482,7 +371,35 @@ class PipelineRegistry:
             list[str]: The list of pipeline files.
         """
         try:
-            return self._fs.glob(posixpath.join(self._pipelines_dir, "*.py"))
+            files: list[str] = []
+            seen: set[str] = set()
+            discovery_error_logged = False
+            patterns = (
+                posixpath.join(self._pipelines_dir, "*.py"),
+                posixpath.join(self._pipelines_dir, "**", "*.py"),
+            )
+            for pattern in patterns:
+                try:
+                    paths = self._fs.glob(pattern)
+                except NotImplementedError as e:
+                    logger.debug(
+                        f"Skipping unsupported pipeline glob pattern {pattern}: {e}"
+                    )
+                    continue
+                except Exception as e:
+                    if not discovery_error_logged:
+                        logger.error(
+                            f"Error accessing pipeline glob pattern {pattern}: {e}"
+                        )
+                        discovery_error_logged = True
+                    continue
+
+                for path in paths:
+                    if posixpath.basename(path) == "__init__.py" or path in seen:
+                        continue
+                    seen.add(path)
+                    files.append(path)
+            return sorted(files)
         except (OSError, PermissionError) as e:
             logger.error(
                 f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
@@ -501,8 +418,54 @@ class PipelineRegistry:
         Returns:
             list[str]: The list of pipeline names.
         """
-        files = self._get_files()
-        return [posixpath.basename(f).replace(".py", "") for f in files]
+        return [self._path_to_pipeline_name(path) for path in self._get_files()]
+
+    def _path_to_pipeline_name(self, path: str) -> str:
+        """Convert a pipeline file path into a discovered pipeline name."""
+        relative_path = posixpath.relpath(path, self._pipelines_dir)
+        module_path = posixpath.splitext(relative_path)[0]
+        derived_name = module_path.replace("/", ".")
+        stored_name = self._read_stored_pipeline_name(module_path)
+        return stored_name or derived_name
+
+    def _read_stored_pipeline_name(self, module_path: str) -> str | None:
+        """Return the canonical pipeline name from YAML when available."""
+        candidate_paths = get_pipeline_config_paths(
+            module_path,
+            self._cfg_dir,
+            self._pipelines_dir,
+        )
+
+        for cfg_path in candidate_paths:
+            try:
+                exists = self._fs.exists(cfg_path)
+            except Exception as error:
+                logger.debug(
+                    f"Skipping unreadable pipeline config candidate {cfg_path}: {error}"
+                )
+                continue
+
+            if not exists:
+                continue
+            try:
+                with self._fs.open(cfg_path) as f:
+                    data = yaml.safe_load(f) or {}
+            except Exception as e:
+                logger.debug(
+                    f"Skipping unreadable pipeline config candidate {cfg_path}: {e}"
+                )
+                continue
+
+            stored_name = data.get("name") if isinstance(data, dict) else None
+            if isinstance(stored_name, str) and stored_name:
+                try:
+                    return validate_pipeline_name(stored_name)
+                except (SecurityError, ValueError):
+                    continue
+
+        return None
+
+    # --- Data Gathering (presentation-free) ---
 
     def get_summary(
         self,
@@ -510,7 +473,7 @@ class PipelineRegistry:
         cfg: bool = True,
         code: bool = True,
         project: bool = True,
-    ) -> dict[str, dict | str]:
+    ) -> dict[str, Any]:
         """
         Get a summary of the pipelines.
 
@@ -528,16 +491,17 @@ class PipelineRegistry:
             summary=pm.get_summary()
             ```
         """
-        if name:
+        if name is not None:
+            name = validate_pipeline_name(name)
             pipeline_names = [name]
         else:
             pipeline_names = self._get_names()
 
-        summary = {}
+        summary: dict[str, Any] = {}
         summary["pipelines"] = {}
 
         if project:
-            # Use self.project_cfg directly
+            self._sync_project_state()
             summary["project"] = self.project_cfg.to_dict()
 
         for name in pipeline_names:
@@ -545,13 +509,15 @@ class PipelineRegistry:
 
             pipeline_summary = {}
             if cfg:
-                pipeline_cfg = PipelineConfig.load(name=name, fs=self._fs)
+                pipeline_cfg = self.load_config(name=name, reload=False)
                 pipeline_summary["cfg"] = pipeline_cfg.to_dict()
             if code:
                 try:
-                    module_content = self._fs.cat(
-                        posixpath.join(self._pipelines_dir, f"{name}.py")
-                    ).decode()
+                    module_path = posixpath.join(
+                        self._pipelines_dir,
+                        f"{format_pipeline_file_path(name)}.py",
+                    )
+                    module_content = self._fs.cat(module_path).decode()
                     pipeline_summary["module"] = module_content
                 except FileNotFoundError:
                     logger.warning(f"Module file not found for pipeline '{name}'")
@@ -573,160 +539,22 @@ class PipelineRegistry:
                 summary["pipelines"][name] = pipeline_summary
         return summary
 
-    def show_summary(
-        self,
-        name: str | None = None,
-        cfg: bool = True,
-        code: bool = True,
-        project: bool = True,
-        to_html: bool = False,
-        to_svg: bool = False,
-    ) -> None | str:
-        """
-        Show a summary of the pipelines.
-
-        Args:
-            name (str | None, optional): The name of the pipeline. Defaults to None.
-            cfg (bool, optional): Whether to show the configuration. Defaults to True.
-            code (bool, optional): Whether to show the module. Defaults to True.
-            project (bool, optional): Whether to show the project configuration. Defaults to True.
-            to_html (bool, optional): Whether to export the summary to HTML. Defaults to False.
-            to_svg (bool, optional): Whether to export the summary to SVG. Defaults to False.
+    def _collect_pipeline_info(self) -> list[dict[str, Any]]:
+        """Collect metadata (name, path, mod_time, size) for all pipelines.
 
         Returns:
-            None | str: The summary of the pipelines. If `to_html` is True, returns the HTML string.
-                If `to_svg` is True, returns the SVG string.
-
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pm.show_summary()
-            ```
+            A list of dicts, each with keys ``name``, ``path``, ``mod_time``,
+            and ``size``.  Returns an empty list when no pipelines exist.
         """
-
-        summary = self.get_summary(name=name, cfg=cfg, code=code, project=project)
-        project_summary = summary.get("project", {})
-        pipeline_summary = summary["pipelines"]
-
-        def add_dict_to_tree(tree, dict_data, style="green"):
-            for key, value in dict_data.items():
-                if isinstance(value, dict):
-                    branch = tree.add(f"[cyan]{key}:", style="bold cyan")
-                    add_dict_to_tree(branch, value, style)
-                else:
-                    tree.add(f"[cyan]{key}:[/] [green]{value}[/]")
-
-        console = Console()
-
-        if project:
-            # Create tree for project config
-            project_tree = Tree("📁 Project Configuration", style="bold magenta")
-            add_dict_to_tree(project_tree, project_summary)
-
-            # Print project configuration
-            console.print(
-                Panel(
-                    project_tree,
-                    title="Project Configuration",
-                    border_style="blue",
-                    padding=(2, 2),
-                )
-            )
-            console.print("\n")
-
-        for pipeline, info in pipeline_summary.items():
-            # Create tree for config
-            config_tree = Tree("📋 Pipeline Configuration", style="bold magenta")
-            add_dict_to_tree(config_tree, info["cfg"])
-
-            # Create syntax-highlighted code view
-            code_view = Syntax(
-                info["module"],
-                "python",
-                theme="default",
-                line_numbers=False,
-                word_wrap=True,
-                code_width=80,
-                padding=2,
-            )
-
-            if cfg:
-                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
-                console.print(
-                    Panel(
-                        config_tree,
-                        title=f"🔄 Pipeline: {pipeline}",
-                        subtitle="Configuration",
-                        border_style="blue",
-                        padding=(2, 2),
-                    )
-                )
-                console.print("\n")
-
-            if code:
-                # console.print(f"🔄 Pipeline: {pipeline}", style="bold blue")
-                console.print(
-                    Panel(
-                        code_view,
-                        title=f"🔄 Pipeline: {pipeline}",
-                        subtitle="Module",
-                        border_style="blue",
-                        padding=(2, 2),
-                    )
-                )
-                console.print("\n")
-        if to_html:
-            return console.export_html()
-        elif to_svg:
-            return console.export_svg()
-
-    @property
-    def summary(self) -> dict[str, dict | str]:
-        """
-        Get a summary of the pipelines.
-
-        Returns:
-            dict: A dictionary containing the pipeline summary.
-        """
-        return self.get_summary()
-
-    def _all_pipelines(
-        self, show: bool = True, to_html: bool = False, to_svg: bool = False
-    ) -> list[str] | None:
-        """
-        Print all available pipelines in a formatted table.
-
-        Args:
-            show (bool, optional): Whether to print the table. Defaults to True.
-            to_html (bool, optional): Whether to export the table to HTML. Defaults to False.
-            to_svg (bool, optional): Whether to export the table to SVG. Defaults to False.
-
-        Returns:
-            list[str] | None: A list of pipeline names if `show` is False.
-
-        Examples:
-            ```python
-            pm = PipelineManager()
-            all_pipelines = pm._pipelines(show=False)
-            ```
-        """
-        if to_html or to_svg:
-            show = True
-
-        pipeline_files = [
-            f for f in self._fs.ls(self._pipelines_dir) if f.endswith(".py")
-        ]
-        pipeline_names = [
-            posixpath.splitext(posixpath.basename(f))[0] for f in pipeline_files
-        ]  # Simplified name extraction
+        pipeline_files = self._get_files()
+        pipeline_names = [self._path_to_pipeline_name(path) for path in pipeline_files]
 
         if not pipeline_files:
-            rich.print("[yellow]No pipelines found[/yellow]")
-            return []  # Return empty list for consistency
+            return []
 
-        pipeline_info = []
+        pipeline_info: list[dict[str, Any]] = []
 
-        for path, name in zip(pipeline_files, pipeline_names):
+        for path, name in zip(pipeline_files, pipeline_names, strict=True):
             try:
                 mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
             except NotImplementedError:
@@ -752,69 +580,137 @@ class PipelineRegistry:
                 }
             )
 
-        if show:
-            table = Table(title="Available Pipelines")
-            table.add_column("Pipeline Name", style="blue")
-            table.add_column("Path", style="magenta")
-            table.add_column("Last Modified", style="green")
-            table.add_column("Size", style="cyan")
+        return pipeline_info
 
-            for info in pipeline_info:
-                table.add_row(
-                    info["name"], info["path"], info["mod_time"], info["size"]
-                )
-            console = Console(record=True)
-            console.print(table)
-            if to_html:
-                return console.export_html()
-            elif to_svg:
-                return console.export_svg()
+    # --- Presentation (delegated to PipelinePresenter) ---
 
-        else:
-            return pipeline_info
+    def show_summary(
+        self,
+        name: str | None = None,
+        cfg: bool = True,
+        code: bool = True,
+        project: bool = True,
+        to_html: bool = False,
+        to_svg: bool = False,
+    ) -> None | str:
+        """Show a Rich-rendered summary of pipelines.
 
-    def show_pipelines(self) -> None:
-        """
-        Print all available pipelines in a formatted table.
-
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pm.show_pipelines()
-            ```
-        """
-        self._all_pipelines(show=True)
-
-    def list_pipelines(self) -> list[str]:
-        """
-        Get a list of all available pipelines.
+        Delegates to :class:`PipelinePresenter` for all rendering.
 
         Returns:
-            list[str] | None: A list of pipeline names.
-
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pipelines = pm.list_pipelines()
-            ```
+            None | str: HTML/SVG string when export is requested, otherwise None.
         """
-        return self._all_pipelines(show=False)
+        summary = self.get_summary(name=name, cfg=cfg, code=code, project=project)
+        return self._presenter.show_summary(
+            summary, cfg=cfg, code=code, project=project,
+            to_html=to_html, to_svg=to_svg,
+        )
+
+    def show_pipelines(self) -> None:
+        """Print all available pipelines in a formatted table.
+
+        Delegates to :class:`PipelinePresenter`.
+        """
+        info = self._collect_pipeline_info()
+        if not info:
+            self._presenter.print_no_pipelines_found()
+            return
+        self._presenter.show_pipelines_table(info)
+
+    def _all_pipelines(
+        self, show: bool = True, to_html: bool = False, to_svg: bool = False
+    ) -> list[dict[str, Any]] | str | None:
+        """Return or display all pipelines.
+
+        When *show* is ``True`` (the default), renders via the presenter.
+        When ``False``, returns the raw data list.
+
+        Returns:
+            ``list[dict[str, Any]]`` when *show* is ``False``, otherwise ``None``
+            (or an HTML/SVG export string).
+        """
+        info = self._collect_pipeline_info()
+
+        if not info:
+            if show:
+                self._presenter.print_no_pipelines_found()
+            return [] if not show else None
+
+        if show:
+            return self._presenter.show_pipelines_table(
+                info, to_html=to_html, to_svg=to_svg,
+            )
+
+        return info
+
+    def list_pipeline_info(self) -> list[dict[str, Any]]:
+        """Get metadata for all available pipelines.
+
+        Returns:
+            list[dict[str, Any]]: Pipeline metadata dictionaries.
+        """
+        return self._collect_pipeline_info()
+
+    def list_pipelines(self) -> list[str]:
+        """Get the discovered pipeline names.
+
+        Returns:
+            list[str]: Canonical pipeline names.
+        """
+        return self._get_names()
+
+    @property
+    def summary(self) -> dict[str, dict | str]:
+        """Get a summary of the pipelines."""
+        return self.get_summary()
 
     @property
     def pipelines(self) -> list[str]:
-        """
-        Get a list of all available pipelines.
+        """Get a list of discovered pipeline names."""
+        return self._get_names()
 
-        Returns:
-            list[str] | None: A list of pipeline names.
+    # --- Backward-compatible lifecycle delegation ---
 
-        Examples:
-            ```python
-            pm = PipelineManager()
-            pipelines = pm.pipelines
-            ```
+    def _creator(self):
+        """Build a creator using the registry's current project/config state."""
+        self._sync_project_state()
+
+        from .creator import PipelineCreator
+
+        return PipelineCreator(
+            project_cfg=self.project_cfg,
+            fs=self._fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+        )
+
+    def new(self, name: str, overwrite: bool = False) -> None:
+        """Create a pipeline.
+
+        Backward-compatible shim for older callers that still use the registry
+        as the lifecycle entry point.
         """
-        return self._all_pipelines(show=False)
+        self._creator().new(name=name, overwrite=overwrite)
+
+    def delete(self, name: str, cfg: bool = True, module: bool = False) -> None:
+        """Delete a pipeline.
+
+        Backward-compatible shim for older callers that still use the registry
+        as the lifecycle entry point.
+        """
+        self._creator().delete(name=name, cfg=cfg, module=module)
+
+    def create_pipeline(self, name: str, overwrite: bool = False) -> None:
+        """Backward-compatible alias for :meth:`new`."""
+        self.new(name=name, overwrite=overwrite)
+
+    def delete_pipeline(
+        self, name: str, cfg: bool = True, module: bool = False
+    ) -> None:
+        """Backward-compatible alias for :meth:`delete`."""
+        self.delete(name=name, cfg=cfg, module=module)
+
+    # --- Hook management ---
 
     def add_hook(
         self,
@@ -836,16 +732,19 @@ class PipelineRegistry:
             None
 
         Examples:
-            ```python
-            pm = PipelineManager()
-            pm.add_hook(HookType.PRE_EXECUTE)
-            ```
+            >>> pm = PipelineManager()
+            >>> pm.add_hook(HookType.PRE_EXECUTE)
         """
 
+        name = validate_pipeline_name(name)
+        self._sync_project_state()
+
         if to is None:
-            to = f"hooks/{name}/hook.py"
+            to = f"{self._hooks_dir}/{name}/hook.py"
         else:
-            to = f"hooks/{name}/{to}"
+            to = f"{self._hooks_dir}/{name}/{to}"
+
+        to = str(validate_file_path(to))
 
         match type:
             case HookType.MQTT_BUILD_CONFIG:
@@ -855,7 +754,7 @@ class PipelineRegistry:
             function_name = type.default_function_name()
 
         if not self._fs.exists(to):
-            self._fs.makedirs(os.path.dirname(to), exist_ok=True)
+            self._fs.makedirs(posixpath.dirname(to), exist_ok=True)
 
         with self._fs.open(to, "a") as f:
             f.write(template.format(function_name=function_name))
@@ -863,39 +762,3 @@ class PipelineRegistry:
         rich.print(
             f"🔧 Added hook [bold blue]{type.value}[/bold blue] to {to} as {function_name} for {name}"
         )
-
-    def create_pipeline(
-        self,
-        name: str,
-        overwrite: bool = False,
-        template: str | None = None,
-        tags: list[str] | None = None,
-        description: str | None = None,
-    ) -> None:
-        """Create a new pipeline.
-
-        This method provides compatibility with the lifecycle manager interface.
-        Additional parameters (template, tags, description) are currently not used.
-
-        Args:
-            name: Name of the pipeline to create
-            overwrite: Whether to overwrite existing pipeline
-            template: Template to use (not currently implemented)
-            tags: Tags for the pipeline (not currently implemented)
-            description: Description of the pipeline (not currently implemented)
-        """
-        self.new(name=name, overwrite=overwrite)
-
-    def delete_pipeline(
-        self, name: str, cfg: bool = True, module: bool = False
-    ) -> None:
-        """Delete a pipeline.
-
-        This method provides compatibility with the lifecycle manager interface.
-
-        Args:
-            name: Name of the pipeline to delete
-            cfg: Whether to delete configuration files
-            module: Whether to delete module files
-        """
-        self.delete(name=name, cfg=cfg, module=module)

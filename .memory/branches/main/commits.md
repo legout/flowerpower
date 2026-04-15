@@ -110,3 +110,46 @@ FlowerPower is a YAML-driven DAG orchestration framework built on Apache Hamilto
 - Introduced `_safe_cpu_count()` and `_env_bool()` helpers in `settings/executor.py` to prevent `TypeError` crashes when `os.cpu_count()` returns `None`.
 - Rejected the initial implementation of `flo-1lti` (Gate: REVISE) due to missing edge-case tests and incomplete application of the new boolean parser in `hamilton.py`.
 - Prioritized high-impact maintenance tasks including the removal of dead utility code and the standardization of the divergent `RunConfigBuilder` implementations.
+
+---
+
+## Commit 2a26c2c2 | 2026-04-10T17:11:36.722Z
+
+### Branch Purpose
+
+The main development branch for FlowerPower, tracking the core framework architecture, configuration lifecycle, and Hamilton-based DAG orchestration features.
+
+### Previous Progress Summary
+
+FlowerPower is a YAML-driven DAG orchestration framework built on Apache Hamilton, featuring a layered architecture with a unified `FlowerPowerProject` API and a central `PipelineManager`. The project has achieved stability through a zero-error linting baseline, hardened exception handling, and robust security practices. Recent progress focused on architectural cleanup, specifically standardizing pipeline name formatting and overhauling environment variable parsing. The implementation of the `ticket-flow` system has enabled structured, subagent-driven development for high-impact maintenance tasks, including settings parsing fixes and the consolidation of redundant configuration components.
+
+### This Commit's Contribution
+
+- Successfully integrated the `ticket-flow` subagent orchestration system, closing major tickets for settings parsing (`flo-1lti`) and API simplification (`flo-c9pq`).
+- Hardened environment configuration by implementing a robust boolean parser (`_env_bool`) and preserving legacy CPU count fallback semantics in `executor.py`.
+- Executed a major architectural refactor of `PipelineManager`, slimming the class by ~50% (600+ lines) by removing redundant delegation methods in favor of direct sub-manager access.
+- Enhanced the `RetryManager` to support structured `CallbackSpec` objects, enabling more flexible success/failure hooks with custom arguments and keyword arguments.
+- Established a rigorous validation baseline by identifying 28 pre-existing test failures on clean HEAD, ensuring no new regressions were introduced during significant refactoring.
+- Aligned the CLI, documentation, and example notebooks with the new decoupled sub-manager API (`registry`, `io`, `visualizer`).
+- Identified and addressed a subtle `MagicMock` detection bug in the retry manager's internal callback type checking logic.
+
+---
+
+## Commit fc1f5efe | 2026-04-10T17:12:05.639Z
+
+### Branch Purpose
+
+The main development branch for FlowerPower, tracking the core framework architecture, configuration lifecycle, and Hamilton-based DAG orchestration features.
+
+### Previous Progress Summary
+
+FlowerPower is a YAML-driven DAG orchestration framework built on Apache Hamilton, featuring a layered architecture with a unified `FlowerPowerProject` API and a decoupled `PipelineManager`. The project has matured through a zero-error linting baseline, hardened exception handling, and the adoption of the `ticket-flow` system for subagent-driven development. Significant architectural refinements have occurred, including a 50% reduction in `PipelineManager` complexity and the decoupling of sub-managers for registry, I/O, and visualization. Recent work focused on overhauling environment parsing, implementing a robust `RetryManager` with structured callbacks, and establishing a rigorous validation baseline for high-stakes refactoring.
+
+### This Commit's Contribution
+
+- Tagged and released version 0.34.1 as a stable milestone, consolidating major architectural improvements and the integration of the `ticket-flow` orchestration system.
+- Formalized async execution support through `run_async`, enabling non-blocking pipeline orchestration as a core framework capability.
+- Implemented module composition via `additional_modules`, allowing users to extend Hamilton DAGs with auxiliary logic injected at runtime.
+- Completed the transition to a nested `RetryConfig` and `CallbackSpec` structure, replacing legacy flat fields with a scalable configuration model for task retries.
+- Introduced environment overlays with YAML interpolation and executor overrides, significantly enhancing the flexibility of context-aware pipeline configuration.
+- Validated the release against the established project baseline, ensuring that all 0.34.1 features maintain stability across the core API and plugin ecosystem.

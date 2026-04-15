@@ -1,6 +1,6 @@
 ---
 id: flo-f6uv
-status: open
+status: in_progress
 deps: []
 links: [flo-e4tw, flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -63,3 +63,19 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - No shared function in `utils/filesystem.py`.
 - Pipeline name validation still duplicated across 5 locations.
 - Path traversal validation still duplicated across 3 locations.
+
+**2026-04-13T19:42:03Z**
+
+Gate: REVISE — Review Attempt: 1/3. Two HIGH findings: (1) Hyphenated pipeline names produce different config filenames in PipelineCreator (my_pipeline.yml) vs PipelineConfig.save/load (my-pipeline.yml) — must use same path formatter everywhere. (2) Dotted pipeline names produce invalid runtime module import paths because load_module() uses slash-containing formatted_name with importlib.import_module() — need separate filesystem-path vs module-import-path formatting.
+
+**2026-04-13T20:15:34Z**
+
+Gate: REVISE — Review Attempt: 2/3. Two HIGH findings: (1) PipelineCreator ignores manager-configured cfg_dir/pipelines_dir — manager.creator.new() falls back to defaults instead of using configured layout. (2) Module loading hardcodes 'pipelines.' package root in load_module(), so non-default layouts (e.g. flows/) produce wrong import paths.
+
+**2026-04-14T11:07:04Z**
+
+Gate: REVISE — Review Attempt: 3/7. Three HIGH findings: (1) registry.pipelines returns metadata dicts, breaking IO export membership checks — need names-only API. (2) IO still hardcodes conf/ and pipelines/ paths instead of using configured cfg_dir/pipelines_dir. (3) Dotted/nested pipelines not discoverable by registry — need recursive module discovery.
+
+**2026-04-14T13:32:15Z**
+
+Gate: REVISE — Review Attempt: 4/7. Two HIGH findings: (1) PipelineIOManager export checks membership against registry.pipelines which now returns metadata dicts, always rejecting real pipelines — need names-only lookup. (2) IO import/export still hardcodes conf/ and pipelines/ paths instead of using configured dirs and shared path formatter.

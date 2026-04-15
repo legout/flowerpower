@@ -1,4 +1,3 @@
-import copy
 import warnings
 from collections.abc import Callable
 from typing import Any, Optional, Union
@@ -7,6 +6,7 @@ from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
 
 from .run import RunConfig, RetryConfig
 from ..project.adapter import AdapterConfig as ProjectAdapterConfig
+from ...utils.config import clone_run_config
 from .builder_executor import ExecutorBuilder
 from .builder_adapter import AdapterBuilder
 
@@ -28,7 +28,7 @@ class RunConfigBuilder:
         pipeline_name: str,
         base_dir: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
     ):
         """Initialize the RunConfigBuilder.
 
@@ -69,37 +69,23 @@ class RunConfigBuilder:
                 storage_options=self._storage_options,
             )
 
-        # Load pipeline configuration
-        try:
-            from .. import PipelineConfig
+        from ...pipeline.config_manager import PipelineConfigManager
 
-            pipeline_cfg = PipelineConfig.load(
-                base_dir=self.base_dir,
-                name=self.pipeline_name,
-                fs=self._fs,
-                storage_options=self._storage_options,
-            )
-            if pipeline_cfg and pipeline_cfg.run:
-                self._config = copy.deepcopy(pipeline_cfg.run)
-        except Exception:
-            # If pipeline config doesn't exist, use defaults
-            pass
+        manager = PipelineConfigManager(
+            base_dir=self.base_dir,
+            fs=self._fs,
+            storage_options=self._storage_options or {},
+        )
 
-        # Load project configuration for adapter defaults
-        try:
-            from .. import ProjectConfig
+        pipeline_cfg = manager.load_pipeline_config(self.pipeline_name)
+        if pipeline_cfg and pipeline_cfg.run:
+            self._config = clone_run_config(pipeline_cfg.run)
 
-            project_cfg = ProjectConfig.load(
-                base_dir=self.base_dir,
-                fs=self._fs,
-                storage_options=self._storage_options,
-            )
-            if project_cfg and project_cfg.adapter:
-                # Store project adapter config for merging
-                self._project_adapter_cfg = project_cfg.adapter
-            else:
-                self._project_adapter_cfg = ProjectAdapterConfig()
-        except Exception:
+        project_cfg = manager.load_project_config()
+        if project_cfg and project_cfg.adapter:
+            # Store project adapter config for merging
+            self._project_adapter_cfg = project_cfg.adapter
+        else:
             self._project_adapter_cfg = ProjectAdapterConfig()
 
     def with_inputs(self, inputs: dict) -> "RunConfigBuilder":
@@ -319,7 +305,7 @@ class RunConfigBuilder:
             ValueError: If configuration is invalid
         """
         # Create a deep copy to avoid modifying the internal state
-        final_config = copy.deepcopy(self._config)
+        final_config = clone_run_config(self._config)
 
         # Build executor configuration
         final_config.executor = self._executor_builder.build()
@@ -386,6 +372,7 @@ class RunConfigBuilder:
         if config.executor and config.executor.type:
             valid_executors = [
                 "synchronous",
+                "local",
                 "threadpool",
                 "processpool",
                 "ray",

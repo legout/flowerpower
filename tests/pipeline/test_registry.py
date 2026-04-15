@@ -1,13 +1,20 @@
 import datetime as dt
 import posixpath  # Important for consistent path joining as used in registry.py
-from unittest.mock import MagicMock, call, patch
+import tempfile
+from pathlib import Path
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from fsspeckit import AbstractFileSystem  # For type hinting mocks
+import yaml
+from fsspeckit import (
+    AbstractFileSystem,  # For type hinting mocks
+    filesystem,
+)
 
-from flowerpower.cfg import PipelineConfig  # Actual config classes
-from flowerpower.cfg import ProjectConfig
-from flowerpower.pipeline.registry import HookType, PipelineRegistry
+from flowerpower.cfg import PipelineConfig, ProjectConfig
+from flowerpower.pipeline.config_manager import PipelineConfigManager
+from flowerpower.pipeline.registry import CachedPipelineData, HookType, PipelineRegistry
+from flowerpower.utils.security import SecurityError
 from flowerpower.utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 # --- Fixtures ---
@@ -36,6 +43,7 @@ def mock_project_cfg(mocker):
     """Fixture for a mocked ProjectConfig."""
     cfg = mocker.MagicMock(spec=ProjectConfig)
     cfg.name = "test_project"
+    cfg.hooks_dir = "hooks"
     # Other attributes will be set by the registry or can be mocked as needed
     cfg.to_dict = mocker.MagicMock(
         return_value={"name": "test_project", "version": "0.1"}
@@ -46,14 +54,14 @@ def mock_project_cfg(mocker):
 @pytest.fixture
 def mock_pipeline_cfg_instance(mocker):
     """Fixture for a mocked PipelineConfig instance."""
+    from flowerpower.cfg import PipelineConfig
+
     cfg_instance = mocker.MagicMock(spec=PipelineConfig)
     cfg_instance.name = "test_pipeline"
     cfg_instance.version = "1.0"
     cfg_instance.to_dict = mocker.MagicMock(
         return_value={"name": "test_pipeline", "version": "1.0"}
     )
-    # Mock the save method as it's called in registry.new
-    cfg_instance.save = mocker.MagicMock()
     return cfg_instance
 
 
@@ -75,177 +83,40 @@ class TestPipelineRegistry:
         assert registry._fs == mock_fs
         assert registry._cfg_dir == "conf"
         assert registry._pipelines_dir == "pipelines"
-        assert registry._console is not None
+        assert registry._presenter is not None
 
-    # --- Tests for new() method ---
-    def test_new_pipeline_success(
-        self, registry, mock_fs, mock_pipeline_cfg_instance, mocker
-    ):
-        pipeline_name = "my_new_pipeline"
-        formatted_name = "my_new_pipeline"  # Assumes no . or -
+    def test_new_delegates_to_pipeline_creator(self, registry, mocker):
+        creator = mocker.MagicMock()
+        mocker.patch.object(registry, "_creator", return_value=creator)
 
-        # Mock fs.exists to return False for new files initially
-        mock_fs.exists.side_effect = (
-            lambda p: not (
-                p.endswith(f"{formatted_name}.py")
-                or p.endswith(f"{formatted_name}.yml")
-            )
-            if "conf/pipelines/" in p or "pipelines/" in p
-            else True
-        )  # Keep other paths (like base dirs) existing
+        registry.new("demo-pipeline", overwrite=True)
 
-        # Patch PipelineConfig class to return our mock instance when called like a constructor
-        # or when its .save method is used by an instance.
-        # Since registry.new creates a PipelineConfig(name=name) then calls save on it.
-        mocker.patch(
-            "flowerpower.pipeline.registry.PipelineConfig",
-            return_value=mock_pipeline_cfg_instance,
+        creator.new.assert_called_once_with(name="demo-pipeline", overwrite=True)
+
+    def test_delete_delegates_to_pipeline_creator(self, registry, mocker):
+        creator = mocker.MagicMock()
+        mocker.patch.object(registry, "_creator", return_value=creator)
+
+        registry.delete("demo-pipeline", cfg=False, module=True)
+
+        creator.delete.assert_called_once_with(
+            name="demo-pipeline", cfg=False, module=True
         )
 
-        registry.new(pipeline_name)
+    def test_create_pipeline_alias_delegates_to_new(self, registry, mocker):
+        mock_new = mocker.patch.object(registry, "new")
 
-        # Check directory creation for the new files
-        expected_pipeline_file = posixpath.join(
-            registry._pipelines_dir, f"{formatted_name}.py"
-        )
-        expected_cfg_file = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{formatted_name}.yml"
-        )
+        registry.create_pipeline("demo-pipeline", overwrite=True)
 
-        mock_fs.makedirs.assert_any_call(
-            posixpath.dirname(expected_pipeline_file), exist_ok=True
-        )
-        mock_fs.makedirs.assert_any_call(
-            posixpath.dirname(expected_cfg_file), exist_ok=True
-        )
+        mock_new.assert_called_once_with(name="demo-pipeline", overwrite=True)
 
-        # Check file writes
-        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
+    def test_delete_pipeline_alias_delegates_to_delete(self, registry, mocker):
+        mock_delete = mocker.patch.object(registry, "delete")
 
-        # Check PipelineConfig instantiation and save
-        # PipelineConfig(name=pipeline_name) is called, then new_pipeline_cfg.save(fs=mock_fs)
-        from flowerpower.pipeline.registry import \
-            PipelineConfig as \
-            ActualPipelineConfig  # get the class for constructor check
+        registry.delete_pipeline("demo-pipeline", cfg=False, module=True)
 
-        ActualPipelineConfig.assert_called_once_with(name=pipeline_name)
-        mock_pipeline_cfg_instance.save.assert_called_once_with(fs=mock_fs)
-
-    def test_new_pipeline_base_dirs_do_not_exist(self, registry, mock_fs):
-        mock_fs.exists.side_effect = (
-            lambda p: False
-        )  # Make all paths appear non-existent
-
-        with pytest.raises(
-            ValueError, match="Configuration path conf does not exist."
-        ):
-            registry.new("test_pipe")
-
-        # Reset side_effect if needed for other tests or make it more specific
-        mock_fs.exists.side_effect = None
-        mock_fs.exists.return_value = True  # Restore default for other tests
-
-    def test_new_pipeline_already_exists_no_overwrite(self, registry, mock_fs):
-        pipeline_name = "existing_pipe"
-        # fs.exists returns True by default from fixture, so files will appear to exist
-
-        with pytest.raises(
-            ValueError, match=f"Pipeline test_project.{pipeline_name} already exists."
-        ):
-            registry.new(pipeline_name)
-
-    def test_new_pipeline_already_exists_with_overwrite(
-        self, registry, mock_fs, mock_pipeline_cfg_instance, mocker
-    ):
-        pipeline_name = "existing_pipe"
-        formatted_name = "existing_pipe"
-
-        # fs.exists returns True by default, simulating files exist
-        mocker.patch(
-            "flowerpower.pipeline.registry.PipelineConfig",
-            return_value=mock_pipeline_cfg_instance,
-        )
-
-        registry.new(pipeline_name, overwrite=True)
-
-        expected_pipeline_file = posixpath.join(
-            registry._pipelines_dir, f"{formatted_name}.py"
-        )
-        expected_cfg_file = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{formatted_name}.yml"
-        )
-
-        # Check that rm was called for existing files
-        mock_fs.rm.assert_any_call(expected_pipeline_file)
-        mock_fs.rm.assert_any_call(expected_cfg_file)
-
-        # And then files were written
-        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
-        mock_pipeline_cfg_instance.save.assert_called_once_with(fs=mock_fs)
-
-    # --- Tests for delete() method ---
-    def test_delete_pipeline_success_cfg_and_module(self, registry, mock_fs):
-        pipeline_name = "pipe_to_delete"
-        # fs.exists returns True by default
-
-        registry.delete(pipeline_name, cfg=True, module=True)
-
-        expected_cfg_path = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{pipeline_name}.yml"
-        )
-        expected_py_path = posixpath.join(
-            registry._pipelines_dir, f"{pipeline_name}.py"
-        )
-
-        mock_fs.rm.assert_any_call(expected_cfg_path)
-        mock_fs.rm.assert_any_call(expected_py_path)
-
-    def test_delete_pipeline_only_cfg(self, registry, mock_fs):
-        pipeline_name = "pipe_to_delete_cfg"
-        registry.delete(pipeline_name, cfg=True, module=False)
-
-        expected_cfg_path = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{pipeline_name}.yml"
-        )
-        expected_py_path = posixpath.join(
-            registry._pipelines_dir, f"{pipeline_name}.py"
-        )
-
-        mock_fs.rm.assert_called_once_with(expected_cfg_path)
-        # Ensure module was not deleted
-        calls = [call(expected_py_path)]
-        mock_fs.rm.assert_has_calls([call(expected_cfg_path)], any_order=True)
-        for c in calls:  # Check that expected_py_path was not called with rm
-            assert c not in mock_fs.rm.call_args_list
-
-    def test_delete_pipeline_files_not_found(self, registry, mock_fs, mocker):
-        pipeline_name = "non_existent_pipe"
-        mock_fs.exists.return_value = False  # Simulate files don't exist
-
-        # Mock logger to check warnings
-        mock_logger_warning = mocker.patch(
-            "flowerpower.pipeline.registry.logger.warning"
-        )
-
-        registry.delete(pipeline_name, cfg=True, module=True)
-
-        mock_fs.rm.assert_not_called()
-
-        expected_cfg_path = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{pipeline_name}.yml"
-        )
-        expected_py_path = posixpath.join(
-            registry._pipelines_dir, f"{pipeline_name}.py"
-        )
-
-        mock_logger_warning.assert_any_call(
-            f"Config file not found, skipping deletion: {expected_cfg_path}"
-        )
-        mock_logger_warning.assert_any_call(
-            f"Module file not found, skipping deletion: {expected_py_path}"
-        )
-        mock_logger_warning.assert_any_call(
-            f"No files found or specified for deletion for pipeline '{pipeline_name}'."
+        mock_delete.assert_called_once_with(
+            name="demo-pipeline", cfg=False, module=True
         )
 
     # --- Tests for _get_files() and _get_names() ---
@@ -262,6 +133,44 @@ class TestPipelineRegistry:
         names = registry._get_names()
         assert sorted(names) == sorted(["pipe1", "pipe2"])
 
+    def test_get_names_discovers_nested_modules(self, registry, mock_fs):
+        mock_fs.glob.side_effect = [
+            [posixpath.join(registry._pipelines_dir, "top_level.py")],
+            [posixpath.join(registry._pipelines_dir, "group", "nested_pipe.py")],
+        ]
+
+        assert registry._get_names() == ["group.nested_pipe", "top_level"]
+
+    def test_get_names_prefers_stored_pipeline_name(self, registry, mock_fs):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            pipelines_dir = Path(tmpdir) / "pipelines" / "group"
+            config_dir = Path(tmpdir) / "conf" / "pipelines" / "group"
+            pipelines_dir.mkdir(parents=True)
+            config_dir.mkdir(parents=True)
+            (pipelines_dir / "my_pipeline.py").write_text("def x():\n    return 1\n")
+            with (config_dir / "my_pipeline.yml").open("w") as fh:
+                yaml.safe_dump({"name": "group.my-pipeline"}, fh)
+
+            registry = PipelineRegistry(
+                project_cfg=ProjectConfig(name="demo"),
+                fs=fs,
+            )
+
+            assert registry._get_names() == ["group.my-pipeline"]
+
+    def test_read_stored_pipeline_name_skips_probe_errors(self, registry, mock_fs):
+        def exists(path: str) -> bool:
+            if path == "conf/pipelines/group/my_pipeline.yml":
+                raise PermissionError("denied")
+            return path == "conf/group/my_pipeline.yml"
+
+        mock_fs.exists.side_effect = exists
+        mock_fs.open = MagicMock()
+        mock_fs.open.return_value.__enter__.return_value = "name: group.my-pipeline\n"
+
+        assert registry._read_stored_pipeline_name("group/my_pipeline") == "group.my-pipeline"
+
     def test_get_files_fs_error(self, registry, mock_fs, mocker):
         mock_fs.glob.side_effect = Exception("FS error")
         mock_logger_error = mocker.patch("flowerpower.pipeline.registry.logger.error")
@@ -269,8 +178,18 @@ class TestPipelineRegistry:
         assert registry._get_files() == []
         mock_logger_error.assert_called_once()
 
+    def test_get_files_ignores_unsupported_recursive_glob(self, registry, mock_fs):
+        mock_fs.glob.side_effect = [
+            [posixpath.join(registry._pipelines_dir, "top_level.py")],
+            NotImplementedError("recursive glob unsupported"),
+        ]
+
+        assert registry._get_files() == [
+            posixpath.join(registry._pipelines_dir, "top_level.py")
+        ]
+
     # --- Tests for get_summary() method ---
-    @patch("flowerpower.pipeline.registry.PipelineConfig")  # Mock the class itself
+    @patch("flowerpower.pipeline.config_manager.PipelineConfig")  # Mock the class itself
     def test_get_summary_single_pipeline(
         self,
         MockPipelineConfig,
@@ -304,12 +223,88 @@ class TestPipelineRegistry:
         )
         assert summary["pipelines"][pipeline_name]["module"] == "pipeline_code_content"
 
-        MockPipelineConfig.load.assert_called_once_with(name=pipeline_name, fs=mock_fs)
+        MockPipelineConfig.load.assert_called_once_with(name=pipeline_name, fs=mock_fs, base_dir=".", storage_options={}, cfg_dir="conf", pipelines_dir="pipelines")
         mock_fs.cat.assert_called_once_with(
             posixpath.join(registry._pipelines_dir, f"{pipeline_name}.py")
         )
 
-    @patch("flowerpower.pipeline.registry.PipelineConfig")
+    @patch("flowerpower.pipeline.config_manager.PipelineConfig")
+    def test_get_summary_uses_formatted_module_path_for_dotted_pipeline(
+        self,
+        MockPipelineConfig,
+        registry,
+        mock_fs,
+        mock_pipeline_cfg_instance,
+    ):
+        pipeline_name = "group.my-pipeline"
+        MockPipelineConfig.load.return_value = mock_pipeline_cfg_instance
+        mock_fs.cat.return_value = b"pipeline_code_content"
+
+        registry.get_summary(name=pipeline_name, cfg=True, code=True, project=False)
+
+        mock_fs.cat.assert_called_once_with(
+            posixpath.join(registry._pipelines_dir, "group", "my_pipeline.py")
+        )
+
+    def test_load_module_supports_nested_pipeline_package_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            root = Path(tmpdir)
+
+            (root / "pkg" / "flows" / "group").mkdir(parents=True)
+            (root / "pkg" / "__init__.py").write_text("")
+            (root / "pkg" / "flows" / "__init__.py").write_text("")
+            (root / "pkg" / "flows" / "group" / "__init__.py").write_text("")
+            (root / "pkg" / "flows" / "group" / "my_pipeline.py").write_text(
+                "VALUE = 1\n"
+            )
+
+            (root / "conf" / "pkg" / "flows" / "group").mkdir(parents=True)
+            with (root / "conf" / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "demo"}, fh)
+            with (root / "conf" / "pkg" / "flows" / "group" / "my_pipeline.yml").open(
+                "w"
+            ) as fh:
+                yaml.safe_dump({"name": "group.my-pipeline"}, fh)
+
+            registry = PipelineRegistry(
+                project_cfg=ProjectConfig(name="demo"),
+                fs=fs,
+                base_dir=tmpdir,
+                cfg_dir="conf",
+                pipelines_dir="pkg/flows",
+            )
+
+            module = registry.load_module("group.my-pipeline")
+
+            assert module.__name__ == "pkg.flows.group.my_pipeline"
+            assert module.VALUE == 1
+
+    def test_from_filesystem_supports_custom_configured_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            root = Path(tmpdir)
+
+            (root / "settings" / "flows").mkdir(parents=True)
+            (root / "flows").mkdir(parents=True)
+            (root / "settings" / "project.yml").write_text("name: demo\n")
+            (root / "settings" / "flows" / "pipe.yml").write_text(
+                "name: pipe\nrun:\n  log_level: INFO\n"
+            )
+            (root / "flows" / "pipe.py").write_text("def x():\n    return 1\n")
+
+            registry = PipelineRegistry.from_filesystem(
+                base_dir=tmpdir,
+                fs=fs,
+                cfg_dir="settings",
+                pipelines_dir="flows",
+            )
+
+            assert registry.project_cfg.name == "demo"
+            assert registry.pipelines == ["pipe"]
+            assert registry.load_config("pipe").run.log_level == "INFO"
+
+    @patch("flowerpower.pipeline.config_manager.PipelineConfig")
     def test_get_summary_all_pipelines(
         self,
         MockPipelineConfig,
@@ -331,7 +326,7 @@ class TestPipelineRegistry:
         mock_config2.name = "pipe2"
         mock_config2.to_dict.return_value = {"name": "pipe2"}
         MockPipelineConfig.load.side_effect = (
-            lambda name, fs: mock_config1 if name == "pipe1" else mock_config2
+            lambda name, fs, **kwargs: mock_config1 if name == "pipe1" else mock_config2
         )
 
         mock_fs.cat.side_effect = lambda path: b"code_for_" + bytes(
@@ -350,9 +345,8 @@ class TestPipelineRegistry:
         assert summary["pipelines"]["pipe2"]["cfg"] == {"name": "pipe2"}
         assert summary["pipelines"]["pipe2"]["module"] == "code_for_pipe2"
 
-    # --- Tests for _all_pipelines() and list_pipelines() ---
-    def test_list_pipelines_and_all_pipelines(self, registry, mock_fs):
-        # _all_pipelines(show=False) is what list_pipelines calls
+    # --- Tests for pipeline discovery helpers ---
+    def test_list_pipeline_info_and_all_pipelines(self, registry, mock_fs):
         file_infos = [
             {
                 "name": "p1",
@@ -368,8 +362,8 @@ class TestPipelineRegistry:
             },
         ]
 
-        # Mock fs.ls to return the paths for which metadata will be fetched
-        mock_fs.ls.return_value = [info["path"] for info in file_infos]
+        # Mock fs.glob to return the paths for which metadata will be fetched
+        mock_fs.glob.side_effect = [[info["path"] for info in file_infos], []]
 
         # Mock fs.modified and fs.size to return corresponding values
         def mock_modified_side_effect(path):
@@ -389,11 +383,187 @@ class TestPipelineRegistry:
         mock_fs.modified.side_effect = mock_modified_side_effect
         mock_fs.size.side_effect = mock_size_side_effect
 
-        result = registry.list_pipelines()  # Calls _all_pipelines(show=False)
+        result = registry.list_pipeline_info()
 
         assert len(result) == 2
         assert any(item["name"] == "p1" and item["size"] == "1.0 KB" for item in result)
         assert any(item["name"] == "p2" and item["size"] == "2.0 KB" for item in result)
+
+    def test_list_pipelines_returns_names_only(self, registry, mock_fs):
+        mock_fs.glob.side_effect = [
+            [posixpath.join(registry._pipelines_dir, "pipe1.py")],
+            [posixpath.join(registry._pipelines_dir, "group", "pipe2.py")],
+        ]
+
+        assert registry.list_pipelines() == ["group.pipe2", "pipe1"]
+
+    def test_pipelines_property_returns_names_only(self, registry, mock_fs):
+        mock_fs.glob.side_effect = [
+            [posixpath.join(registry._pipelines_dir, "pipe1.py")],
+            [posixpath.join(registry._pipelines_dir, "group", "pipe2.py")],
+        ]
+
+        assert registry.pipelines == ["group.pipe2", "pipe1"]
+
+    def test_get_pipeline_ignores_partial_cache_entries(self, registry, mocker):
+        partial_cfg = MagicMock(spec=PipelineConfig)
+        partial_module = object()
+        registry._pipeline_data_cache["demo"] = mocker.MagicMock(
+            pipeline=None,
+            config=partial_cfg,
+            module=partial_module,
+        )
+
+        created_pipeline = MagicMock()
+        mock_pipeline_cls = mocker.patch("flowerpower.pipeline.pipeline.Pipeline", return_value=created_pipeline)
+
+        result = registry.get_pipeline("demo", project_context=MagicMock(), reload=False)
+
+        assert result is created_pipeline
+        mock_pipeline_cls.assert_called_once_with(
+            name="demo",
+            config=partial_cfg,
+            module=partial_module,
+            project_context=ANY,
+        )
+
+    def test_load_config_reload_invalidates_cached_pipeline(self, registry, mocker):
+        old_pipeline = MagicMock()
+        old_config = MagicMock(spec=PipelineConfig)
+        old_module = object()
+        new_config = MagicMock(spec=PipelineConfig)
+
+        registry._pipeline_data_cache["demo"] = mocker.MagicMock(
+            pipeline=old_pipeline,
+            config=old_config,
+            module=old_module,
+        )
+        registry._config_manager.load_pipeline_config = mocker.MagicMock(
+            return_value=new_config
+        )
+
+        result = registry.load_config("demo", reload=True)
+
+        assert result is new_config
+        assert registry._pipeline_data_cache["demo"].config is new_config
+        assert registry._pipeline_data_cache["demo"].module is None
+        assert registry._pipeline_data_cache["demo"].pipeline is None
+
+    def test_load_module_reload_invalidates_cached_pipeline(self, registry, mocker):
+        old_pipeline = MagicMock()
+        old_config = MagicMock(spec=PipelineConfig)
+        old_module = object()
+        new_module = object()
+
+        registry._pipeline_data_cache["demo"] = mocker.MagicMock(
+            pipeline=old_pipeline,
+            config=old_config,
+            module=old_module,
+        )
+        mocker.patch(
+            "flowerpower.pipeline.registry.load_module",
+            return_value=new_module,
+        )
+
+        result = registry.load_module("demo", reload=True)
+
+        assert result is new_module
+        assert registry._pipeline_data_cache["demo"].config is old_config
+        assert registry._pipeline_data_cache["demo"].module is new_module
+        assert registry._pipeline_data_cache["demo"].pipeline is None
+
+    def test_load_config_reload_syncs_registry_project_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            conf = Path(tmpdir) / "conf"
+            conf.mkdir()
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "demo", "hooks_dir": "hooks"}, fh)
+            pipelines = conf / "pipelines"
+            pipelines.mkdir()
+            with (pipelines / "my_pipeline.yml").open("w") as fh:
+                yaml.safe_dump({"run": {"log_level": "INFO"}}, fh)
+
+            manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
+            manager.load_project_config()
+            registry = PipelineRegistry(
+                project_cfg=manager.project_config,
+                fs=fs,
+                base_dir=tmpdir,
+                config_manager=manager,
+            )
+
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "updated-demo", "hooks_dir": "custom_hooks"}, fh)
+
+            registry.load_config("my-pipeline", reload=True)
+
+            assert registry.project_cfg.name == "updated-demo"
+            assert registry._hooks_dir == "custom_hooks"
+            assert registry.get_summary(cfg=False, code=False, project=True)["project"]["name"] == "updated-demo"
+
+    def test_load_config_cached_return_syncs_registry_project_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            conf = Path(tmpdir) / "conf"
+            conf.mkdir()
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "demo", "hooks_dir": "hooks"}, fh)
+            pipelines = conf / "pipelines"
+            pipelines.mkdir()
+            with (pipelines / "my_pipeline.yml").open("w") as fh:
+                yaml.safe_dump({"run": {"log_level": "INFO"}}, fh)
+
+            manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
+            manager.load_project_config()
+            registry = PipelineRegistry(
+                project_cfg=manager.project_config,
+                fs=fs,
+                base_dir=tmpdir,
+                config_manager=manager,
+            )
+
+            registry.load_config("my-pipeline")
+
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "updated-demo", "hooks_dir": "custom_hooks"}, fh)
+            manager.load_project_config(reload=True)
+
+            registry.load_config("my-pipeline", reload=False)
+
+            assert registry.project_cfg.name == "updated-demo"
+            assert registry._hooks_dir == "custom_hooks"
+
+    def test_get_pipeline_cached_return_syncs_registry_project_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            conf = Path(tmpdir) / "conf"
+            conf.mkdir()
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "demo", "hooks_dir": "hooks"}, fh)
+
+            manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
+            manager.load_project_config()
+            registry = PipelineRegistry(
+                project_cfg=manager.project_config,
+                fs=fs,
+                base_dir=tmpdir,
+                config_manager=manager,
+            )
+            registry._pipeline_data_cache["demo"] = CachedPipelineData(
+                pipeline=MagicMock(),
+                config=MagicMock(spec=PipelineConfig),
+                module=object(),
+            )
+
+            with (conf / "project.yml").open("w") as fh:
+                yaml.safe_dump({"name": "updated-demo", "hooks_dir": "custom_hooks"}, fh)
+            manager.load_project_config(reload=True)
+
+            registry.get_pipeline("demo", project_context=MagicMock(), reload=False)
+
+            assert registry.project_cfg.name == "updated-demo"
+            assert registry._hooks_dir == "custom_hooks"
 
     def test_list_pipelines_empty_dir(self, registry, mock_fs, mocker):
         mock_fs.ls.return_value = []
@@ -468,198 +638,25 @@ class TestPipelineRegistry:
         handle = mock_fs.open()
         handle.write.assert_called_once_with(expected_content)
 
-
-# --- Regression tests for name formatting (hyphens/dots) ---
-
-
-class TestPipelineNameFormatting:
-    """Tests for consistent name formatting between new() and delete()."""
-
-    def test_new_and_delete_with_hyphenated_name(
-        self, mocker
-    ):
-        """Test that new() and delete() use consistent name formatting for hyphenated names."""
-        pipeline_name = "my-pipeline"  # Has hyphen
-        expected_formatted_name = "my_pipeline"  # Hyphen becomes underscore
-
-        # Setup mocks
-        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
-        mock_fs.makedirs = mocker.MagicMock()
-        mock_fs.rm = mocker.MagicMock()
-        mock_fs.open = mocker.mock_open()
-
-        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
-        mock_project_cfg.name = "test_project"
-
-        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
-        mock_cfg_instance.save = mocker.MagicMock()
-
-        mocker.patch(
-            "flowerpower.pipeline.registry.PipelineConfig",
-            return_value=mock_cfg_instance,
-        )
-
-        # Create registry
+    def test_add_hook_uses_project_configured_hooks_dir(self, mock_fs):
         registry = PipelineRegistry(
-            project_cfg=mock_project_cfg,
+            project_cfg=ProjectConfig(name="demo", hooks_dir="custom_hooks"),
             fs=mock_fs,
         )
 
-        # Mock exists to simulate creating new files (return False for new files)
-        def exists_side_effect(path):
-            if expected_formatted_name in path:
-                return False
-            return True
+        mock_fs.exists.return_value = False
 
-        mock_fs.exists.side_effect = exists_side_effect
+        registry.add_hook(name="hooked_pipeline", type=HookType.MQTT_BUILD_CONFIG)
 
-        # Create the pipeline
-        registry.new(pipeline_name)
-
-        # Verify new() creates files with formatted name
-        expected_pipeline_file = posixpath.join(
-            registry._pipelines_dir, f"{expected_formatted_name}.py"
-        )
-        expected_cfg_file = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
-        )
-        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
-        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
-
-        # Reset mock to simulate files now exist for deletion
-        mock_fs.reset_mock()
-        mock_fs.exists.return_value = True
-        mock_fs.exists.side_effect = None
-
-        # Delete the pipeline
-        registry.delete(pipeline_name, cfg=True, module=True)
-
-        # Verify delete() removes the same files that new() created
-        mock_fs.rm.assert_any_call(expected_cfg_file)
-        mock_fs.rm.assert_any_call(expected_pipeline_file)
-
-    def test_new_and_delete_with_dotted_name(
-        self, mocker
-    ):
-        """Test that new() and delete() use consistent name formatting for dotted (nested) names."""
-        pipeline_name = "sub.module"  # Has dot
-        expected_formatted_name = "sub/module"  # Dot becomes slash
-
-        # Setup mocks
-        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
-        mock_fs.makedirs = mocker.MagicMock()
-        mock_fs.rm = mocker.MagicMock()
-        mock_fs.open = mocker.mock_open()
-
-        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
-        mock_project_cfg.name = "test_project"
-
-        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
-        mock_cfg_instance.save = mocker.MagicMock()
-
-        mocker.patch(
-            "flowerpower.pipeline.registry.PipelineConfig",
-            return_value=mock_cfg_instance,
+        mock_fs.open.assert_called_once_with(
+            "custom_hooks/hooked_pipeline/hook.py",
+            "a",
         )
 
-        # Create registry
-        registry = PipelineRegistry(
-            project_cfg=mock_project_cfg,
-            fs=mock_fs,
-        )
-
-        # Mock exists to simulate creating new files
-        def exists_side_effect(path):
-            if expected_formatted_name in path:
-                return False
-            return True
-
-        mock_fs.exists.side_effect = exists_side_effect
-
-        # Create the pipeline
-        registry.new(pipeline_name)
-
-        # Verify new() creates files with formatted name
-        expected_pipeline_file = posixpath.join(
-            registry._pipelines_dir, f"{expected_formatted_name}.py"
-        )
-        expected_cfg_file = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
-        )
-        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
-        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
-
-        # Reset mock to simulate files now exist for deletion
-        mock_fs.reset_mock()
-        mock_fs.exists.return_value = True
-        mock_fs.exists.side_effect = None
-
-        # Delete the pipeline
-        registry.delete(pipeline_name, cfg=True, module=True)
-
-        # Verify delete() removes the same files that new() created
-        mock_fs.rm.assert_any_call(expected_cfg_file)
-        mock_fs.rm.assert_any_call(expected_pipeline_file)
-
-    def test_new_and_delete_with_mixed_special_chars(
-        self, mocker
-    ):
-        """Test name formatting with both hyphens and dots."""
-        pipeline_name = "my-pipeline.sub-module"  # Both hyphen and dot
-        expected_formatted_name = "my_pipeline/sub_module"  # Hyphen to underscore, dot to slash
-
-        # Setup mocks
-        mock_fs = mocker.MagicMock(spec=AbstractFileSystem)
-        mock_fs.makedirs = mocker.MagicMock()
-        mock_fs.rm = mocker.MagicMock()
-        mock_fs.open = mocker.mock_open()
-
-        mock_project_cfg = mocker.MagicMock(spec=ProjectConfig)
-        mock_project_cfg.name = "test_project"
-
-        mock_cfg_instance = mocker.MagicMock(spec=PipelineConfig)
-        mock_cfg_instance.save = mocker.MagicMock()
-
-        mocker.patch(
-            "flowerpower.pipeline.registry.PipelineConfig",
-            return_value=mock_cfg_instance,
-        )
-
-        # Create registry
-        registry = PipelineRegistry(
-            project_cfg=mock_project_cfg,
-            fs=mock_fs,
-        )
-
-        # Mock exists to simulate creating new files
-        def exists_side_effect(path):
-            if expected_formatted_name in path:
-                return False
-            return True
-
-        mock_fs.exists.side_effect = exists_side_effect
-
-        # Create the pipeline
-        registry.new(pipeline_name)
-
-        # Verify new() creates files with formatted name
-        expected_pipeline_file = posixpath.join(
-            registry._pipelines_dir, f"{expected_formatted_name}.py"
-        )
-        expected_cfg_file = posixpath.join(
-            registry._cfg_dir, "pipelines", f"{expected_formatted_name}.yml"
-        )
-        mock_fs.open.assert_any_call(expected_pipeline_file, "w")
-        mock_cfg_instance.save.assert_called_once_with(fs=mock_fs)
-
-        # Reset mock to simulate files now exist for deletion
-        mock_fs.reset_mock()
-        mock_fs.exists.return_value = True
-        mock_fs.exists.side_effect = None
-
-        # Delete the pipeline
-        registry.delete(pipeline_name, cfg=True, module=True)
-
-        # Verify delete() removes the same files that new() created
-        mock_fs.rm.assert_any_call(expected_cfg_file)
-        mock_fs.rm.assert_any_call(expected_pipeline_file)
+    def test_add_hook_rejects_path_traversal(self, registry):
+        with pytest.raises(SecurityError):
+            registry.add_hook(
+                name="safe_pipeline",
+                type=HookType.MQTT_BUILD_CONFIG,
+                to="../escape.py",
+            )

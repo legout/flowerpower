@@ -92,6 +92,7 @@ class ExecutorBuilder:
         if self._config.type:
             valid_executors = [
                 "synchronous",
+                "local",
                 "threadpool",
                 "processpool",
                 "ray",

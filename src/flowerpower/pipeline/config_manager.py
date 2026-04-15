@@ -1,21 +1,14 @@
 """Configuration management for pipelines."""
 
-import os
-from typing import TYPE_CHECKING, Optional
+from typing import Any
 
 from fsspeckit import AbstractFileSystem
 
 from ..cfg import PipelineConfig, ProjectConfig
-from ..settings import CONFIG_DIR
-from ..utils.misc import get_filesystem
-from ..utils.env import (
-    parse_env_overrides,
-    build_specific_overlays,
-    apply_global_shims,
-)
-
-if TYPE_CHECKING:
-    from fsspeckit import AbstractFileSystem
+from ..settings import CONFIG_DIR, PIPELINES_DIR
+from ..utils.env import apply_env_overlays
+from ..utils.filesystem import find_first_existing_path, get_project_config_paths
+from ..utils.security import validate_directory_fragment, validate_pipeline_name
 
 
 class PipelineConfigManager:
@@ -32,8 +25,9 @@ class PipelineConfigManager:
         self,
         base_dir: str,
         fs: AbstractFileSystem,
-        storage_options: dict,
-        cfg_dir: str = CONFIG_DIR,
+        storage_options: dict[str, Any] | Any,
+        cfg_dir: str | None = CONFIG_DIR,
+        pipelines_dir: str | None = None,
     ):
         """Initialize the configuration manager.
 
@@ -42,17 +36,31 @@ class PipelineConfigManager:
             fs: Filesystem instance for file operations
             storage_options: Storage options for filesystem
             cfg_dir: Configuration directory name
+            pipelines_dir: Pipelines directory name
         """
         self._base_dir = base_dir
         self._fs = fs
         self._storage_options = storage_options
-        self._cfg_dir = cfg_dir
-        self._fs = fs
-        self._project_cfg: Optional[ProjectConfig] = None
-        self._pipeline_cfg: Optional[PipelineConfig] = None
-        self._current_pipeline_name: Optional[str] = None
+        self._cfg_dir = validate_directory_fragment(
+            cfg_dir if cfg_dir is not None else CONFIG_DIR
+        )
+        self._pipelines_dir = validate_directory_fragment(
+            pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
+        )
+        self._project_cfg: ProjectConfig | None = None
+        self._pipeline_cfg: PipelineConfig | None = None
+        self._current_project_name: str | None = None
+        self._current_pipeline_name: str | None = None
+        self._env_overlays: tuple[dict, dict] | None = None
 
-    def load_project_config(self, reload: bool = False) -> ProjectConfig:
+    def _project_config_paths(self) -> list[str]:
+        return get_project_config_paths(self._cfg_dir)
+
+    def load_project_config(
+        self,
+        reload: bool = False,
+        name: str | None = None,
+    ) -> ProjectConfig:
         """Load project configuration.
 
         Args:
@@ -61,34 +69,45 @@ class PipelineConfigManager:
         Returns:
             ProjectConfig: The loaded project configuration
         """
-        if self._project_cfg is None or reload:
-            from ..cfg import ProjectConfig
-
-            # Construct config file path
-            cfg_path = f"{self._base_dir}/{self._cfg_dir}/project.yml"
-
-            # Load configuration using provided filesystem
-            fs = self._fs
-            self._project_cfg = ProjectConfig.from_yaml(
-                path=f"{self._cfg_dir}/project.yml", fs=fs
+        project_config_exists = (
+            find_first_existing_path(
+                self._fs,
+                self._project_config_paths(),
+                purpose="project config",
             )
+            is not None
+        )
+        requested_name = None if project_config_exists else (name if name is not None else self._current_project_name)
 
-            # Apply environment overlays (project-only part)
-            try:
-                overrides = parse_env_overrides()
-                proj_overlay, pipe_overlay = build_specific_overlays(overrides)
-                apply_global_shims(overrides, proj_overlay, pipe_overlay)
-                if proj_overlay.get("project") and hasattr(self._project_cfg, "update"):
-                    self._project_cfg.update(proj_overlay["project"])
-            except Exception:
-                pass
+        if (
+            self._project_cfg is None
+            or self._current_project_name != requested_name
+            or reload
+        ):
+            load_kwargs = {
+                "base_dir": self._base_dir,
+                "fs": self._fs,
+                "storage_options": self._storage_options,
+                "cfg_dir": self._cfg_dir,
+            }
+            if requested_name is not None:
+                load_kwargs["name"] = requested_name
 
-            # Add pipelines directory to Python path
-            self._add_modules_path(["pipelines"])
+            self._project_cfg = ProjectConfig.load(**load_kwargs)
+            self._current_project_name = requested_name
+
+            self._env_overlays = apply_env_overlays(
+                project_cfg=self._project_cfg,
+                overlays=None if reload else self._env_overlays,
+            )
 
         return self._project_cfg
 
-    def load_pipeline_config(self, name: str, reload: bool = False) -> PipelineConfig:
+    def load_pipeline_config(
+        self,
+        name: str | None,
+        reload: bool = False,
+    ) -> PipelineConfig:
         """Load pipeline configuration.
 
         Args:
@@ -98,58 +117,27 @@ class PipelineConfigManager:
         Returns:
             PipelineConfig: The loaded pipeline configuration
         """
-        if self._pipeline_cfg is None or self._current_pipeline_name != name or reload:
-            from ..cfg import PipelineConfig
+        if name is not None:
+            name = validate_pipeline_name(name)
 
+        if self._pipeline_cfg is None or self._current_pipeline_name != name or reload:
             # Ensure project config is loaded first
             self.load_project_config(reload=reload)
 
-            # Use existing filesystem
-            fs = self._fs
-
-            # Try different file locations and extensions
-            cfg_path = None
-            possible_paths = [
-                # Try .yml extension in pipelines/ subdirectory first
-                os.path.join(self._cfg_dir, "pipelines", f"{name}.yml"),
-                # Then try .yaml extension in pipelines/ subdirectory
-                os.path.join(self._cfg_dir, "pipelines", f"{name}.yaml"),
-                # Fallback to old paths for backward compatibility
-                os.path.join(self._cfg_dir, f"{name}.yml"),
-                os.path.join(self._cfg_dir, f"{name}.yaml"),
-            ]
-
-            for path in possible_paths:
-                try:
-                    if fs.exists(path):
-                        cfg_path = path
-                        break
-                except Exception:
-                    continue
-
-            if cfg_path is None:
-                raise FileNotFoundError(
-                    f"Pipeline configuration not found. Searched for: {possible_paths}"
-                )
-
-            # Load configuration
-            self._pipeline_cfg = PipelineConfig.from_yaml(
+            # Load configuration through the canonical loader
+            self._pipeline_cfg = PipelineConfig.load(
+                base_dir=self._base_dir,
                 name=name,
-                path=cfg_path,
-                fs=fs,
+                fs=self._fs,
+                storage_options=self._storage_options,
+                cfg_dir=self._cfg_dir,
+                pipelines_dir=self._pipelines_dir,
             )
 
-            # Apply environment overlays (pipeline-only part)
-            try:
-                overrides = parse_env_overrides()
-                proj_overlay, pipe_overlay = build_specific_overlays(overrides)
-                apply_global_shims(overrides, proj_overlay, pipe_overlay)
-                if pipe_overlay.get("pipeline") and hasattr(
-                    self._pipeline_cfg, "update"
-                ):
-                    self._pipeline_cfg.update(pipe_overlay["pipeline"])
-            except Exception:
-                pass
+            self._env_overlays = apply_env_overlays(
+                pipeline_cfg=self._pipeline_cfg,
+                overlays=self._env_overlays,
+            )
 
             # Update current pipeline name
             self._current_pipeline_name = name
@@ -189,24 +177,10 @@ class PipelineConfigManager:
         return self._pipeline_cfg
 
     @property
-    def current_pipeline_name(self) -> Optional[str]:
+    def current_pipeline_name(self) -> str | None:
         """Get the name of the currently loaded pipeline.
 
         Returns:
             str | None: Name of the current pipeline, or None if none loaded
         """
         return self._current_pipeline_name
-
-    def _add_modules_path(self, python_path: list[str]) -> None:
-        """Add module paths to Python path.
-
-        Args:
-            python_path: List of paths to add to sys.path
-        """
-        import sys
-        from pathlib import Path
-
-        for path in python_path:
-            path_obj = Path(self._base_dir) / path
-            if str(path_obj) not in sys.path:
-                sys.path.insert(0, str(path_obj))

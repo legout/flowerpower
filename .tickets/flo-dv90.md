@@ -1,6 +1,6 @@
 ---
 id: flo-dv90
-status: open
+status: closed
 deps: []
 links: [flo-p15d, flo-b3nm]
 created: 2026-02-17T10:44:55Z
@@ -41,3 +41,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - `PipelineIOManager.export_many()` still calls `self.registry.has_pipeline(name)` at line 383.
 - `has_pipeline()` does NOT exist on `PipelineRegistry` — will crash at runtime.
 - Blocked by flo-b3nm and flo-c9pq which are also not done.
+
+**2026-04-13T15:26:18Z**
+
+Gate: PASS — Review passed on first attempt. Replaced non-existent registry.has_pipeline() call in export_many() with name not in registry.pipelines. Added matching validation to export_pipeline(). Fixed test mocks and added new coverage test. 2/2 ticket-relevant tests pass.

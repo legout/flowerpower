@@ -138,15 +138,15 @@ FlowerPower uses the library [`fsspeckit`](https://legout.github.io/fsspeckit) t
 FlowerPower includes built-in security features to prevent common vulnerabilities, such as directory traversal attacks. All file paths provided to configuration loaders and filesystem utilities are validated to ensure they are within the project's base directory.
 
 ```python
-from flowerpower.utils.security import validate_file_path
+from flowerpower.utils.security import SecurityError, validate_file_path
 
 # This will pass
 validate_file_path("my/safe/path.yml")
 
-# This will raise a ConfigPathError
+# This will raise a SecurityError
 try:
     validate_file_path("../../../etc/passwd")
-except Exception as e:
+except SecurityError as e:
     print(e)
 ```
 ## Extensible I/O Plugins

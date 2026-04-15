@@ -1,13 +1,18 @@
 import asyncio
 import importlib
+import sys
+import tempfile
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fsspeckit import filesystem
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
 from flowerpower.cfg.pipeline.run import ExecutorConfig
 from flowerpower.pipeline.runner import PipelineRunner
+from flowerpower.utils.filesystem import add_modules_path
 
 
 class FakeBuilder:
@@ -136,6 +141,59 @@ def test_runner_uses_remote_executor_when_not_synchronous(context_builder, pipel
 
 
 @patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_synchronous_executor_does_not_use_remote(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    run_config = RunConfig(executor=ExecutorConfig(type="synchronous"))
+    result = runner.run(run_config=run_config)
+
+    assert result["remote"] is False
+    assert FakeBuilder.last_instance.with_remote is False
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_local_executor_alias_does_not_use_remote(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    run_config = RunConfig(executor=ExecutorConfig(type="local"))
+    result = runner.run(run_config=run_config)
+
+    assert result["remote"] is False
+    assert FakeBuilder.last_instance.with_remote is False
+
+
+def test_prepare_run_config_does_not_mutate_pipeline_defaults(pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+
+    prepared = runner._prepare_run_config(None, {"inputs": {"y": 2}})
+
+    assert prepared.inputs == {"y": 2}
+    assert pipeline_stub.config.run.inputs == {}
+
+
+def test_prepare_run_config_does_not_mutate_caller_run_config(pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    run_config = RunConfig(inputs={"x": 1}, executor=ExecutorConfig(type="synchronous"))
+
+    prepared = runner._prepare_run_config(run_config, {"inputs": {"y": 2}})
+
+    assert prepared.inputs == {"x": 1, "y": 2}
+    assert run_config.inputs == {"x": 1}
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
 def test_runner_async_path_parity(context_builder, pipeline_stub):
     runner = PipelineRunner(pipeline_stub)
     context_builder.return_value.build.return_value = (
@@ -219,6 +277,109 @@ def test_runner_additional_modules_are_imported_and_passed(context_builder, pipe
 
     assert FakeBuilder.last_instance.modules[0] is setup_module
     assert FakeBuilder.last_instance.modules[1] is pipeline_stub.module
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_additional_modules_use_configured_pipeline_package(
+    context_builder, pipeline_stub
+):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    pipeline_stub.module = ModuleType("flows.test_pipeline")
+    pipeline_stub.project_context = SimpleNamespace(
+        pipeline_manager=SimpleNamespace(_pipelines_dir="flows")
+    )
+    setup_module = ModuleType("flows.setup")
+
+    def fake_import(name: str):
+        if name in ("setup", "flows.setup"):
+            return setup_module
+        raise ImportError(name)
+
+    with patch(
+        "flowerpower.pipeline.runner.importlib.import_module", side_effect=fake_import
+    ):
+        run_config = RunConfig(
+            executor=ExecutorConfig(type="synchronous"),
+            additional_modules=["setup"],
+        )
+        runner.run(run_config=run_config)
+
+    assert FakeBuilder.last_instance.modules[0] is setup_module
+    assert FakeBuilder.last_instance.modules[1] is pipeline_stub.module
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_additional_modules_support_nested_pipeline_package_root(
+    context_builder, pipeline_stub
+):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    pipeline_stub.module = ModuleType("pkg.flows.test_pipeline")
+    pipeline_stub.project_context = SimpleNamespace(
+        pipeline_manager=SimpleNamespace(_pipelines_dir="pkg/flows")
+    )
+    setup_module = ModuleType("pkg.flows.setup")
+
+    def fake_import(name: str):
+        if name in ("setup", "pkg.flows.setup"):
+            return setup_module
+        raise ImportError(name)
+
+    with patch(
+        "flowerpower.pipeline.runner.importlib.import_module", side_effect=fake_import
+    ):
+        run_config = RunConfig(
+            executor=ExecutorConfig(type="synchronous"),
+            additional_modules=["setup"],
+        )
+        runner.run(run_config=run_config)
+
+    assert FakeBuilder.last_instance.modules[0] is setup_module
+    assert FakeBuilder.last_instance.modules[1] is pipeline_stub.module
+
+
+def test_runner_prefers_configured_package_for_short_additional_module_names(
+    pipeline_stub,
+):
+    package_root = "zzrunnerpkg"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fs = filesystem(tmpdir, cached=False, dirfs=True)
+        root = Path(tmpdir)
+        (root / package_root / "flows").mkdir(parents=True)
+        (root / package_root / "__init__.py").write_text("")
+        (root / package_root / "flows" / "__init__.py").write_text("")
+        (root / package_root / "flows" / "setup.py").write_text("VALUE = 1\n")
+
+        pipeline_stub.module = ModuleType(f"{package_root}.flows.test_pipeline")
+        pipeline_stub.project_context = SimpleNamespace(
+            pipeline_manager=SimpleNamespace(_pipelines_dir=f"{package_root}/flows")
+        )
+        runner = PipelineRunner(pipeline_stub)
+
+        original = list(sys.path)
+        try:
+            sys.path[:] = [path for path in sys.path if tmpdir not in str(path)]
+            add_modules_path(fs, f"{package_root}/flows", tmpdir)
+            module = runner._import_additional_module("setup")
+        finally:
+            sys.path[:] = original
+
+    assert module.__name__ == f"{package_root}.flows.setup"
+    assert module.VALUE == 1
 
 
 @patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
@@ -357,3 +518,24 @@ def test_runner_async_remote_executor_respected(context_builder, pipeline_stub):
         asyncio.run(runner.run_async(run_config=run_config))
 
     assert FakeAsyncBuilder.last_instance.with_remote is True
+
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+def test_runner_async_local_executor_alias_does_not_use_remote(
+    context_builder, pipeline_stub
+):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+
+    fake_async_module = SimpleNamespace(Builder=FakeAsyncBuilder)
+
+    with patch("flowerpower.pipeline.runner.hamilton_async_driver", fake_async_module):
+        run_config = RunConfig(executor=ExecutorConfig(type="local"))
+        result = asyncio.run(runner.run_async(run_config=run_config))
+
+    assert result["remote"] is False
+    assert FakeAsyncBuilder.last_instance.with_remote is False

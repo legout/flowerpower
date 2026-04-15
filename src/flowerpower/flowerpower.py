@@ -1,9 +1,9 @@
 import datetime as dt
 import os
 import posixpath
-from pathlib import Path
-from typing import Any, Callable, Optional, TYPE_CHECKING
 from functools import wraps
+from pathlib import Path
+from typing import Any
 
 import rich
 from fsspeckit import AbstractFileSystem, BaseStorageOptions, DirFileSystem, filesystem
@@ -11,14 +11,12 @@ from loguru import logger
 
 from . import settings
 from .cfg import ProjectConfig
-from .cfg.pipeline import ExecutorConfig, WithAdapterConfig, RunConfig
-from .cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-from .cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from .cfg.pipeline import RunConfig
 from .pipeline import PipelineManager
-from .utils.logging import setup_logging
-from .utils.security import validate_pipeline_name
 from .utils.config import merge_run_config_with_kwargs
 from .utils.filesystem import FilesystemHelper
+from .utils.logging import setup_logging
+from .utils.security import validate_file_path, validate_pipeline_name
 
 setup_logging()
 
@@ -60,10 +58,6 @@ class FlowerPowerProject:
         """
         self.pipeline_manager = pipeline_manager
         self.name = self.pipeline_manager.project_cfg.name
-
-    def _validate_pipeline_name(self, name: str) -> None:
-        """Validate the pipeline name argument using security utilities."""
-        validate_pipeline_name(name)  # Use secure validation function
 
     def _inject_dependencies(self):
         """Inject dependencies between managers for proper architecture.
@@ -158,7 +152,7 @@ class FlowerPowerProject:
             )
 
         # Validate required arguments
-        self._validate_pipeline_name(name)
+        name = validate_pipeline_name(name)
 
         # Initialize run_config - use provided config or create empty one
         run_config = run_config or RunConfig()
@@ -204,7 +198,7 @@ class FlowerPowerProject:
     def load(
         cls,
         base_dir: str | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         log_level: str | None = None,
     ) -> "FlowerPowerProject":
@@ -219,16 +213,15 @@ class FlowerPowerProject:
             log_level (str | None): The logging level to set for the project. If None, it uses the default log level.
 
         Returns:
-            FlowerPowerProject: An instance of FlowerPowerProject if the project exists, otherwise None.
-        Raises:
-            FileNotFoundError: If the project does not exist at the specified base directory.
+            FlowerPowerProject | None: The loaded project instance, or None if the
+                project directory does not exist.
         """
         if log_level is not None:
             setup_logging(level=log_level)
 
         base_dir = base_dir or str(Path.cwd())
 
-        if storage_options is not None:
+        if storage_options:
             cached = True
             cache_storage = posixpath.join(
                 posixpath.expanduser(settings.CACHE_DIR), base_dir.split("://")[-1]
@@ -274,7 +267,7 @@ class FlowerPowerProject:
         cls,
         name: str | None = None,
         base_dir: str | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         hooks_dir: str = settings.HOOKS_DIR,
         log_level: str | None = None,
@@ -300,6 +293,7 @@ class FlowerPowerProject:
 
         # Initialize project parameters
         name, base_dir = cls._resolve_project_params(name, base_dir)
+        validate_file_path(hooks_dir, allow_absolute=False, allow_relative=True)
 
         # Setup filesystem
         fs = cls._setup_filesystem(base_dir, storage_options, fs)
@@ -311,7 +305,7 @@ class FlowerPowerProject:
         cls._create_project_structure(fs, hooks_dir)
 
         # Initialize project configuration
-        cls._initialize_project_config(name, fs)
+        cls._initialize_project_config(name, fs, hooks_dir)
 
         # Print success message and getting started guide
         cls._print_success_message(name, base_dir)
@@ -328,11 +322,12 @@ class FlowerPowerProject:
         cls, name: str | None, base_dir: str | None
     ) -> tuple[str, str]:
         """Resolve project name and base directory."""
-        if name is None:
+        if name is None and base_dir is None:
             name = str(Path.cwd().name)
             base_dir = posixpath.join(str(Path.cwd().parent), name)
-
-        if base_dir is None:
+        elif name is None:
+            name = Path(base_dir).name
+        elif base_dir is None:
             base_dir = posixpath.join(str(Path.cwd()), name)
 
         return name, base_dir
@@ -384,17 +379,18 @@ class FlowerPowerProject:
     @classmethod
     def _create_project_structure(cls, fs: AbstractFileSystem, hooks_dir: str) -> None:
         """Create project directory structure."""
-        fs.makedirs(f"{settings.CONFIG_DIR}/pipelines", exist_ok=True)
+        fs.makedirs(f"{settings.CONFIG_DIR}/{settings.PIPELINES_DIR}", exist_ok=True)
         fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
         fs.makedirs(hooks_dir, exist_ok=True)
 
     @classmethod
     def _initialize_project_config(
-        cls, name: str, fs: AbstractFileSystem
+        cls, name: str, fs: AbstractFileSystem, hooks_dir: str
     ) -> ProjectConfig:
         """Initialize project configuration and create README."""
-        # Load project configuration
         cfg = ProjectConfig.load(name=name, fs=fs)
+        validate_file_path(hooks_dir, allow_absolute=False, allow_relative=True)
+        cfg.hooks_dir = hooks_dir
 
         # Create README file
         with fs.open("README.md", "w") as f:
@@ -444,7 +440,7 @@ class FlowerPowerProject:
                 code="""
     from flowerpower import FlowerPowerProject
     project = FlowerPowerProject.load(...)
-    project.pipeline_manager.new(name="my_first_pipeline")
+    project.pipeline_manager.creator.create_pipeline(name="my_first_pipeline")
         """,
                 lexer="python",
                 theme="nord",
@@ -455,7 +451,7 @@ class FlowerPowerProject:
 def initialize_project(
     name: str | None = None,
     base_dir: str | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
     fs: AbstractFileSystem | None = None,
     hooks_dir: str = settings.HOOKS_DIR,
     log_level: str | None = None,
@@ -491,26 +487,27 @@ def initialize_project(
 def create_project(
     name: str | None = None,
     base_dir: str | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
     fs: AbstractFileSystem | None = None,
     hooks_dir: str = settings.HOOKS_DIR,
 ) -> FlowerPowerProject:
-    # Note: _check_project_exists expects base_dir to be a string.
-    # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
-    # We pass fs directly, as _check_project_exists can handle fs being None.
-    # Note: _check_project_exists expects base_dir to be a string.
-    # If base_dir is None, it will be handled by _check_project_exists or the load/init methods.
-    # We pass fs directly, as _check_project_exists can handle fs being None.
+    # _check_project_exists expects base_dir to be a string.
     project_exists, _ = FlowerPowerProject._check_project_exists(
         base_dir or str(Path.cwd()), fs=fs
     )
 
     if project_exists:
-        return FlowerPowerProject.load(
+        project = FlowerPowerProject.load(
             base_dir=base_dir,
             storage_options=storage_options,
             fs=fs,
         )
+        if project is None:
+            raise FileNotFoundError(
+                f"Project at {base_dir} passed existence check but could not be loaded. "
+                "The project may be corrupted."
+            )
+        return project
     else:
         error_message = "Project does not exist. Use `initialize_project()` or `FlowerPowerProject.new()` to create it."
         rich.print(f"[red]{error_message}[/red]")
@@ -520,8 +517,3 @@ def create_project(
 
 # Alias for backward compatibility or alternative naming
 FlowerPower = create_project
-
-
-# The standalone init function is removed as it was a direct pass-through
-# to FlowerPowerProject.new(). Users can now use FlowerPowerProject.new() directly
-# or the new create_project() function which handles both loading and initialization.

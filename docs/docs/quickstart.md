@@ -64,7 +64,7 @@ flowerpower pipeline new hello_world
 from flowerpower import FlowerPowerProject
 
 project = FlowerPowerProject.load('.')
-project.pipeline_manager.new(name='hello_world')
+project.pipeline_manager.registry.create_pipeline(name='hello_world')
 ```
 
 This generates `pipelines/hello_world.py` for your pipeline logic and `conf/pipelines/hello_world.yml` for its configuration.

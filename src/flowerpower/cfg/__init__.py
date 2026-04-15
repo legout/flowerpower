@@ -1,20 +1,23 @@
 from pathlib import Path
 
 import msgspec
-from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
+from fsspeckit import AbstractFileSystem, BaseStorageOptions
 from munch import Munch
 
 from ..settings import CONFIG_DIR, PIPELINES_DIR
+from ..utils.filesystem import (
+    format_pipeline_file_path,
+    get_pipeline_config_paths,
+    get_project_config_paths,
+)
+from ..utils.security import (
+    validate_directory_fragment,
+    validate_file_path,
+    validate_pipeline_name,
+)
 from .base import BaseConfig
-from .exceptions import ConfigLoadError, ConfigSaveError, ConfigPathError
 from .pipeline import PipelineConfig, init_pipeline_config
 from .project import ProjectConfig, init_project_config
-from ..utils.env import (
-    parse_env_overrides,
-    build_specific_overlays,
-    apply_global_shims,
-    merge_overlays_into_config,
-)
 
 
 class Config(BaseConfig):
@@ -51,10 +54,16 @@ class Config(BaseConfig):
     fs: AbstractFileSystem | None = None
     base_dir: str | None = None
     storage_options: Munch = msgspec.field(default_factory=Munch)
+    cfg_dir: str | None = None
+    pipelines_dir: str | None = None
 
     def __post_init__(self):
         """Handle conversion of storage_options from dict to Munch if needed."""
-        if isinstance(self.storage_options, dict):
+        if isinstance(self.storage_options, BaseStorageOptions):
+            self.storage_options = Munch(
+                self.storage_options.to_dict(with_protocol=True)
+            )
+        elif isinstance(self.storage_options, dict):
             self.storage_options = Munch(self.storage_options)
 
         # Validate storage_options
@@ -63,6 +72,12 @@ class Config(BaseConfig):
         # Validate base_dir if provided
         if self.base_dir is not None:
             self._validate_base_dir()
+
+    def to_dict(self) -> dict[str, object]:
+        data = super().to_dict()
+        data.pop("cfg_dir", None)
+        data.pop("pipelines_dir", None)
+        return data
 
     def _validate_storage_options(self) -> None:
         """Validate storage_options parameter.
@@ -84,21 +99,10 @@ class Config(BaseConfig):
         Raises:
             ValueError: If base_dir contains invalid characters or is empty.
         """
-        # Convert Path to string if needed
-        base_dir_str = (
-            str(self.base_dir) if hasattr(self.base_dir, "__str__") else self.base_dir
-        )
+        base_dir_str = str(self.base_dir)
 
-        if not isinstance(base_dir_str, str):
-            raise ValueError(
-                f"base_dir must be a string or Path, got {type(self.base_dir)}"
-            )
-
-        # Check for directory traversal attempts (but allow absolute paths)
-        if ".." in base_dir_str:
-            raise ValueError(
-                f"Invalid base_dir: {base_dir_str}. Contains path traversal characters."
-            )
+        # Use shared path validation (allows both absolute and relative paths)
+        validate_file_path(base_dir_str, allow_absolute=True, allow_relative=True)
 
         # Check for empty string
         if not base_dir_str.strip():
@@ -120,7 +124,9 @@ class Config(BaseConfig):
         name: str | None = None,
         pipeline_name: str | None = None,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
+        cfg_dir: str | None = None,
+        pipelines_dir: str | None = None,
     ):
         """Load both project and pipeline configurations.
 
@@ -130,6 +136,8 @@ class Config(BaseConfig):
             pipeline_name (str | None, optional): Pipeline name. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            cfg_dir (str | None, optional): Configuration directory override. Defaults to CONFIG_DIR.
+            pipelines_dir (str | None, optional): Pipeline directory override. Defaults to PIPELINES_DIR.
 
         Returns:
             Config: Combined configuration instance.
@@ -145,63 +153,39 @@ class Config(BaseConfig):
         """
         if fs is None:
             # Use cached filesystem for better performance
-            storage_options_hash = cls._hash_storage_options(storage_options)
-            fs = cls._get_cached_filesystem(base_dir, storage_options_hash)
+            fs = cls._get_cached_filesystem(base_dir, storage_options)
 
-        try:
-            project = ProjectConfig.load(
-                base_dir=base_dir,
-                name=name,
-                fs=fs,
-                storage_options=storage_options,
-            )
-        except ConfigLoadError as e:
-            raise ConfigLoadError(
-                f"Failed to load project configuration: {e}",
-                path=base_dir,
-                original_error=e,
-            )
+        from ..pipeline.config_manager import PipelineConfigManager
 
-        try:
-            pipeline = PipelineConfig.load(
-                base_dir=base_dir,
-                name=pipeline_name,
-                fs=fs,
-                storage_options=storage_options,
-            )
-        except ConfigLoadError as e:
-            raise ConfigLoadError(
-                f"Failed to load pipeline configuration: {e}",
-                path=base_dir,
-                original_error=e,
-            )
+        config_manager = PipelineConfigManager(
+            base_dir=base_dir,
+            fs=fs,
+            storage_options=storage_options or {},
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
+        )
 
-        config = cls(
+        project = config_manager.load_project_config(name=name)
+        pipeline = config_manager.load_pipeline_config(pipeline_name)
+
+        return cls(
             base_dir=base_dir,
             pipeline=pipeline,
             project=project,
             fs=fs,
             storage_options=storage_options,
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
         )
-
-        # Apply environment overlays with specificity and shims
-        try:
-            overrides = parse_env_overrides()
-            proj_overlay, pipe_overlay = build_specific_overlays(overrides)
-            apply_global_shims(overrides, proj_overlay, pipe_overlay)
-            merge_overlays_into_config(config, proj_overlay, pipe_overlay)
-        except Exception:
-            # Fail-open: ignore overlay errors to avoid breaking existing flows
-            pass
-
-        return config
 
     def save(
         self,
         project: bool = False,
         pipeline: bool = True,
         fs: AbstractFileSystem | None = None,
-        storage_options: dict | BaseStorageOptions | None = {},
+        storage_options: dict | BaseStorageOptions | None = None,
+        cfg_dir: str | None = None,
+        pipelines_dir: str | None = None,
     ):
         """Save project and/or pipeline configurations.
 
@@ -210,62 +194,67 @@ class Config(BaseConfig):
             pipeline (bool, optional): Whether to save pipeline config. Defaults to True.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
             storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            cfg_dir (str | None, optional): Configuration directory override. Defaults to CONFIG_DIR.
+            pipelines_dir (str | None, optional): Pipeline directory override. Defaults to PIPELINES_DIR.
 
         Example:
             ```python
             config.save(project=True, pipeline=True)
             ```
         """
-        if fs is None and self.fs is None:
+        active_fs = fs or self.fs
+        if active_fs is None:
             # Use cached filesystem for better performance
-            storage_options_hash = self._hash_storage_options(storage_options)
-            self.fs = self._get_cached_filesystem(self.base_dir, storage_options_hash)
+            effective_storage_options = (
+                storage_options if storage_options is not None else self.storage_options
+            )
+            active_fs = self._get_cached_filesystem(
+                self.base_dir, effective_storage_options
+            )
+            self.fs = active_fs
 
-        if not self.fs.exists(CONFIG_DIR):
-            self.fs.makedirs(CONFIG_DIR)
+        if cfg_dir is None:
+            cfg_dir = self.cfg_dir if self.cfg_dir is not None else CONFIG_DIR
+        if pipelines_dir is None:
+            pipelines_dir = (
+                self.pipelines_dir if self.pipelines_dir is not None else PIPELINES_DIR
+            )
+
+        cfg_dir = validate_directory_fragment(cfg_dir)
+        pipelines_dir = validate_directory_fragment(pipelines_dir)
+
+        self.cfg_dir = cfg_dir
+        self.pipelines_dir = pipelines_dir
 
         if pipeline:
-            self.fs.makedirs(PIPELINES_DIR, exist_ok=True)
-            h_params = self.pipeline.pop("h_params") if self.pipeline.h_params else None
-            # Validate pipeline name to prevent directory traversal
-            if self.pipeline.name and (
-                ".." in self.pipeline.name
-                or "/" in self.pipeline.name
-                or "\\" in self.pipeline.name
-            ):
-                raise ConfigPathError(
-                    f"Invalid pipeline name: {self.pipeline.name}. Contains path traversal characters.",
-                    path=self.pipeline.name,
-                )
-            try:
-                self.pipeline.to_yaml(
-                    path=f"conf/pipelines/{self.pipeline.name}.yml", fs=self.fs
-                )
-            except ConfigSaveError as e:
-                raise ConfigSaveError(
-                    f"Failed to save pipeline configuration: {e}",
-                    path=f"conf/pipelines/{self.pipeline.name}.yml",
-                    original_error=e,
-                )
-            if h_params:
-                self.pipeline.h_params = h_params
+            if self.pipeline.name is None:
+                raise ValueError("Pipeline name is not set. Please provide a name.")
+
+            # Validate pipeline name
+            self.pipeline.name = validate_pipeline_name(self.pipeline.name)
+
+            formatted_name = format_pipeline_file_path(self.pipeline.name)
+            pipeline_path = get_pipeline_config_paths(
+                formatted_name,
+                cfg_dir,
+                pipelines_dir,
+            )[0]
+
+            self.pipeline.to_yaml(path=pipeline_path, fs=active_fs)
         if project:
-            try:
-                self.project.to_yaml("conf/project.yml", self.fs)
-            except ConfigSaveError as e:
-                raise ConfigSaveError(
-                    f"Failed to save project configuration: {e}",
-                    path="conf/project.yml",
-                    original_error=e,
-                )
+            project_path = get_project_config_paths(cfg_dir)[0]
+            active_fs.makedirs(cfg_dir or ".", exist_ok=True)
+            self.project.to_yaml(path=project_path, fs=active_fs)
 
 
 def load(
     base_dir: str,
     name: str | None = None,
     pipeline_name: str | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
     fs: AbstractFileSystem | None = None,
+    cfg_dir: str | None = None,
+    pipelines_dir: str | None = None,
 ):
     """Helper function to load configuration.
 
@@ -292,6 +281,8 @@ def load(
         base_dir=base_dir,
         storage_options=storage_options,
         fs=fs,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
     )
 
 
@@ -300,7 +291,9 @@ def save(
     project: bool = False,
     pipeline: bool = True,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
+    cfg_dir: str | None = None,
+    pipelines_dir: str | None = None,
 ):
     """Helper function to save configuration.
 
@@ -320,7 +313,12 @@ def save(
         ```
     """
     config.save(
-        project=project, pipeline=pipeline, fs=fs, storage_options=storage_options
+        project=project,
+        pipeline=pipeline,
+        fs=fs,
+        storage_options=storage_options,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
     )
 
 
@@ -329,7 +327,9 @@ def init_config(
     name: str | None = None,
     pipeline_name: str | None = None,
     fs: AbstractFileSystem | None = None,
-    storage_options: dict | BaseStorageOptions | None = {},
+    storage_options: dict | BaseStorageOptions | None = None,
+    cfg_dir: str | None = None,
+    pipelines_dir: str | None = None,
 ):
     """Initialize a new configuration with both project and pipeline settings.
 
@@ -360,55 +360,21 @@ def init_config(
         name=pipeline_name,
         fs=fs,
         storage_options=storage_options,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
     )
     project_cfg = init_project_config(
         base_dir=base_dir,
         name=name,
         fs=fs,
         storage_options=storage_options,
+        cfg_dir=cfg_dir,
     )
-    return Config(pipeline=pipeline_cfg, project=project_cfg, fs=fs, base_dir=base_dir)
-
-
-# Helper methods for centralized load/save logic
-@classmethod
-def _load_config(
-    cls,
-    config_class: type[BaseConfig],
-    base_dir: str,
-    name: str | None,
-    fs: AbstractFileSystem,
-    storage_options: dict | BaseStorageOptions | None,
-) -> BaseConfig:
-    """Centralized configuration loading logic.
-
-    Args:
-        config_class: The configuration class to load.
-        base_dir: Base directory for configurations.
-        name: Configuration name.
-        fs: Filesystem instance.
-        storage_options: Options for filesystem.
-
-    Returns:
-        Loaded configuration instance.
-    """
-    return config_class.load(
-        base_dir=base_dir,
-        name=name,
+    return Config(
+        pipeline=pipeline_cfg,
+        project=project_cfg,
         fs=fs,
-        storage_options=storage_options,
+        base_dir=base_dir,
+        cfg_dir=cfg_dir,
+        pipelines_dir=pipelines_dir,
     )
-
-
-def _save_pipeline_config(self) -> None:
-    """Save pipeline configuration with proper handling of h_params."""
-    self.fs.makedirs(PIPELINES_DIR, exist_ok=True)
-    h_params = self.pipeline.pop("h_params") if self.pipeline.h_params else None
-    self.pipeline.to_yaml(path=f"conf/pipelines/{self.pipeline.name}.yml", fs=self.fs)
-    if h_params:
-        self.pipeline.h_params = h_params
-
-
-def _save_project_config(self) -> None:
-    """Save project configuration."""
-    self.project.to_yaml("conf/project.yml", self.fs)

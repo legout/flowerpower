@@ -55,10 +55,3 @@ class ConfigSecurityError(ConfigError):
         self.details = details or {}
         super().__init__(message)
 
-
-class ConfigPathError(ConfigSecurityError):
-    """Exception raised for path-related security errors."""
-
-    def __init__(self, message: str, path: Optional[str] = None):
-        super().__init__(message, {"path": path})
-        self.path = path

@@ -1,17 +1,20 @@
 import ast
+import csv
 import importlib
 import importlib.util
 import json
 import os
 import posixpath
 import re
-from typing import Callable
+from collections.abc import Callable
+from typing import Any
 
 from loguru import logger
 
 from flowerpower.pipeline import PipelineManager
 
 from ..utils.logging import setup_logging
+from ..utils.security import validate_pipeline_name
 
 setup_logging()
 
@@ -60,24 +63,34 @@ def _parse_key_value_pairs(value: str):
         return None
 
     try:
-        return dict(pair.split("=", 1) for pair in value.split(",") if pair.strip())
+        parsed: dict[str, str] = {}
+        for pair in value.split(","):
+            pair = pair.strip()
+            if not pair:
+                continue
+
+            key, raw_value = pair.split("=", 1)
+            key = key.strip()
+            raw_value = raw_value.strip()
+            if not key:
+                return None
+            parsed[key] = raw_value
+
+        return parsed
     except ValueError:
         return None
 
 
 def _parse_comma_separated_list(value: str):
     """Parse value as comma-separated list with optional quotes."""
-    # Remove surrounding square brackets and whitespace
     value = value.strip()
     if value.startswith("[") and value.endswith("]"):
         value = value[1:-1].strip()
 
-    # Parse list-like string with or without quotes
-    # This regex handles: a,b | 'a','b' | "a","b" | a, b | 'a', 'b'
-    list_items = re.findall(r"['\"]?(.*?)['\"]?(?=\s*,|\s*$)", value)
+    if not value:
+        return []
 
-    # Remove any empty strings and strip whitespace
-    return [item.strip() for item in list_items if item.strip()]
+    return [item.strip() for item in next(csv.reader([value], skipinitialspace=True)) if item.strip()]
 
 
 def parse_dict_or_list_param(
@@ -130,11 +143,29 @@ def parse_dict_or_list_param(
     return None
 
 
+def _parse_storage_options(
+    storage_options: str | dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Parse storage options into a mapping accepted by ``PipelineManager``."""
+    if storage_options is None:
+        return {}
+    if isinstance(storage_options, dict):
+        return storage_options
+
+    parsed = parse_dict_or_list_param(storage_options, "dict")
+    if not isinstance(parsed, dict):
+        raise ValueError(
+            "Invalid storage_options format. Expected JSON, a Python dict literal, or key=value pairs."
+        )
+
+    return parsed
+
+
 def load_hook(
     pipeline_name: str,
     function_path: str,
     base_dir=None,
-    storage_options: str | None = None,
+    storage_options: str | dict[str, Any] | None = None,
 ) -> Callable:
     """
     Load a hook function from a specified path.
@@ -149,7 +180,19 @@ def load_hook(
     Returns:
         Callable: The loaded hook function
     """
-    with PipelineManager(storage_options=storage_options, base_dir=base_dir) as pm:
+    pipeline_name = validate_pipeline_name(pipeline_name)
+    if not re.fullmatch(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)+", function_path):
+        raise ValueError(
+            f"Invalid function_path format: {function_path}. "
+            "Expected a dotted Python path like 'module_name.function_name' or 'package.module_name.function_name'."
+        )
+
+    parsed_storage_options = _parse_storage_options(storage_options)
+
+    with PipelineManager(
+        storage_options=parsed_storage_options,
+        base_dir=base_dir,
+    ) as pm:
         path_segments = function_path.rsplit(".", 2)
         if len(path_segments) == 2:
             # If the function path is in the format 'module_name.function_name'
@@ -164,11 +207,15 @@ def load_hook(
                 "Expected 'module_name.function_name' or 'package.module_name.function_name'"
             )
 
-        # Construct the full path to the module file
+        project_path = pm._fs_helper.get_project_path(pm._fs)
+        hooks_root = getattr(getattr(pm, "registry", None), "_hooks_dir", "hooks")
         hooks_dir = posixpath.join(
-            pm._fs.path, "hooks", pipeline_name, module_path.replace(".", "/")
+            project_path,
+            hooks_root,
+            pipeline_name,
+            module_path.replace(".", "/"),
         )
-        module_file_path = os.path.join(hooks_dir, f"{module_name}.py")
+        module_file_path = posixpath.join(hooks_dir, f"{module_name}.py")
 
         logger.debug(f"Loading hook module from: {module_file_path}")
 

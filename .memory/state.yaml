@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-03-27T06:47:57Z"
 last_commit:
   branch: main
-  hash: 892829d0
-  timestamp: "2026-04-01T21:18:00.560Z"
-  summary: "Reviewed project status via `tk ready` and `tk blocked`. 16 open P2 tasks ready for work, 6 blocked tasks waiting on dependencies. Key focus areas: settings parsing fixes, utils cleanup, dead code removal, config consolidation, and RunConfigBuilder standardization."
+  hash: fc1f5efe
+  timestamp: "2026-04-10T17:12:05.639Z"
+  summary: ": 0.34.1 stable release with async execution, composed modules, nested RetryConfig, executor overrides, and env overlay with YAML interpolation"
 sessions:
   - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-03-27T06-47-36-242Z_0959c1fb-2b26-4787-8b5f-4cdf1e7001f9.jsonl"
     branch: main
@@ -288,3 +288,357 @@ sessions:
   - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-02T10-06-13-433Z_0a1ca40a-706dc7f4-be473388-d735.jsonl"
     branch: main
     started: "2026-04-02T10:06:17.031Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-28-50-655Z_3464f0ed-00cd-457c-98eb-f77afac1ff27.jsonl"
+    branch: main
+    started: "2026-04-10T15:28:52.342Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-29-32-296Z_398e56cf-cbd8-49a6-932b-fe2533425c79.jsonl"
+    branch: main
+    started: "2026-04-10T15:29:34.059Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-31-42-842Z_ea518bee-9494-40e3-b144-6ca76ecb5e58-0-3dfeeaf6.jsonl"
+    branch: main
+    started: "2026-04-10T15:31:46.613Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-32-07-452Z_f67ecb4d-4a8f-4868-a288-dfebe507f2d7.jsonl"
+    branch: main
+    started: "2026-04-10T15:32:09.107Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-33-58-796Z_8b3fa6da-cc35-4200-aad8-b07f7389a3b4-0-ac8777ca.jsonl"
+    branch: main
+    started: "2026-04-10T15:34:02.474Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-38-48-614Z_6ae67991-1601-4db0-9cad-9b5e38ebc231-0-1e0d7d1e.jsonl"
+    branch: main
+    started: "2026-04-10T15:38:51.935Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-50-29-519Z_f43ab62b-a0f7-449d-8aa9-3006fefaec92-0-3e7f7279.jsonl"
+    branch: main
+    started: "2026-04-10T15:50:32.941Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T15-57-13-779Z_c42cf23a-3652-4223-b05e-fbf1f2ad2c77-0-fed90a6d.jsonl"
+    branch: main
+    started: "2026-04-10T15:57:16.971Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-06-28-286Z_5f03ea7f-fc07-43b3-b0d6-266daf198988-0-a18adac2.jsonl"
+    branch: main
+    started: "2026-04-10T16:06:32.200Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-17-45-884Z_8adfadab-23d6-4468-9e99-a3ef87911cc8-0-b5a0f33c.jsonl"
+    branch: main
+    started: "2026-04-10T16:17:49.563Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-20-11-446Z_cc71697c-2d80-42ac-a61c-da0c3bebd9a5-0-d0eab440.jsonl"
+    branch: main
+    started: "2026-04-10T16:20:14.999Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-25-47-686Z_c4a83f2c-d879-4919-aae4-14201382b02e-0-6fe3ec15.jsonl"
+    branch: main
+    started: "2026-04-10T16:25:51.184Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-43-45-893Z_b4ce3a7e-4af0-459b-8d72-32a5adb99372-0-5d9b1182.jsonl"
+    branch: main
+    started: "2026-04-10T16:43:49.556Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-47-03-338Z_ce5a9715-6c70-40e4-9c86-51b2f85a689e-0-e3dcba6a.jsonl"
+    branch: main
+    started: "2026-04-10T16:47:06.660Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-50-42-675Z_ff76a29a-b79f-4590-811d-77e8e5162bd4-0-749d2bf4.jsonl"
+    branch: main
+    started: "2026-04-10T16:50:46.337Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T16-55-22-973Z_ea5242fc-8fc5-46a3-9c37-97c8297d00e9-0-5747cf80.jsonl"
+    branch: main
+    started: "2026-04-10T16:55:26.580Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-03-50-764Z_7a2b66aa-fbe8-4682-a6b9-e70595bfaff7.jsonl"
+    branch: main
+    started: "2026-04-10T17:03:52.128Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-03-56-143Z_78853574-97e9-4a72-b801-b6f1bbeda178.jsonl"
+    branch: main
+    started: "2026-04-10T17:03:57.830Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-06-31-028Z_4ef92a6a-b4c1-42df-9bde-3158206c0ef8.jsonl"
+    branch: main
+    started: "2026-04-10T17:06:32.948Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-08-43-937Z_da246566-1062-4e92-b02c-5f5e6ea2689b-0-962b74ae.jsonl"
+    branch: main
+    started: "2026-04-10T17:08:47.478Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-08-58-728Z_0abfb3a0-8bdc-4cd2-ba1e-e8aae7892ea1-0-50a897d9.jsonl"
+    branch: main
+    started: "2026-04-10T17:09:01.798Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-09-55-716Z_4d622900-f43b-43c0-bf1a-b93d999dd180-0-76060761.jsonl"
+    branch: main
+    started: "2026-04-10T17:09:59.291Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-10-24-506Z_dacd1b60-4ce5-4c14-b10b-769d6e99ecd4.jsonl"
+    branch: main
+    started: "2026-04-10T17:10:25.922Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-10-28-434Z_8ce6ab21-a4c8-4e12-9474-a2fa3ccdfc21.jsonl"
+    branch: main
+    started: "2026-04-10T17:10:29.947Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-12-31-462Z_ed08e2d9-c647-4de8-8dcd-bde59443de3a-0-a3f0e9c3.jsonl"
+    branch: main
+    started: "2026-04-10T17:12:34.698Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-10T17-18-27-085Z_e61a2b3f-1ba4-4771-800a-c6e68bc3685d-0-8e625dee.jsonl"
+    branch: main
+    started: "2026-04-10T17:18:30.450Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T08-36-27-402Z_f5c3ae54-cc91-44f4-b7ec-f9419ffaafa1.jsonl"
+    branch: main
+    started: "2026-04-13T08:36:29.071Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T08-38-15-537Z_0a10b1f1-c498-4293-8fe2-f2edf4dcbf65-0-d66cd14a.jsonl"
+    branch: main
+    started: "2026-04-13T08:38:19.383Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T08-45-29-506Z_f7e46588-2ea2-4661-8398-98208837bfa2-0-7fc427b0.jsonl"
+    branch: main
+    started: "2026-04-13T08:45:33.524Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T08-45-44-892Z_b1cf736a-693f-4988-8bbe-72757c946801-0-e71c4c9d.jsonl"
+    branch: main
+    started: "2026-04-13T08:45:48.016Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T14-48-13-956Z_56a78c26-fbcc-4470-96f0-fbbe9e8a2915.jsonl"
+    branch: main
+    started: "2026-04-13T14:48:16.092Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T14-50-22-179Z_97fecfcd-5c13-4218-a887-8bd478aa1f88.jsonl"
+    branch: main
+    started: "2026-04-13T14:50:23.498Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T14-50-59-345Z_25d3a951-4c86-4acb-9850-7808382920e3-0-fd1fadb9.jsonl"
+    branch: main
+    started: "2026-04-13T14:51:02.946Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-05-26-065Z_9efb2373-feb5-4587-9a30-1dea4dfc1077-0-661ba080.jsonl"
+    branch: main
+    started: "2026-04-13T15:05:29.665Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-13-33-587Z_1f707316-00a7-4678-b00d-7f21b1ad68f9-0-a23f8872.jsonl"
+    branch: main
+    started: "2026-04-13T15:13:36.779Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-17-50-267Z_2653c84a-b5b0-4e96-baac-30462e66e9e5-0-7f070932.jsonl"
+    branch: main
+    started: "2026-04-13T15:17:53.396Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-21-37-341Z_4dac2495-7df7-48c7-83d0-9154bce5c791-0-4205eeda.jsonl"
+    branch: main
+    started: "2026-04-13T15:21:40.456Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-25-20-018Z_33240ce3-743b-4b3a-bbf7-158977f86e72-0-e21605be.jsonl"
+    branch: main
+    started: "2026-04-13T15:25:23.145Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-28-49-215Z_5c751776-ef91-46d1-8231-37ad705ef472-0-2dcdd340.jsonl"
+    branch: main
+    started: "2026-04-13T15:28:52.044Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T15-48-47-640Z_f4d3feb0-60fc-4152-9a88-165a58acc0aa-0-b84e5e21.jsonl"
+    branch: main
+    started: "2026-04-13T15:48:50.818Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T16-17-33-509Z_9dfdad45-84b3-45d8-b55f-3cb954203dc6-0-2d5f2f71.jsonl"
+    branch: main
+    started: "2026-04-13T16:17:37.335Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T18-02-26-965Z_1e164e97-31ab-44a1-92a0-0f18a188951e-0-21653215.jsonl"
+    branch: main
+    started: "2026-04-13T18:02:31.447Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T18-13-12-560Z_0b34114d-c0c3-446e-86df-a4658c269656-0-61c8fb77.jsonl"
+    branch: main
+    started: "2026-04-13T18:13:16.213Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T18-23-26-452Z_ce85aa30-f111-4aac-996c-65d28ee406a3-0-38f4d219.jsonl"
+    branch: main
+    started: "2026-04-13T18:23:30.649Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T18-29-27-156Z_a830d1b2-23e1-4e0d-bf85-45f389eb2115-0-f930808b.jsonl"
+    branch: main
+    started: "2026-04-13T18:29:30.304Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T18-45-02-861Z_3deafcdd-2026-4d7e-9718-ecfd03a626f6-0-32fb43e6.jsonl"
+    branch: main
+    started: "2026-04-13T18:45:06.924Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-00-49-564Z_ba609b8a-d7d7-4475-93b2-d5c167519f03-0-fa7b6cf6.jsonl"
+    branch: main
+    started: "2026-04-13T19:00:53.210Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-08-46-965Z_7436f025-cf30-4dd7-affe-57ce061850c7-0-3db082fd.jsonl"
+    branch: main
+    started: "2026-04-13T19:08:50.595Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-12-11-618Z_8880a242-8a4d-41a1-8847-0c8872fb4601-0-1c8f4db6.jsonl"
+    branch: main
+    started: "2026-04-13T19:12:15.153Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-17-14-583Z_9a97e2f3-aaa0-4092-a397-4e6b8e2cd6b4-0-758d78b7.jsonl"
+    branch: main
+    started: "2026-04-13T19:17:17.915Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-22-38-082Z_e1881cda-fe49-4c34-89d6-06fa561d9565-0-526853e2.jsonl"
+    branch: main
+    started: "2026-04-13T19:22:41.787Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-24-54-828Z_05cb6c78-89d5-46d0-842b-fca8f5cefd78-0-e117570d.jsonl"
+    branch: main
+    started: "2026-04-13T19:24:58.550Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-28-08-624Z_825b8a6f-cd4f-4a13-b6da-395251664c0a-0-6c9c81ed.jsonl"
+    branch: main
+    started: "2026-04-13T19:28:12.307Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-37-57-024Z_eeb467e4-5df7-48fb-b832-ee5c3e73d283-0-d04b14bb.jsonl"
+    branch: main
+    started: "2026-04-13T19:38:00.496Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T19-56-16-639Z_d3e99a95-580a-493b-8dbf-7aab25fcb09f-0-ac544b9a.jsonl"
+    branch: main
+    started: "2026-04-13T19:56:20.274Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T20-06-53-701Z_29f0e317-dc77-49ae-9fcd-2586380b652a-0-68bcf118.jsonl"
+    branch: main
+    started: "2026-04-13T20:06:57.017Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T20-11-37-883Z_937f8d5e-4109-4018-a641-2089906ec4ac-0-755b4163.jsonl"
+    branch: main
+    started: "2026-04-13T20:11:41.351Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T20-19-09-895Z_89ae310e-e6c2-4d5d-9419-a04998984b24-0-052ee9d0.jsonl"
+    branch: main
+    started: "2026-04-13T20:19:13.468Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-21-43-625Z_223cf8de-7658-4cca-8c20-7097c6e9f169.jsonl"
+    branch: main
+    started: "2026-04-13T21:21:45.291Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-23-35-636Z_127a4c35-a779-4388-b796-aa669f8e7ed3-0-f460dd65.jsonl"
+    branch: main
+    started: "2026-04-13T21:23:39.215Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-34-30-376Z_8d11bc3b-5416-4eb0-af8a-6250250bef94-0-41887afd.jsonl"
+    branch: main
+    started: "2026-04-13T21:34:34.195Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-39-22-546Z_1dd93c76-fe82-4876-bd5f-f3b06a780ec8-0-a93cf639.jsonl"
+    branch: main
+    started: "2026-04-13T21:39:26.236Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-43-08-770Z_02d07808-3f6d-4f9d-bdd7-edee1098c4a3-0-2e0cf441.jsonl"
+    branch: main
+    started: "2026-04-13T21:43:11.895Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-47-18-114Z_bae0b65e-ff59-4c8e-be26-74d1af895b99-0-c873875f.jsonl"
+    branch: main
+    started: "2026-04-13T21:47:21.518Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-49-36-642Z_fb3d3797-1fdf-4818-867b-0e36d761fdc4-0-960dbee0.jsonl"
+    branch: main
+    started: "2026-04-13T21:49:40.469Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-54-41-128Z_24e67c65-0a22-4f29-ac91-dd380a7445f4-0-11075ed2.jsonl"
+    branch: main
+    started: "2026-04-13T21:54:45.255Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T21-58-51-548Z_548f1b97-1698-4533-a22a-469f76ca3c0c-0-727658b3.jsonl"
+    branch: main
+    started: "2026-04-13T21:58:54.340Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-13T22-02-24-605Z_7a3a4eb7-59e2-48e2-bf4c-ad1b65c19941-0-abf65191.jsonl"
+    branch: main
+    started: "2026-04-13T22:02:27.787Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T06-56-04-458Z_510a7716-65e5-4332-b1eb-a76bb75ef32f.jsonl"
+    branch: main
+    started: "2026-04-14T06:56:06.066Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T06-58-55-639Z_dce96918-0b66-4563-a557-1773d11d3188-0-77921346.jsonl"
+    branch: main
+    started: "2026-04-14T06:59:00.241Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T07-13-18-282Z_edcb1580-ad0f-48f2-844d-18dc61990733-0-27928d38.jsonl"
+    branch: main
+    started: "2026-04-14T07:13:21.792Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T07-18-51-397Z_758f40b1-6bd5-423d-b0d0-ce8d1ba7b5d2-0-bb8a3fd7.jsonl"
+    branch: main
+    started: "2026-04-14T07:18:54.875Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-06-36-811Z_894e6717-c277-4c31-95ac-8190ccfc0ed3-0-f32a17cb.jsonl"
+    branch: main
+    started: "2026-04-14T08:06:40.344Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-07-52-109Z_df92f125-ee9c-4a28-93d2-b6f51a2cf62a-0-2db91852.jsonl"
+    branch: main
+    started: "2026-04-14T08:07:55.349Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-08-25-207Z_87568c3a-8e78-4734-950a-1fe5d6aff14f-0-271bcbf3.jsonl"
+    branch: main
+    started: "2026-04-14T08:08:28.114Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-14-56-681Z_7123c197-37fc-46a8-84ec-614fb3931a95.jsonl"
+    branch: main
+    started: "2026-04-14T08:14:58.573Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-15-34-574Z_46e20653-4978-4b06-9f93-bc0306047622-0-c3b98773.jsonl"
+    branch: main
+    started: "2026-04-14T08:15:38.391Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-24-08-653Z_9d123b5b-3fe6-4e18-8a3d-15a375a48f4b-0-efdccdb1.jsonl"
+    branch: main
+    started: "2026-04-14T08:24:12.134Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-25-03-205Z_314c98fa-46d3-4354-a385-2ac697290574-0-eba49f8f.jsonl"
+    branch: main
+    started: "2026-04-14T08:25:06.615Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-40-09-267Z_6487e291-4922-4677-b6fc-65033b43e76e-0-8da7e32c.jsonl"
+    branch: main
+    started: "2026-04-14T08:40:12.596Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-41-16-974Z_aff5aebc-ffa7-4108-b229-d76db4a41702-0-13b22718.jsonl"
+    branch: main
+    started: "2026-04-14T08:41:20.478Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T08-41-56-269Z_19c5614c-dbcc-4596-a1be-db50612593be-0-4616b7b0.jsonl"
+    branch: main
+    started: "2026-04-14T08:41:59.501Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T09-03-11-470Z_90e419ec-5c65-4897-b255-b112c301afde.jsonl"
+    branch: main
+    started: "2026-04-14T09:03:13.143Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T09-03-35-641Z_3e77c151-306b-4a8d-b1f3-6fc60628fd9e.jsonl"
+    branch: main
+    started: "2026-04-14T09:03:37.484Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T09-12-45-933Z_d1112ee8-cacd-47f7-b2d5-5ea651747caa.jsonl"
+    branch: main
+    started: "2026-04-14T09:12:47.745Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T10-44-44-462Z_39fd9dfa-3594-4f5e-98ce-c3dd3bc4eca3.jsonl"
+    branch: main
+    started: "2026-04-14T10:44:46.213Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T10-46-26-553Z_dec036cf-85d2-44fe-aff9-a4eeaeb15b50-0-ae4b6f02.jsonl"
+    branch: main
+    started: "2026-04-14T10:46:30.907Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T10-51-51-197Z_eddfbe6b-e52e-48cd-95eb-0713f78fdd2a-0-062178d2.jsonl"
+    branch: main
+    started: "2026-04-14T10:51:54.936Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T11-00-31-075Z_78f2d4c4-9b43-496c-98ab-3af424541e0d-0-97e6747f.jsonl"
+    branch: main
+    started: "2026-04-14T11:00:35.001Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T13-02-41-339Z_48d0941c-8e1d-4b97-93d2-b80177dce65a.jsonl"
+    branch: main
+    started: "2026-04-14T13:02:43.195Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T13-03-11-990Z_6eec7ce8-dcc2-4b57-a1aa-84b0cead562c-0-19523fdb.jsonl"
+    branch: main
+    started: "2026-04-14T13:03:15.613Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T13-06-22-457Z_e9c94db4-cb9d-4819-8c0d-907a8cf5696c-0-d5a2d8d3.jsonl"
+    branch: main
+    started: "2026-04-14T13:06:32.045Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T13-26-49-765Z_30c3abb5-082d-4171-8382-81e786a61fa2-0-51675d3b.jsonl"
+    branch: main
+    started: "2026-04-14T13:26:54.153Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T13-55-34-326Z_47a1ed0c-91a5-44ff-9104-46e04e2fd72c.jsonl"
+    branch: main
+    started: "2026-04-14T13:55:35.847Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T14-12-45-400Z_5c9656a6-5432-4d73-9619-e3484ed9339a.jsonl"
+    branch: main
+    started: "2026-04-14T14:12:47.702Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T14-13-05-061Z_1c8e1418-aefc-4111-aa62-07901a0ae227.jsonl"
+    branch: main
+    started: "2026-04-14T14:13:06.741Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T14-13-42-583Z_f749e282-ab6b-443c-8409-0253b5c86298.jsonl"
+    branch: main
+    started: "2026-04-14T14:13:43.894Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T14-35-05-669Z_1015213f-7131-4e96-adf6-d22726172068.jsonl"
+    branch: main
+    started: "2026-04-14T14:35:07.509Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T16-07-34-317Z_3c917325-7509-4822-9002-b3767d0eca85.jsonl"
+    branch: main
+    started: "2026-04-14T16:07:35.871Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T17-10-56-968Z_e5a4e03d-f147-4649-912c-2c17c8c59c50.jsonl"
+    branch: main
+    started: "2026-04-14T17:10:58.424Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T17-39-59-072Z_23464305-c21d-41f1-85f1-237412fa15a6.jsonl"
+    branch: main
+    started: "2026-04-14T17:40:00.670Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T18-55-00-715Z_b6a46230-ac58-4cbf-9764-4f0927395031.jsonl"
+    branch: main
+    started: "2026-04-14T18:55:02.233Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T19-56-52-613Z_3132ba82-3170-4fae-9a32-add2b83c32e4.jsonl"
+    branch: main
+    started: "2026-04-14T19:56:54.079Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T20-20-41-536Z_2fe2092d-ee7c-410b-a889-155afb768a9f.jsonl"
+    branch: main
+    started: "2026-04-14T20:20:42.907Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T21-52-16-964Z_df678d11-9272-4c78-aee6-b8a2ad51f658.jsonl"
+    branch: main
+    started: "2026-04-14T21:52:18.357Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-14T22-13-20-838Z_b348ac0a-fccd-436e-a8d3-673513be94db.jsonl"
+    branch: main
+    started: "2026-04-14T22:13:22.328Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T04-54-39-300Z_84523cfd-3ef8-4669-88e6-de65989765f9.jsonl"
+    branch: main
+    started: "2026-04-15T04:54:41.180Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T05-14-45-910Z_01c1246a-d7b9-4019-a7f9-487a85d3e214.jsonl"
+    branch: main
+    started: "2026-04-15T05:14:47.582Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T06-04-02-794Z_0bca6512-deba-4756-9f52-6256cfb90151.jsonl"
+    branch: main
+    started: "2026-04-15T06:04:04.298Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T06-08-42-602Z_e5f2438c-b5404dc3-d9e72312-2605.jsonl"
+    branch: main
+    started: "2026-04-15T06:08:46.534Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T06-24-42-970Z_de05c70b-2fe6-4a54-b818-d386b243ee17.jsonl"
+    branch: main
+    started: "2026-04-15T06:24:44.498Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T07-20-37-894Z_e5eaf6d0-d2b7-453f-aeb7-7e423b1e9736.jsonl"
+    branch: main
+    started: "2026-04-15T07:20:39.387Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T08-14-35-776Z_dbb48fe3-e828-4b22-a08d-418a39df24e3.jsonl"
+    branch: main
+    started: "2026-04-15T08:14:37.275Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T08-42-41-275Z_9a09f4e5-4d22-4976-91ef-4c9434d25248.jsonl"
+    branch: main
+    started: "2026-04-15T08:42:43.118Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T15-11-22-291Z_019d91b2-6ab3-7649-992d-5f13d1910825.jsonl"
+    branch: main
+    started: "2026-04-15T15:11:24.416Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T15-12-04-155Z_019d91b3-0e3a-75ba-b79b-e474c1e9f0d0.jsonl"
+    branch: main
+    started: "2026-04-15T15:12:05.759Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T15-14-03-953Z_4018d676-34916c4b-b1db178a-c1a0.jsonl"
+    branch: main
+    started: "2026-04-15T15:14:07.746Z"
+  - file: "/Users/volker/.pi/agent/sessions/--Users-volker-coding-libs-flowerpower--/2026-04-15T15-29-53-524Z_019d91c3-5f73-749f-ab29-173c2a576426.jsonl"
+    branch: main
+    started: "2026-04-15T15:29:54.988Z"

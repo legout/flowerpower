@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from hamilton.execution import executors as h_executors
 from loguru import logger
@@ -56,6 +57,11 @@ class ExecutionContextBuilder:
             project_cfg = getattr(
                 self._project_context, "project_cfg", None
             ) or getattr(self._project_context, "_project_cfg", None)
+            if project_cfg is None and hasattr(self._project_context, "pipeline_manager"):
+                project_manager = self._project_context.pipeline_manager
+                project_cfg = getattr(project_manager, "project_cfg", None) or getattr(
+                    project_manager, "_project_cfg", None
+                )
             if project_cfg and getattr(project_cfg.adapter, "ray", None):
                 should_shutdown = getattr(
                     project_cfg.adapter.ray, "shutdown_ray_on_completion", False

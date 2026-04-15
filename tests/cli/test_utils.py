@@ -1,7 +1,25 @@
+import pytest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from flowerpower.cli.utils import load_hook
+from flowerpower.cli.utils import load_hook, parse_dict_or_list_param
+
+
+def test_parse_dict_or_list_param_splits_comma_separated_lists_cleanly() -> None:
+    assert parse_dict_or_list_param("spend_mean,spend_std_dev", "list") == [
+        "spend_mean",
+        "spend_std_dev",
+    ]
+
+
+def test_parse_dict_or_list_param_strips_whitespace_in_key_value_pairs() -> None:
+    assert parse_dict_or_list_param(
+        "anon=true, endpoint=https://example.invalid",
+        "dict",
+    ) == {
+        "anon": True,
+        "endpoint": "https://example.invalid",
+    }
 
 
 @patch("flowerpower.cli.utils.importlib.util.module_from_spec")
@@ -78,3 +96,8 @@ def test_load_hook_rejects_invalid_storage_options() -> None:
         assert "Invalid storage_options format" in str(exc)
     else:
         raise AssertionError("Expected load_hook to reject invalid storage_options")
+
+
+def test_load_hook_rejects_invalid_function_path() -> None:
+    with pytest.raises(ValueError, match="Invalid function_path format"):
+        load_hook("pipeline_name", "pkg/module.my_hook")

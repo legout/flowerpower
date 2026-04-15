@@ -102,12 +102,12 @@ class PipelinePresenter:
         project_summary = summary.get("project", {})
         pipeline_summary = summary.get("pipelines", {})
 
-        def add_dict_to_tree(tree: Tree, dict_data: dict, style: str = "green") -> None:
+        def add_dict_to_tree(tree: Tree, dict_data: dict) -> None:
             """Recursively add dictionary items to a tree."""
             for key, value in dict_data.items():
                 if isinstance(value, dict):
                     branch = tree.add(f"[cyan]{key}:", style="bold cyan")
-                    add_dict_to_tree(branch, value, style)
+                    add_dict_to_tree(branch, value)
                 else:
                     tree.add(f"[cyan]{key}:[/] [green]{value}[/]")
 

@@ -1,9 +1,9 @@
 """Pipeline execution handling."""
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from ..cfg.pipeline.run import RunConfig
-from ..utils.config import merge_run_config_with_kwargs
+from ..utils.config import merge_run_config_with_kwargs, merge_run_configs
 from ..utils.logging import setup_logging
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class PipelineExecutor:
         self,
         config_manager: "PipelineConfigManager",
         registry: "PipelineRegistry",
-        project_context: Optional[Any] = None,
+        project_context: Any | None = None,
     ):
         """Initialize the pipeline executor.
 
@@ -38,9 +38,7 @@ class PipelineExecutor:
         self._registry = registry
         self._project_context = project_context
 
-    def run(
-        self, name: str, run_config: Optional[RunConfig] = None, **kwargs
-    ) -> dict[str, Any]:
+    def run(self, name: str, run_config: RunConfig | None = None, **kwargs) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
         This is the main method for running pipelines directly. It handles configuration
@@ -59,11 +57,16 @@ class PipelineExecutor:
             ValueError: If pipeline configuration cannot be loaded
             Exception: If pipeline execution fails
         """
-        # Load pipeline configuration
-        pipeline_config = self._config_manager.load_pipeline_config(name=name)
+        requested_reload = bool(getattr(run_config, "reload", False) or kwargs.get("reload"))
 
-        # Initialize run_config with pipeline defaults if not provided
-        run_config = run_config or pipeline_config.run
+        # Load pipeline configuration
+        pipeline_config = self._config_manager.load_pipeline_config(
+            name=name,
+            reload=requested_reload,
+        )
+
+        # Merge runtime overrides onto a copy of pipeline defaults.
+        run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)
 
         # Merge kwargs into run_config
         if kwargs:
@@ -77,13 +80,14 @@ class PipelineExecutor:
         pipeline = self._registry.get_pipeline(
             name=name,
             project_context=self._project_context,
+            reload=run_config.reload,
         )
 
         # Execute the pipeline
         return pipeline.run(run_config=run_config)
 
     async def run_async(
-        self, name: str, run_config: Optional[RunConfig] = None, **kwargs
+        self, name: str, run_config: RunConfig | None = None, **kwargs
     ) -> dict[str, Any]:
         """Execute a pipeline asynchronously and return its results using Hamilton's async driver.
 
@@ -97,11 +101,16 @@ class PipelineExecutor:
         Returns:
             dict[str, Any]: Results of pipeline execution.
         """
-        # Load pipeline configuration
-        pipeline_config = self._config_manager.load_pipeline_config(name=name)
+        requested_reload = bool(getattr(run_config, "reload", False) or kwargs.get("reload"))
 
-        # Initialize run_config with pipeline defaults if not provided
-        run_config = run_config or pipeline_config.run
+        # Load pipeline configuration
+        pipeline_config = self._config_manager.load_pipeline_config(
+            name=name,
+            reload=requested_reload,
+        )
+
+        # Merge runtime overrides onto a copy of pipeline defaults.
+        run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)
 
         # Merge kwargs into run_config
         if kwargs:
@@ -115,7 +124,16 @@ class PipelineExecutor:
         pipeline = self._registry.get_pipeline(
             name=name,
             project_context=self._project_context,
+            reload=run_config.reload,
         )
 
         # Execute the pipeline asynchronously
         return await pipeline.run_async(run_config=run_config)
+
+    @staticmethod
+    def _merge_pipeline_run_config(
+        base: RunConfig,
+        override: RunConfig | None,
+    ) -> RunConfig:
+        """Merge runtime overrides onto a defensive copy of pipeline defaults."""
+        return merge_run_configs(base, override)

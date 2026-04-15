@@ -12,11 +12,28 @@ from pathlib import Path
 
 from flowerpower.cfg import Config
 
+def _resolve_base_dir() -> Path:
+    cfg_root = Path("{cfg_dir}") if "{cfg_dir}" else Path(".")
+    current = Path(__file__).resolve().parent
+
+    while True:
+        if (
+            (current / cfg_root / "project.yml").exists()
+            or (current / cfg_root / "project.yaml").exists()
+        ):
+            return current
+        if current.parent == current:
+            raise RuntimeError("Could not locate project root for pipeline configuration.")
+        current = current.parent
+
 ####################################################################################################
 # Load pipeline parameters. Do not modify this section.
 
 PARAMS = Config.load(
-    Path(__file__).parents[1], pipeline_name="{name}"
+    _resolve_base_dir(),
+    pipeline_name="{name}",
+    cfg_dir="{cfg_dir}",
+    pipelines_dir="{pipelines_dir}",
 ).pipeline.h_params
 
 

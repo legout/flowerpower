@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Load configuration parameters
 BASE_DIR = Path(__file__).parent.parent
-PARAMS = Config.load(str(BASE_DIR), {}).pipeline.run.inputs
+PARAMS = Config.load(str(BASE_DIR), pipeline_name="news_scraper").pipeline.run.inputs
 
 
 class WebScraper:

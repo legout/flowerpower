@@ -1,6 +1,6 @@
 ---
 id: flo-b3nm
-status: in_progress
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -47,3 +47,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - `PipelineManager.__init__()` still creates `PipelineLifecycleManager` (line 205).
 - All methods delegate through lifecycle manager: `new()`, `delete()`, `get_summary()`, `show_summary()`, `list_pipelines()`, `show_pipelines()`, `add_hook()`.
 - Lifecycle manager still calls non-existent registry methods: `get_summaries()` (should be `get_summary()`) and `get_pipeline_object()` (doesn't exist at all).
+
+**2026-04-10T15:42:50Z**
+
+Gate: PASS — PipelineLifecycleManager deleted, PipelineManager delegates directly to self.registry.*, 58/58 pipeline tests pass. Review confirmed clean refactor.

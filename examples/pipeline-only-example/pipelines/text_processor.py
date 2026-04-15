@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Load configuration parameters
 BASE_DIR = Path(__file__).parent.parent
-PARAMS = Config.load(str(BASE_DIR), {}).run.inputs
+PARAMS = Config.load(str(BASE_DIR), pipeline_name="text_processor").pipeline.run.inputs
 
 
 def raw_text_data(input_file: str, encoding: str) -> str:

@@ -11,7 +11,8 @@ from hamilton.execution import executors
 from loguru import logger
 
 from ..cfg.pipeline.run import RunConfig
-from ..utils.config import merge_run_config_with_kwargs
+from ..utils.config import clone_run_config, merge_run_config_with_kwargs
+from ..utils.filesystem import format_pipeline_package_root
 from ..utils.logging import ensure_logging_initialized, setup_logging
 from .execution_context import ExecutionContextBuilder
 from .retry import RetryManager
@@ -28,7 +29,7 @@ except ImportError:  # pragma: no cover - handled at runtime
 class PipelineRunner:
     """Facade responsible for executing a single pipeline instance."""
 
-    def __init__(self, pipeline: "Pipeline") -> None:
+    def __init__(self, pipeline: Pipeline) -> None:
         self._pipeline = pipeline
         ensure_logging_initialized()
 
@@ -44,7 +45,10 @@ class PipelineRunner:
             self._reload_modules(modules)
 
         retry_manager = self._create_retry_manager(configured_run)
-        operation = lambda: self._execute_sync(context_builder, configured_run, modules)
+
+        def operation() -> dict[str, Any]:
+            return self._execute_sync(context_builder, configured_run, modules)
+
         return retry_manager.execute(
             operation=operation,
             on_success=configured_run.on_success,
@@ -96,7 +100,7 @@ class PipelineRunner:
     def _prepare_run_config(
         self, run_config: RunConfig | None, overrides: dict[str, Any]
     ) -> RunConfig:
-        configured = run_config or self._pipeline.config.run
+        configured = clone_run_config(run_config or self._pipeline.config.run)
         if overrides:
             configured = merge_run_config_with_kwargs(configured, overrides)
         return configured
@@ -126,7 +130,11 @@ class PipelineRunner:
         modules: list[ModuleType],
     ) -> dict[str, Any]:
         executor, shutdown, adapters = context_builder.build(run_config)
-        synchronous_executor = run_config.executor.type in ("synchronous", None)
+        synchronous_executor = run_config.executor.type in (
+            "synchronous",
+            "local",
+            None,
+        )
 
         allow_experimental_mode = True
         try:
@@ -140,12 +148,8 @@ class PipelineRunner:
                 )
                 .with_local_executor(executors.SynchronousLocalTaskExecutor())
             )
-            # if not synchronous_executor:
-            dr_builder = dr_builder.with_remote_executor(executor)
-            # else:
-            #    dr_builder = dr_builder.with_remote_executor(
-            #        executors.SynchronousLocalTaskExecutor()
-            #    )
+            if not synchronous_executor:
+                dr_builder = dr_builder.with_remote_executor(executor)
 
             dr = dr_builder.build()
             return dr.execute(
@@ -171,7 +175,11 @@ class PipelineRunner:
         async_driver_module,
     ) -> dict[str, Any]:
         executor, shutdown, adapters = context_builder.build(run_config)
-        synchronous_executor = run_config.executor.type in ("synchronous", None)
+        synchronous_executor = run_config.executor.type in (
+            "synchronous",
+            "local",
+            None,
+        )
         allow_experimental_mode = True
 
         try:
@@ -246,10 +254,23 @@ class PipelineRunner:
                 errors.append(error)
                 return None
 
-        candidates = [name]
-        if formatted not in candidates:
-            candidates.append(formatted)
-        if not formatted.startswith("pipelines."):
+        package_root = self._pipeline_package_root()
+        candidates: list[str] = []
+
+        if package_root and "." not in formatted:
+            candidates.append(f"{package_root}.{formatted}")
+
+        for candidate in (name, formatted):
+            if candidate not in candidates:
+                candidates.append(candidate)
+
+        if package_root:
+            qualified_candidate = f"{package_root}.{formatted}"
+            if qualified_candidate not in candidates and not formatted.startswith(
+                f"{package_root}."
+            ):
+                candidates.append(qualified_candidate)
+        if package_root != "pipelines" and not formatted.startswith("pipelines."):
             candidates.append(f"pipelines.{formatted}")
 
         for candidate in candidates:
@@ -259,9 +280,24 @@ class PipelineRunner:
 
         error_message = (
             f"Could not import additional module '{name}'. Tried: {attempted}. "
-            "Ensure the module is importable or resides under the pipelines package."
+            "Ensure the module is importable or resides under the configured pipeline package."
         )
         raise ImportError(error_message) from errors[-1] if errors else None
+
+    def _pipeline_package_root(self) -> str:
+        manager = getattr(self._pipeline.project_context, "pipeline_manager", None)
+        package_root = getattr(manager, "_pipelines_dir", None)
+        if isinstance(package_root, str) and package_root:
+            return format_pipeline_package_root(package_root)
+
+        if package_root == "":
+            return ""
+
+        module_name = getattr(self._pipeline.module, "__name__", "")
+        if isinstance(module_name, str) and "." in module_name:
+            return module_name.split(".", 1)[0]
+
+        return "pipelines"
 
     def _get_async_driver_module(self):
         if hamilton_async_driver is None:

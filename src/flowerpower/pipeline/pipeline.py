@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import msgspec
 
 from ..cfg import PipelineConfig
 from ..utils.adapter import create_adapter_manager
+from ..utils.config import merge_run_configs
 from ..utils.executor import create_executor_factory
 from .runner import PipelineRunner
 from .telemetry import initialize_telemetry
@@ -25,7 +26,7 @@ class Pipeline(msgspec.Struct):
     project_context: FlowerPowerProject
     _adapter_manager: Any = None
     _executor_factory: Any = None
-    _runner: Optional[PipelineRunner] = None
+    _runner: PipelineRunner | None = None
 
     def __post_init__(self) -> None:
         initialize_telemetry()
@@ -33,10 +34,23 @@ class Pipeline(msgspec.Struct):
         self._executor_factory = create_executor_factory()
 
     def run(self, run_config=None, **kwargs):
-        return self._get_runner().run(run_config=run_config, **kwargs)
+        effective_run_config = (
+            merge_run_configs(self.config.run, run_config)
+            if run_config is not None
+            else None
+        )
+        return self._get_runner().run(run_config=effective_run_config, **kwargs)
 
     async def run_async(self, run_config=None, **kwargs):
-        return await self._get_runner().run_async(run_config=run_config, **kwargs)
+        effective_run_config = (
+            merge_run_configs(self.config.run, run_config)
+            if run_config is not None
+            else None
+        )
+        return await self._get_runner().run_async(
+            run_config=effective_run_config,
+            **kwargs,
+        )
 
     @property
     def adapter_manager(self):
