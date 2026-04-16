@@ -10,7 +10,7 @@ from munch import Munch
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
 from ..settings import CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
-from ..utils.filesystem import FilesystemHelper, add_modules_path
+from ..utils.filesystem import FilesystemHelper
 from ..utils.logging import setup_logging
 from ..utils.security import validate_directory_fragment
 from .config_manager import PipelineConfigManager
@@ -124,7 +124,6 @@ class PipelineManager:
         self._setup_filesystem(base_dir, storage_options, fs, cfg_dir, pipelines_dir)
         self._initialize_managers()
         self._ensure_directories_exist()
-        add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
     def _setup_filesystem(
         self,
@@ -154,22 +153,22 @@ class PipelineManager:
         # Setup filesystem helper
         self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
 
-        # Configure caching if storage options provided
-        if storage_options is not None:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(CACHE_DIR),
-                self._base_dir.split("://")[-1],
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-
-        # Get filesystem instance (use local `filesystem` to allow tests to patch)
+        # Get filesystem instance
         if fs is not None:
             self._fs = fs
         else:
+            # Configure caching only when creating our own filesystem
+            if storage_options is not None:
+                cached = True
+                cache_storage = posixpath.join(
+                    posixpath.expanduser(CACHE_DIR),
+                    self._base_dir.split("://")[-1],
+                )
+                os.makedirs(cache_storage, exist_ok=True)
+            else:
+                cached = False
+                cache_storage = None
+
             self._fs = filesystem(
                 self._base_dir,
                 storage_options=(storage_options or {}),
@@ -242,7 +241,6 @@ class PipelineManager:
             self._pipelines_dir or ".",
             posixpath.join(self._cfg_dir or ".", self._pipelines_dir or "."),
         )
-
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.

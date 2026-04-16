@@ -589,7 +589,7 @@ def test_pipeline_manager_resolves_config_dirs_at_runtime() -> None:
 
     with patch.object(PipelineManager, "_initialize_managers"):
         with patch.object(PipelineManager, "_ensure_directories_exist"):
-            with patch("flowerpower.pipeline.manager.add_modules_path"):
+            with patch("flowerpower.pipeline.registry.add_modules_path"):
                 manager = PipelineManager(base_dir=".", fs=fs, cfg_dir="settings", pipelines_dir="flows")
 
     assert manager._cfg_dir == "settings"
@@ -600,7 +600,7 @@ def test_pipeline_manager_allows_empty_config_dir() -> None:
     fs = MagicMock()
 
     with patch.object(PipelineManager, "_initialize_managers"):
-        with patch("flowerpower.pipeline.manager.add_modules_path"):
+        with patch("flowerpower.pipeline.registry.add_modules_path"):
             manager = PipelineManager(base_dir=".", fs=fs, cfg_dir="", pipelines_dir="flows")
 
     fs.makedirs.assert_any_call(".", exist_ok=True)
@@ -674,7 +674,7 @@ def test_pipeline_support_classes_default_none_config_dirs_to_constants() -> Non
 
     with patch.object(PipelineManager, "_initialize_managers"):
         with patch.object(PipelineManager, "_ensure_directories_exist"):
-            with patch("flowerpower.pipeline.manager.add_modules_path"):
+            with patch("flowerpower.pipeline.registry.add_modules_path"):
                 manager = PipelineManager(base_dir=".", fs=fs, cfg_dir=None, pipelines_dir=None)
 
     assert manager._cfg_dir == "conf"

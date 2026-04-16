@@ -389,15 +389,14 @@ def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
                 with patch("flowerpower.pipeline.manager.PipelineExecutor"):
                     with patch("flowerpower.pipeline.manager.PipelineVisualizer") as mock_visualizer_class:
                         with patch("flowerpower.pipeline.manager.PipelineIOManager"):
-                            with patch("flowerpower.pipeline.manager.add_modules_path") as mock_add_modules_path:
-                                mock_config_manager_class.return_value = config_manager
+                            mock_config_manager_class.return_value = config_manager
 
-                                manager = PipelineManager(
-                                    base_dir="/test/base",
-                                    fs=fs,
-                                    cfg_dir="settings",
-                                    pipelines_dir="flows",
-                                )
+                            manager = PipelineManager(
+                                base_dir="/test/base",
+                                fs=fs,
+                                cfg_dir="settings",
+                                pipelines_dir="flows",
+                            )
 
     config_manager_kwargs = mock_config_manager_class.call_args.kwargs
     assert config_manager_kwargs["base_dir"] == "/test/base"
@@ -411,7 +410,6 @@ def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
         cfg_dir="settings",
         pipelines_dir="flows",
     )
-    mock_add_modules_path.assert_called_once_with(fs, "flows", "/test/base")
     assert manager._config_manager is config_manager
 
 

@@ -91,16 +91,6 @@ def test_add_modules_path_skips_remote_urls() -> None:
         sys.path[:] = original
 
 
-def test_sync_filesystem_handles_cache_fs_without_mapper_directory() -> None:
-    fs = _BrokenMapperCacheFS("/tmp/project")
-    fs.cache_path = "/tmp/cache"
-
-    helper = FilesystemHelper("/fallback")
-
-    helper.sync_filesystem(fs)
-
-    assert fs.sync_calls == 1
-
 
 def test_get_pipeline_config_paths_are_unique() -> None:
     paths = get_pipeline_config_paths(

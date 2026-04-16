@@ -8,10 +8,9 @@ used throughout the FlowerPower codebase.
 import posixpath
 import sys
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any
 
-from fsspeckit import AbstractFileSystem, filesystem
+from fsspeckit import AbstractFileSystem
 from loguru import logger
 
 from .security import validate_file_path
@@ -295,37 +294,7 @@ class FilesystemHelper:
         validate_file_path(base_dir, allow_relative=True)
         self._base_dir = base_dir
         self._storage_options = storage_options or {}
-        self._fs_cache: dict[str, AbstractFileSystem] = {}
 
-    def get_filesystem(
-        self, cached: bool = False, cache_storage: str | None = None
-    ) -> AbstractFileSystem:
-        """
-        Get a filesystem instance with optional caching.
-
-        Args:
-            cached: Whether to use cached filesystem
-            cache_storage: Storage path for cached filesystem
-
-        Returns:
-            AbstractFileSystem: Configured filesystem instance
-        """
-        cache_key = f"{self._base_dir}_{cached}_{cache_storage}"
-
-        if cache_key not in self._fs_cache:
-            if cached and cache_storage:
-                # Ensure cache storage directory exists
-                cache_path = Path(cache_storage)
-                cache_path.mkdir(parents=True, exist_ok=True)
-
-            self._fs_cache[cache_key] = filesystem(
-                self._base_dir,
-                storage_options=self._storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-
-        return self._fs_cache[cache_key]
 
     def ensure_directories_exist(
         self, fs: AbstractFileSystem, *directories: str, exist_ok: bool = True
@@ -357,27 +326,6 @@ class FilesystemHelper:
                     f"Unexpected filesystem error for {directory}: {e}"
                 ) from e
 
-    def resolve_path(self, fs: AbstractFileSystem, *path_parts: str) -> str:
-        """
-        Resolve a path in the filesystem.
-
-        Args:
-            fs: Filesystem instance
-            *path_parts: Path components to join
-
-        Returns:
-            str: Resolved path
-        """
-        if hasattr(fs, "path"):
-            base_path = fs.path
-        else:
-            base_path = self._base_dir
-
-        resolved_path = fs.join(base_path, *path_parts)
-        # Validate resolved path for security
-        validate_file_path(resolved_path, allow_relative=True)
-        return resolved_path
-
     def clean_directory(
         self, fs: AbstractFileSystem, *paths: str, recursive: bool = True
     ) -> None:
@@ -398,22 +346,6 @@ class FilesystemHelper:
                 except Exception as e:
                     logger.warning(f"Failed to clean path {path}: {e}")
 
-    def sync_filesystem(self, fs: AbstractFileSystem) -> None:
-        """
-        Sync filesystem cache if applicable.
-
-        Args:
-            fs: Filesystem instance to sync
-        """
-        if hasattr(fs, "is_cache_fs") and fs.is_cache_fs:
-            fs.sync_cache()
-
-            # Log sync information if available
-            if hasattr(fs, "cache_path"):
-                logger.debug(
-                    f"Synced filesystem cache: {resolve_project_path(fs, self._base_dir, sync_cache=False)} -> {fs.cache_path}"
-                )
-
     def get_project_path(self, fs: AbstractFileSystem) -> str:
         """
         Get the project path for the filesystem.
@@ -429,8 +361,4 @@ class FilesystemHelper:
         # Validate project path for security
         validate_file_path(project_path, allow_relative=True)
         return project_path
-
-    def clear_cache(self) -> None:
-        """Clear the filesystem cache."""
-        self._fs_cache.clear()
 
