@@ -616,6 +616,7 @@ class PipelineRegistry:
             self._presenter.print_no_pipelines_found()
             return
         self._presenter.show_pipelines_table(info)
+
     def list_pipeline_info(self) -> list[dict[str, Any]]:
         """Get metadata for all available pipelines.
 

@@ -434,18 +434,3 @@ class FilesystemHelper:
         """Clear the filesystem cache."""
         self._fs_cache.clear()
 
-
-def create_filesystem_helper(
-    base_dir: str, storage_options: dict[str, Any] | None = None
-) -> FilesystemHelper:
-    """
-    Factory function to create a FilesystemHelper instance.
-
-    Args:
-        base_dir: Base directory for filesystem operations
-        storage_options: Storage options for filesystem access
-
-    Returns:
-        FilesystemHelper: Configured helper instance
-    """
-    return FilesystemHelper(base_dir, storage_options)

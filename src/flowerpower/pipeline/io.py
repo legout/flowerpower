@@ -289,7 +289,7 @@ class PipelineIOManager:
                     f"Creating directory {parent_dir} in destination filesystem."
                 )
                 dest_fs.makedirs(parent_dir, exist_ok=True)
-            elif not overwrite and dest_fs.exists(file):
+            if not overwrite and dest_fs.exists(file):
                 logger.warning(
                     f"File {file} already exists in the destination. Skipping write. Use overwrite=True to overwrite."
                 )

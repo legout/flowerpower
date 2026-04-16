@@ -16,7 +16,7 @@ def validate_file_path(
     allowed_extensions: list[str] | None = None,
     allow_absolute: bool = True,
     allow_relative: bool = True,
-) -> Path:
+) -> str | Path:
     """Validate and sanitize file paths to prevent directory traversal attacks.
 
     Args:
@@ -26,7 +26,7 @@ def validate_file_path(
         allow_relative: Whether to allow relative paths
 
     Returns:
-        Validated Path object
+        Validated path string (original input preserved for POSIX compatibility)
 
     Raises:
         SecurityError: If path is invalid or potentially dangerous
@@ -64,7 +64,9 @@ def validate_file_path(
     if any(char in path_str for char in dangerous_chars):
         raise SecurityError(f"Dangerous characters detected in path: {path}")
 
-    return path_obj
+    # Return original input to preserve POSIX separators on Windows.
+    # str(Path(...)) would produce backslashes on Windows.
+    return path if isinstance(path, str) else path.as_posix()
 
 
 def validate_pipeline_name(name: str) -> str:
@@ -170,28 +172,6 @@ def validate_config_dict(
 
     return config
 
-
-def sanitize_log_data(data: Any) -> Any:
-    """Sanitize data for safe logging to prevent log injection.
-
-    Args:
-        data: Data to sanitize for logging
-
-    Returns:
-        Sanitized data safe for logging
-    """
-    if isinstance(data, str):
-        # Remove potential log injection characters
-        sanitized = re.sub(r"[\r\n\t]", " ", data)
-        # Limit length to prevent log flooding
-        if len(sanitized) > 1000:
-            sanitized = sanitized[:997] + "..."
-        return sanitized
-    elif isinstance(data, (dict, list)):
-        # For complex objects, convert to string and sanitize
-        return sanitize_log_data(str(data))
-    else:
-        return data
 
 
 def validate_executor_type(executor_type: str) -> str:
