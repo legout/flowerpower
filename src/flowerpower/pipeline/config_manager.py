@@ -27,7 +27,7 @@ class PipelineConfigManager:
         fs: AbstractFileSystem,
         storage_options: dict[str, Any] | Any,
         cfg_dir: str | None = CONFIG_DIR,
-        pipelines_dir: str | None = None,
+        pipelines_dir: str | None = PIPELINES_DIR,
     ):
         """Initialize the configuration manager.
 

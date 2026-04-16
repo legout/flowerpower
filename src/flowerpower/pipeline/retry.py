@@ -39,8 +39,8 @@ class RetryManager:
         self,
         *,
         operation: Callable[[], Any],
-        on_success: Callable[[Any, None], None] | None,
-        on_failure: Callable[[None, Exception], None] | None,
+        on_success: Callable[..., Any] | None,
+        on_failure: Callable[..., Any] | None,
         context_name: str,
     ) -> Any:
         """Execute the provided callable with retries."""
@@ -93,8 +93,8 @@ class RetryManager:
         self,
         *,
         operation: Callable[[], Awaitable[Any]],
-        on_success: Callable[[Any, None], None] | None,
-        on_failure: Callable[[None, Exception], None] | None,
+        on_success: Callable[..., Any] | None,
+        on_failure: Callable[..., Any] | None,
         context_name: str,
     ) -> Any:
         """Async variant of execute with identical retry semantics."""

@@ -616,33 +616,6 @@ class PipelineRegistry:
             self._presenter.print_no_pipelines_found()
             return
         self._presenter.show_pipelines_table(info)
-
-    def _all_pipelines(
-        self, show: bool = True, to_html: bool = False, to_svg: bool = False
-    ) -> list[dict[str, Any]] | str | None:
-        """Return or display all pipelines.
-
-        When *show* is ``True`` (the default), renders via the presenter.
-        When ``False``, returns the raw data list.
-
-        Returns:
-            ``list[dict[str, Any]]`` when *show* is ``False``, otherwise ``None``
-            (or an HTML/SVG export string).
-        """
-        info = self._collect_pipeline_info()
-
-        if not info:
-            if show:
-                self._presenter.print_no_pipelines_found()
-            return [] if not show else None
-
-        if show:
-            return self._presenter.show_pipelines_table(
-                info, to_html=to_html, to_svg=to_svg,
-            )
-
-        return info
-
     def list_pipeline_info(self) -> list[dict[str, Any]]:
         """Get metadata for all available pipelines.
 

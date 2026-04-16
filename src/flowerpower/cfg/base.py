@@ -168,15 +168,9 @@ class BaseConfig(msgspec.Struct, kw_only=True):
                     f"Path validation failed: {e}", path=path, original_error=e
                 ) from e
 
-        # Default to fsspec.filesystem when fs is not provided (testable/mocked)
+        # Default to local filesystem when fs is not provided
         if fs is None:
-            try:
-                import fsspec  # type: ignore
-
-                fs = fsspec.filesystem("file")
-            except Exception:
-                # Fallback to project helper if fsspec is unavailable in context
-                fs = get_filesystem(fs)
+            fs = get_filesystem()
         try:
             with fs.open(str(validated_path), "wb") as f:
                 f.write(msgspec.yaml.encode(self, order="deterministic"))

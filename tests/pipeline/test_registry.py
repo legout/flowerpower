@@ -569,10 +569,9 @@ class TestPipelineRegistry:
         mock_fs.ls.return_value = []
         mock_rich_print = mocker.patch("flowerpower.pipeline.registry.rich.print")
 
-        # _all_pipelines(show=True) prints, show=False returns list
-        assert registry.list_pipelines() == []  # Calls _all_pipelines(show=False)
+        assert registry.list_pipelines() == []
 
-        registry._all_pipelines(show=True)  # Test the print path
+        registry.show_pipelines()  # Test the print path
         mock_rich_print.assert_called_with("[yellow]No pipelines found[/yellow]")
 
     # --- Tests for add_hook() method ---

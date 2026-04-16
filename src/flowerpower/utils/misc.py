@@ -27,8 +27,4 @@ def get_filesystem(
 __all__ = [
     "get_filesystem",
     "view_img",
-    "_validate_image_format",
-    "_create_temp_image_file",
-    "_open_image_viewer",
-    "_cleanup_temp_file",
 ]

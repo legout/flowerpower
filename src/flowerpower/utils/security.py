@@ -120,9 +120,8 @@ def validate_directory_fragment(path: str | None) -> str | None:
     if path == "":
         return ""
 
-    return str(
-        validate_file_path(path, allow_absolute=False, allow_relative=True)
-    )
+    validate_file_path(path, allow_absolute=False, allow_relative=True)
+    return path
 
 
 def validate_config_dict(
