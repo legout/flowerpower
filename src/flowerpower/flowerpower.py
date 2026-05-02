@@ -3,7 +3,7 @@ import os
 import posixpath
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import rich
 from fsspeckit import AbstractFileSystem, BaseStorageOptions, DirFileSystem, filesystem
@@ -176,7 +176,15 @@ class FlowerPowerProject:
         # Determine the root path for existence checks
         # For DirFileSystem, paths are relative to its root, so we check "." for the project root.
         # For other filesystems, we use the base_dir directly.
-        root_path = "." if isinstance(fs, DirFileSystem) else base_dir
+        def _is_dir_fs(f: AbstractFileSystem) -> bool:
+            if isinstance(f, DirFileSystem):
+                return True
+            inner = getattr(f, "fs", None)
+            if inner is not None and inner is not f and isinstance(inner, AbstractFileSystem):
+                return _is_dir_fs(inner)
+            return False
+
+        root_path = "." if _is_dir_fs(fs) else base_dir
 
         if not fs.exists(root_path):
             return (
@@ -201,10 +209,10 @@ class FlowerPowerProject:
         storage_options: dict | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         log_level: str | None = None,
-    ) -> "FlowerPowerProject":
+    ) -> Optional["FlowerPowerProject"]:
         """
         Load an existing FlowerPower project.
-        If the project does not exist, it will raise an error.
+        If the project does not exist, returns None.
 
         Args:
             base_dir (str | None): The base directory of the project. If None, it defaults to the current working directory.

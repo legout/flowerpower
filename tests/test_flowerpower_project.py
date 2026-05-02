@@ -431,5 +431,36 @@ class TestFlowerPowerProject(unittest.TestCase):
             mock_print.assert_called_once()
 
 
+    def test_check_project_exists_with_plain_dir_filesystem(self):
+        """Test _check_project_exists detects project with plain DirFileSystem."""
+        import tempfile
+        import os
+        from fsspeckit import DirFileSystem
+        from flowerpower import settings
+
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, settings.CONFIG_DIR), exist_ok=True)
+            os.makedirs(os.path.join(td, settings.PIPELINES_DIR), exist_ok=True)
+            fs = DirFileSystem(path=td)
+            result = FlowerPowerProject._check_project_exists(td, fs=fs)
+            self.assertEqual(result, (True, ""))
+
+    def test_check_project_exists_with_cached_dir_filesystem(self):
+        """Test _check_project_exists detects project with cached DirFileSystem wrapper."""
+        import tempfile
+        import os
+        from fsspeckit import DirFileSystem
+        from fsspeckit.core import MonitoredSimpleCacheFileSystem
+        from flowerpower import settings
+
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, settings.CONFIG_DIR), exist_ok=True)
+            os.makedirs(os.path.join(td, settings.PIPELINES_DIR), exist_ok=True)
+            dir_fs = DirFileSystem(path=td)
+            cached_fs = MonitoredSimpleCacheFileSystem(fs=dir_fs, cache_storage=td)
+            result = FlowerPowerProject._check_project_exists(td, fs=cached_fs)
+            self.assertEqual(result, (True, ""))
+
+
 if __name__ == "__main__":
     unittest.main()
