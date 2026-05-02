@@ -5,6 +5,7 @@ This module provides factory methods for creating executor instances
 with proper error handling and dependency management.
 """
 
+import functools
 from typing import Any, Dict, Optional, Union
 
 from loguru import logger
@@ -20,10 +21,6 @@ class ExecutorFactory:
     to reduce complexity in the Pipeline class.
     """
 
-    def __init__(self):
-        """Initialize the executor factory."""
-        self._executor_cache: Dict[str, Any] = {}
-
     def create_executor(
         self, executor_cfg: Union[str, Dict[str, Any], Any, None]
     ) -> Any:
@@ -38,17 +35,16 @@ class ExecutorFactory:
         """
         # Normalize configuration
         executor_cfg = self._normalize_config(executor_cfg)
+        return self._create_cached_executor(executor_cfg)
 
-        # Create executor based on type
-        executor_type = executor_cfg.type or "synchronous"
-        cache_key = f"{executor_type}_{hash(str(executor_cfg.to_dict()))}"
+    @functools.lru_cache(maxsize=16)
+    def _create_cached_executor(self, executor_cfg: Any) -> Any:
+        """Create executor with bounded caching."""
+        return self._create_executor_by_type(executor_cfg)
 
-        if cache_key in self._executor_cache:
-            return self._executor_cache[cache_key]
-
-        executor = self._create_executor_by_type(executor_cfg)
-        self._executor_cache[cache_key] = executor
-        return executor
+    def clear_cache(self) -> None:
+        """Clear the executor cache (for testing)."""
+        self._create_cached_executor.cache_clear()
 
     def _normalize_config(
         self, executor_cfg: Union[str, Dict[str, Any], Any, None]
@@ -168,10 +164,6 @@ class ExecutorFactory:
                 "Dask executor dependencies not installed. Using local executor."
             )
             return self._create_synchronous_executor()
-
-    def clear_cache(self) -> None:
-        """Clear the executor cache."""
-        self._executor_cache.clear()
 
 
 def create_executor_factory() -> ExecutorFactory:

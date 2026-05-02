@@ -1,7 +1,6 @@
 import warnings
 import msgspec
 import importlib
-from munch import munchify
 from typing import Any
 from collections.abc import Callable
 from ... import settings
@@ -95,6 +94,9 @@ class ExecutorConfig(BaseConfig):
     type: str | None = msgspec.field(default=settings.EXECUTOR)
     max_workers: int | None = msgspec.field(default=settings.EXECUTOR_MAX_WORKERS)
     num_cpus: int | None = msgspec.field(default=settings.EXECUTOR_NUM_CPUS)
+
+    def __hash__(self) -> int:
+        return hash((self.type, self.max_workers, self.num_cpus))
 
 
 class CallbackSpec(msgspec.Struct):
@@ -326,9 +328,9 @@ class RunConfig(BaseConfig):
                     legacy_overrides[field] = current_value
 
         if isinstance(self.config, dict):
-            self.config = munchify(self.config)
+            self.config = dict(self.config)
         if isinstance(self.cache, dict):
-            self.cache = munchify(self.cache)
+            self.cache = dict(self.cache)
         if isinstance(self.with_adapter, dict):
             self.with_adapter = WithAdapterConfig.from_dict(self.with_adapter)
         if isinstance(self.executor, dict):

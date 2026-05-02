@@ -2,8 +2,6 @@ from pathlib import Path
 
 import msgspec
 from fsspeckit import AbstractFileSystem, BaseStorageOptions
-from munch import Munch
-
 from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..utils.filesystem import (
     format_pipeline_file_path,
@@ -33,7 +31,7 @@ class Config(BaseConfig):
         fs (AbstractFileSystem | None): Filesystem abstraction for I/O operations.
         base_dir (str | None): Base directory for the configuration.
         base_dir_path (pathlib.Path | None): Base directory as a Path object (property).
-        storage_options (Munch): Options for filesystem operations.
+        storage_options (dict): Options for filesystem operations.
 
     Example:
         ```python
@@ -53,18 +51,18 @@ class Config(BaseConfig):
     project: ProjectConfig = msgspec.field(default_factory=ProjectConfig)
     fs: AbstractFileSystem | None = None
     base_dir: str | None = None
-    storage_options: Munch = msgspec.field(default_factory=Munch)
+    storage_options: dict = msgspec.field(default_factory=dict)
     cfg_dir: str | None = None
     pipelines_dir: str | None = None
 
     def __post_init__(self):
-        """Handle conversion of storage_options from dict to Munch if needed."""
+        """Handle conversion of storage_options from dict if needed."""
         if isinstance(self.storage_options, BaseStorageOptions):
-            self.storage_options = Munch(
+            self.storage_options = dict(
                 self.storage_options.to_dict(with_protocol=True)
             )
         elif isinstance(self.storage_options, dict):
-            self.storage_options = Munch(self.storage_options)
+            self.storage_options = dict(self.storage_options)
 
         # Validate storage_options
         self._validate_storage_options()
@@ -86,11 +84,11 @@ class Config(BaseConfig):
             ValueError: If storage_options contains invalid values.
         """
         if self.storage_options is None:
-            self.storage_options = Munch()
+            self.storage_options = {}
 
-        if not isinstance(self.storage_options, (dict, Munch)):
+        if not isinstance(self.storage_options, dict):
             raise ValueError(
-                f"storage_options must be a dict or Munch, got {type(self.storage_options)}"
+                f"storage_options must be a dict, got {type(self.storage_options)}"
             )
 
     def _validate_base_dir(self) -> None:
@@ -135,7 +133,7 @@ class Config(BaseConfig):
             name (str | None, optional): Project name. Defaults to None.
             pipeline_name (str | None, optional): Pipeline name. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str | None, optional): Configuration directory override. Defaults to CONFIG_DIR.
             pipelines_dir (str | None, optional): Pipeline directory override. Defaults to PIPELINES_DIR.
 
@@ -193,7 +191,7 @@ class Config(BaseConfig):
             project (bool, optional): Whether to save project config. Defaults to False.
             pipeline (bool, optional): Whether to save pipeline config. Defaults to True.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str | None, optional): Configuration directory override. Defaults to CONFIG_DIR.
             pipelines_dir (str | None, optional): Pipeline directory override. Defaults to PIPELINES_DIR.
 
@@ -264,7 +262,7 @@ def load(
         base_dir (str): Base directory for configurations.
         name (str | None, optional): Project name. Defaults to None.
         pipeline_name (str | None, optional): Pipeline name. Defaults to None.
-        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+        storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
 
     Returns:
@@ -304,7 +302,7 @@ def save(
         project (bool, optional): Whether to save project config. Defaults to False.
         pipeline (bool, optional): Whether to save pipeline config. Defaults to True.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+        storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
 
     Example:
         ```python
@@ -341,7 +339,7 @@ def init_config(
         name (str | None, optional): Project name. Defaults to None.
         pipeline_name (str | None, optional): Pipeline name. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+        storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
 
     Returns:
         Config: The initialized configuration instance.

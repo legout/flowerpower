@@ -29,7 +29,7 @@ from ..utils.security import (
 from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 # Import base utilities
-from .base import load_module
+from ..utils.misc import load_module
 from .config_manager import PipelineConfigManager
 from .presenter import PipelinePresenter
 

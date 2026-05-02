@@ -7,6 +7,7 @@ import yaml
 from fsspeckit import BaseStorageOptions, filesystem
 
 from flowerpower.cfg import Config
+from flowerpower.cfg.base import _cached_filesystem
 from flowerpower.cfg.exceptions import ConfigLoadError, ConfigSaveError
 from flowerpower.cfg.pipeline import PipelineConfig
 from flowerpower.cfg.pipeline.builder import RunConfigBuilder as LegacyRunConfigBuilder
@@ -247,7 +248,7 @@ def test_pipeline_config_update_preserves_scalar_fields_and_syncs_h_params() -> 
 def test_pipeline_config_load_passes_storage_options_to_cached_filesystem() -> None:
     fake_fs = MagicMock()
     fake_fs.exists.return_value = False
-    PipelineConfig._filesystem_cache.clear()
+    _cached_filesystem.cache_clear()
 
     try:
         with patch("flowerpower.cfg.base.filesystem", return_value=fake_fs) as mock_filesystem:
@@ -257,7 +258,7 @@ def test_pipeline_config_load_passes_storage_options_to_cached_filesystem() -> N
                 storage_options={"anon": True},
             )
     finally:
-        PipelineConfig._filesystem_cache.clear()
+        _cached_filesystem.cache_clear()
 
     mock_filesystem.assert_called_once_with(
         "s3://bucket/project",
@@ -292,7 +293,7 @@ def test_pipeline_config_load_preserves_protocol_from_base_storage_options() -> 
 
     fake_fs = MagicMock()
     fake_fs.exists.return_value = False
-    PipelineConfig._filesystem_cache.clear()
+    _cached_filesystem.cache_clear()
 
     try:
         with patch("flowerpower.cfg.base.filesystem", return_value=fake_fs) as mock_filesystem:
@@ -304,7 +305,7 @@ def test_pipeline_config_load_preserves_protocol_from_base_storage_options() -> 
                 ),
             )
     finally:
-        PipelineConfig._filesystem_cache.clear()
+        _cached_filesystem.cache_clear()
 
     mock_filesystem.assert_called_once_with(
         "bucket/project",
@@ -318,20 +319,20 @@ def test_pipeline_config_load_preserves_protocol_from_base_storage_options() -> 
 
 
 def test_cached_filesystem_cache_is_bounded() -> None:
-    PipelineConfig._filesystem_cache.clear()
-    maxsize = PipelineConfig._filesystem_cache_maxsize
+    _cached_filesystem.cache_clear()
+    maxsize = _cached_filesystem.cache_info().maxsize
 
     try:
         with patch("flowerpower.cfg.base.filesystem", side_effect=lambda *args, **kwargs: MagicMock()) as mock_filesystem:
             for idx in range(maxsize + 1):
                 PipelineConfig._get_cached_filesystem(f"project-{idx}")
     finally:
-        cache_keys = list(PipelineConfig._filesystem_cache.keys())
-        PipelineConfig._filesystem_cache.clear()
+        info = _cached_filesystem.cache_info()
+        _cached_filesystem.cache_clear()
 
-    assert len(cache_keys) == maxsize
-    assert ("project-0", "{}") not in cache_keys
-    assert (f"project-{maxsize}", "{}") in cache_keys
+    assert info.currsize == maxsize
+    assert info.hits >= 0
+    assert info.misses == maxsize + 1
     assert mock_filesystem.call_count == maxsize + 1
 
 

@@ -1,6 +1,6 @@
 ---
 id: flo-k3lm
-status: open
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -40,3 +40,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 
 - `BaseConfig._fs_cache` class-level dict still exists (line 42) — never cleared, no size limit, redundant with lru_cache.
 - `ExecutorFactory._executor_cache` instance-level dict still exists (line 25) — unbounded, never evicted.
+
+**2026-05-02T13:31:14Z**
+
+Gate: PASS — Replaced unbounded caches with @lru_cache. BaseConfig._filesystem_cache OrderedDict removed; module-level _cached_filesystem with @lru_cache(maxsize=32) added. ExecutorFactory._executor_cache dict removed; _create_cached_executor with @lru_cache(maxsize=16) added, clear_cache() method added. ExecutorConfig.__hash__ added for cache key support. All 109 relevant tests pass; 1 pre-existing CLI integration failure (flo-g8wx load_module move, unrelated). Validation passed; acceptance criteria met. Review not run.

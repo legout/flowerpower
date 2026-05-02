@@ -1,6 +1,6 @@
 import copy
+import functools
 import json
-from collections import OrderedDict
 from typing import Any, ClassVar, Self
 
 import msgspec
@@ -11,12 +11,22 @@ from ..utils.security import SecurityError, validate_file_path
 from .exceptions import ConfigLoadError, ConfigSaveError
 
 
-class BaseConfig(msgspec.Struct, kw_only=True):
-    _filesystem_cache: ClassVar[
-        OrderedDict[tuple[str | None, str], AbstractFileSystem]
-    ] = OrderedDict()
-    _filesystem_cache_maxsize: ClassVar[int] = 32
+@functools.lru_cache(maxsize=32)
+def _cached_filesystem(base_dir: str | None, storage_options_key: str) -> AbstractFileSystem:
+    """Get a cached filesystem instance (module-level lru_cache)."""
+    if storage_options_key == "{}":
+        storage_options = None
+    else:
+        storage_options = json.loads(storage_options_key)
+    return filesystem(
+        base_dir,
+        storage_options=storage_options,
+        cached=True,
+        dirfs=True,
+    )
 
+
+class BaseConfig(msgspec.Struct, kw_only=True):
     @classmethod
     def _get_cached_filesystem(
         cls,
@@ -33,24 +43,8 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             Cached filesystem instance.
         """
         normalized_options = cls._normalize_storage_options(storage_options)
-        cache_key = (
-            base_dir,
-            cls._storage_options_cache_key(normalized_options),
-        )
-        cached_fs = cls._filesystem_cache.get(cache_key)
-        if cached_fs is not None:
-            cls._filesystem_cache.move_to_end(cache_key)
-            return cached_fs
-
-        cls._filesystem_cache[cache_key] = filesystem(
-                base_dir,
-                storage_options=normalized_options,
-                cached=True,
-                dirfs=True,
-            )
-        if len(cls._filesystem_cache) > cls._filesystem_cache_maxsize:
-            cls._filesystem_cache.popitem(last=False)
-        return cls._filesystem_cache[cache_key]
+        cache_key = cls._storage_options_cache_key(normalized_options)
+        return _cached_filesystem(base_dir, cache_key)
 
     @classmethod
     def _normalize_storage_options(
@@ -84,64 +78,30 @@ class BaseConfig(msgspec.Struct, kw_only=True):
             return repr(storage_options)
 
     def to_dict(self) -> dict[str, Any]:
-        # Convert to dictionary, handling special cases like type objects
+        """Convert this struct to a plain dictionary."""
         result = {}
         for field in self.__struct_fields__:
             value = getattr(self, field)
             if isinstance(value, type):
-                # Convert type objects to string representation
                 result[field] = str(value)
             elif hasattr(value, "__struct_fields__"):
-                # Recursively convert nested msgspec structs
                 result[field] = value.to_dict()
-            elif hasattr(value, "toDict"):
-                # Handle Munch objects by converting to regular dict
-                result[field] = value.toDict()
             elif isinstance(value, dict):
-                # Handle regular dictionaries that might contain Munch objects
-                result[field] = self._convert_dict_recursively(value)
+                result[field] = dict(value)
             elif isinstance(value, list):
-                # Handle lists that might contain type objects or Munch objects
                 converted_list = []
                 for item in value:
                     if isinstance(item, type):
                         converted_list.append(str(item))
-                    elif hasattr(item, "toDict"):
-                        # Handle Munch objects in lists
-                        converted_list.append(item.toDict())
+                    elif hasattr(item, "__struct_fields__"):
+                        converted_list.append(item.to_dict())
                     elif isinstance(item, dict):
-                        # Handle dictionaries in lists
-                        converted_list.append(self._convert_dict_recursively(item))
+                        converted_list.append(dict(item))
                     else:
                         converted_list.append(item)
                 result[field] = converted_list
             else:
                 result[field] = value
-        return result
-
-    def _convert_dict_recursively(self, d: dict) -> dict:
-        """Recursively convert dictionaries, handling Munch objects."""
-        result = {}
-        for key, value in d.items():
-            if hasattr(value, "toDict"):
-                # Convert Munch objects to regular dict
-                result[key] = value.toDict()
-            elif isinstance(value, dict):
-                # Recursively handle nested dictionaries
-                result[key] = self._convert_dict_recursively(value)
-            elif isinstance(value, list):
-                # Handle lists within dictionaries
-                converted_list = []
-                for item in value:
-                    if hasattr(item, "toDict"):
-                        converted_list.append(item.toDict())
-                    elif isinstance(item, dict):
-                        converted_list.append(self._convert_dict_recursively(item))
-                    else:
-                        converted_list.append(item)
-                result[key] = converted_list
-            else:
-                result[key] = value
         return result
 
     def to_yaml(self, path: str, fs: AbstractFileSystem | None = None) -> None:

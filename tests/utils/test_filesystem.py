@@ -3,6 +3,9 @@ import sys
 from flowerpower.utils.filesystem import (
     FilesystemHelper,
     add_modules_path,
+    format_pipeline_file_path,
+    format_pipeline_module_path,
+    format_pipeline_package_root,
     get_pipeline_config_paths,
     get_project_config_paths,
     resolve_project_path,
@@ -90,6 +93,43 @@ def test_add_modules_path_skips_remote_urls() -> None:
     finally:
         sys.path[:] = original
 
+
+# --- format_pipeline_* helpers ---
+
+
+def test_format_pipeline_file_path_replaces_hyphens_with_underscores() -> None:
+    assert format_pipeline_file_path("my-pipeline") == "my_pipeline"
+
+
+def test_format_pipeline_file_path_replaces_dots_with_slashes() -> None:
+    assert format_pipeline_file_path("sub.module") == "sub/module"
+
+
+def test_format_pipeline_file_path_combined_dots_and_hyphens() -> None:
+    assert format_pipeline_file_path("my-pipeline.sub") == "my_pipeline/sub"
+    assert format_pipeline_file_path("a.b-c.d") == "a/b_c/d"
+
+
+def test_format_pipeline_module_path_replaces_hyphens_only() -> None:
+    assert format_pipeline_module_path("my-pipeline") == "my_pipeline"
+
+
+def test_format_pipeline_module_path_preserves_dots() -> None:
+    assert format_pipeline_module_path("sub.module") == "sub.module"
+    assert format_pipeline_module_path("my-pipeline.sub") == "my_pipeline.sub"
+
+
+def test_format_pipeline_package_root_converts_slashes_to_dots() -> None:
+    assert format_pipeline_package_root("pipelines") == "pipelines"
+    assert format_pipeline_package_root("pkg/flows") == "pkg.flows"
+
+
+def test_format_pipeline_package_root_returns_empty_for_root() -> None:
+    assert format_pipeline_package_root("") == ""
+    assert format_pipeline_package_root(None) == ""
+
+
+# --- config path helpers ---
 
 
 def test_get_pipeline_config_paths_are_unique() -> None:

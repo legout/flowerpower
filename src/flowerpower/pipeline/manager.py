@@ -5,8 +5,6 @@ from types import TracebackType
 from typing import Any
 
 from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
-from munch import Munch
-
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
 from ..settings import CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
@@ -73,7 +71,7 @@ class PipelineManager:
     def __init__(
         self,
         base_dir: str | None = None,
-        storage_options: dict | Munch | BaseStorageOptions | None = None,
+        storage_options: dict | BaseStorageOptions | None = None,
         fs: AbstractFileSystem | None = None,
         cfg_dir: str | None = CONFIG_DIR,
         pipelines_dir: str | None = PIPELINES_DIR,
@@ -86,7 +84,6 @@ class PipelineManager:
                 working directory if not specified.
             storage_options: Configuration options for filesystem access. Can be:
                 - dict: Raw key-value options
-                - Munch: Dot-accessible options object
                 - BaseStorageOptions: Structured options class
                 Used for S3, GCS, etc. Example: {"key": "abc", "secret": "xyz"}
             fs: Pre-configured fsspec filesystem instance. If provided, used instead
@@ -128,7 +125,7 @@ class PipelineManager:
     def _setup_filesystem(
         self,
         base_dir: str | None,
-        storage_options: dict | Munch | BaseStorageOptions | None,
+        storage_options: dict | BaseStorageOptions | None,
         fs: AbstractFileSystem | None,
         cfg_dir: str | None,
         pipelines_dir: str | None,

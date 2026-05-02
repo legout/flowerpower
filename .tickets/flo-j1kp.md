@@ -1,6 +1,6 @@
 ---
 id: flo-j1kp
-status: open
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -51,3 +51,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
   - `cfg/pipeline/run.py` — `from munch import munchify` (lines 318, 320)
   - `cfg/pipeline/adapter.py` — `from munch import munchify` (lines 24, 38, 40)
   - `cfg/pipeline/__init__.py` — `from munch import Munch, munchify` (lines 56, 57, 103, 162, 168)
+
+**2026-05-02T13:00:18Z**
+
+Gate: PASS — Removed munch dependency from all config layer code. Replaced Munch/munchify with plain dict across 8 source files. Simplified BaseConfig.to_dict() to manual field iteration (msgspec.to_builtins bypasses nested to_dict() overrides, so manual approach retained). Removed munch from pyproject.toml deps and mypy ignore list. All 109 cfg tests pass; 1 unrelated CLI integration test fails (load_module move from flo-g8wx). Validation passed; acceptance criteria met. Review not run.

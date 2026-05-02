@@ -1,8 +1,26 @@
+def load_module(name: str, reload: bool = False):
+    """
+    Load a module.
+
+    Args:
+        name (str): The name of the module.
+
+    Returns:
+        module: The loaded module.
+    """
+    if name in sys.modules:
+        if reload:
+            return importlib.reload(sys.modules[name])
+        return sys.modules[name]
+    return importlib.import_module(name)
 """Miscellaneous utility helpers.
 
 This module keeps a small compatibility surface for older imports while the
 actual image-viewing implementation lives in :mod:`flowerpower.utils.visualization`.
 """
+
+import importlib
+import sys
 
 from fsspeckit import AbstractFileSystem, filesystem
 
@@ -26,5 +44,6 @@ def get_filesystem(
 
 __all__ = [
     "get_filesystem",
+    "load_module",
     "view_img",
 ]

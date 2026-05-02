@@ -1,7 +1,5 @@
 import msgspec
 import os
-from munch import munchify
-
 from ... import settings
 from ..base import BaseConfig
 
@@ -21,7 +19,7 @@ class HamiltonTracerConfig(BaseConfig):
     )
 
     def __post_init__(self):
-        self.tags = munchify(self.tags)
+        self.tags = dict(self.tags)
 
 
 class MLFlowConfig(BaseConfig):
@@ -35,9 +33,9 @@ class MLFlowConfig(BaseConfig):
 
     def __post_init__(self):
         if isinstance(self.experiment_tags, dict):
-            self.experiment_tags = munchify(self.experiment_tags)
+            self.experiment_tags = dict(self.experiment_tags)
         if isinstance(self.run_tags, dict):
-            self.run_tags = munchify(self.run_tags)
+            self.run_tags = dict(self.run_tags)
 
 
 class AdapterConfig(BaseConfig):

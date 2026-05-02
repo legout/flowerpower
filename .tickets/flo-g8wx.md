@@ -1,6 +1,6 @@
 ---
 id: flo-g8wx
-status: open
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -49,3 +49,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - `pipeline/base.py` `BasePipeline` class still exists — never instantiated.
 - Dead module-level functions in `cfg/__init__.py` still exist: `_load_config()`, `_save_pipeline_config()`, `_save_project_config()`.
 - `cfg/pipeline/__init__.py` still has `_load_pipeline_config()` and `_save_pipeline_config()`.
+
+**2026-05-02T10:48:49Z**
+
+Gate: PASS — Completed remaining dead-code removal. Most items (callback.py, BasePipeline, joblib block, cfg dead functions) were already cleaned in prior work. This run moved load_module() from pipeline/base.py to utils/misc.py, updated imports in registry.py and visualizer.py, and deleted pipeline/base.py. All 8 ACs verified: dead files absent, load_module in new location, no stale imports, full suite green (369/369). Validation passed; acceptance criteria met. Review not run.

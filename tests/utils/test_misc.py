@@ -1,10 +1,49 @@
 from unittest.mock import MagicMock, patch
 
-from fsspec.implementations.local import LocalFileSystem
-from fsspec.implementations.memory import MemoryFileSystem
-
+from flowerpower.cfg.pipeline.run import ExecutorConfig
+from flowerpower.utils.executor import ExecutorFactory
 from flowerpower.utils.misc import get_filesystem, view_img
 from flowerpower.utils.visualization import view_img as canonical_view_img
+
+
+class TestExecutorFactoryCache:
+    def test_cache_returns_same_instance_for_same_config(self):
+        """Same config should return the same executor instance (cache hit)."""
+        factory = ExecutorFactory()
+        cfg = ExecutorConfig(type="synchronous")
+
+        executor1 = factory.create_executor(cfg)
+        executor2 = factory.create_executor(cfg)
+
+        assert executor1 is executor2
+
+    def test_cache_evicts_oldest_entries(self):
+        """Cache should evict oldest entries when maxsize exceeded."""
+        factory = ExecutorFactory()
+        maxsize = factory._create_cached_executor.cache_info().maxsize
+
+        executors = []
+        for i in range(maxsize + 1):
+            cfg = ExecutorConfig(type="synchronous", max_workers=i)
+            executors.append(factory.create_executor(cfg))
+
+        info = factory._create_cached_executor.cache_info()
+        assert info.currsize == maxsize
+        # First entry should have been evicted
+        first_cfg = ExecutorConfig(type="synchronous", max_workers=0)
+        new_executor = factory.create_executor(first_cfg)
+        assert new_executor is not executors[0]
+
+    def test_clear_cache_creates_new_instances(self):
+        """clear_cache should invalidate cached entries."""
+        factory = ExecutorFactory()
+        cfg = ExecutorConfig(type="synchronous")
+
+        executor1 = factory.create_executor(cfg)
+        factory.clear_cache()
+        executor2 = factory.create_executor(cfg)
+
+        assert executor1 is not executor2
 
 
 class TestGetFilesystem:

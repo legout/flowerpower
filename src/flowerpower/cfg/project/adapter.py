@@ -1,7 +1,5 @@
 import msgspec
 import os
-from munch import munchify
-
 from ... import settings
 from ..base import BaseConfig
 
@@ -37,7 +35,7 @@ class RayConfig(BaseConfig):
 
     def __post_init__(self):
         if isinstance(self.ray_init_config, dict):
-            self.ray_init_config = munchify(self.ray_init_config)
+            self.ray_init_config = dict(self.ray_init_config)
 
 
 class AdapterConfig(BaseConfig):

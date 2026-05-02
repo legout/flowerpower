@@ -4,8 +4,6 @@ import msgspec
 import yaml
 from fsspeckit import AbstractFileSystem, BaseStorageOptions
 from hamilton.function_modifiers import source, value
-from munch import Munch, munchify
-
 from ...settings import CONFIG_DIR, PIPELINES_DIR
 from ...utils.filesystem import (
     find_first_existing_path,
@@ -65,8 +63,8 @@ class PipelineConfig(BaseConfig):
 
     def __post_init__(self):
         if isinstance(self.params, dict):
-            self.h_params = munchify(self.to_h_params(self.params))
-            self.params = munchify(self.params)
+            self.h_params = self.to_h_params(self.params)
+            self.params = dict(self.params)
 
         # Validate pipeline name if provided
         if self.name is not None:
@@ -115,7 +113,7 @@ class PipelineConfig(BaseConfig):
             ) from e
 
     @classmethod
-    def from_dict(cls, name: str, data: dict | Munch):
+    def from_dict(cls, name: str, data: dict):
         payload = dict(data)
         payload["name"] = name
 
@@ -179,7 +177,7 @@ class PipelineConfig(BaseConfig):
                 original_error=e,
             ) from e
 
-    def update(self, d: dict | Munch):
+    def update(self, d: dict):
         updates = dict(d)
         params = updates.pop("params", None)
 
@@ -187,9 +185,9 @@ class PipelineConfig(BaseConfig):
             super().update(updates)
 
         if params is not None:
-            self.params.update(munchify(params))
-            self.params = munchify(self.params)
-            self.h_params = munchify(self.to_h_params(self.params))
+            self.params.update(dict(params))
+            self.params = dict(self.params)
+            self.h_params = self.to_h_params(self.params)
 
     @staticmethod
     def to_h_params(d: dict) -> dict:
@@ -256,7 +254,7 @@ class PipelineConfig(BaseConfig):
             base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
             name (str | None, optional): Pipeline name. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
             pipelines_dir (str, optional): Pipelines subdirectory. Defaults to PIPELINES_DIR.
 
@@ -310,7 +308,7 @@ class PipelineConfig(BaseConfig):
             name (str | None, optional): Pipeline name. Defaults to None.
             base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
             pipelines_dir (str, optional): Pipelines subdirectory. Defaults to PIPELINES_DIR.
 
@@ -360,7 +358,7 @@ def init_pipeline_config(
         base_dir (str, optional): Base directory for the pipeline. Defaults to ".".
         name (str | None, optional): Pipeline name. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+        storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
 
     Returns:
         PipelineConfig: The initialized pipeline configuration.

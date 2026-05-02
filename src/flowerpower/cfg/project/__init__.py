@@ -91,7 +91,7 @@ class ProjectConfig(BaseConfig):
             base_dir (str, optional): Base directory for the project. Defaults to ".".
             name (str | None, optional): Project name. Defaults to None.
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
 
         Returns:
@@ -174,7 +174,7 @@ class ProjectConfig(BaseConfig):
         Args:
             base_dir (str, optional): Base directory for the project. Defaults to ".".
             fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-            storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+            storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
             cfg_dir (str, optional): Configuration directory. Defaults to CONFIG_DIR.
 
         Example:
@@ -209,7 +209,7 @@ def init_project_config(
         base_dir (str, optional): Base directory for the project. Defaults to ".".
         name (str | None, optional): Project name. Defaults to None.
         fs (AbstractFileSystem | None, optional): Filesystem to use. Defaults to None.
-        storage_options (dict | Munch, optional): Options for filesystem. Defaults to empty Munch.
+        storage_options (dict, optional): Options for filesystem. Defaults to empty dict.
 
     Returns:
         ProjectConfig: The initialized project configuration.

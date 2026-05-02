@@ -12,7 +12,7 @@ from ..settings import CONFIG_DIR, PIPELINES_DIR
 from ..utils.filesystem import add_modules_path, format_pipeline_package_root
 from ..utils.security import validate_directory_fragment, validate_pipeline_name
 from ..utils.visualization import view_img
-from .base import load_module  # Import module loading utility
+from ..utils.misc import load_module
 from .config_manager import PipelineConfigManager
 
 
