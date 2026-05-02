@@ -215,7 +215,7 @@ def run(
                 from ..cfg.pipeline.run import ExecutorConfig
 
                 run_config.executor = ExecutorConfig.from_dict(parsed_executor_cfg)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Invalid executor configuration: {e}")
             raise typer.Exit(1)
 
@@ -229,7 +229,7 @@ def run(
     except ValueError as e:
         logger.error(f"Invalid configuration for pipeline execution: {e}")
         raise typer.Exit(1)
-    except Exception as e:
+    except (RuntimeError, TypeError) as e:
         logger.error(f"Pipeline execution failed: {e}")
         raise typer.Exit(1)
 
@@ -440,7 +440,7 @@ def show_dag(
             logger.error(f"File system error generating DAG for pipeline '{name}': {e}")
         except ValueError as e:
             logger.error(f"Invalid configuration for DAG generation: {e}")
-        except Exception as e:
+        except (RuntimeError, TypeError) as e:
             logger.error(f"Failed to generate DAG for pipeline '{name}': {e}")
 
 
@@ -511,7 +511,7 @@ def save_dag(
             logger.error(f"File system error saving DAG for pipeline '{name}': {e}")
         except ValueError as e:
             logger.error(f"Invalid configuration for DAG saving: {e}")
-        except Exception as e:
+        except (RuntimeError, TypeError) as e:
             logger.error(f"Failed to save DAG for pipeline '{name}': {e}")
 
 
@@ -755,5 +755,5 @@ def add_hook(
             logger.error(f"File system error adding hook to pipeline '{name}': {e}")
         except ValueError as e:
             logger.error(f"Invalid configuration for hook addition: {e}")
-        except Exception as e:
+        except (RuntimeError, TypeError) as e:
             logger.error(f"Failed to add hook to pipeline '{name}': {e}")
