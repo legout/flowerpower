@@ -10,7 +10,6 @@ from flowerpower.cfg import Config
 from flowerpower.cfg.base import _cached_filesystem
 from flowerpower.cfg.exceptions import ConfigLoadError, ConfigSaveError
 from flowerpower.cfg.pipeline import PipelineConfig
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder as LegacyRunConfigBuilder
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.flowerpower import FlowerPowerProject
 from flowerpower.pipeline.config_manager import PipelineConfigManager
@@ -805,42 +804,3 @@ def test_config_load_preserves_explicit_project_name_when_project_file_is_missin
         assert combined.project.name == "demo-project"
 
 
-def test_legacy_run_config_builder_uses_canonical_env_overlay_path() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fs = filesystem(tmpdir, cached=False, dirfs=True)
-        conf = Path(tmpdir) / "conf"
-        conf.mkdir()
-        with (conf / "project.yml").open("w") as fh:
-            yaml.safe_dump({"name": "demo"}, fh)
-        pipelines = conf / "pipelines"
-        pipelines.mkdir()
-        with (pipelines / "my_pipeline.yml").open("w") as fh:
-            yaml.safe_dump({"run": {"log_level": "INFO"}}, fh)
-
-        with patch.dict("os.environ", {"FP_PIPELINE__RUN__LOG_LEVEL": "WARNING"}):
-            with pytest.deprecated_call():
-                builder = LegacyRunConfigBuilder(
-                    pipeline_name="my-pipeline",
-                    base_dir=tmpdir,
-                    fs=fs,
-                )
-
-        assert builder.build().log_level == "WARNING"
-
-
-def test_legacy_run_config_builder_surfaces_invalid_pipeline_config() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fs = filesystem(tmpdir, cached=False, dirfs=True)
-        conf = Path(tmpdir) / "conf" / "pipelines"
-        conf.mkdir(parents=True)
-        with (Path(tmpdir) / "conf" / "project.yml").open("w") as fh:
-            yaml.safe_dump({"name": "demo"}, fh)
-        (conf / "my_pipeline.yml").write_text("run: [not-a-mapping]\n")
-
-        with pytest.deprecated_call():
-            with pytest.raises(ConfigLoadError):
-                LegacyRunConfigBuilder(
-                    pipeline_name="my-pipeline",
-                    base_dir=tmpdir,
-                    fs=fs,
-                )
