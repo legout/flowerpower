@@ -1,6 +1,6 @@
 ---
 id: flo-m7pr
-status: open
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -41,3 +41,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 
 - `cli/pipeline.py` still uses `except Exception as e:` in all command handlers (lines 217, 229, 440, 511, 742).
 - KeyboardInterrupt and SystemExit are still caught, preventing clean Ctrl+C handling.
+
+**2026-05-02T21:17:03Z**
+
+Gate: PASS — Replaced 5 bare `except Exception` in cli/pipeline.py with specific tuples ((ValueError, TypeError) for executor config; (RuntimeError, TypeError) for run/show-dag/save-dag/add-hook fallbacks). Added 5 unit tests (all pass) covering KeyboardInterrupt/SystemExit propagation and narrowed exception catching. Structural AST test guards against regression. grep confirms 0 bare except Exception remaining. 14/14 existing CLI tests pass (2 pre-existing integration failures unrelated). Review not run.
