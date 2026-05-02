@@ -191,13 +191,13 @@ The `RunConfigBuilder` provides a fluent interface for building complex configur
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 
 project = FlowerPowerProject.load('.')
 
 # Build a configuration using the builder pattern
 config = (
-    RunConfigBuilder(pipeline_name='hello_world')
+    RunConfigBuilder()
     .with_inputs({"greeting_message": "Hello", "target_name": "World"})
     .with_final_vars(["full_greeting"])
     .with_log_level("DEBUG")
@@ -215,7 +215,7 @@ You can also combine `RunConfig` with individual parameters, where individual pa
 
 ```python
 from flowerpower import FlowerPowerProject
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 
 project = FlowerPowerProject.load('.')
 

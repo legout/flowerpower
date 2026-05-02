@@ -219,14 +219,14 @@ builder.with_config({"model": "LogisticRegression", "params": {"C": 1.0}})
 
 ### with_cache
 ```python
-with_cache(self, cache: dict[str, Any]) -> 'RunConfigBuilder'
+with_cache(self, cache: bool | None) -> 'RunConfigBuilder'
 ```
 
 Set the cache configuration for the pipeline execution.
 
 | Parameter | Type | Description |
 |:----------|:-----|:------------|
-| `cache` | `dict[str, Any]` | Cache configuration. |
+| `cache` | `bool \| None` | Cache configuration. |
 
 **Returns:** `RunConfigBuilder` - The builder instance for method chaining.
 
@@ -236,12 +236,12 @@ Set the cache configuration for the pipeline execution.
 from flowerpower.utils.config import RunConfigBuilder
 
 builder = RunConfigBuilder()
-builder.with_cache({"recompute": ["node1", "final_node"]})
+builder.with_cache(False)
 ```
 
-### with_executor_config
+### with_executor
 ```python
-with_executor_config(self, executor_cfg: str | dict | ExecutorConfig) -> 'RunConfigBuilder'
+with_executor(self, executor_cfg: str | dict | ExecutorConfig) -> 'RunConfigBuilder'
 ```
 
 Set the execution configuration for the pipeline.
@@ -259,16 +259,16 @@ from flowerpower.utils.config import RunConfigBuilder
 
 # Using a string
 builder = RunConfigBuilder()
-builder.with_executor_config("threadpool")
+builder.with_executor("threadpool")
 
 # Using a dictionary
 builder = RunConfigBuilder()
-builder.with_executor_config({"type": "threadpool", "max_workers": 4})
+builder.with_executor({"type": "threadpool", "max_workers": 4})
 ```
 
-### with_adapter_config
+### with_with_adapter_cfg
 ```python
-with_adapter_config(self, with_adapter_cfg: dict | WithAdapterConfig) -> 'RunConfigBuilder'
+with_with_adapter_cfg(self, with_adapter_cfg: dict | WithAdapterConfig) -> 'RunConfigBuilder'
 ```
 
 Set the adapter settings for pipeline execution.
@@ -285,12 +285,12 @@ Set the adapter settings for pipeline execution.
 from flowerpower.utils.config import RunConfigBuilder
 
 builder = RunConfigBuilder()
-builder.with_adapter_config({"hamilton_tracker": True, "mlflow": False})
+builder.with_with_adapter_cfg({"hamilton_tracker": True, "mlflow": False})
 ```
 
-### with_pipeline_adapter_config
+### with_pipeline_adapter_cfg
 ```python
-with_pipeline_adapter_config(self, pipeline_adapter_cfg: dict | PipelineAdapterConfig) -> 'RunConfigBuilder'
+with_pipeline_adapter_cfg(self, pipeline_adapter_cfg: dict | PipelineAdapterConfig) -> 'RunConfigBuilder'
 ```
 
 Set the pipeline-specific adapter settings.
@@ -307,14 +307,14 @@ Set the pipeline-specific adapter settings.
 from flowerpower.utils.config import RunConfigBuilder
 
 builder = RunConfigBuilder()
-builder.with_pipeline_adapter_config({
+builder.with_pipeline_adapter_cfg({
     "tracker": {"project_id": "123", "tags": {"env": "prod"}}
 })
 ```
 
-### with_project_adapter_config
+### with_project_adapter_cfg
 ```python
-with_project_adapter_config(self, project_adapter_cfg: dict | ProjectAdapterConfig) -> 'RunConfigBuilder'
+with_project_adapter_cfg(self, project_adapter_cfg: dict | ProjectAdapterConfig) -> 'RunConfigBuilder'
 ```
 
 Set the project-level adapter settings.
@@ -331,7 +331,7 @@ Set the project-level adapter settings.
 from flowerpower.utils.config import RunConfigBuilder
 
 builder = RunConfigBuilder()
-builder.with_project_adapter_config({
+builder.with_project_adapter_cfg({
     "hamilton_tracker": {"project_id": "123", "tags": {"env": "prod"}}
 })
 ```
@@ -432,9 +432,9 @@ builder.with_retry_config(
 )
 ```
 
-### with_success_callback
+### with_on_success
 ```python
-with_success_callback(self, on_success: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
+with_on_success(self, on_success: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
 ```
 
 Set the callback to run on successful pipeline execution.
@@ -454,12 +454,12 @@ def success_handler(result):
     print(f"Pipeline succeeded with result: {result}")
 
 builder = RunConfigBuilder()
-builder.with_success_callback(success_handler)
+builder.with_on_success(success_handler)
 ```
 
-### with_failure_callback
+### with_on_failure
 ```python
-with_failure_callback(self, on_failure: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
+with_on_failure(self, on_failure: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
 ```
 
 Set the callback to run on pipeline execution failure.
@@ -479,7 +479,7 @@ def failure_handler(error):
     print(f"Pipeline failed with error: {error}")
 
 builder = RunConfigBuilder()
-builder.with_failure_callback(failure_handler)
+builder.with_on_failure(failure_handler)
 ```
 
 ### build
@@ -556,15 +556,15 @@ config = (
     .with_inputs({"data_date": "2025-01-01", "batch_size": 32})
     .with_final_vars(["model", "metrics", "predictions"])
     .with_config({"model": "LogisticRegression", "params": {"C": 1.0}})
-    .with_cache({"recompute": ["preprocessing"]})
-    .with_executor_config({"type": "threadpool", "max_workers": 4})
-    .with_adapter_config({"hamilton_tracker": True})
-    .with_pipeline_adapter_config({"tracker": {"project_id": "123"}})
-    .with_project_adapter_config({"hamilton_tracker": {"api_url": "http://localhost:8241"}})
+    .with_cache(False)
+    .with_executor({"type": "threadpool", "max_workers": 4})
+    .with_with_adapter_cfg({"hamilton_tracker": True})
+    .with_pipeline_adapter_cfg({"tracker": {"project_id": "123"}})
+    .with_project_adapter_cfg({"hamilton_tracker": {"api_url": "http://localhost:8241"}})
     .with_log_level("DEBUG")
     .with_retry_config(max_retries=3, retry_delay=1.0)
-    .with_success_callback(success_handler)
-    .with_failure_callback(failure_handler)
+    .with_on_success(success_handler)
+    .with_on_failure(failure_handler)
     .build()
 )
 

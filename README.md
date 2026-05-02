@@ -245,7 +245,7 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
     ```python
     from flowerpower import FlowerPowerProject
     from flowerpower.cfg.pipeline.run import RunConfig
-    from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+    from flowerpower.utils.config import RunConfigBuilder
 
     # Load the project
     project = FlowerPowerProject.load('.')
@@ -274,7 +274,7 @@ For quick testing or local runs, you can execute your pipeline synchronously. Th
 
     # Using RunConfigBuilder (recommended)
     config = (
-        RunConfigBuilder(pipeline_name='hello_world')
+        RunConfigBuilder()
         .with_inputs({"greeting_message": "Greetings", "target_name": "Earth"})
         .with_final_vars(["full_greeting"])
         .with_log_level("DEBUG")
@@ -398,7 +398,7 @@ You can interact with FlowerPower pipelines through multiple interfaces:
 ```python
 from flowerpower import FlowerPowerProject
 from flowerpower.cfg.pipeline.run import RunConfig
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 
 # Load the project
 project = FlowerPowerProject.load('.')
@@ -436,7 +436,7 @@ If you only need pipeline execution, you can use the `PipelineManager` directly:
 ```python
 from flowerpower.pipeline import PipelineManager
 from flowerpower.cfg.pipeline.run import RunConfig
-from flowerpower.cfg.pipeline.builder import RunConfigBuilder
+from flowerpower.utils.config import RunConfigBuilder
 
 # Initialize pipeline manager
 pm = PipelineManager(base_dir='.')
