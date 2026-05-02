@@ -87,3 +87,4 @@ docs/cleanup-refactor-plan.md
 .gitignore
 docs/site/*
 .pi/prompts/
+.memory/branches/main/log.md

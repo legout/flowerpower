@@ -1,9 +1,11 @@
 from unittest.mock import MagicMock, patch
 
+from fsspec.implementations.local import LocalFileSystem
+from fsspec.implementations.memory import MemoryFileSystem
+
 from flowerpower.cfg.pipeline.run import ExecutorConfig
 from flowerpower.utils.executor import ExecutorFactory
-from flowerpower.utils.misc import get_filesystem, view_img
-from flowerpower.utils.visualization import view_img as canonical_view_img
+from flowerpower.utils.misc import get_filesystem
 
 
 class TestExecutorFactoryCache:
@@ -83,5 +85,4 @@ class TestGetFilesystem:
                 mock_filesystem.reset_mock()
 
 
-def test_misc_view_img_reexports_canonical_helper():
-    assert view_img is canonical_view_img
+
