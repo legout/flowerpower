@@ -28,3 +28,7 @@ This epic intentionally excludes broad architectural rewrites and focuses on sma
 **2026-03-27T18:23:46Z**
 
 
+
+**2026-04-28T23:25:16Z**
+
+Child task flo-teil closed: removed utils/callback.py (dead module, 186 lines) and ExecutorFactory.clear_cache (unused method). 346 tests pass. Remaining open children: flo-kv7v (visualization helpers), flo-f891 (RunConfigBuilder drift).

@@ -1,6 +1,6 @@
 ---
 id: flo-f6uv
-status: in_progress
+status: closed
 deps: []
 links: [flo-e4tw, flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -79,3 +79,7 @@ Gate: REVISE — Review Attempt: 3/7. Three HIGH findings: (1) registry.pipeline
 **2026-04-14T13:32:15Z**
 
 Gate: REVISE — Review Attempt: 4/7. Two HIGH findings: (1) PipelineIOManager export checks membership against registry.pipelines which now returns metadata dicts, always rejecting real pipelines — need names-only lookup. (2) IO import/export still hardcodes conf/ and pipelines/ paths instead of using configured dirs and shared path formatter.
+
+**2026-04-28T23:46:12Z**
+
+Gate: PASS — Deduplication verified complete, 19 tests added. All 5 acceptance criteria met: (1) single add_modules_path in utils/filesystem.py with zero private copies, (2) single validate_pipeline_name in utils/security.py imported by 10+ callers including registry.new(), (3) single validate_file_path in utils/security.py with cfg/base.py wrapper removed, (4) inline checks in Config.save() and PipelineConfig.save() replaced with shared calls. Validation: 366 tests pass (346 existing + 20 new). Structural checks confirm zero duplicate definitions across src/. Lint clean on changed files. Review not run.

@@ -1,0 +1,120 @@
+version: 1
+
+tracker:
+  primary: tk
+
+models:
+  plan: &plan_model openai-codex/gpt-5.5, openai-codex/gpt-5.4-mini, kimi-coding/kimi-for-coding
+  orchestration: &orchestration_model zai/glm-5-turbo
+  implementation: &implementation_model kimi-coding/kimi-for-coding, openai-codex/gpt-5.4-mini
+  validation_fix: &validation_fix_model zai/glm-5.1
+  fast: &fast_model zai/glm-5-turbo
+  review: &review_model openai-codex/gpt-5.5
+
+thinking:
+  plan: &plan_thinking high
+  orchestration: &orchestration_thinking medium
+  implementation: &implementation_thinking medium
+  validation_fix: &validation_fix_thinking medium
+  fast: &fast_thinking low
+  review: &review_thinking medium
+
+prompts:
+  # Plan prompts
+  architect:
+    model: *plan_model
+    thinking: *plan_thinking
+  brainstorm:
+    model: *plan_model
+    thinking: *plan_thinking
+  create-issues:
+    model: *plan_model
+    thinking: *plan_thinking
+  create-tickets:
+    model: *plan_model
+    thinking: *plan_thinking
+  create-work-items:
+    model: *plan_model
+    thinking: *plan_thinking
+  implementation-plan:
+    model: *implementation_model
+    thinking: *implementation_thinking
+  plan-create:
+    model: *plan_model
+    thinking: *plan_thinking
+  plan-improve:
+    model: *plan_model
+    thinking: *plan_thinking
+  spec:
+    model: *implementation_model
+    thinking: *implementation_thinking
+
+  # Orchestration prompts
+  finalize:
+    model: *orchestration_model
+    thinking: *orchestration_thinking
+  init-execflow:
+    model: *orchestration_model
+    thinking: *orchestration_thinking
+  update-architecture:
+    model: *orchestration_model
+    thinking: *orchestration_thinking
+
+  # Wrapper-only prompts are intentionally omitted from settings.prompts because they
+  # do not own model selection. This includes chain wrappers (`ef-implement`,
+  # `ef-implement-delegated`, `plan-chain`), the manual orchestration wrapper
+  # (`plan`), and deterministic utility wrappers (`refresh-prompts`,
+  # `sync-models`). Their leaf prompts carry the real model/thinking config.
+
+  # Implementation prompts
+  worker-implement:
+    model: *implementation_model
+    thinking: *implementation_thinking
+  worker-validation-fix:
+    model: *validation_fix_model
+    thinking: *validation_fix_thinking
+  implement:
+    model: *implementation_model
+    thinking: *implementation_thinking
+
+  # Validation prompts
+  validation-plan:
+    model: *validation_fix_model
+    thinking: *validation_fix_thinking
+  fix:
+    model: *validation_fix_model
+    thinking: *validation_fix_thinking
+  validation-fix:
+    model: *validation_fix_model
+    thinking: *validation_fix_thinking
+  validate:
+    model: *validation_fix_model
+    thinking: *validation_fix_thinking
+
+  # Fast prompts
+  merge-summary:
+    model: *fast_model
+    thinking: *fast_thinking
+  resolve:
+    model: *fast_model
+    thinking: *fast_thinking
+
+  # Review prompts
+  ef-review:
+    model: *review_model
+    thinking: *review_thinking
+  ef-review-followups:
+    model: *orchestration_model
+    thinking: *orchestration_thinking
+  execplan-review:
+    model: *plan_model
+    thinking: *plan_thinking
+  change-review:
+    model: *plan_model
+    thinking: *plan_thinking
+  execplan-review-followups:
+    model: *orchestration_model
+    thinking: *orchestration_thinking
+  change-review-followups:
+    model: *orchestration_model
+    thinking: *orchestration_thinking

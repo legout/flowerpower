@@ -1,6 +1,6 @@
 ---
 id: flo-e4tw
-status: in_progress
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-03-26T18:00:00Z
@@ -99,3 +99,19 @@ Gate: UNESCALATE — Ticket re-entered the ticket-flow pipeline. Previous escala
 **2026-04-14T08:44:00Z**
 
 Gate: ESCALATE — implementation blocked by 429 rate limit error. Worker aborted before any code changes were made. No validation or review artifacts exist for run 20260414T083959Z.
+
+**2026-04-17T15:51:03Z**
+
+Gate: UNESCALATE — Ticket re-entered the ticket-flow pipeline. Previous escalation overridden. Review attempt counter preserved.
+
+**2026-04-17T16:00:39Z**
+
+Ticket-flow run 20260417T155135Z — validation step blocked by transient provider failure (500 Internal network failure, error id: 20260417235951e97cc0963df94d9b). Implementation confirmed all acceptance criteria already satisfied. Ticket left in_progress for retry.
+
+**2026-04-17T17:46:27Z**
+
+Gate: REVISE (attempt 6/7) — Unused imports (Path, yaml) in tests/pipeline/test_config_manager.py cause ruff F401 failures. Remove unused imports.
+
+**2026-04-28T23:32:47Z**
+
+Gate: PASS — All 7 acceptance criteria satisfied. Substantive consolidation (AC1-AC7) landed in prior attempts. This run fixed the last review finding: removed 2 unused imports (Path, yaml) from tests/pipeline/test_config_manager.py. Validation: ruff clean (0 issues), 7 targeted tests pass, 155 config tests pass, grep confirms dead private methods removed (AC4/AC5), apply_env_overlays centralized in PipelineConfigManager only (AC6). Review not run.

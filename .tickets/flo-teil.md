@@ -1,6 +1,6 @@
 ---
 id: flo-teil
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-27T15:55:53Z
@@ -37,3 +37,7 @@ All 9 dead helpers still exist:
 - `FilesystemHelper.clear_cache` in `utils/filesystem.py` (line 175) — no callers
 - `AdapterManager.clear_cache` in `utils/adapter.py` (line 256) — no callers
 - `ExecutorFactory.clear_cache` in `utils/executor.py` (line 172) — no callers
+
+**2026-04-28T23:25:10Z**
+
+Gate: PASS — Removed last remaining dead helper (ExecutorFactory.clear_cache) and deleted dead module utils/callback.py (186 lines, zero callers, zero tests). 8 of 9 originally-listed dead helpers were already removed by prior child tasks (flo-8qw5, flo-apob). Validation: 346 tests pass, zero dangling references, all retained imports resolve. Review not run.
