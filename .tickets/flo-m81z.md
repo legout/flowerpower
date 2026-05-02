@@ -1,6 +1,6 @@
 ---
 id: flo-m81z
-status: open
+status: closed
 deps: []
 links: [flo-en6e]
 created: 2026-02-17T10:44:55Z
@@ -43,3 +43,7 @@ AUDIT: Status changed from closed → open. The fix was **never implemented**:
 - `_check_project_exists()` still uses `isinstance(fs, DirFileSystem)` check (line 185) without handling CachingFileSystem or other wrappers.
 - No `hasattr` or duck-typing fallback for wrapped filesystems.
 - CLI `pipeline run --base-dir examples/hello-world` will still fail with cached filesystem variants.
+
+**2026-05-02T21:28:24Z**
+
+Gate: PASS — Fixed _check_project_exists() to detect DirFileSystem through cached/wrapped layers via recursive _is_dir_fs() helper. Fixed load() return type to Optional["FlowerPowerProject"]. Added 2 unit tests with real fsspec instances. Validation passed: 15/15 tests. Review not run.

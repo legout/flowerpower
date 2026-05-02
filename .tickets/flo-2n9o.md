@@ -1,6 +1,6 @@
 ---
 id: flo-2n9o
-status: in_progress
+status: closed
 deps: []
 links: []
 created: 2026-03-27T15:55:53Z
@@ -32,3 +32,7 @@ This epic intentionally excludes broad architectural rewrites and focuses on sma
 **2026-04-28T23:25:16Z**
 
 Child task flo-teil closed: removed utils/callback.py (dead module, 186 lines) and ExecutorFactory.clear_cache (unused method). 346 tests pass. Remaining open children: flo-kv7v (visualization helpers), flo-f891 (RunConfigBuilder drift).
+
+**2026-05-02T00:00:00Z**
+
+All 6 child tasks closed (flo-8qw5, flo-apob, flo-f891, flo-kv7v, flo-teil, flo-vinw). Epic closed.

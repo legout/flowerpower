@@ -1,6 +1,6 @@
 ---
 id: flo-t1hq
-status: open
+status: closed
 deps: []
 links: [flo-e0im, flo-h9yz, flo-g8wx, flo-f891]
 created: 2026-02-17T10:44:55Z
@@ -51,3 +51,7 @@ AUDIT: Status changed from closed → open. The consolidation was **never done**
   - `utils/config.py` (527 lines) — simpler builder used by merge logic
 - `builder_executor.py` (107 lines) and `builder_adapter.py` (141 lines) still exist.
 - Different APIs, different feature sets, different import paths — drift unresolved.
+
+**2026-05-02T21:46:11Z**
+
+Gate: PASS — Consolidated duplicate RunConfigBuilder by deleting deprecated builder and its exclusive sub-builders. Deleted: cfg/pipeline/builder.py (388 lines), builder_executor.py (108 lines), builder_adapter.py (147 lines). Updated tests/cfg/test_config_paths.py (removed import and 2 legacy test functions). Canonical RunConfigBuilder in utils/config.py remains the single source of truth. Validation: 374 passed, 2 pre-existing failures (CLI integration tests, confirmed on clean code via git stash). Zero dangling references across src/ and tests/. Lint clean on changed files. Review not run.

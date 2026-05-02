@@ -1,6 +1,6 @@
 ---
 id: flo-p15d
-status: open
+status: closed
 deps: [flo-b3nm]
 links: [flo-dv90, flo-b3nm]
 created: 2026-02-17T10:44:55Z
@@ -46,3 +46,7 @@ AUDIT: Status changed from closed → open. The note claiming "Resolved by flo-b
 - `PipelineLifecycleManager` still exists and is used.
 - It still calls non-existent registry methods: `get_summaries()` (line 87, should be `get_summary()`) and `get_pipeline_object()` (line 90, doesn't exist).
 - `show-summary` will still fail at runtime.
+
+**2026-05-02T21:36:06Z**
+
+Gate: PASS — Resolved-by flo-b3nm. PipelineLifecycleManager deleted, CLI calls registry.show_summary() directly. Validation: 163/163 pipeline tests pass, 12/12 summary tests pass, manual CLI verification confirmed for both all-pipelines and single-pipeline modes. Zero references to get_summaries() or get_pipeline_object() in src/. Review not run.
