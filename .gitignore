@@ -86,3 +86,4 @@ docs/refactoring/
 docs/cleanup-refactor-plan.md
 .gitignore
 docs/site/*
+.pi/prompts/
