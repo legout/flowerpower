@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
@@ -11,10 +10,15 @@ from hamilton.execution import executors
 from loguru import logger
 
 from ..cfg.pipeline.run import RunConfig
-from ..utils.config import clone_run_config, merge_run_config_with_kwargs
-from ..utils.filesystem import format_pipeline_package_root
+from ..settings import PIPELINES_DIR
+from ..utils.config import (
+    clone_run_config,
+    merge_run_config_with_kwargs,
+    validate_resolved_run_config,
+)
 from ..utils.logging import ensure_logging_initialized, setup_logging
 from .execution_context import ExecutionContextBuilder
+from .module_resolver import PipelineModuleResolver
 from .retry import RetryManager
 
 if TYPE_CHECKING:
@@ -41,8 +45,6 @@ class PipelineRunner:
 
         if configured_run.log_level:
             setup_logging(level=configured_run.log_level)
-        if configured_run.reload:
-            self._reload_modules(modules)
 
         retry_manager = self._create_retry_manager(configured_run)
 
@@ -63,9 +65,6 @@ class PipelineRunner:
         context_builder = self._build_context_builder()
 
         modules = self._resolve_modules(configured_run)
-
-        if configured_run.reload:
-            self._reload_modules(modules)
 
         if configured_run.log_level:
             setup_logging(level=configured_run.log_level)
@@ -103,6 +102,7 @@ class PipelineRunner:
         configured = clone_run_config(run_config or self._pipeline.config.run)
         if overrides:
             configured = merge_run_config_with_kwargs(configured, overrides)
+        validate_resolved_run_config(configured)
         return configured
 
     def _build_context_builder(self) -> ExecutionContextBuilder:
@@ -213,91 +213,30 @@ class PipelineRunner:
                     )
 
     def _resolve_modules(self, run_config: RunConfig) -> list[ModuleType]:
-        modules: list[ModuleType] = []
-
-        def _append_unique(module_obj: ModuleType) -> None:
-            if any(existing is module_obj for existing in modules):
-                return
-            modules.append(module_obj)
-
+        resolver = PipelineModuleResolver(self._resolve_pipelines_dir())
         additional = run_config.additional_modules or []
         if isinstance(additional, (str, bytes)):
             additional = [additional]
-
-        for module_entry in additional:
-            module_obj = self._coerce_to_module(module_entry)
-            _append_unique(module_obj)
-
-        _append_unique(self._pipeline.module)
-        return modules
-
-    def _coerce_to_module(self, module_entry: Any) -> ModuleType:
-        if isinstance(module_entry, ModuleType):
-            return module_entry
-        if isinstance(module_entry, str):
-            return self._import_additional_module(module_entry)
-
-        raise TypeError(
-            "additional_modules entries must be module objects or import strings"
+        return resolver.resolve(
+            self._pipeline.module,
+            additional=additional,
+            reload=run_config.reload,
         )
 
-    def _import_additional_module(self, name: str) -> ModuleType:
-        formatted = name.replace("-", "_")
-        attempted: list[str] = []
-        errors: list[ImportError] = []
+    def _resolve_pipelines_dir(self) -> str | None:
+        """Determine the configured pipelines directory for module resolution.
 
-        def _try(candidate: str) -> ModuleType | None:
-            attempted.append(candidate)
-            try:
-                return importlib.import_module(candidate)
-            except ImportError as error:
-                errors.append(error)
-                return None
-
-        package_root = self._pipeline_package_root()
-        candidates: list[str] = []
-
-        if package_root and "." not in formatted:
-            candidates.append(f"{package_root}.{formatted}")
-
-        for candidate in (name, formatted):
-            if candidate not in candidates:
-                candidates.append(candidate)
-
-        if package_root:
-            qualified_candidate = f"{package_root}.{formatted}"
-            if qualified_candidate not in candidates and not formatted.startswith(
-                f"{package_root}."
-            ):
-                candidates.append(qualified_candidate)
-        if package_root != "pipelines" and not formatted.startswith("pipelines."):
-            candidates.append(f"pipelines.{formatted}")
-
-        for candidate in candidates:
-            module_obj = _try(candidate)
-            if module_obj is not None:
-                return module_obj
-
-        error_message = (
-            f"Could not import additional module '{name}'. Tried: {attempted}. "
-            "Ensure the module is importable or resides under the configured pipeline package."
-        )
-        raise ImportError(error_message) from errors[-1] if errors else None
-
-    def _pipeline_package_root(self) -> str:
+        Delegates package-root normalization to the resolver; this method only
+        figures out *which* directory fragment to use.
+        """
         manager = getattr(self._pipeline.project_context, "pipeline_manager", None)
-        package_root = getattr(manager, "_pipelines_dir", None)
-        if isinstance(package_root, str) and package_root:
-            return format_pipeline_package_root(package_root)
-
-        if package_root == "":
-            return ""
-
+        pipelines_dir = getattr(manager, "_pipelines_dir", None)
+        if isinstance(pipelines_dir, str):
+            return pipelines_dir
         module_name = getattr(self._pipeline.module, "__name__", "")
         if isinstance(module_name, str) and "." in module_name:
             return module_name.split(".", 1)[0]
-
-        return "pipelines"
+        return PIPELINES_DIR
 
     def _get_async_driver_module(self):
         if hamilton_async_driver is None:
@@ -306,28 +245,3 @@ class PipelineRunner:
                 "to a version that provides hamilton.async_driver (e.g., pip install -U hamilton)."
             )
         return hamilton_async_driver
-
-    def _reload_modules(self, modules: list[ModuleType]) -> None:
-        seen: set[str] = set()
-        for module_obj in modules:
-            module_name = getattr(module_obj, "__name__", None)
-            if module_name is None:
-                continue
-            if module_name in seen:
-                continue
-            seen.add(module_name)
-            try:
-                importlib.reload(module_obj)
-                logger.debug(
-                    "Reloaded module for pipeline '{pipeline}' -> '{module}'",
-                    pipeline=self._pipeline.name,
-                    module=module_name,
-                )
-            except Exception as error:
-                logger.error(
-                    "Failed to reload module '{module}' for pipeline '{pipeline}': {error}",
-                    module=module_name,
-                    pipeline=self._pipeline.name,
-                    error=error,
-                )
-                raise

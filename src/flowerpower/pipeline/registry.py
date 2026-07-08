@@ -15,8 +15,6 @@ from ..settings import CONFIG_DIR, HOOKS_DIR, LOG_LEVEL, PIPELINES_DIR
 from ..utils.filesystem import (
     add_modules_path,
     format_pipeline_file_path,
-    format_pipeline_module_path,
-    format_pipeline_package_root,
     get_pipeline_config_paths,
 )
 from ..utils.logging import setup_logging
@@ -29,8 +27,8 @@ from ..utils.security import (
 from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 # Import base utilities
-from ..utils.misc import load_module
 from .config_manager import PipelineConfigManager
+from .module_resolver import PipelineModuleResolver
 from .presenter import PipelinePresenter
 
 if TYPE_CHECKING:
@@ -124,6 +122,9 @@ class PipelineRegistry:
         self._presenter = PipelinePresenter()
 
         self._sync_project_state()
+
+        # Shared resolver for pipeline module imports
+        self._module_resolver = PipelineModuleResolver(self._pipelines_dir)
 
         # Ensure module paths are added (delegated to shared utility)
         add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
@@ -328,15 +329,9 @@ class PipelineRegistry:
 
         logger.debug(f"Loading module for pipeline '{name}'")
 
-        # Convert pipeline name to module name using the shared helper
-        formatted_name = format_pipeline_module_path(name)
-        package_root = format_pipeline_package_root(self._pipelines_dir)
-        module_name = (
-            f"{package_root}.{formatted_name}" if package_root else formatted_name
-        )
-
-        # Load the module
-        module = load_module(module_name, reload=reload)
+        # Load the module through the shared resolver (handles package-root
+        # normalization, hyphens, and fallback candidates)
+        module = self._module_resolver.load(name, reload=reload)
 
         if cached_data is None:
             self._pipeline_data_cache[name] = CachedPipelineData(module=module)

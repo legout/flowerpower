@@ -461,7 +461,7 @@ class TestPipelineRegistry:
             module=old_module,
         )
         mocker.patch(
-            "flowerpower.pipeline.registry.load_module",
+            "flowerpower.pipeline.module_resolver.load_module",
             return_value=new_module,
         )
 

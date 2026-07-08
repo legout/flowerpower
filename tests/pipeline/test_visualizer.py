@@ -86,7 +86,8 @@ def test_get_dag_object_uses_configured_dirs() -> None:
 
     class FakeBuilder:
         def with_modules(self, *args, **_kwargs):
-            assert args == (module,)
+            assert len(args) == 1
+            assert args[0] is module
             return self
 
         def enable_dynamic_execution(self, **_kwargs):
@@ -106,10 +107,14 @@ def test_get_dag_object_uses_configured_dirs() -> None:
         pipelines_dir="flows",
     )
 
-    visualizer._config_manager.load_pipeline_config = MagicMock(return_value=pipeline_cfg)
+    visualizer._config_manager.load_pipeline_config = MagicMock(
+        return_value=pipeline_cfg
+    )
 
     with patch.object(visualizer, "_resolve_modules", return_value=[module]):
-        with patch("flowerpower.pipeline.visualizer.driver.Builder", return_value=FakeBuilder()):
+        with patch(
+            "flowerpower.pipeline.visualizer.driver.Builder", return_value=FakeBuilder()
+        ):
             result = visualizer._get_dag_object(name="group.example")
 
     visualizer._config_manager.load_pipeline_config.assert_called_once_with(
@@ -124,8 +129,12 @@ def test_visualizer_uses_base_dir_for_config_manager_and_module_path_setup() -> 
     project_cfg.name = "demo"
     fs = MagicMock()
 
-    with patch("flowerpower.pipeline.visualizer.PipelineConfigManager") as mock_config_manager:
-        with patch("flowerpower.pipeline.visualizer.add_modules_path") as mock_add_modules_path:
+    with patch(
+        "flowerpower.pipeline.visualizer.PipelineConfigManager"
+    ) as mock_config_manager:
+        with patch(
+            "flowerpower.pipeline.visualizer.add_modules_path"
+        ) as mock_add_modules_path:
             PipelineVisualizer(
                 project_cfg=project_cfg,
                 fs=fs,
@@ -142,6 +151,37 @@ def test_visualizer_uses_base_dir_for_config_manager_and_module_path_setup() -> 
         pipelines_dir="flows",
     )
     mock_add_modules_path.assert_called_once_with(fs, "flows", "/project")
+
+
+def test_visualizer_preserves_empty_configured_dirs() -> None:
+    project_cfg = MagicMock()
+    project_cfg.name = "demo"
+    fs = MagicMock()
+
+    with patch(
+        "flowerpower.pipeline.visualizer.PipelineConfigManager"
+    ) as mock_config_manager:
+        with patch(
+            "flowerpower.pipeline.visualizer.add_modules_path"
+        ) as mock_add_modules_path:
+            visualizer = PipelineVisualizer(
+                project_cfg=project_cfg,
+                fs=fs,
+                cfg_dir="",
+                pipelines_dir="",
+            )
+
+    assert visualizer._cfg_dir == ""
+    assert visualizer._pipelines_dir == ""
+    assert visualizer._module_resolver.package_root == ""
+    mock_config_manager.assert_called_once_with(
+        base_dir=".",
+        fs=fs,
+        storage_options={},
+        cfg_dir="",
+        pipelines_dir="",
+    )
+    mock_add_modules_path.assert_called_once_with(fs, "", ".")
 
 
 def test_visualizer_rejects_traversal_pipeline_dirs() -> None:
@@ -168,7 +208,8 @@ def test_get_dag_object_trims_whitespace_before_module_resolution() -> None:
 
     class FakeBuilder:
         def with_modules(self, *args, **_kwargs):
-            assert args == (module,)
+            assert len(args) == 1
+            assert args[0] is module
             return self
 
         def enable_dynamic_execution(self, **_kwargs):
@@ -182,7 +223,9 @@ def test_get_dag_object_trims_whitespace_before_module_resolution() -> None:
             return MagicMock(display_all_functions=MagicMock(return_value=dag))
 
     visualizer = PipelineVisualizer(project_cfg=project_cfg, fs=fs)
-    visualizer._config_manager.load_pipeline_config = MagicMock(return_value=pipeline_cfg)
+    visualizer._config_manager.load_pipeline_config = MagicMock(
+        return_value=pipeline_cfg
+    )
     visualizer._resolve_modules = MagicMock(return_value=[module])
 
     with patch(
@@ -231,13 +274,18 @@ def test_get_dag_object_applies_env_overlays_via_config_manager() -> None:
 
         with patch.dict("os.environ", {"FP_PIPELINE__RUN__CONFIG__MODE": "env"}):
             with patch.object(visualizer, "_resolve_modules", return_value=[module]):
-                with patch("flowerpower.pipeline.visualizer.driver.Builder", return_value=FakeBuilder()):
+                with patch(
+                    "flowerpower.pipeline.visualizer.driver.Builder",
+                    return_value=FakeBuilder(),
+                ):
                     result = visualizer._get_dag_object(name="example")
 
         assert result is dag
 
 
-def test_visualizer_resolves_additional_modules_from_configured_pipeline_package() -> None:
+def test_visualizer_resolves_additional_modules_from_configured_pipeline_package() -> (
+    None
+):
     project_cfg = MagicMock()
     project_cfg.name = "demo"
     fs = MagicMock()
@@ -254,7 +302,9 @@ def test_visualizer_resolves_additional_modules_from_configured_pipeline_package
             return module
         raise ImportError(name)
 
-    with patch("flowerpower.pipeline.visualizer.load_module", side_effect=fake_load):
+    with patch(
+        "flowerpower.pipeline.module_resolver.load_module", side_effect=fake_load
+    ):
         result = visualizer._coerce_to_module("setup")
 
     assert result is module
@@ -277,7 +327,9 @@ def test_visualizer_resolves_additional_modules_from_nested_pipeline_package() -
             return module
         raise ImportError(name)
 
-    with patch("flowerpower.pipeline.visualizer.load_module", side_effect=fake_load):
+    with patch(
+        "flowerpower.pipeline.module_resolver.load_module", side_effect=fake_load
+    ):
         result = visualizer._coerce_to_module("setup")
 
     assert result is module
@@ -310,3 +362,36 @@ def test_visualizer_standalone_adds_project_path_for_nested_pipeline_package() -
 
     assert module.__name__ == f"{package_root}.flows.example"
     assert module.VALUE == 1
+
+
+def test_visualizer_reload_reloads_unique_primary_and_additional_modules() -> None:
+    project_cfg = MagicMock()
+    project_cfg.name = "demo"
+    fs = MagicMock()
+    visualizer = PipelineVisualizer(project_cfg=project_cfg, fs=fs)
+
+    setup_module = ModuleType("pipelines.setup")
+    primary_module = ModuleType("pipelines.example")
+
+    def fake_load(name: str, reload: bool = False):
+        if name == "pipelines.example":
+            return primary_module
+        raise ModuleNotFoundError(f"No module named {name!r}", name=name)
+
+    with patch(
+        "flowerpower.pipeline.module_resolver.load_module", side_effect=fake_load
+    ):
+        with patch(
+            "flowerpower.pipeline.module_resolver.importlib.reload"
+        ) as reload_module:
+            result = visualizer._resolve_modules(
+                "example",
+                [setup_module, setup_module],
+                reload=True,
+            )
+
+    assert result == [setup_module, primary_module]
+    assert [call.args[0] for call in reload_module.call_args_list] == [
+        setup_module,
+        primary_module,
+    ]

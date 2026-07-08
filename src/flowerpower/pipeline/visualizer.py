@@ -1,6 +1,6 @@
-import importlib
 import posixpath
 from types import ModuleType
+from typing import cast
 
 from fsspeckit import AbstractFileSystem
 from hamilton import driver
@@ -9,11 +9,11 @@ from rich import print
 # Import necessary config types and utility functions
 from ..cfg import ProjectConfig
 from ..settings import CONFIG_DIR, PIPELINES_DIR
-from ..utils.filesystem import add_modules_path, format_pipeline_package_root
+from ..utils.filesystem import add_modules_path
 from ..utils.security import validate_directory_fragment, validate_pipeline_name
 from ..utils.visualization import view_img
-from ..utils.misc import load_module
 from .config_manager import PipelineConfigManager
+from .module_resolver import PipelineModuleResolver
 
 
 class PipelineVisualizer:
@@ -40,8 +40,14 @@ class PipelineVisualizer:
         self.project_cfg = project_cfg
         self._fs = fs
         self._base_dir = base_dir
-        self._cfg_dir = validate_directory_fragment(cfg_dir)
-        self._pipelines_dir = validate_directory_fragment(pipelines_dir)
+        validated_cfg_dir = validate_directory_fragment(
+            cfg_dir if cfg_dir is not None else str(CONFIG_DIR)
+        )
+        validated_pipelines_dir = validate_directory_fragment(
+            pipelines_dir if pipelines_dir is not None else str(PIPELINES_DIR)
+        )
+        self._cfg_dir = cast(str, validated_cfg_dir)
+        self._pipelines_dir = cast(str, validated_pipelines_dir)
         self._config_manager = PipelineConfigManager(
             base_dir=base_dir,
             fs=fs,
@@ -49,6 +55,7 @@ class PipelineVisualizer:
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
         )
+        self._module_resolver = PipelineModuleResolver(self._pipelines_dir)
         add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
     def _get_dag_object(
@@ -231,55 +238,13 @@ class PipelineVisualizer:
         additional_modules: list[str | ModuleType] | None,
         reload: bool,
     ) -> list[ModuleType]:
-        modules: list[ModuleType] = []
-
-        def _append_unique(module_obj: ModuleType) -> None:
-            if any(existing is module_obj for existing in modules):
-                return
-            modules.append(module_obj)
-
-        if additional_modules:
-            for entry in additional_modules:
-                module_obj = self._coerce_to_module(entry, reload=reload)
-                _append_unique(module_obj)
-
-        primary_module = self._coerce_to_module(name, reload=reload)
-        _append_unique(primary_module)
-
-        return modules
+        return self._module_resolver.resolve(
+            name,
+            additional=additional_modules,
+            reload=reload,
+        )
 
     def _coerce_to_module(
         self, entry: str | ModuleType, reload: bool = False
     ) -> ModuleType:
-        if isinstance(entry, ModuleType):
-            if reload:
-                importlib.reload(entry)
-            return entry
-
-        formatted = entry.replace("-", "_")
-        package_root = format_pipeline_package_root(self._pipelines_dir)
-        candidates: list[str] = []
-        if package_root and "." not in formatted:
-            candidates.append(f"{package_root}.{formatted}")
-        for candidate in (entry, formatted):
-            if candidate not in candidates:
-                candidates.append(candidate)
-        if package_root and not formatted.startswith(f"{package_root}."):
-            qualified_candidate = f"{package_root}.{formatted}"
-            if qualified_candidate not in candidates:
-                candidates.append(qualified_candidate)
-        if package_root != PIPELINES_DIR and not formatted.startswith(
-            f"{PIPELINES_DIR}."
-        ):
-            candidates.append(f"{PIPELINES_DIR}.{formatted}")
-
-        errors: list[ImportError] = []
-        for candidate in candidates:
-            try:
-                return load_module(name=candidate, reload=reload)
-            except ImportError as error:
-                errors.append(error)
-
-        raise ImportError(
-            f"Could not import module '{entry}'. Tried: {candidates}"
-        ) from errors[-1] if errors else None
+        return self._module_resolver.coerce(entry, reload=reload)
