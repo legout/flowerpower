@@ -45,7 +45,7 @@ def signups__1000() -> pd.Series:
     return pd.Series(range(10_000))
 
 
-@parameterize(**PARAMS.avg_x_wk_spend)  # (avg_x_wk_spend={"rolling": value(3)})  #
+@parameterize(**PARAMS['avg_x_wk_spend'])  # (avg_x_wk_spend={"rolling": value(3)})  #
 def avg_x_wk_spend(spend: pd.Series, rolling: int) -> pd.Series:
     """Rolling x week average spend."""
     # time.sleep(2)
@@ -63,7 +63,7 @@ def spend_mean(spend: pd.Series) -> float:
     return spend.mean()
 
 
-@parameterize(**PARAMS.spend_zero_mean)  # (spend_zero_mean={"offset": value(0)})  #
+@parameterize(**PARAMS['spend_zero_mean'])  # (spend_zero_mean={"offset": value(0)})  #
 def spend_zero_mean(spend: pd.Series, spend_mean: float, offset: int) -> pd.Series:
     """Shows function that takes a scalar. In this case to zero mean spend."""
     return spend - spend_mean + offset

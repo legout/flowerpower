@@ -1,5 +1,5 @@
 # Core FlowerPower dependencies
-flowerpower[rq]
+flowerpower
 
 # Web scraping and HTTP
 requests>=2.28.0

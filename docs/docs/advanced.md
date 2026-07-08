@@ -1,175 +1,244 @@
-# Advanced Usage
+# Configuration & Concepts
 
-Welcome to the advanced usage guide for FlowerPower. This document covers more complex configurations and use cases to help you get the most out of the library.
+This page explains *how* FlowerPower's configuration works and the concepts
+behind it. For a step-by-step build, see the [Tutorial](quickstart.md); for
+specific tasks, see the [How-to guides](guide/additional-modules.md).
 
-See also:
+## The layered configuration model
 
-- Guides → [Compose Pipelines With Additional Modules](guide/additional-modules.md)
-- Guides → [Asynchronous Execution](guide/async-execution.md)
+FlowerPower resolves every setting through a **precedence ladder**. The first
+level that provides a value wins:
 
-## Configuration Flexibility
-
-FlowerPower offers multiple ways to configure your project, ensuring flexibility for different environments and workflows. Configuration is applied in this order (highest wins):
-
-1.  **Runtime kwargs / RunConfig** (programmatic overrides at execution time)
-2.  **Environment overlays** via `FP_PIPELINE__*` / `FP_PROJECT__*` variables
-3.  **YAML files after env interpolation** (`${VAR}`, `${VAR:-default}`, etc.)
-4.  **Global env shims** like `FP_LOG_LEVEL`, `FP_EXECUTOR`, etc. (applied only if more specific keys not set)
-5.  **Code defaults** (struct defaults)
-
-### Programmatic Configuration (recommended)
-
-Use `RunConfig` or kwargs when executing to override YAML/env at runtime.
-
-```python
-from flowerpower.pipeline import PipelineManager
-from flowerpower.cfg.pipeline.run import RunConfig
-
-pm = PipelineManager()
-cfg = RunConfig(
-    inputs={"input_data": "path/to/data.csv"},
-    log_level="DEBUG",
-)
-result = pm.run("sales_etl", run_config=cfg)
-
-# or with kwargs (overrides RunConfig fields)
-result = pm.run(
-    "sales_etl",
-    inputs={"input_data": "path/to/other.csv"},
-    log_level="INFO",
-)
+```mermaid
+graph BT
+    A["Code defaults<br/>(struct defaults)"] --> B["Global FP_* shims<br/>FP_LOG_LEVEL, FP_EXECUTOR, …"]
+    B --> C["YAML after interpolation<br/>conf/project.yml · conf/pipelines/*.yml"]
+    C --> D["Environment overlays<br/>FP_PIPELINE__* · FP_PROJECT__*"]
+    D --> E["Runtime kwargs / RunConfig"]
+    style E fill:#2e7d32,color:#fff
+    style A fill:#777,color:#fff
 ```
 
-### Environment Variable Overlays
+| # | Layer | What it is |
+|---|-------|------------|
+| 1 | **Runtime kwargs / `RunConfig`** | Passed to `project.run(...)` / `pm.run(...)`. Always wins. |
+| 2 | **Environment overlays** | `FP_PIPELINE__*` / `FP_PROJECT__*` (nested via `__`). |
+| 3 | **YAML (after interpolation)** | `conf/project.yml` and `conf/pipelines/<name>.yml`, with `${VAR}` expanded. |
+| 4 | **Global env shims** | `FP_LOG_LEVEL`, `FP_EXECUTOR`, … applied only when no more-specific key is set. |
+| 5 | **Code defaults** | Struct field defaults. |
 
-You can set typed, nested overrides using double-underscore paths:
+### Project vs. pipeline config
 
-- `FP_PIPELINE__RUN__LOG_LEVEL=DEBUG`
-- `FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool`
-- `FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_KEY=...`
+- **`conf/project.yml`** — project-wide settings: name and the `adapter` block
+  (Hamilton Tracker, MLflow, Ray connection details).
+- **`conf/pipelines/<name>.yml`** — per-pipeline settings: `params`, `run`
+  (execution), and pipeline-level `adapter` overrides.
 
-Global shims still work and are applied only if pipeline/project-specific keys are not set:
+```yaml
+# conf/pipelines/hello.yml
+params:                 # values injected into your functions
+  greeting_message:
+    message: "Hello"
+run:
+  final_vars: [full_greeting]   # which nodes to return
+  executor:
+    type: threadpool
+    max_workers: 4
+  retry:
+    max_retries: 3
+    retry_delay: 1.0
+```
 
-- `FP_LOG_LEVEL=INFO`
-- `FP_EXECUTOR=threadpool`, `FP_EXECUTOR_MAX_WORKERS=8`, `FP_EXECUTOR_NUM_CPUS=4`
-- `FP_MAX_RETRIES=3`, `FP_RETRY_DELAY=2.0`, `FP_JITTER_FACTOR=0.2`
+## How parameters reach your functions
 
-Values are strictly coerced (bool/int/float) and JSON is supported for objects/lists.
+In a pipeline module, this line loads the YAML `params:` block into Hamilton's
+parameter format:
 
-### YAML Environment Interpolation
+```python
+from flowerpower.cfg import Config
 
-YAML supports Docker Compose–style expansion inside values. Examples:
+PARAMS = Config.load(
+    Path(__file__).parents[1], pipeline_name="hello"
+).pipeline.h_params
+```
+
+`PARAMS` is a **dictionary**. Each top-level key maps a function name to that
+function's keyword arguments. Connect them with Hamilton's `@parameterize`:
+
+```python
+@parameterize(**PARAMS["greeting_message"])
+def greeting_message(message: str) -> str:
+    return f"{message},"
+```
+
+!!! warning "Use dictionary access"
+    Write `PARAMS["greeting_message"]`, **not** `PARAMS.greeting_message`.
+    `h_params` is a plain dict; attribute access raises `AttributeError`.
+
+Hamilton reads function signatures to build the DAG — it never runs a node
+until something depends on it. You select the nodes to actually compute via
+`run.final_vars`.
+
+## Environment overlays
+
+You can override any nested config value with environment variables, using
+double-underscore as the path separator:
+
+| Variable | Sets |
+|----------|------|
+| `FP_PIPELINE__RUN__LOG_LEVEL=DEBUG` | `run.log_level` |
+| `FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool` | `run.executor.type` |
+| `FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_URL=…` | project adapter URL |
+
+Values are type-coerced (bool / int / float) and JSON is accepted for
+objects/lists. Global shims like `FP_LOG_LEVEL` and `FP_EXECUTOR` still work,
+but only when no more-specific overlay key is present.
+
+### YAML interpolation
+
+YAML values support Docker Compose–style expansion:
 
 ```yaml
 run:
   log_level: ${FP_LOG_LEVEL:-INFO}
-  executor: ${FP_PIPELINE__RUN__EXECUTOR:-{"type":"synchronous"}}
+  executor: ${FP_PIPELINE__RUN__EXECUTOR:-{"type":"threadpool"}}
+params:
+  data_path: ${DATA_PATH:-data/input.csv}
 adapter:
   hamilton_tracker:
     api_key: ${HAMILTON_API_KEY:?Missing tracker key}
-params:
-  data_path: ${DATA_PATH:-data/input.csv}
 ```
 
-Supported forms: `${VAR}`, `${VAR:-default}` (unset or empty), `${VAR-default}` (unset), `${VAR:?err}` / `${VAR?err}` (require), `$${...}` escapes `$`. If the expanded value is valid JSON, it becomes a typed object/list/number/bool/null.
+Supported forms: `${VAR}`, `${VAR:-default}` (unset or empty), `${VAR-default}`
+(unset), `${VAR:?err}` / `${VAR!err}` (require). `$${...}` escapes the `$`.
+Expanded JSON becomes a typed value.
 
-## Direct Module Usage
+## Running with `RunConfig`
 
-For fine-grained control, you can work directly with `PipelineManager`.
-
-
-### `PipelineManager`
-
-The `PipelineManager` is responsible for loading, validating, and executing data pipelines.
+`RunConfig` bundles execution settings. Pass it to `run()`, or override
+individual fields as kwargs (kwargs win):
 
 ```python
-from flowerpower.pipeline import PipelineManager
+from flowerpower import FlowerPowerProject
 from flowerpower.cfg.pipeline.run import RunConfig
 
-# Initialize the manager
-pipeline_manager = PipelineManager()
+project = FlowerPowerProject.load(".")
 
-# Access the registry to load a specific pipeline
-pipeline = pipeline_manager.registry.get_pipeline("sales_etl")
-
-# Execute the pipeline with RunConfig
-result = pipeline.run(run_config=RunConfig(inputs={"input_data": "path/to/data.csv"}))
-print(result)
-```
-
-## Hooks
-
-Hooks allow you to inject custom logic at specific points in the pipeline lifecycle, such as pre-execution validation or post-execution logging.
-
-### Adding Hooks
-
-Use the `add_hook` method in the PipelineRegistry to add hooks to your pipeline.
-
-```python
-from flowerpower.pipeline import PipelineManager
-from flowerpower.pipeline.hooks import HookType
-
-manager = PipelineManager()
-
-manager.registry.add_hook(
-    name="my_pipeline",
-    type=HookType.MQTT_BUILD_CONFIG,
-    to=None,  # Defaults to hooks/my_pipeline/hook.py
-    function_name="build_mqtt_config"  # Optional; defaults to type value
+result = project.run(
+    "hello",
+    run_config=RunConfig(inputs={"greeting_message": {"message": "Hi"}}, log_level="DEBUG"),
+    final_vars=["full_greeting"],   # overrides the RunConfig field
 )
 ```
 
-This appends a template function to the hook file. Customize the function in `hooks/my_pipeline/hook.py` to implement your logic, e.g., for MQTT config building.
+### `RunConfigBuilder`
 
-Hooks are executed automatically during pipeline runs based on their type.
+For complex runs, the fluent builder is clearer:
+
+```python
+from flowerpower.utils.config import RunConfigBuilder
+
+cfg = (
+    RunConfigBuilder()
+    .with_inputs({"greeting_message": {"message": "Hi"}})
+    .with_final_vars(["full_greeting"])
+    .with_log_level("DEBUG")
+    .with_retries(max_attempts=3, delay=1.0)
+    .with_executor({"type": "threadpool", "max_workers": 4})
+    .build()
+)
+result = project.run("hello", run_config=cfg)
+```
+
+Key `RunConfig` fields: `inputs`, `final_vars`, `config`, `cache`, `executor`,
+`with_adapter`, `retry`, `log_level`, `reload`, `additional_modules`,
+`on_success`, `on_failure`, `async_driver`. See the
+[RunConfig reference](api/runconfig.md) for the complete list.
+
+## Executors
+
+The `run.executor` block (or `executor_cfg=` kwarg) chooses how Hamilton runs
+the DAG:
+
+- **`threadpool`** (default) — multi-threaded, good for I/O-bound nodes.
+- **`local`** — single-process, useful for CPU-bound / simple pipelines.
+- **Ray** — distributed; needs the `[ray]` extra and the Ray adapter enabled.
+
+```python
+project.run("hello", executor_cfg={"type": "threadpool", "max_workers": 8})
+```
+
+## Retries & callbacks
+
+Retry behavior lives in the nested `retry` block
+(`max_retries`, `retry_delay`, `jitter_factor`, `retry_exceptions`):
+
+```python
+from flowerpower.cfg.pipeline.run import RunConfig
+
+project.run(
+    "flaky_pipeline",
+    run_config=RunConfig(
+        retry={"max_retries": 5, "retry_delay": 2.0, "jitter_factor": 0.2},
+        on_success=lambda: print("done"),
+    ),
+)
+```
+
+!!! note "Deprecated retry fields"
+    The top-level `max_retries` / `retry_delay` / `jitter_factor` /
+    `retry_exceptions` fields still work but emit a `DeprecationWarning`. Use the
+    nested `retry` block instead.
+
+`on_success` / `on_failure` accept a callable, or a
+`(callable, args_tuple, kwargs_dict)` tuple.
+
+## Caching
+
+Set `cache: true` (or a dict like `{"recompute": ["node1", "final_node"]}`) to
+reuse results of previously computed nodes across runs.
+
+## Composing modules
+
+A pipeline can pull nodes from additional Python modules via
+`additional_modules` — handy for shared setup/teardown or team ownership:
+
+```python
+project.run("hello", additional_modules=["setup"], final_vars=["full_greeting"])
+```
+
+See [Compose Multiple Modules](guide/additional-modules.md) for resolution rules
+and reload behaviour.
+
 ## Adapters
 
-Integrate with popular MLOps and observability tools using adapters.
+Track runs or distribute work by enabling adapters at run time. The toggle field
+is **`hamilton_tracker`** (not `tracker`):
 
-*   **Hamilton Tracker**: For dataflow and lineage tracking.
-*   **MLflow**: For experiment tracking.
+```python
+project.run("hello", with_adapter_cfg={"hamilton_tracker": True, "mlflow": False})
+```
 
-## Filesystem Abstraction
+See [Use Adapters](guide/adapters.md) for full configuration.
 
-FlowerPower uses the library [`fsspeckit`](https://legout.github.io/fsspeckit) to provide a unified interface for interacting with different filesystems, including local storage, S3, and GCS. This allows you to switch between storage backends without changing your code.
+## Filesystem abstraction & security
 
-### Security
+FlowerPower reads and writes through [fsspeckit](https://legout.github.io/fsspeckit),
+so the same project can live on local disk, S3, GCS, and more. Pass
+`storage_options` and a `base_dir` with a protocol (e.g. `s3://bucket/proj`).
 
-FlowerPower includes built-in security features to prevent common vulnerabilities, such as directory traversal attacks. All file paths provided to configuration loaders and filesystem utilities are validated to ensure they are within the project's base directory.
+All file paths are validated to prevent directory traversal:
 
 ```python
 from flowerpower.utils.security import SecurityError, validate_file_path
 
-# This will pass
-validate_file_path("my/safe/path.yml")
-
-# This will raise a SecurityError
-try:
-    validate_file_path("../../../etc/passwd")
-except SecurityError as e:
-    print(e)
+validate_file_path("data/input.csv")          # OK
+validate_file_path("../../../etc/passwd")      # raises SecurityError
 ```
-## Extensible I/O Plugins
 
-The FlowerPower plugin [`flowerpower-io`](https://legout.github.io/flowerpower-io) enhances FlowerPower's I/O capabilities, allowing you to connect to various data sources and sinks using a simple plugin architecture.
+## I/O plugins
 
-**Supported Types Include:**
-
-*   CSV, JSON, Parquet
-*   DeltaTable
-*   DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite
-*   MQTT
-
-To use a plugin, simply specify its type in your pipeline configuration.
-
-
-## Troubleshooting
-
-Here are some common issues and how to resolve them:
-
-*   **Redis Connection Error**: Ensure your Redis server is running and accessible. Check the `redis.host` and `redis.port` settings in your configuration.
-*   **Configuration Errors**: Use the `flowerpower pipeline show-summary` command to inspect the loaded configuration and identify any misconfigurations.
-*   **Module Not Found**: Make sure your pipeline and task modules are in Python's path. You can add directories to the path using the `PYTHONPATH` environment variable.
-
-!!! note
-    For more detailed information, refer to the API documentation.
+Install the `flowerpower-io` plugin (`uv pip install 'flowerpower[io]'`) to read
+and write CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL,
+Oracle, SQLite, and MQTT. See the
+[flowerpower-io docs](https://legout.github.io/flowerpower-io).

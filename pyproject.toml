@@ -32,11 +32,6 @@ flowerpower = "flowerpower.cli:app"
 [project.optional-dependencies]
 io = ["flowerpower-io>=0.1.1"]
 io-legacy = ["flowerpower-io[legacy]>=0.1.1"]
-opentelemetry = [
-  "opentelemetry-api>=1.5.0",
-  "opentelemetry-sdk>=1.5.0",
-  "opentelemetry-exporter-jaeger>=1.21.0", #"sf-hamilton[opentelemetry]>=1.83.3"
-]
 ray = ["ray>=2.34.0"]
 ui = ["sf-hamilton-ui>=0.0.11"]
 

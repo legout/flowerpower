@@ -36,7 +36,6 @@ def run_direct_pipeline():
 
     # Initialize pipeline manager without job queue
     pipeline_manager = PipelineManager(
-        project_cfg_path="conf/project.yml",
         base_dir=".",
         fs=None,  # Use default local filesystem
         cfg_dir="conf",
@@ -82,7 +81,6 @@ def run_simple_analysis():
     print("⚡ Running simplified text analysis...")
 
     pipeline_manager = PipelineManager(
-        project_cfg_path="conf/project.yml",
         base_dir=".",
         fs=None,
         cfg_dir="conf",
@@ -115,7 +113,6 @@ def run_custom_processing():
     print("⚙️ Running custom text processing configuration...")
 
     pipeline_manager = PipelineManager(
-        project_cfg_path="conf/project.yml",
         base_dir=".",
         fs=None,
         cfg_dir="conf",
@@ -160,7 +157,6 @@ def demo_pipeline_features():
     print("🎯 Demonstrating pipeline-only features...")
 
     pipeline_manager = PipelineManager(
-        project_cfg_path="conf/project.yml",
         base_dir=".",
         fs=None,
         cfg_dir="conf",
@@ -230,7 +226,6 @@ def inspect_pipeline():
     print("🔍 Inspecting pipeline structure...")
 
     pipeline_manager = PipelineManager(
-        project_cfg_path="conf/project.yml",
         base_dir=".",
         fs=None,
         cfg_dir="conf",

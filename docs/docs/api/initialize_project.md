@@ -1,35 +1,44 @@
 # initialize_project
 
-**Module:** `flowerpower.flowerpower`
+**Module:** [`flowerpower.flowerpower`](https://github.com/legout/flowerpower/blob/main/src/flowerpower/flowerpower.py)
 
-The `initialize_project` function initializes a new FlowerPower project. It is a convenient top-level function that wraps `FlowerPowerProject.new()`.
+The `initialize_project` function creates a new FlowerPower project. It is a thin wrapper around [`FlowerPowerProject.new()`](./flowerpowerproject.md).
 
 ```python
-initialize_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, hooks_dir: str = settings.HOOKS_DIR, log_level: str | None = None) -> FlowerPowerProject
+initialize_project(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict | BaseStorageOptions | None = None,
+    fs: AbstractFileSystem | None = None,
+    hooks_dir: str = settings.HOOKS_DIR,
+    log_level: str | None = None,
+) -> FlowerPowerProject
 ```
 
-Initializes a new FlowerPower project.
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str \| None` | Project name. If `None`, the current directory name is used. | `None` |
+| `base_dir` | `str \| None` | Directory where the project will be created. | Current working directory |
+| `storage_options` | `dict \| BaseStorageOptions \| None` | Filesystem storage options. | `None` |
+| `fs` | `AbstractFileSystem \| None` | fsspec-compatible filesystem instance. | `None` |
+| `hooks_dir` | `str` | Directory for project hooks. | `settings.HOOKS_DIR` |
+| `log_level` | `str \| None` | Logging level for the project. | `None` |
 
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `name` | `str` &#124; `None` | The name of the project. Defaults to the current directory name. |
-| `base_dir` | `str` &#124; `None` | The base directory where the project will be created. Defaults to the current working directory. |
-| `storage_options` | `dict` &#124; `BaseStorageOptions` &#124; `None` | Storage options for the filesystem. |
-| `fs` | `AbstractFileSystem` &#124; `None` | An instance of AbstractFileSystem to use for file operations. |
-| `hooks_dir` | `str` | The directory where the project hooks will be stored. |
-| `log_level` | `str` &#124; `None` | The logging level to set for the project. If None, it uses the default log level. |
-|  |  |  |
+**Returns:** `FlowerPowerProject`
 
-**Returns:** A `FlowerPowerProject` instance initialized with the new project.
+**Raises:** `FileExistsError` if the project already exists and `overwrite` is not set.
 
-**Raises:** `FileExistsError` if the project already exists at the specified base directory.
+!!! note
+    `FlowerPowerProject.new()` supports `overwrite=True` for rebuilding an existing project. The `initialize_project` convenience wrapper does not expose that flag; use the class method directly when you need it.
 
-## Example
+### Example
 
 ```python
 from flowerpower import initialize_project
 
-# Initialize a new project
 project = initialize_project(name="my-new-project")
 
-# To overwrite an existing project, use `FlowerPowerProject.new(..., overwrite=True)`
+# Equivalent call with overwrite support
+from flowerpower import FlowerPowerProject
+project = FlowerPowerProject.new(name="my-new-project", overwrite=False)
+```

@@ -18,16 +18,15 @@ This script demonstrates different ways to run the news scraping pipeline:
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 # Add the src directory to Python path
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from flowerpower.flowerpower import FlowerPowerProject
+from flowerpower import FlowerPowerProject
 
 app = typer.Typer(help="Run web scraping pipeline examples with FlowerPower")
 

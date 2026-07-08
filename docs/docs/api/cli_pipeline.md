@@ -1,423 +1,205 @@
-# flowerpower pipeline Commands { #flowerpower-pipeline }
+# CLI Pipeline Commands
 
-This section details the commands available under `flowerpower pipeline`.
-
-## run { #flowerpower-run }
-
-Run a pipeline immediately.
-
-This command executes a pipeline with the specified configuration and inputs.
-The pipeline will run synchronously, and the command will wait for completion.
-
-### Usage
+These commands are available under `flowerpower pipeline`.
 
 ```bash
-flowerpower pipeline run [options]
+flowerpower pipeline [OPTIONS] COMMAND [ARGS]...
 ```
 
-### Options
+| Command | Description |
+|:--------|:------------|
+| `run` | Run a pipeline immediately. |
+| `new` | Create a new pipeline structure. |
+| `delete` | Delete a pipeline's configuration and/or module. |
+| `show-dag` | Show a pipeline DAG. |
+| `save-dag` | Save a pipeline DAG to a file. |
+| `show-pipelines` | List all pipelines. |
+| `show-summary` | Show a pipeline summary. |
+| `add-hook` | Add a hook to a pipeline. |
 
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str (arg) | Name of the pipeline to run. | — |
-| --executor | str | Executor type: one of "synchronous", "threadpool", "processpool", "ray", "dask". | None |
-| --executor-cfg | str | Executor configuration as JSON/dict; supports keys: `type`, `max_workers`, `num_cpus`. | None |
-| --executor-max-workers | int | Convenience: set `executor.max_workers`. | None |
-| --executor-num-cpus | int | Convenience: set `executor.num_cpus`. | None |
-| --base-dir | str | Base directory for the pipeline/project. | None |
-| --inputs | str | Inputs as JSON/dict string; parsed to dict. | None |
-| --final-vars | str | Final variables as JSON/list string; parsed to list. | None |
-| --config | str | Hamilton runtime config as JSON/dict string. | None |
-| --cache | str | Cache config as JSON/dict string. | None |
-| --storage-options | str | Storage options as JSON/dict string; parsed to dict. | None |
-| --log-level | str | Logging level: debug, info, warning, error, critical. | None |
-| --with-adapter | str | Adapter config as JSON/dict string. | None |
-| --max-retries | int | Max retry attempts on failure. | 0 |
-| --retry-delay | float | Base delay between retries (seconds). | 1.0 |
-| --jitter-factor | float | Random jitter factor [0-1]. | 0.1 |
-
-
-### Examples
+## run
 
 ```bash
-# Basic pipeline execution
-$ flowerpower pipeline run my_pipeline
+flowerpower pipeline run [OPTIONS] NAME
+```
 
-# Run with individual parameters (kwargs)
-$ flowerpower pipeline run my_pipeline --inputs '{"data_path": "data/myfile.csv"}' --final-vars '["output_table", "summary_metrics"]'
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--executor` | `str` | Executor type. | `None` |
+| `--executor-cfg` | `str` | Executor config as JSON/dict string. | `None` |
+| `--executor-max-workers` | `int` | Set `executor.max_workers`. | `None` |
+| `--executor-num-cpus` | `int` | Set `executor.num_cpus`. | `None` |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--inputs` | `str` | Inputs as JSON/dict or key=value pairs. | `None` |
+| `--final-vars`, `--outputs`, `-o` | `str` | Final variables as JSON or list. | `None` |
+| `--config` | `str` | Hamilton runtime config as JSON/dict. | `None` |
+| `--cache` | `str` | Cache config as JSON/dict. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options as JSON/dict. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--with-adapter` | `str` | Adapter config as JSON/dict. | `None` |
+| `--max-retries` | `int` | Deprecated retry setting. | `0` |
+| `--retry-delay` | `float` | Deprecated retry setting. | `1.0` |
+| `--jitter-factor` | `float` | Deprecated retry setting. | `0.1` |
 
-# Configure automatic retries on failure using kwargs
-$ flowerpower pipeline run my_pipeline --max-retries 3 --retry-delay 2.0 --jitter-factor 0.2
-
-# Select synchronous executor (sequential)
-$ flowerpower pipeline run my_pipeline --executor synchronous
-
-### Environment Overrides
-
-You can override run settings using environment variables without changing the YAML:
+!!! warning "Deprecated retry flags"
+    `--max-retries`, `--retry-delay`, and `--jitter-factor` are deprecated. Use `retry` configuration in the YAML config or `RunConfigBuilder` in Python instead.
 
 ```bash
-export FP_PIPELINE__RUN__LOG_LEVEL=DEBUG
-export FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool
-export FP_LOG_LEVEL=INFO  # global shim, used only if pipeline-specific not set
+flowerpower pipeline run my_pipeline
+flowerpower pipeline run my_pipeline --inputs '{"data_path": "data/myfile.csv"}'
+flowerpower pipeline run my_pipeline --final-vars '["output_table"]'
+flowerpower pipeline run my_pipeline --executor threadpool --executor-max-workers 4
+flowerpower pipeline run my_pipeline --with-adapter '{"hamilton_tracker": true}'
 ```
 
-YAML values support `${VAR}` interpolation. Example in `conf/pipelines/<name>.yml`:
-
-```yaml
-run:
-  log_level: ${FP_LOG_LEVEL:-INFO}
-```
-
-Executor config JSON example (shell-escaped):
+## new
 
 ```bash
-flowerpower pipeline run my_pipeline --executor-cfg '{"type":"threadpool","max_workers":4}'
+flowerpower pipeline new [OPTIONS] NAME
 ```
 
-Convenience flags example:
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--overwrite` | `bool` | Overwrite existing pipeline. | `False` |
 
 ```bash
-flowerpower pipeline run my_pipeline \
-  --executor threadpool \
-  --executor-max-workers 8 \
-  --executor-num-cpus 4
-```
+flowerpower pipeline new my_pipeline
+flowerpower pipeline new my_pipeline --overwrite
 ```
 
----
-
-## new { #flowerpower-new }
-
-Create a new pipeline structure.
-
-This command creates a new pipeline with the necessary directory structure,
-configuration file, and skeleton module file. It prepares all the required
-components for you to start implementing your pipeline logic.
-
-### Usage
+## delete
 
 ```bash
-flowerpower pipeline new [options]
+flowerpower pipeline delete [OPTIONS] NAME
 ```
 
-### Options
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--cfg`, `-c` | `bool` | Delete only the config file. | `False` |
+| `--module`, `-m` | `bool` | Delete only the module file. | `False` |
 
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str (arg) | Name for the new pipeline | — |
-| --base-dir | str | Base directory to create the pipeline in | None |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level (debug, info, warning, error, critical) | None |
-| --overwrite | bool | Overwrite existing pipeline if it exists | False |
-
-
-### Examples
+If neither `--cfg` nor `--module` is set, both files are deleted.
 
 ```bash
-$ pipeline new my_new_pipeline
-
-# Create a pipeline, overwriting if it exists
+flowerpower pipeline delete my_pipeline
+flowerpower pipeline delete my_pipeline --cfg
+flowerpower pipeline delete my_pipeline --module
 ```
+
+## show-dag
 
 ```bash
-$ pipeline new my_new_pipeline --overwrite
-
-# Create a pipeline in a specific directory
+flowerpower pipeline show-dag [OPTIONS] NAME
 ```
+
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--format` | `str` | Output format: `png`, `svg`, `pdf`, or `raw`. | `png` |
 
 ```bash
-$ pipeline new my_new_pipeline --base-dir /path/to/project
+flowerpower pipeline show-dag my_pipeline
+flowerpower pipeline show-dag my_pipeline --format svg
+flowerpower pipeline show-dag my_pipeline --format raw
 ```
 
----
-
-## delete { #flowerpower-delete }
-
-Delete a pipeline's configuration and/or module files.
-
-This command removes a pipeline's configuration file and/or module file from the project.
-If neither --cfg nor --module is specified, both will be deleted.
-
-### Usage
+## save-dag
 
 ```bash
-flowerpower pipeline delete [options]
+flowerpower pipeline save-dag [OPTIONS] NAME
 ```
 
-### Options
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str (arg) | Name of the pipeline to delete | — |
-| --base-dir | str | Base directory containing the pipeline | None |
-| --cfg | bool | Delete only the configuration file | False |
-| --module | bool | Delete only the pipeline module | False |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level | None |
-
-Behavior: If neither `--cfg` nor `--module` is specified, both config and module are deleted.
-
-
-### Examples
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--format` | `str` | Output format: `png`, `svg`, or `pdf`. | `png` |
+| `--output-path` | `str` | Custom output path. | `<name>.<format>` |
 
 ```bash
-$ pipeline delete my_pipeline
-
-# Delete only the configuration file
+flowerpower pipeline save-dag my_pipeline
+flowerpower pipeline save-dag my_pipeline --format svg
+flowerpower pipeline save-dag my_pipeline --output-path ./visuals/my_pipeline.svg
 ```
+
+## show-pipelines
 
 ```bash
-$ pipeline delete my_pipeline --cfg
-
-# Delete only the module file
+flowerpower pipeline show-pipelines [OPTIONS]
 ```
+
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--format` | `str` | Output format: `table`, `json`, or `yaml`. | `table` |
 
 ```bash
-$ pipeline delete my_pipeline --module
+flowerpower pipeline show-pipelines
+flowerpower pipeline show-pipelines --format json
 ```
 
----
-
-## show_dag { #flowerpower-show_dag }
-
-Show the DAG (Directed Acyclic Graph) of a pipeline.
-
-This command generates and displays a visual representation of the pipeline's
-execution graph, showing how nodes are connected and dependencies between them.
-
-### Usage
+## show-summary
 
 ```bash
-flowerpower pipeline show_dag [options]
+flowerpower pipeline show-summary [OPTIONS]
 ```
 
-### Options
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str (arg) | Name of the pipeline to visualize | — |
-| --base-dir | str | Base directory containing the pipeline | None |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level | None |
-| --format | str | Output format: png, svg, pdf; `raw` returns the graph object | "png" |
-
-
-### Examples
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `--name` | `str` | Specific pipeline name. | `None` |
+| `--cfg` | `bool` | Include configuration details. | `True` |
+| `--code` | `bool` | Include code details. | `True` |
+| `--project` | `bool` | Include project details. | `True` |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+| `--to-html` | `bool` | Output as HTML. | `False` |
+| `--to-svg` | `bool` | Output as SVG. | `False` |
+| `--output-file` | `str` | Save to a file instead of printing. | `None` |
 
 ```bash
-$ pipeline show-dag my_pipeline
-
-# Generate SVG format visualization
+flowerpower pipeline show-summary
+flowerpower pipeline show-summary --name my_pipeline
+flowerpower pipeline show-summary --name my_pipeline --cfg --no-code --no-project
+flowerpower pipeline show-summary --to-html --output-file report.html
 ```
+
+## add-hook
 
 ```bash
-$ pipeline show-dag my_pipeline --format svg
-
-# Get raw graphviz object
+flowerpower pipeline add-hook [OPTIONS] NAME
 ```
+
+| Option | Type | Description | Default |
+|:-------|:-----|:------------|:--------|
+| `NAME` | `str` | Pipeline name (required). | — |
+| `--function`, `-f` | `str` | Hook function name (required). | — |
+| `--type` | `str` | Hook type. Only `MQTT_BUILD_CONFIG` is supported. | `MQTT_BUILD_CONFIG` |
+| `--to` | `str` | Target node or tag. | `None` |
+| `--base-dir`, `-d` | `str` | Base directory. | `None` |
+| `--storage-options`, `-s` | `str` | Storage options. | `None` |
+| `--log-level` | `str` | Logging level. | `None` |
+
+!!! note
+    Only `MQTT_BUILD_CONFIG` hooks are supported. There are no additional MQTT CLI commands beyond `add-hook`.
 
 ```bash
-$ pipeline show-dag my_pipeline --format raw
+flowerpower pipeline add-hook my_pipeline --function build_mqtt_config
+flowerpower pipeline add-hook my_pipeline --function build_mqtt_config --type MQTT_BUILD_CONFIG
 ```
-
----
-
-## save_dag { #flowerpower-save_dag }
-
-Save the DAG (Directed Acyclic Graph) of a pipeline to a file.
-
-This command generates a visual representation of the pipeline's execution graph
-and saves it to a file in the specified format.
-
-### Usage
-
-```bash
-flowerpower pipeline save_dag [options]
-```
-
-### Options
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str (arg) | Name of the pipeline to visualize | — |
-| --base-dir | str | Base directory containing the pipeline | None |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level | None |
-| --format | str | Output format: png, svg, pdf | "png" |
-| --output-path | str | Custom file path to save the output (default: <name>.<format>) | None |
-
-
-
-### Examples
-
-```bash
-$ pipeline save-dag my_pipeline
-
-# Save in SVG format
-```
-
-```bash
-$ pipeline save-dag my_pipeline --format svg
-
-# Save to a custom location
-```
-
-```bash
-$ pipeline save-dag my_pipeline --output-path ./visualizations/my_graph.png
-```
-
----
-
-## show_pipelines { #flowerpower-show_pipelines }
-
-List all available pipelines in the project.
-
-This command displays a list of all pipelines defined in the project,
-providing an overview of what pipelines are available to run.
-
-### Usage
-
-```bash
-flowerpower pipeline show_pipelines [options]
-```
-
-### Options
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| --base-dir | str | Base directory containing pipelines | None |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level | None |
-| --format | str | Output format (table, json, yaml) | "table" |
-
-
-
-### Examples
-
-```bash
-$ pipeline show-pipelines
-
-# Output in JSON format
-```
-
-```bash
-$ pipeline show-pipelines --format json
-
-# List pipelines from a specific directory
-```
-
-```bash
-$ pipeline show-pipelines --base-dir /path/to/project
-```
-
----
-
-## show_summary { #flowerpower-show_summary }
-
-Show summary information for one or all pipelines.
-
-This command displays detailed information about pipelines including their
-configuration, code structure, and project context. You can view information
-for a specific pipeline or get an overview of all pipelines.
-
-### Usage
-
-```bash
-flowerpower pipeline show_summary [options]
-```
-
-### Options
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| --name | str | Name of specific pipeline to summarize (all if not specified) | None |
-| --cfg | bool | Include configuration details | True |
-| --code | bool | Include code/module details | True |
-| --project | bool | Include project context information | True |
-| --base-dir | str | Base directory containing pipelines | None |
-| --storage-options | str | Options for storage backends (JSON/dict string) | None |
-| --log-level | str | Logging level | None |
-| --to-html | bool | Generate HTML output instead of text | False |
-| --to-svg | bool | Generate SVG output (where applicable) | False |
-| --output-file | str | File path to save the output instead of printing to console | None |
-
-
-### Examples
-
-```bash
-$ pipeline show-summary
-
-# Show summary for a specific pipeline
-```
-
-```bash
-$ pipeline show-summary --name my_pipeline
-
-# Show only configuration information
-```
-
-```bash
-$ pipeline show-summary --name my_pipeline --cfg --no-code --no-project
-
-# Generate HTML report
-```
-
-```bash
-$ pipeline show-summary --to-html --output-file pipeline_report.html
-```
-
----
-
-## add_hook { #flowerpower-add_hook }
-
-Add a hook to a pipeline configuration.
-
-This command adds a hook function to a pipeline's configuration. Hooks are functions
-that are called at specific points during pipeline execution to perform additional
-tasks like logging, monitoring, or data validation.
-
-### Usage
-
-```bash
-flowerpower pipeline add_hook [options]
-```
-
-### Arguments
-
-| Name | Type | Description | Default |
-|---|---|---|---|
-| name | str | Name of the pipeline to add the hook to | Required |
-| function_name | str | Name of the hook function (must be defined in the pipeline module) | Required |
-| type | str | Type of hook (determines when the hook is called during execution) | Required |
-| to | str | Target node or tag (required for node-specific hooks) | Required |
-| base_dir | str | Base directory containing the pipeline | Required |
-| storage_options | str | Options for storage backends | Required |
-| log_level | str | Set the logging level | Required |
-
-
-### Examples
-
-```bash
-$ pipeline add-hook my_pipeline --function log_results
-
-# Add a pre-run hook
-```
-
-```bash
-$ pipeline add-hook my_pipeline --function validate_inputs --type PRE_RUN
-
-# Add a node-specific hook (executed before a specific node runs)
-```
-
-```bash
-$ pipeline add-hook my_pipeline --function validate_data --type NODE_PRE_EXECUTE --to data_processor
-
-# Add a hook for all nodes with a specific tag
-```
-
-```bash
-$ pipeline add-hook my_pipeline --function log_metrics --type NODE_POST_EXECUTE --to @metrics
-```
-
----

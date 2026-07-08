@@ -26,7 +26,7 @@ uv run flowerpower pipeline run sales_etl
 
 **Using a Python REPL:**
 ```python
-from flowerpower.flowerpower import FlowerPowerProject
+from flowerpower import FlowerPowerProject
 project = FlowerPowerProject.load()
 project.run("sales_etl")
 ```

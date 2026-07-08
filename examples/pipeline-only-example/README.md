@@ -28,7 +28,7 @@ uv run flowerpower pipeline run text_processor
 
 **Using a Python REPL:**
 ```python
-from flowerpower.flowerpower import FlowerPowerProject
+from flowerpower import FlowerPowerProject
 project = FlowerPowerProject.load()
 project.run("text_processor")
 ```
@@ -82,7 +82,7 @@ Running the pipeline generates a comprehensive text analysis report including wo
 ## Pipeline-Only vs Full FlowerPower
 
 - **Pipeline-Only**: Ideal for simple tasks, development workflows, and scenarios requiring immediate results. No Redis or job queue setup needed.
-- **Full FlowerPower**: Better for long-running computations, background processing, and production workloads requiring scaling and scheduling.
+- **Full FlowerPower**: Better for long-running computations, background processing, and production workloads.
 
 ## Customizing the Example
 
@@ -99,4 +99,3 @@ Running the pipeline generates a comprehensive text analysis report including wo
 ## Related Examples
 
 - [`data-etl-pipeline`](../data-etl-pipeline/): More complex data processing patterns
-- [`scheduled-reports`](../scheduled-reports/): Scheduled report generation

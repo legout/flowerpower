@@ -1,110 +1,133 @@
-# Quickstart
+# Tutorial: Your First Pipeline
 
-Welcome to the FlowerPower quickstart guide! This guide will walk you through the process of creating a "Hello World" project to demonstrate the core functionalities of the library.
+This tutorial walks you through building and running a complete FlowerPower
+pipeline from scratch. By the end you will have a project, a pipeline that
+computes a greeting, and the result printed to your terminal.
 
-## Installation
+Every snippet below was executed against FlowerPower **0.34.1** and is
+copy-pasteable.
 
-First, ensure you have FlowerPower installed. We recommend using `uv` for a fast and reliable installation.
+!!! info "What you should already know"
+    Basic Python. You don't need to know [Hamilton](https://hamilton.dagworks.io/)
+    beforehand — the one pattern you need is explained in [Step 3](#3-write-the-pipeline).
 
-```bash
-# Create and activate a virtual environment
-uv venv
-source .venv/bin/activate
+## Prerequisites
 
-# Install FlowerPower
-uv pip install flowerpower
-```
+- **Python 3.11 or newer** (`python --version`).
+- FlowerPower installed: `uv pip install flowerpower` (see
+  [Installation](installation.md)).
 
-## 1. Initialize Your Project
+---
 
-You can create a new project using either the CLI or the Python API.
+## 1. Create a project
 
-### Using the CLI
+A FlowerPower project is a directory with a `conf/` folder (configuration) and a
+`pipelines/` folder (your code). Create one with the CLI:
 
 ```bash
 flowerpower init --name hello-flowerpower
 cd hello-flowerpower
 ```
 
-### Using the Python API
+…or with Python:
 
 ```python
 from flowerpower import FlowerPowerProject
 
-# Initialize a new project
-project = FlowerPowerProject.new(
-    name='hello-flowerpower'
-)
+project = FlowerPowerProject.new(name="hello-flowerpower")
 ```
 
-This creates a standard project structure with `conf/` and `pipelines/` directories.
+This produces the standard layout:
 
-## 2. Configure Your Project
-
-The `conf/project.yml` file contains global settings for your project.
-
-```yaml
-# conf/project.yml
-name: hello-flowerpower
+```
+hello-flowerpower/
+├── conf/
+│   ├── project.yml
+│   └── pipelines/
+└── pipelines/
 ```
 
-## 3. Create a Pipeline
+!!! note "`.new()` creates, `.load()` opens"
+    `FlowerPowerProject.new(...)` creates a **new** project.
+    `FlowerPowerProject.load(...)` opens an **existing** one. The two are not
+    interchangeable.
 
-Next, create a pipeline to define your data processing logic.
+## 2. Create a pipeline
 
-### Using the CLI
+A pipeline is a Python module plus a YAML config. Scaffold both at once:
 
 ```bash
-flowerpower pipeline new hello_world
+flowerpower pipeline new hello
 ```
 
-### Using the Python API
+…or:
 
 ```python
 from flowerpower import FlowerPowerProject
 
-project = FlowerPowerProject.load('.')
-project.pipeline_manager.registry.create_pipeline(name='hello_world')
+project = FlowerPowerProject.load(".")
+project.pipeline_manager.creator.create_pipeline(name="hello")
 ```
 
-This generates `pipelines/hello_world.py` for your pipeline logic and `conf/pipelines/hello_world.yml` for its configuration.
+This writes `pipelines/hello.py` (your logic) and `conf/pipelines/hello.yml`
+(its configuration).
 
-## 4. Implement the Pipeline
+## 3. Write the pipeline
 
-Open `pipelines/hello_world.py` and add your Hamilton functions.
+Open `pipelines/hello.py` and replace its contents with:
 
 ```python
-# pipelines/hello_world.py
 from pathlib import Path
+
 from hamilton.function_modifiers import parameterize
-from flowerpower.cfg.project import ProjectConfig
-from flowerpower.cfg.pipeline import PipelineConfig
 
-# Load project and pipeline configurations separately
-project_cfg = ProjectConfig.load(name="hello-flowerpower")
-pipeline_cfg = PipelineConfig.load(name="hello_world")
-PARAMS = pipeline_cfg.params  # Access params from pipeline config
+from flowerpower.cfg import Config
 
-@parameterize(**PARAMS.get("greeting_message", {}))
+# FlowerPower loads your pipeline parameters here. Don't change this line.
+PARAMS = Config.load(
+    Path(__file__).parents[1], pipeline_name="hello"
+).pipeline.h_params
+
+
+@parameterize(**PARAMS["greeting_message"])
 def greeting_message(message: str) -> str:
+    """The greeting word."""
     return f"{message},"
 
-@parameterize(**PARAMS.target_name)
+
+@parameterize(**PARAMS["target_name"])
 def target_name(name: str) -> str:
+    """Who we're greeting."""
     return f"{name}!"
 
+
 def full_greeting(greeting_message: str, target_name: str) -> str:
-    """Combines the greeting and target."""
-    print(f"Executing pipeline: {greeting_message} {target_name}")
+    """Combine the greeting and the target."""
     return f"{greeting_message} {target_name}"
 ```
 
-## 5. Configure the Pipeline
+### How parameters connect to functions
 
-In `conf/pipelines/hello_world.yml`, define the parameters and execution details for your pipeline.
+FlowerPower turns the `params:` block in your YAML into Hamilton
+`@parameterize(...)` arguments and exposes them as `PARAMS`. The rule is
+simple:
+
+> **Each params key matches the function it feeds, and its value is that
+> function's keyword arguments.**
+
+Because `PARAMS` is a plain dictionary, you access entries with **dictionary
+syntax**: `PARAMS["greeting_message"]` — not `PARAMS.greeting_message`.
+
+Hamilton reads each function's signature to wire the DAG. `full_greeting` takes
+`greeting_message` and `target_name` as inputs, so Hamilton calls the two
+`@parameterize`d functions first and feeds their outputs into `full_greeting`.
+You never call these functions yourself.
+
+## 4. Configure the pipeline
+
+Open `conf/pipelines/hello.yml` and set the parameters and the output you want:
 
 ```yaml
-# conf/pipelines/hello_world.yml
 params:
   greeting_message:
     message: "Hello"
@@ -113,122 +136,60 @@ params:
 
 run:
   final_vars:
-    - full_greeting
-
+    - full_greeting   # the node(s) whose result you want returned
 ```
 
-## 6. Run the Pipeline
+`params` holds values injected into your functions; `run.final_vars` lists which
+nodes to compute and return.
 
-You can run your pipeline synchronously for quick tests.
+## 5. Run it
 
-### Synchronous Execution
-
-This is useful for debugging and local development.
-
-#### Using the CLI
-
-The `run` command now primarily accepts a `RunConfig` object, but also allows individual parameters to be passed via `**kwargs` which override `RunConfig` attributes.
+### From the CLI
 
 ```bash
-# Basic pipeline execution
-flowerpower pipeline run hello_world
-
-# Run with individual parameters (kwargs)
-flowerpower pipeline run hello_world --inputs '{"greeting_message": "Hi", "target_name": "FlowerPower"}' --final-vars '["full_greeting"]' --log-level DEBUG
-
-# Run using a RunConfig from a YAML file
-# Assuming you have a run_config.yaml like:
-# inputs:
-#   greeting_message: "Hola"
-#   target_name: "Amigo"
-# log_level: "INFO"
-flowerpower pipeline run hello_world --run-config ./run_config.yaml
-
-# Run using a RunConfig provided as a JSON string
-flowerpower pipeline run hello_world --run-config '{"inputs": {"greeting_message": "Bonjour", "target_name": "Monde"}, "log_level": "INFO"}'
-
-# Mixing RunConfig with individual parameters (kwargs overrides RunConfig)
-# This will run with log_level="DEBUG" and inputs={"greeting_message": "Howdy", "target_name": "Partner"}
-flowerpower pipeline run hello_world --run-config '{"inputs": {"greeting_message": "Original", "target_name": "Value"}, "log_level": "INFO"}' --inputs '{"greeting_message": "Howdy", "target_name": "Partner"}' --log-level DEBUG
+flowerpower pipeline run hello
 ```
 
-#### Using the Python API
+### From Python
 
 ```python
 from flowerpower import FlowerPowerProject
 
-project = FlowerPowerProject.load('.')
-result = project.run('hello_world')
+project = FlowerPowerProject.load(".")
+result = project.run("hello")
 print(result)
 ```
 
-### Advanced Pipeline Execution with RunConfig
-
-For more control over pipeline execution, you can use the `RunConfig` class to configure execution parameters.
-
-#### Using RunConfig Directly
+Either way, you get:
 
 ```python
-from flowerpower import FlowerPowerProject
-from flowerpower.cfg.pipeline.run import RunConfig
-
-project = FlowerPowerProject.load('.')
-
-# Create a configuration with custom parameters
-config = RunConfig(
-    inputs={"greeting_message": "Hi", "target_name": "FlowerPower"},
-    final_vars=["full_greeting"],
-    log_level="DEBUG"
-)
-
-result = project.run('hello_world', run_config=config)
-print(result)
+{'full_greeting': 'Hello, World!'}
 ```
 
-#### Using RunConfigBuilder (Recommended)
+🎉 You just built and ran a FlowerPower pipeline.
 
-The `RunConfigBuilder` provides a fluent interface for building complex configurations:
+### Override values at run time
 
-```python
-from flowerpower import FlowerPowerProject
-from flowerpower.utils.config import RunConfigBuilder
-
-project = FlowerPowerProject.load('.')
-
-# Build a configuration using the builder pattern
-config = (
-    RunConfigBuilder()
-    .with_inputs({"greeting_message": "Hello", "target_name": "World"})
-    .with_final_vars(["full_greeting"])
-    .with_log_level("DEBUG")
-    .with_retry_config(max_retries=3, retry_delay=1.0)
-    .build()
-)
-
-result = project.run('hello_world', run_config=config)
-print(result)
-```
-
-#### Mixing RunConfig with Individual Parameters
-
-You can also combine `RunConfig` with individual parameters, where individual parameters take precedence:
+You don't have to edit YAML to change a value. Pass overrides as kwargs (they
+win over the file):
 
 ```python
-from flowerpower import FlowerPowerProject
-from flowerpower.utils.config import RunConfigBuilder
-
-project = FlowerPowerProject.load('.')
-
-# Create a base configuration
-base_config = RunConfigBuilder().with_log_level("INFO").build()
-
-# Run with base config but override specific parameters
 result = project.run(
-    'hello_world',
-    run_config=base_config,
-    inputs={"greeting_message": "Greetings", "target_name": "Universe"}
+    "hello",
+    inputs={"greeting_message": {"message": "Howdy"}, "target_name": {"name": "Partner"}},
+    final_vars=["full_greeting"],
 )
-print(result)
+print(result)  # {'full_greeting': 'Howdy, Partner!'}
 ```
 
-For more details on managing your project, refer to the API documentation for `FlowerPowerProject`, `PipelineManager`, and `RunConfig`.
+## Where to go next
+
+- **See the DAG** you just built: `flowerpower pipeline show-dag hello`.
+- **Configure execution** (executors, retry, caching): read
+  [Configuration & Concepts](advanced.md).
+- **Reuse nodes across pipelines** with `additional_modules`: see
+  [Compose Multiple Modules](guide/additional-modules.md).
+- **Run inside an event loop**: see [Asynchronous Execution](guide/async-execution.md).
+- **Track runs** with the Hamilton Tracker / MLflow: see
+  [Use Adapters](guide/adapters.md).
+- **Every command and flag**: the [CLI reference](cli.md).

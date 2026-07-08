@@ -1,36 +1,39 @@
 # create_project
 
-**Module:** `flowerpower.flowerpower`
+**Module:** [`flowerpower`](https://github.com/legout/flowerpower/blob/main/src/flowerpower/__init__.py)
 
-The `create_project` function either loads an existing FlowerPower project or raises an error if the project does not exist. It is a convenient top-level function.
+The `create_project` function loads an existing FlowerPower project. It is also available as the [`FlowerPower`](./flowerpower.md) alias. To create a new project, use [`initialize_project`](./initialize_project.md) or [`FlowerPowerProject.new()`](./flowerpowerproject.md).
 
 ```python
-create_project(name: str | None = None, base_dir: str | None = None, storage_options: dict | BaseStorageOptions | None = {}, fs: AbstractFileSystem | None = None, hooks_dir: str = settings.HOOKS_DIR) -> FlowerPowerProject
+create_project(
+    name: str | None = None,
+    base_dir: str | None = None,
+    storage_options: dict | BaseStorageOptions | None = None,
+    fs: AbstractFileSystem | None = None,
+    hooks_dir: str = settings.HOOKS_DIR,
+) -> FlowerPowerProject
 ```
 
-Loads an existing FlowerPower project.
+| Parameter | Type | Description | Default |
+|:----------|:-----|:------------|:--------|
+| `name` | `str \| None` | Project name. If `None`, the current directory name is used. | `None` |
+| `base_dir` | `str \| None` | Directory to load from. | Current working directory |
+| `storage_options` | `dict \| BaseStorageOptions \| None` | Filesystem storage options. | `None` |
+| `fs` | `AbstractFileSystem \| None` | fsspec-compatible filesystem instance. | `None` |
+| `hooks_dir` | `str` | Directory for project hooks. | `settings.HOOKS_DIR` |
 
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `name` | `str` &#124; `None` | The name of the project. Defaults to the current directory name. |
-| `base_dir` | `str` &#124; `None` | The base directory where the project will be created or loaded from. Defaults to the current working directory. |
-| `storage_options` | `dict` &#124; `BaseStorageOptions` &#124; `None` | Storage options for the filesystem. |
-| `fs` | `AbstractFileSystem` &#124; `None` | An instance of AbstractFileSystem to use for file operations. |
-| `hooks_dir` | `str` | The directory where the project hooks will be stored. |
+**Returns:** `FlowerPowerProject`
 
-**Returns:** A `FlowerPowerProject` instance.
+**Raises:** `FileNotFoundError` if the project does not exist at `base_dir`.
 
-**Raises:** `FileNotFoundError` if the project does not exist at the specified base directory.
-
-## Example
+### Example
 
 ```python
 from flowerpower import create_project
 
-# Load an existing project
 project = create_project(base_dir=".")
 
-# Attempt to load a non-existent project (will raise FileNotFoundError)
+# Non-existent projects raise FileNotFoundError
 try:
     project = create_project(base_dir="./non_existent_project")
 except FileNotFoundError as e:
@@ -40,5 +43,6 @@ except FileNotFoundError as e:
 ```python
 from flowerpower import FlowerPower
 
-# Alias for create_project
+# Same function, exposed as a callable alias
 project = FlowerPower(base_dir=".")
+```

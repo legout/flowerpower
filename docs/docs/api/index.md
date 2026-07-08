@@ -1,24 +1,23 @@
 # API Reference
 
-This section provides a detailed reference for the FlowerPower API.
+This section provides detailed reference material for the FlowerPower Python API and command-line interface.
 
-## Core Components
+## Core
 
--   [FlowerPowerProject](./flowerpowerproject.md)
--   [PipelineManager](./pipelinemanager.md)
--   [RunConfig](./runconfig.md)
+- [FlowerPowerProject](./flowerpowerproject.md) — project lifecycle and pipeline execution
+- [PipelineManager](./pipelinemanager.md) — pipeline discovery, creation, and runs
+- [RunConfig](./runconfig.md) — execution configuration and the fluent builder
 
 ## Configuration
 
--   [Configuration](./configuration.md)
+- [Configuration](./configuration.md) — `Config`, `ProjectConfig`, `PipelineConfig`, and environment overlays
 
 ## Top-Level Functions
 
--   [initialize_project](./initialize_project.md)
--   [create_project](./create_project.md) (aliased as [FlowerPower](./flowerpower.md))
+- [initialize_project](./initialize_project.md) — create a new project
+- [create_project](./create_project.md) / [FlowerPower](./flowerpower.md) — load an existing project
 
-## CLI Reference
+## CLI
 
--   [CLI Overview](./cli.md)
--   [CLI Pipeline Commands](./cli_pipeline.md)
--   [CLI MQTT Commands](./cli_mqtt.md)
+- [CLI Overview](./cli.md) — top-level `flowerpower` commands
+- [CLI Pipeline Commands](./cli_pipeline.md) — `flowerpower pipeline` subcommands

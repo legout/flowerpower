@@ -2,122 +2,91 @@
 
 **Module:** `flowerpower.pipeline.registry.PipelineRegistry`
 
-The PipelineRegistry manages discovery, listing, creation, and deletion of pipelines. It handles caching of pipeline data and provides methods for pipeline lifecycle management.
+The registry manages pipeline discovery, creation, deletion, summaries, and hooks.
 
 ## Initialization
 
 ### from_filesystem
 
 ```python
-@classmethod
-from_filesystem(base_dir: str, fs: AbstractFileSystem | None = None, storage_options: dict | None = None) -> PipelineRegistry
+from_filesystem(
+    cls,
+    base_dir: str,
+    fs: AbstractFileSystem | None = None,
+    storage_options: dict | None = None,
+) -> PipelineRegistry
 ```
 
-Create a PipelineRegistry from filesystem parameters.
+Create a registry instance from a filesystem path.
 
-This factory method creates a complete PipelineRegistry instance by:
-1. Creating the filesystem if not provided
-2. Loading the ProjectConfig from the base directory
-3. Initializing the registry with the loaded configuration
+| Parameter | Type | Description |
+|:----------|:-----|:------------|
+| `base_dir` | `str` | Project base directory. |
+| `fs` | `AbstractFileSystem \| None` | fsspec-compatible filesystem. | `None` |
+| `storage_options` | `dict \| None` | Storage options. | `None` |
 
-**Parameters:**
-- `base_dir`: The base directory path for the FlowerPower project
-- `fs`: Optional filesystem instance. If None, will be created from base_dir
-- `storage_options`: Optional storage options for filesystem access
-
-**Returns:** PipelineRegistry - A fully configured registry instance
-
-**Raises:**
-- ValueError: If base_dir is invalid or ProjectConfig cannot be loaded
-- RuntimeError: If filesystem creation fails
-
-**Example:**
 ```python
-# Create registry from local directory
 registry = PipelineRegistry.from_filesystem("/path/to/project")
-
-# Create registry with S3 storage
-registry = PipelineRegistry.from_filesystem(
-    "s3://my-bucket/project",
-    storage_options={"key": "ACCESS_KEY", "secret": "SECRET_KEY"}
-)
 ```
 
 ## Methods
 
+### new / create_pipeline
+
+```python
+new(self, name: str, overwrite: bool = False) -> None
+create_pipeline(self, name: str, overwrite: bool = False) -> None
+```
+
+Create a new pipeline. `create_pipeline` is an alias for `new` and is the form used by the manager's `creator`.
+
+```python
+from flowerpower.pipeline import PipelineManager
+
+manager = PipelineManager()
+manager.creator.create_pipeline("data_transformation")
+```
+
+### delete / delete_pipeline
+
+```python
+delete(self, name: str, cfg: bool = True, module: bool = False) -> None
+delete_pipeline(self, name: str, cfg: bool = True, module: bool = False) -> None
+```
+
+Delete a pipeline's configuration file, module, or both. `delete_pipeline` is an alias for `delete`.
+
+```python
+manager.registry.delete("old_pipeline", cfg=True, module=True)
+```
+
 ### get_pipeline
 
 ```python
-get_pipeline(self, name: str, project_context: FlowerPowerProject, reload: bool = False) -> Pipeline
+get_pipeline(
+    self,
+    name: str,
+    project_context: FlowerPowerProject,
+    reload: bool = False,
+) -> Pipeline
 ```
 
-Get a Pipeline instance for the given name.
+Load a `Pipeline` instance, injecting the project context.
 
-This method creates a fully-formed Pipeline object by loading its configuration and Python module, then injecting the project context.
-
-**Parameters:**
-- `name`: Name of the pipeline to get
-- `project_context`: Reference to the FlowerPowerProject
-- `reload`: Whether to reload configuration and module from disk
-
-**Returns:** Pipeline instance ready for execution
-
-**Raises:**
-- FileNotFoundError: If pipeline configuration or module doesn't exist
-- ImportError: If pipeline module cannot be imported
-- ValueError: If pipeline configuration is invalid
-
-**Example:**
 ```python
-from flowerpower import FlowerPowerProject
-
-project = FlowerPowerProject.load(".")
-registry = project.pipeline_manager.registry
-
-pipeline = registry.get_pipeline("my_pipeline", project)
+pipeline = manager.registry.get_pipeline("my_pipeline", project)
 ```
 
-### new
+### list_pipelines
 
 ```python
-new(self, name: str, overwrite: bool = False)
+list_pipelines(self) -> list[str]
 ```
 
-Add a pipeline with the given name.
-
-**Parameters:**
-- `name`: Name for the new pipeline. Must be a valid Python identifier.
-- `overwrite`: Whether to overwrite existing pipeline with same name. Defaults to False.
-
-**Raises:**
-- ValueError: If the configuration or pipeline path does not exist, or if the pipeline already exists.
-
-**Example:**
-```python
-registry.new("my_new_pipeline")
-```
-
-### delete
+Return the sorted list of pipeline names.
 
 ```python
-delete(self, name: str, cfg: bool = True, module: bool = False)
-```
-
-Delete a pipeline.
-
-**Parameters:**
-- `name`: Name of the pipeline to delete
-- `cfg`: Whether to delete the config file. Defaults to True.
-- `module`: Whether to delete the module file. Defaults to False.
-
-**Returns:** None
-
-**Raises:**
-- FileNotFoundError: If the specified files do not exist.
-
-**Example:**
-```python
-registry.delete("old_pipeline")
+names = manager.registry.list_pipelines()
 ```
 
 ### show_pipelines
@@ -128,129 +97,97 @@ show_pipelines(self) -> None
 
 Print all available pipelines in a formatted table.
 
-**Example:**
 ```python
-registry.show_pipelines()
-```
-
-### list_pipelines
-
-```python
-list_pipelines(self) -> list[str]
-```
-
-Get a list of all available pipeline names.
-
-**Returns:** List of pipeline names, sorted alphabetically.
-
-**Example:**
-```python
-pipelines = registry.list_pipelines()
-print(pipelines)
-['data_ingestion', 'model_training', 'reporting']
-```
-
-### pipelines (Property)
-
-```python
-pipelines: list[str]
-```
-
-Get list of all available pipeline names.
-
-**Returns:** List of pipeline names.
-
-**Example:**
-```python
-print(registry.pipelines)
-['data_ingestion', 'model_training', 'reporting']
-```
-
-### summary (Property)
-
-```python
-summary: dict[str, dict | str]
-```
-
-Get complete summary of all pipelines.
-
-**Returns:** Full summary including configuration, code, and project settings for all pipelines.
-
-**Example:**
-```python
-summary = registry.summary
-for name, details in summary.items():
-    print(f"{name}: {details.get('cfg', {}).get('type')}")
-data_pipeline: batch
-ml_pipeline: streaming
+manager.registry.show_pipelines()
 ```
 
 ### get_summary
 
 ```python
-get_summary(self, name: str | None = None, cfg: bool = True, code: bool = True, project: bool = True) -> dict[str, dict | str]
+get_summary(
+    self,
+    name: str | None = None,
+    cfg: bool = True,
+    code: bool = True,
+    project: bool = True,
+) -> dict[str, dict | str]
 ```
 
-Get a detailed summary of pipeline(s) configuration and code.
+Return a detailed summary of one or all pipelines. The summary contains configuration, code, and project sections.
 
-**Parameters:**
-- `name`: Specific pipeline to summarize. If None, summarizes all.
-- `cfg`: Include pipeline configuration details. Default True.
-- `code`: Include pipeline module code. Default True.
-- `project`: Include project configuration. Default True.
-
-**Returns:** Nested dictionary containing requested summaries.
-
-**Example:**
 ```python
-summary = registry.get_summary("data_pipeline")
-print(summary["pipelines"]["data_pipeline"]["cfg"]["schedule"]["enabled"])
-True
+summary = manager.registry.get_summary("my_pipeline")
+print(summary["pipelines"]["my_pipeline"]["cfg"]["name"])
+```
+
+### show_summary
+
+```python
+show_summary(
+    self,
+    name: str | None = None,
+    cfg: bool = True,
+    code: bool = True,
+    project: bool = True,
+    to_html: bool = False,
+    to_svg: bool = False,
+) -> str | None
+```
+
+Print or return a formatted summary of one or all pipelines.
+
+```python
+output = manager.registry.show_summary("my_pipeline", to_html=True)
 ```
 
 ### add_hook
 
 ```python
-add_hook(self, name: str, type: HookType, to: str | None = None, function_name: str | None = None) -> None
+add_hook(
+    self,
+    name: str,
+    type: HookType,
+    to: str | None = None,
+    function_name: str | None = None,
+) -> None
 ```
 
-Add a hook to the pipeline module.
+Add a hook to a pipeline module.
 
-**Parameters:**
-- `name`: The name of the pipeline
-- `type`: The type of the hook.
-- `to`: The name of the file to add the hook to. Defaults to the hook.py file in the pipelines hooks folder.
-- `function_name`: The name of the function. If not provided uses default name of hook type.
+| Parameter | Type | Description |
+|:----------|:-----|:------------|
+| `name` | `str` | Pipeline name. |
+| `type` | `HookType` | Hook type. Only `MQTT_BUILD_CONFIG` is supported. |
+| `to` | `str \| None` | Target file or node. | `None` |
+| `function_name` | `str \| None` | Function name. | Defaults from hook type. |
 
-**Returns:** None
-
-**Raises:**
-- ValueError: If the hook type is not valid
-
-**Example:**
 ```python
-from flowerpower.pipeline import HookType
+from flowerpower.pipeline.registry import HookType
 
-registry.add_hook(
-    name="data_pipeline",
+manager.registry.add_hook(
+    name="my_pipeline",
     type=HookType.MQTT_BUILD_CONFIG,
-    to="pre_execute_hook",
-    function_name="my_pre_execute_function"
+    function_name="build_mqtt_config",
 )
 ```
 
 ### clear_cache
 
 ```python
-clear_cache(self, name: str | None = None)
+clear_cache(self, name: str | None = None) -> None
 ```
 
-Clear cached pipelines, configurations, and modules.
+Clear cached pipeline data. If `name` is provided, only that pipeline's cache is cleared.
 
-**Parameters:**
-- `name`: If provided, clear cache only for this pipeline. If None, clear entire cache.
-
-**Example:**
 ```python
-registry.clear_cache("my_pipeline")  # Clear specific
-registry.clear_cache()  # Clear all
+manager.registry.clear_cache("my_pipeline")
+manager.registry.clear_cache()  # clear all
+```
+
+## Properties
+
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `pipelines` | `list[str]` | Names of all discovered pipelines. |
+| `summary` | `dict` | Full summary of all pipelines. |
+| `project_cfg` | `ProjectConfig` | Current project configuration. |

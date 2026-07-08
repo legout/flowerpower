@@ -1,533 +1,227 @@
 # RunConfig
 
-**Module:** [`flowerpower.cfg.pipeline.run`](../../../../src/flowerpower/cfg/pipeline/run.py)
+**Module:** [`flowerpower.cfg.pipeline.run`](https://github.com/legout/flowerpower/blob/main/src/flowerpower/cfg/pipeline/run.py)
 
-The `RunConfig` class encapsulates all configuration parameters for pipeline execution in FlowerPower. It provides a structured way to pass execution settings to both `Pipeline.run()` and `PipelineManager.run()` methods.
+The `RunConfig` class encapsulates all configuration parameters for pipeline execution. It is passed to [`FlowerPowerProject.run()`](./flowerpowerproject.md) and [`PipelineManager.run()`](./pipelinemanager.md). Runtime `kwargs` override matching fields in a `RunConfig`.
 
 ## Initialization
 
-### __init__
 ```python
-__init__(
-  self,
-  inputs: dict[str, Any] | None = None,
-  final_vars: list[str] | None = None,
-  config: dict[str, Any] | None = None,
-  cache: dict[str, Any] | bool | None = None,
-  with_adapter: WithAdapterConfig | dict = WithAdapterConfig(),
-  executor: ExecutorConfig | dict = ExecutorConfig(),
-  retry: RetryConfig | dict | None = None,
-  log_level: str | None = "INFO",
-  max_retries: int = 3,
-  retry_delay: int | float = 1,
-  jitter_factor: float | None = 0.1,
-  retry_exceptions: list[str] = ["Exception"],
-  pipeline_adapter_cfg: dict | None = None,
-  project_adapter_cfg: dict | None = None,
-  adapter: dict[str, Any] | None = None,
-  reload: bool = False,
-  on_success: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
-  on_failure: Callable | tuple[Callable, tuple | None, dict | None] | None = None,
+RunConfig(
+    inputs: dict | None = None,
+    final_vars: list[str] | None = None,
+    config: dict | None = None,
+    cache: dict | bool | None = None,
+    with_adapter: WithAdapterConfig | dict = WithAdapterConfig(),
+    executor: ExecutorConfig | dict = ExecutorConfig(),
+    retry: RetryConfig | dict | None = None,
+    log_level: str | None = "INFO",
+    max_retries: int = 3,
+    retry_delay: int | float = 1,
+    jitter_factor: float | None = 0.1,
+    retry_exceptions: list[str] = ["Exception"],
+    pipeline_adapter_cfg: dict | None = None,
+    project_adapter_cfg: dict | None = None,
+    adapter: dict[str, Any] | None = None,
+    reload: bool = False,
+    on_success: Callable | tuple | None = None,
+    on_failure: Callable | tuple | None = None,
+    additional_modules: list[str | Any] | None = None,
+    async_driver: bool | None = None,
 )
 ```
 
-Initializes a `RunConfig` instance with execution parameters.
-
 | Parameter | Type | Description | Default |
 |:----------|:-----|:------------|:--------|
-| `inputs` | `dict[str, Any] \| None` | Override pipeline input values. Example: `{"data_date": "2025-04-28"}` | `None` |
-| `final_vars` | `list[str] \| None` | Specify which output variables to return. Example: `["model", "metrics"]` | `None` |
-| `config` | `dict[str, Any] \| None` | Configuration for Hamilton pipeline executor. Example: `{"model": "LogisticRegression"}` | `None` |
-| `cache` | `dict[str, Any] \| bool \| None` | Cache configuration for results or `False` to disable. | `False` |
-| `executor` | `ExecutorConfig \| dict` | Execution configuration; dict will be coerced to `ExecutorConfig`. | `ExecutorConfig()` |
-| `retry` | `RetryConfig \| dict \| None` | Canonical location for retry settings (max attempts, delay, jitter, exceptions). | `None` |
-| `with_adapter` | `WithAdapterConfig \| dict` | Adapter settings for pipeline execution; dict will be coerced to `WithAdapterConfig`. | `WithAdapterConfig()` |
-| `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. Example: `{"tracker": {"project_id": "123", "tags": {"env": "prod"}}}` | `None` |
-| `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. Example: `{"hamilton_tracker": {"api_url": "http://localhost:8241"}}` | `None` |
-| `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline Example: `{"ray_graph_adapter": RayGraphAdapter()}` | `None` |
+| `inputs` | `dict \| None` | Override pipeline inputs. | `{}` |
+| `final_vars` | `list[str] \| None` | Output variables to return. | `[]` |
+| `config` | `dict \| None` | Hamilton executor configuration. | `{}` |
+| `cache` | `dict \| bool \| None` | Cache configuration or `False` to disable. | `False` |
+| `with_adapter` | `WithAdapterConfig \| dict` | Adapter toggles for this run. | `WithAdapterConfig()` |
+| `executor` | `ExecutorConfig \| dict` | Executor configuration. | `ExecutorConfig()` |
+| `retry` | `RetryConfig \| dict \| None` | Canonical retry settings. | `None` |
+| `log_level` | `str \| None` | Logging level. | `"INFO"` |
+| `max_retries` | `int` | **Deprecated.** Use `retry`. | `3` |
+| `retry_delay` | `int \| float` | **Deprecated.** Use `retry`. | `1` |
+| `jitter_factor` | `float \| None` | **Deprecated.** Use `retry`. | `0.1` |
+| `retry_exceptions` | `list[str]` | **Deprecated.** Use `retry`. | `["Exception"]` |
+| `pipeline_adapter_cfg` | `dict \| None` | Pipeline-specific adapter settings. | `None` |
+| `project_adapter_cfg` | `dict \| None` | Project-level adapter settings. | `None` |
+| `adapter` | `dict[str, Any] \| None` | Custom adapter instances. | `None` |
 | `reload` | `bool` | Force reload of pipeline configuration. | `False` |
-| `log_level` | `str \| None` | Logging level: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" | `"INFO"` |
-| `max_retries` | `int` | **Deprecated.** Legacy top-level value normalised into `retry`. | `3` |
-| `retry_delay` | `int \| float` | **Deprecated.** Legacy top-level value normalised into `retry`. | `1` |
-| `jitter_factor` | `float \| None` | **Deprecated.** Legacy top-level value normalised into `retry`. | `0.1` |
-| `retry_exceptions` | `list[str]` | **Deprecated.** Legacy top-level value normalised into `retry`. | `["Exception"]` |
-| `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. | `None` |
-| `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. | `None` |
+| `on_success` | `Callable \| tuple \| None` | Callback on success. | `None` |
+| `on_failure` | `Callable \| tuple \| None` | Callback on failure. | `None` |
+| `additional_modules` | `list[str \| Any] \| None` | Additional Hamilton modules. | `None` |
+| `async_driver` | `bool \| None` | Enable Hamilton's async driver. | `None` |
+
+!!! warning "Deprecated top-level retry fields"
+    The top-level `max_retries`, `retry_delay`, `jitter_factor`, and `retry_exceptions` fields are deprecated and emit a `DeprecationWarning`. Use the nested `retry` block (`RetryConfig`) or the builder helpers instead.
 
 ## Attributes
 
 | Attribute | Type | Description |
 |:----------|:-----|:------------|
-| `inputs` | `dict[str, Any] \| None` | Override pipeline input values. |
-| `final_vars` | `list[str] \| None` | Specify which output variables to return. |
-| `config` | `dict[str, Any] \| None` | Configuration for Hamilton pipeline executor. |
-| `cache` | `dict[str, Any] \| None` | Cache configuration for results. |
-| `executor` | `ExecutorConfig` | Execution configuration. |
-| `executor_override_raw` | `Any \| None` | Raw executor override provided at runtime (string/dict/ExecutorConfig). |
-| `with_adapter` | `WithAdapterConfig` | Adapter settings for pipeline execution. |
-| `retry` | `RetryConfig` | Structured retry configuration used by the runner. |
-| `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig \| None` | Pipeline-specific adapter settings. |
-| `project_adapter_cfg` | `dict \| ProjectAdapterConfig \| None` | Project-level adapter settings. |
-| `adapter` | `dict[str, Any] \| None` | Custom adapter instance for pipeline. |
-| `reload` | `bool` | Force reload of pipeline configuration. |
-| `log_level` | `str \| None` | Logging level for the execution. |
-| `max_retries` | `int \| None` | **Deprecated.** Mirrors `retry.max_retries` for backwards compatibility. |
-| `retry_delay` | `float \| None` | **Deprecated.** Mirrors `retry.retry_delay`. |
-| `jitter_factor` | `float \| None` | **Deprecated.** Mirrors `retry.jitter_factor`. |
-| `retry_exceptions` | `tuple \| list \| None` | **Deprecated.** Mirrors `retry.retry_exceptions`. |
-| `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on successful pipeline execution. |
-| `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None] \| None` | Callback to run on pipeline execution failure. |
+| `inputs` | `dict \| None` | Override pipeline inputs. |
+| `final_vars` | `list[str] \| None` | Output variables to return. |
+| `config` | `dict \| None` | Hamilton executor configuration. |
+| `cache` | `dict \| bool \| None` | Cache configuration. |
+| `executor` | `ExecutorConfig` | Executor configuration. |
+| `with_adapter` | `WithAdapterConfig` | Adapter toggles. |
+| `retry` | `RetryConfig` | Canonical retry configuration. |
+| `pipeline_adapter_cfg` | `dict \| None` | Pipeline-specific adapter settings. |
+| `project_adapter_cfg` | `dict \| None` | Project-level adapter settings. |
+| `adapter` | `dict[str, Any] \| None` | Custom adapter instances. |
+| `reload` | `bool` | Force reload configuration. |
+| `log_level` | `str \| None` | Logging level. |
+| `on_success` | `Callable \| tuple \| None` | Success callback. |
+| `on_failure` | `Callable \| tuple \| None` | Failure callback. |
+| `additional_modules` | `list[str \| Any] \| None` | Additional Hamilton modules for driver composition. |
+| `async_driver` | `bool \| None` | Enable Hamilton's async driver. |
+
+### WithAdapterConfig
+
+**Module:** `flowerpower.cfg.pipeline.run.WithAdapterConfig`
+
+Adapter toggles for a single run. Each field is a boolean.
+
+| Field | Description |
+|:------|:------------|
+| `hamilton_tracker` | Enable Hamilton Tracker integration. |
+| `mlflow` | Enable MLflow integration. |
+| `ray` | Enable Ray distributed execution. |
+| `progressbar` | Enable a progress bar. |
+| `future` | Enable future adapters. |
+
+```python
+from flowerpower.cfg.pipeline.run import WithAdapterConfig
+
+WithAdapterConfig(hamilton_tracker=True, mlflow=False, ray=False)
+```
+
+!!! note
+    Use `hamilton_tracker` for tracking and lineage integration.
+
+### RetryConfig
+
+**Module:** `flowerpower.cfg.pipeline.run.RetryConfig`
+
+| Field | Type | Description | Default |
+|:------|:-----|:------------|:--------|
+| `max_retries` | `int` | Maximum retry attempts. | `3` |
+| `retry_delay` | `float` | Delay between retries in seconds. | `1.0` |
+| `jitter_factor` | `float` | Random jitter factor. | `0.1` |
+| `retry_exceptions` | `list[str]` | Exception names that trigger a retry. | `["Exception"]` |
+
+### ExecutorConfig
+
+**Module:** `flowerpower.cfg.pipeline.run.ExecutorConfig`
+
+| Field | Type | Description | Default |
+|:------|:-----|:------------|:--------|
+| `type` | `str \| None` | Executor type. | `settings.EXECUTOR` |
+| `max_workers` | `int \| None` | Max parallel tasks. | `settings.EXECUTOR_MAX_WORKERS` |
+| `num_cpus` | `int \| None` | CPU allocation for distributed executors. | `settings.EXECUTOR_NUM_CPUS` |
 
 ## Methods
 
 ### copy
+
 ```python
-copy(self) -> 'RunConfig'
+copy(self) -> RunConfig
 ```
 
-Create a shallow copy of the RunConfig instance.
-
-**Returns:** `RunConfig` - A new RunConfig instance with the same configuration.
-
-#### Example
+Create a shallow copy of the `RunConfig`.
 
 ```python
-from flowerpower.cfg.pipeline.run import RunConfig
-
-# Create a base configuration
-base_config = RunConfig(
-    inputs={"data_date": "2025-01-01"},
-    log_level="INFO"
-)
-
-# Create a copy and modify it
-custom_config = base_config.copy()
-custom_config.final_vars = ["model", "metrics"]
+base = RunConfig(log_level="INFO")
+custom = base.copy()
+custom.final_vars = ["model"]
 ```
 
 ### update
+
 ```python
-update(self, **kwargs) -> 'RunConfig'
+update(self, **kwargs) -> RunConfig
 ```
 
-Update the RunConfig with new values and return self for method chaining.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `**kwargs` | `Any` | Key-value pairs of attributes to update. |
-
-**Returns:** `RunConfig` - The updated RunConfig instance (self).
-
-#### Example
+Update fields in place and return `self` for chaining.
 
 ```python
-from flowerpower.cfg.pipeline.run import RunConfig
-
-# Create a base configuration
 config = RunConfig()
-
-# Update multiple attributes
 config.update(
     inputs={"data_date": "2025-01-01"},
     final_vars=["model", "metrics"],
-    log_level="DEBUG"
+    log_level="DEBUG",
 )
 ```
 
 # RunConfigBuilder
 
-**Module:** [`flowerpower.utils.config](../../../../src/flowerpower/utils/config.py)
+**Module:** [`flowerpower.utils.config`](https://github.com/legout/flowerpower/blob/main/src/flowerpower/utils/config.py)
 
-The `RunConfigBuilder` class provides a fluent interface for constructing `RunConfig` instances. It allows for method chaining and provides a more readable way to build complex configurations.
-
-## Initialization
-
-### __init__
-```python
-__init__(self)
-```
-
-Initializes a new `RunConfigBuilder` instance with default values.
-
-## Methods
-
-### with_inputs
-```python
-with_inputs(self, inputs: dict[str, Any]) -> 'RunConfigBuilder'
-```
-
-Set the input values for the pipeline execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `inputs` | `dict[str, Any]` | Input values for the pipeline. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
+A fluent builder for constructing `RunConfig` instances. The builder is the recommended way to create complex run configurations.
 
 ```python
 from flowerpower.utils.config import RunConfigBuilder
 
-builder = RunConfigBuilder()
-builder.with_inputs({"data_date": "2025-01-01", "batch_size": 32})
-```
-
-### with_final_vars
-```python
-with_final_vars(self, final_vars: list[str]) -> 'RunConfigBuilder'
-```
-
-Set the output variables to return from the pipeline execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `final_vars` | `list[str]` | List of output variable names. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_final_vars(["model", "metrics", "predictions"])
-```
-
-### with_config
-```python
-with_config(self, config: dict[str, Any]) -> 'RunConfigBuilder'
-```
-
-Set the configuration for the Hamilton pipeline executor.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `config` | `dict[str, Any]` | Configuration for the executor. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_config({"model": "LogisticRegression", "params": {"C": 1.0}})
-```
-
-### with_cache
-```python
-with_cache(self, cache: bool | None) -> 'RunConfigBuilder'
-```
-
-Set the cache configuration for the pipeline execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `cache` | `bool \| None` | Cache configuration. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_cache(False)
-```
-
-### with_executor
-```python
-with_executor(self, executor_cfg: str | dict | ExecutorConfig) -> 'RunConfigBuilder'
-```
-
-Set the execution configuration for the pipeline.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `executor_cfg` | `str \| dict \| ExecutorConfig` | Execution configuration. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-# Using a string
-builder = RunConfigBuilder()
-builder.with_executor("threadpool")
-
-# Using a dictionary
-builder = RunConfigBuilder()
-builder.with_executor({"type": "threadpool", "max_workers": 4})
-```
-
-### with_with_adapter_cfg
-```python
-with_with_adapter_cfg(self, with_adapter_cfg: dict | WithAdapterConfig) -> 'RunConfigBuilder'
-```
-
-Set the adapter settings for pipeline execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `with_adapter_cfg` | `dict \| WithAdapterConfig` | Adapter settings. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_with_adapter_cfg({"hamilton_tracker": True, "mlflow": False})
-```
-
-### with_pipeline_adapter_cfg
-```python
-with_pipeline_adapter_cfg(self, pipeline_adapter_cfg: dict | PipelineAdapterConfig) -> 'RunConfigBuilder'
-```
-
-Set the pipeline-specific adapter settings.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `pipeline_adapter_cfg` | `dict \| PipelineAdapterConfig` | Pipeline-specific adapter settings. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_pipeline_adapter_cfg({
-    "tracker": {"project_id": "123", "tags": {"env": "prod"}}
-})
-```
-
-### with_project_adapter_cfg
-```python
-with_project_adapter_cfg(self, project_adapter_cfg: dict | ProjectAdapterConfig) -> 'RunConfigBuilder'
-```
-
-Set the project-level adapter settings.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `project_adapter_cfg` | `dict \| ProjectAdapterConfig` | Project-level adapter settings. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_project_adapter_cfg({
-    "hamilton_tracker": {"project_id": "123", "tags": {"env": "prod"}}
-})
-```
-
-### with_adapter
-```python
-with_adapter(self, adapter: dict[str, Any]) -> 'RunConfigBuilder'
-```
-
-Set custom adapter instances for the pipeline.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `adapter` | `dict[str, Any]` | Custom adapter instances. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-from some_module import RayGraphAdapter
-
-builder = RunConfigBuilder()
-builder.with_adapter({"ray_graph_adapter": RayGraphAdapter()})
-```
-
-### with_reload
-```python
-with_reload(self, reload: bool = True) -> 'RunConfigBuilder'
-```
-
-Set whether to force reload of pipeline configuration.
-
-| Parameter | Type | Description | Default |
-|:----------|:-----|:------------|:--------|
-| `reload` | `bool` | Whether to force reload. | `True` |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_reload(True)
-```
-
-### with_log_level
-```python
-with_log_level(self, log_level: str) -> 'RunConfigBuilder'
-```
-
-Set the logging level for the execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `log_level` | `str` | Logging level. Valid values: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL" |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_log_level("DEBUG")
-```
-
-### with_retry_config
-```python
-with_retry_config(self, max_retries: int | None = None, retry_delay: float | None = None, jitter_factor: float | None = None, retry_exceptions: tuple | list | None = None) -> 'RunConfigBuilder'
-```
-
-Set the retry configuration for the execution.
-
-| Parameter | Type | Description | Default |
-|:----------|:-----|:------------|:--------|
-| `max_retries` | `int \| None` | Maximum number of retries. | `None` |
-| `retry_delay` | `float \| None` | Delay between retries in seconds. | `None` |
-| `jitter_factor` | `float \| None` | Random jitter factor to add to retry delay. | `None` |
-| `retry_exceptions` | `tuple \| list \| None` | Exceptions that trigger a retry. | `None` |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-builder = RunConfigBuilder()
-builder.with_retry_config(
-    max_retries=3,
-    retry_delay=1.0,
-    retry_exceptions=(ValueError, KeyError)
-)
-```
-
-### with_on_success
-```python
-with_on_success(self, on_success: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
-```
-
-Set the callback to run on successful pipeline execution.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `on_success` | `Callable \| tuple[Callable, tuple \| None, dict \| None]` | Callback function or tuple with function, args, and kwargs. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-def success_handler(result):
-    print(f"Pipeline succeeded with result: {result}")
-
-builder = RunConfigBuilder()
-builder.with_on_success(success_handler)
-```
-
-### with_on_failure
-```python
-with_on_failure(self, on_failure: Callable | tuple[Callable, tuple | None, dict | None]) -> 'RunConfigBuilder'
-```
-
-Set the callback to run on pipeline execution failure.
-
-| Parameter | Type | Description |
-|:----------|:-----|:------------|
-| `on_failure` | `Callable \| tuple[Callable, tuple \| None, dict \| None]` | Callback function or tuple with function, args, and kwargs. |
-
-**Returns:** `RunConfigBuilder` - The builder instance for method chaining.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-def failure_handler(error):
-    print(f"Pipeline failed with error: {error}")
-
-builder = RunConfigBuilder()
-builder.with_on_failure(failure_handler)
-```
-
-### build
-```python
-build(self) -> RunConfig
-```
-
-Build and return a `RunConfig` instance with the configured parameters.
-
-**Returns:** `RunConfig` - A new RunConfig instance with the configured parameters.
-
-#### Example
-
-```python
-from flowerpower.utils.config import RunConfigBuilder
-
-# Build a configuration
-config = (
+cfg = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01"})
     .with_final_vars(["model", "metrics"])
     .with_log_level("DEBUG")
-    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .with_retries(max_attempts=3, delay=1.0)
     .build()
 )
 ```
 
-## Usage Examples
+!!! warning
+    `RunConfigBuilder` must be imported from `flowerpower.utils.config`.
 
-### Basic Usage
+## Builder methods
+
+All methods return `self` for method chaining.
+
+| Method | Description |
+|:-------|:------------|
+| `with_inputs(inputs)` | Set pipeline input overrides. |
+| `with_final_vars(final_vars)` | Set output variables to return. |
+| `with_config(config)` | Set Hamilton executor configuration. |
+| `with_cache(cache)` | Set cache configuration. |
+| `with_executor(executor_cfg)` | Set executor configuration. |
+| `with_executor_cfg(executor_cfg)` | Alias for `with_executor`. |
+| `with_with_adapter_cfg(with_adapter_cfg)` | Set adapter toggles. |
+| `with_pipeline_adapter_cfg(pipeline_adapter_cfg)` | Set pipeline-specific adapter settings. |
+| `with_project_adapter_cfg(project_adapter_cfg)` | Set project-level adapter settings. |
+| `with_adapter(adapter)` | Set custom adapter instances. |
+| `with_async_driver(enabled)` | Enable or disable the async driver. |
+| `with_additional_modules(modules)` | Set additional Hamilton modules. |
+| `with_retry_config(max_retries, retry_delay, jitter_factor, retry_exceptions)` | Set retry values. |
+| `with_retries(max_attempts, delay, jitter, exceptions)` | Alias for `with_retry_config`. |
+| `with_logging(log_level)` | Set logging level. |
+| `with_log_level(log_level)` | Alias for `with_logging`. |
+| `with_callbacks(on_success, on_failure)` | Set both callbacks. |
+| `with_on_success(on_success)` | Set success callback. |
+| `with_on_failure(on_failure)` | Set failure callback. |
+| `with_max_retries(max_retries)` | Deprecated convenience method. |
+| `with_retry_delay(retry_delay)` | Deprecated convenience method. |
+| `with_jitter_factor(jitter_factor)` | Deprecated convenience method. |
+| `with_retry_exceptions(retry_exceptions)` | Deprecated convenience method. |
+| `with_reload(reload)` | Set the reload flag. |
+| `reset()` | Reset the builder to defaults. |
+| `from_config(config)` | Class method: create a builder from an existing `RunConfig`. |
+| `build()` | Build and return the `RunConfig`. |
+
+## Examples
+
+### Basic usage
 
 ```python
-from flowerpower.cfg.pipeline.run import RunConfig
 from flowerpower.utils.config import RunConfigBuilder
 from flowerpower.pipeline import PipelineManager
 
-# Using RunConfig directly
-config = RunConfig(
-    inputs={"data_date": "2025-01-01"},
-    final_vars=["model", "metrics"],
-    log_level="DEBUG"
-)
-
 manager = PipelineManager()
-result = manager.run("my_pipeline", run_config=config)
 
-# Using RunConfigBuilder
-config = (
+cfg = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01"})
     .with_final_vars(["model", "metrics"])
@@ -535,10 +229,10 @@ config = (
     .build()
 )
 
-result = manager.run("my_pipeline", run_config=config)
+result = manager.run("ml_pipeline", run_config=cfg)
 ```
 
-### Complex Configuration
+### Complex configuration
 
 ```python
 from flowerpower.utils.config import RunConfigBuilder
@@ -550,8 +244,7 @@ def success_handler(result):
 def failure_handler(error):
     print(f"Pipeline failed: {error}")
 
-# Build a complex configuration
-config = (
+cfg = (
     RunConfigBuilder()
     .with_inputs({"data_date": "2025-01-01", "batch_size": 32})
     .with_final_vars(["model", "metrics", "predictions"])
@@ -559,51 +252,44 @@ config = (
     .with_cache(False)
     .with_executor({"type": "threadpool", "max_workers": 4})
     .with_with_adapter_cfg({"hamilton_tracker": True})
-    .with_pipeline_adapter_cfg({"tracker": {"project_id": "123"}})
     .with_project_adapter_cfg({"hamilton_tracker": {"api_url": "http://localhost:8241"}})
     .with_log_level("DEBUG")
-    .with_retry_config(max_retries=3, retry_delay=1.0)
+    .with_retries(max_attempts=3, delay=1.0)
     .with_on_success(success_handler)
     .with_on_failure(failure_handler)
     .build()
 )
 
 manager = PipelineManager()
-result = manager.run("ml_pipeline", run_config=config)
+result = manager.run("ml_pipeline", run_config=cfg)
 ```
 
-### Reusing Configurations
+### Reusing configurations
 
 ```python
-from flowerpower.cfg.pipeline.run import RunConfig
 from flowerpower.utils.config import RunConfigBuilder
 from flowerpower.pipeline import PipelineManager
 
-# Create a base configuration
 base_config = (
     RunConfigBuilder()
     .with_log_level("INFO")
-    .with_retry_config(max_retries=2, retry_delay=0.5)
+    .with_retries(max_attempts=2, delay=0.5)
     .build()
 )
 
-# Create specialized configurations by copying and modifying
 training_config = base_config.copy()
 training_config.update(
     inputs={"mode": "training", "data_split": 0.8},
-    final_vars=["model", "training_metrics"]
+    final_vars=["model", "training_metrics"],
 )
 
 inference_config = base_config.copy()
 inference_config.update(
     inputs={"mode": "inference", "model_path": "/path/to/model"},
-    final_vars=["predictions", "inference_metrics"]
+    final_vars=["predictions", "inference_metrics"],
 )
 
 manager = PipelineManager()
-
-# Run with different configurations
-training_result = manager.run("ml_pipeline", run_config=training_config)
-inference_result = manager.run("ml_pipeline", run_config=inference_config)
-!!! warning "Legacy retry fields"
-    The `max_retries`, `retry_delay`, `jitter_factor`, and `retry_exceptions` attributes are accepted for backwards compatibility but now trigger a `DeprecationWarning` when set explicitly. Prefer configuring retries via the nested `retry` block or the builder helpers.
+manager.run("ml_pipeline", run_config=training_config)
+manager.run("ml_pipeline", run_config=inference_config)
+```

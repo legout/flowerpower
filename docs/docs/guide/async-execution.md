@@ -91,5 +91,4 @@ pip install -U hamilton
 ## Related
 
 - [Compose Pipelines With Additional Modules](./additional-modules.md)
-- README: “Asynchronous Execution” section
 

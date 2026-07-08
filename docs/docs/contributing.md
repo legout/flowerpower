@@ -43,13 +43,15 @@ We use `uv` for managing dependencies and running our development environment.
     ```
 
 4.  **Install dependencies**:
-    To install the base dependencies along with the development and test dependencies, run:
+    This project uses `uv`'s dev-dependencies, so a single command installs
+    everything needed for development and testing:
     ```bash
-    uv pip install -e ".[dev,test]"
+    uv sync
     ```
-    
+
     !!! note
-        If you need to install optional dependencies for specific features (e.g., `mqtt`, `redis`), you can add them to the install command: `uv pip install -e ".[dev,test,mqtt,redis]"`.
+        If you need optional extras (e.g. `io`, `ui`, `ray`), add them explicitly:
+        `uv pip install -e '.[io,ui,ray]'`.
 
 5.  **Run tests**:
     To ensure everything is working correctly, run the test suite:

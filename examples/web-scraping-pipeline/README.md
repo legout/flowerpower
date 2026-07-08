@@ -5,7 +5,6 @@ This example demonstrates concurrent web scraping and content processing using F
 ## Prerequisites
 
 - Python 3.11+
-- Redis (for job queue functionality)
 
 ## Quick Start
 
@@ -27,65 +26,9 @@ uv run flowerpower pipeline run news_scraper
 
 **Using a Python REPL:**
 ```python
-from flowerpower.flowerpower import FlowerPowerProject
+from flowerpower import FlowerPowerProject
 project = FlowerPowerProject.load()
 project.run("news_scraper")
-```
-
-### 2. Run with the Job Queue
-
-Add the pipeline run as a job to be processed asynchronously.
-
-**Terminal 1: Enqueue Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py queue
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue enqueue-pipeline news_scraper
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.enqueue("news_scraper")
-```
-
-**Terminal 2: Start Worker**
-```bash
-uv run flowerpower job-queue start-worker
-```
-
-### 3. Schedule a Pipeline Run
-
-Schedule the pipeline to run at a predefined time (e.g., daily at 6 AM).
-
-**Terminal 1: Schedule Job**
-
-**Using the script:**
-```bash
-uv run scripts/run_example.py schedule
-```
-
-**Using the `flowerpower` CLI:**
-```bash
-uv run flowerpower job-queue schedule-pipeline news_scraper --cron "0 6 * * *"
-```
-
-**Using a Python REPL:**
-```python
-from flowerpower.flowerpower import FlowerPowerProject
-project = FlowerPowerProject.load()
-project.schedule("news_scraper", cron="0 6 * * *")
-```
-
-**Terminal 2: Start Worker with Scheduler**
-```bash
-uv run flowerpower job-queue start-worker --with-scheduler
 ```
 
 ## Project Structure
@@ -125,7 +68,7 @@ Running the pipeline generates scraped articles with metadata, processing statis
 ## FlowerPower Features Demonstrated
 
 - **Configuration-Driven Pipelines**: Customize scraping behavior without changing code.
-- **Multiple Execution Modes**: Run synchronously, via a job queue, or on a schedule.
+- **Multiple Execution Modes**: Run synchronously for immediate results.
 - **Concurrent Processing**: Parallel HTTP requests with rate limiting and retry logic.
 - **Content Analysis**: Built-in text processing and filtering capabilities.
 
@@ -139,11 +82,9 @@ Running the pipeline generates scraped articles with metadata, processing statis
 
 - **HTTP Errors**: Check network connectivity and site availability.
 - **Rate Limiting**: Reduce `max_concurrent_requests` and increase `request_delay` in the configuration.
-- **Redis Connection Error**: Make sure the Redis server is running before using the job queue.
 - **Permission Denied**: Check write permissions for the `output/` directory.
 
 ## Learning Path & Related Examples
 
 - [`data-etl-pipeline`](../data-etl-pipeline/): Data preprocessing and validation patterns.
-- [`scheduled-reports`](../scheduled-reports/): Automated reporting and scheduling workflows.
 - [`pipeline-only-example`](../pipeline-only-example/): Lightweight content processing examples.

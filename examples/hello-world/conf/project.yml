@@ -13,6 +13,3 @@ adapter:
   ray:
     ray_init_config: null
     shutdown_ray_on_completion: false
-  opentelemetry:
-    host: localhost
-    port: 6831

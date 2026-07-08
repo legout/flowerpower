@@ -1,70 +1,147 @@
-# Architecture Overview
+# Architecture
 
-## Introduction
+FlowerPower is an orchestration and configuration layer on top of [Hamilton](https://hamilton.dagworks.io/). Hamilton lets you define a data pipeline as a DAG of plain Python functions: each function is a node, and its arguments declare dependencies. FlowerPower adds project structure, YAML-driven configuration, execution plumbing, and lifecycle management so that Hamilton pipelines can be organized, configured, and run as production projects.
 
-Welcome to the architectural overview of FlowerPower. This document provides a high-level look at the library's design, its core components, and the principles that guide its development. Our goal is to create a powerful, flexible, and easy-to-use platform for building data pipelines.
+## What FlowerPower adds to Hamilton
 
-## Core Design Principles
+In a pure Hamilton workflow you import modules into a `Driver` and call `execute()`. FlowerPower keeps that model but wraps it in conventions:
 
-FlowerPower is built on a foundation of modularity and clear separation of concerns. Key design principles include:
+- **Projects** — a directory layout (`conf/`, `pipelines/`, `hooks/`) that separates configuration from code.
+- **Configuration** — `project.yml` plus per-pipeline YAML files, merged with environment overrides and runtime `RunConfig`.
+- **Execution** — a runtime stack that handles sync and async drivers, adapters, retries, logging, and executors.
+- **I/O & visualization** — helpers for importing/exporting pipelines, rendering DAGs, and working with remote filesystems.
 
--   **Modular and Configuration-Driven:** Components are designed to be self-contained and configurable, allowing you to easily swap implementations and adapt the library to your needs.
--   **Unified Interface:** A single, clean entry point (`FlowerPowerProject`) simplifies interaction with the library's powerful features.
--   **Extensibility:** The library is designed to be extended with custom plugins and adapters for I/O, messaging, and more.
+You still write Hamilton functions. FlowerPower discovers them, wires them into a driver, and runs them.
 
-## Key Components
-
-The library's architecture is centered around a few key components that work together to provide a seamless experience.
+## Core components
 
 ```mermaid
 graph TD
-    A[FlowerPowerProject] -->|Manages| B(PipelineManager)
-    B -->|Uses| C[Hamilton]
+    A[FlowerPowerProject] -->|owns| B(PipelineManager)
+    B -->|manages| C[PipelineConfigManager]
+    B -->|discovers/creates| D[PipelineRegistry / PipelineCreator]
+    B -->|executes| E[PipelineExecutor]
+    B -->|visualizes| F[PipelineVisualizer]
+    B -->|imports/exports| G[PipelineIOManager]
+    E -->|runs| H[Pipeline]
+    H -->|drives| I[Hamilton Driver]
+    H -->|via| J[PipelineRunner]
+    J -->|uses| K[ExecutionContextBuilder]
+    J -->|uses| L[RetryManager]
+    J -->|uses| M[Telemetry / Logging helpers]
+    K -->|creates| N[Hamilton Executor]
+    K -->|resolves| O[Adapters]
 
-    subgraph "Core Components"
+    subgraph FlowerPower
+        A
         B
+        C
+        D
+        E
+        F
+        G
+        H
+        J
+        K
+        L
+        M
+        O
     end
 
-    subgraph "External Dependencies"
-        C
+    subgraph Hamilton
+        I
+        N
     end
 ```
 
 ### `FlowerPowerProject`
 
-The `FlowerPowerProject` class is the main entry point and public-facing API of the library. It acts as a facade, providing a unified interface to the underlying `PipelineManager`. This simplifies the user experience by abstracting away the complexities of the individual components.
+The public entry point. It creates or loads a project directory and exposes a `pipeline_manager` that does the real work. Use `FlowerPowerProject.new()` to scaffold a project and `FlowerPowerProject.load()` to open an existing one.
+
+```python
+from flowerpower import FlowerPowerProject
+project = FlowerPowerProject.new(name="my_project")
+project = FlowerPowerProject.load(".")
+```
 
 ### `PipelineManager`
 
-The `PipelineManager` is responsible for everything related to data pipelines:
+The operational hub. It is initialized with a base directory and an optional fsspec filesystem, then loads the project configuration and exposes the sub-managers listed below.
 
--   **Configuration:** It loads and manages pipeline definitions from YAML files.
--   **Execution orchestration:** It coordinates with the new runtime stack (`PipelineRunner`, `ExecutionContextBuilder`, `RetryManager`) to execute Hamilton dataflows defined as a Directed Acyclic Graph (DAG) of Python functions.
--   **Visualization:** It provides tools for visualizing pipeline graphs.
--   **I/O:** It handles data loading and saving through an extensible system of I/O adapters.
+| Property / method | Responsibility |
+| --- | --- |
+| `creator` | Scaffolds new pipelines. |
+| `registry` | Lists, loads, and deletes pipelines; manages hooks. |
+| `executor` | Runs a pipeline synchronously or asynchronously. |
+| `visualizer` | Renders or saves pipeline DAGs. |
+| `io` | Imports/exports pipeline definitions. |
+| `pipelines` | List of discovered pipeline names. |
+| `summary` | Dictionary summarizing the project pipelines. |
 
-### Execution Runtime Stack
+The manager does not run the DAG directly; it delegates to a `Pipeline` instance, which owns a `PipelineRunner`.
 
-To keep the `Pipeline` class lean and focused on configuration, the runtime responsibilities are delegated to specialised helpers:
+## Execution runtime stack
 
--   **`PipelineRunner`** – Owns the sync/async execution flow, applies `RunConfig` overrides, reloads modules when requested, and ensures logging/telemetry are initialised once per process.
--   **`ExecutionContextBuilder`** – Resolves adapters and executors based on the merged configuration, including Ray shutdown hooks and custom adapters supplied at runtime.
--   **`RetryManager`** – Implements retry/backoff logic, including jitter, callbacks, and parity between synchronous and asynchronous execution paths.
--   **Telemetry & Logging helpers** – Consolidated utilities (`initialize_telemetry`, `ensure_logging_initialized`) eliminate import-time side effects and make log-level overrides predictable.
+When you call `project.run("my_pipeline")`, the request flows through a small stack of dedicated helpers so the pipeline object itself stays focused on configuration.
 
-This separation keeps responsibilities clear and makes it easier to extend or test the execution pipeline without touching configuration loading.
+### `PipelineRunner`
 
-#### Hamilton Integration
+`PipelineRunner` is the facade for a single execution. It:
 
-FlowerPower leverages Hamilton to define the logic of its data pipelines. Hamilton's declarative, function-based approach allows you to define complex dataflows in a clear and maintainable way. Each function in a Hamilton module represents a node in the DAG, and Hamilton automatically resolves the dependencies and executes the functions in the correct order.
+- Clones and merges the pipeline's default `RunConfig` with any runtime kwargs.
+- Resolves the Python modules that contain the Hamilton functions (including `additional_modules`).
+- Reloads modules when `reload=True`.
+- Delegates to `ExecutionContextBuilder` for adapters and executors.
+- Wraps the actual Hamilton call in `RetryManager`.
 
-!!! note
-    To learn more about Hamilton, visit the [official documentation](https://hamilton.dagworks.io/).
+It has symmetric `run()` and `run_async()` paths.
 
-## Filesystem Abstraction
+### `ExecutionContextBuilder`
 
-FlowerPower includes a filesystem abstraction layer that allows you to work with local and remote filesystems (e.g., S3, GCS) using a consistent API. This makes it easy to build pipelines that can read from and write to various storage backends without changing your core logic.
+Builds the concrete context needed for a Hamilton execution: a Hamilton executor, an optional shutdown/cleanup callback, and the list of adapters to apply. It resolves configuration from three sources in priority order:
 
-## Conclusion
+1. Runtime `RunConfig`.
+2. Per-pipeline `conf/pipelines/<name>.yml`.
+3. Project-wide `conf/project.yml`.
 
-FlowerPower's architecture is designed to be both powerful and flexible. By leveraging Hamilton for dataflow definition, it provides a comprehensive solution for a wide range of data-intensive applications. The modular design and unified interface make it easy to get started, while the extensible nature of the library allows it to grow with your needs.
+It also handles Ray shutdown hooks when the Ray adapter is enabled and configured to shut down on completion.
+
+### `RetryManager`
+
+Implements exponential backoff with jitter. It retries the pipeline execution on configured exceptions, calls optional success/failure callbacks, and logs each attempt. The same logic is used for both sync and async runs.
+
+### Telemetry and logging helpers
+
+`initialize_telemetry()` and `ensure_logging_initialized()` are used to avoid import-time side effects and to make log-level overrides predictable. Logging is set up once per process and reused thereafter.
+
+## Layered configuration system
+
+Configuration is merged in strict precedence, highest first:
+
+1. **Runtime kwargs / `RunConfig`** — values passed to `run()` or built with `RunConfigBuilder`.
+2. **Environment overlays** — variables prefixed with `FP_PIPELINE__*` or `FP_PROJECT__*` using double-underscore nested paths (for example, `FP_PIPELINE__RUN__LOG_LEVEL=DEBUG`). Values are JSON-coerced when possible.
+3. **YAML after environment interpolation** — `${VAR}`, `${VAR:-default}`, `${VAR-default}`, `${VAR:?err}`, and `$${...}` escapes are expanded. Valid JSON strings become typed values.
+4. **Global shims** — `FP_LOG_LEVEL`, `FP_EXECUTOR`, `FP_EXECUTOR_MAX_WORKERS`, `FP_EXECUTOR_NUM_CPUS`, `FP_MAX_RETRIES`, `FP_RETRY_DELAY`, `FP_JITTER_FACTOR` are used only when the corresponding specific key is absent.
+5. **Code defaults** — struct defaults on `RunConfig` and related configuration classes.
+
+!!! tip
+    For a deeper look at overrides, environment variables, and adapter configuration, see [Advanced configuration](advanced.md).
+
+## Filesystem abstraction
+
+FlowerPower uses `fsspeckit` for filesystem access, so the same project can live on local disk, S3, GCS, or another `fsspec`-compatible backend. The `storage_options` passed to `FlowerPowerProject` or `PipelineManager` are forwarded to the filesystem constructor, and a local cache is configured automatically when remote storage is used.
+
+```python
+PipelineManager(
+    base_dir="s3://my-bucket/project",
+    storage_options={"key": "ACCESS_KEY", "secret": "SECRET_KEY"},
+)
+```
+
+## Security
+
+FlowerPower validates path fragments before using them to build filesystem paths. Functions such as `validate_file_path`, `validate_pipeline_name`, and `validate_directory_fragment` reject directory-traversal patterns like `../../../etc/passwd`. A `SecurityError` is raised on violations, keeping project and pipeline names bounded to the intended directory tree.
+
+## Summary
+
+FlowerPower does not replace Hamilton; it operationalizes it. You write plain Python functions that Hamilton turns into a DAG. FlowerPower provides the project scaffold, the configuration hierarchy, the execution runtime, and the lifecycle utilities that turn a notebook script into a maintainable, configurable pipeline project.

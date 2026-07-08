@@ -537,7 +537,7 @@ def show_pipelines(
     List all available pipelines in the project.
 
     This command displays a list of all pipelines defined in the project,
-    providing an overview of what pipelines are available to run or schedule.
+    providing an overview of what pipelines are available to run.
 
     Args:
         base_dir: Base directory containing pipelines

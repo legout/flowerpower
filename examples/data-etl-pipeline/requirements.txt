@@ -1,5 +1,5 @@
 # Core FlowerPower dependencies
-flowerpower[rq]
+flowerpower
 
 # Data processing
 pandas>=1.5.0

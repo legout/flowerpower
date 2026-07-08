@@ -37,8 +37,7 @@ run:
   log_level: null
   with_adapter:
     future: false
+    hamilton_tracker: false
     mlflow: false
-    opentelemetry: false
     progressbar: false
     ray: false
-    tracker: false

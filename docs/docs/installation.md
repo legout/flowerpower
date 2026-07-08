@@ -1,74 +1,65 @@
 # Installation
 
-Welcome to the FlowerPower installation guide. This page will walk you through the steps to get FlowerPower up and running on your system.
+This guide covers how to install FlowerPower and its optional extras.
 
-## Prerequisites
+## Requirements
 
-Before you begin, ensure you have the following installed:
+FlowerPower requires **Python 3.11 or higher**. Verify your version with:
 
-*   **Python 3.8 or higher:** FlowerPower requires a modern version of Python. You can check your Python version by running:
+```bash
+python --version
+```
 
-    ```bash
-    python --version
-    ```
+A modern package manager such as [`uv`](https://github.com/astral-sh/uv) or `pip` is recommended.
 
-*   **A package manager:** We recommend using a modern package manager like `uv` or `pip` for a smooth installation experience.
+## Standard installation
 
-!!! note "Project and Environment Management"
-
-    For robust project management, we highly recommend using tools like [**`uv`**](https://github.com/astral-sh/uv) or [**`pixi`**](https://github.com/prefix-dev/pixi). These tools help you manage dependencies and ensure your projects are reproducible.
-
-## Standard Installation
-
-The recommended way to install FlowerPower is with `uv pip`:
+Install the core package with `uv`:
 
 ```bash
 uv pip install flowerpower
 ```
 
-Alternatively, you can use `pip`:
+Or with `pip`:
 
 ```bash
 pip install flowerpower
 ```
 
-This will install the core FlowerPower library with all the essential features to get you started.
+## Optional dependencies
 
-## Optional Dependencies
+FlowerPower provides optional extras for I/O plugins, distributed execution, the Hamilton UI, and lineage tracking.
 
-FlowerPower offers optional dependencies that you can install to enable additional functionality.
+| Extra | Enables | Install |
+|-------|---------|---------|
+| `io` | CSV, JSON, Parquet, Delta, DuckDB, Postgres, MySQL, MSSQL, Oracle, SQLite | `uv pip install 'flowerpower[io]'` |
+| `io-legacy` | Legacy I/O backends | `uv pip install 'flowerpower[io-legacy]'` |
+| `ray` | Distributed execution with Ray | `uv pip install 'flowerpower[ray]'` |
+| `ui` | Hamilton web UI | `uv pip install 'flowerpower[ui]'` |
+| `openlineage` | OpenLineage lineage integration | `uv pip install 'flowerpower[openlineage]'` |
 
-*   **I/O Plugins:** For additional I/O capabilities, install the `[io]` extra:
+There is no `all` extra. Install several extras together by listing them in square brackets:
 
-    ```bash
-    uv pip install 'flowerpower[io]'
-    ```
+```bash
+uv pip install 'flowerpower[io,ray,ui]'
+```
 
-*   **Hamilton UI:** To use the Hamilton UI for interactive dataflow visualization, install the `[ui]` extra:
+## Virtual environment setup
 
-    ```bash
-    uv pip install 'flowerpower[ui]'
-    ```
+It is strongly recommended to install FlowerPower in a dedicated virtual environment:
 
-*   **All Extras:** To install all optional dependencies at once, use the `[all]` extra:
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install flowerpower
+```
 
-    ```bash
-    uv pip install 'flowerpower[all]'
-    ```
+On Windows, activate the environment with `.venv\Scripts\activate`.
 
 ## Troubleshooting
 
-If you encounter issues during installation, here are a few tips:
+- **Use a virtual environment.** Installing directly into your system Python can cause dependency conflicts. Create and activate a venv with `uv venv` and `source .venv/bin/activate` before installing.
+- **Check your PATH.** If the `flowerpower` command is not found, make sure your virtual environment's `bin` (or `Scripts`) directory is on your PATH.
+- **Check permissions.** If you see a permission error, avoid installing globally; use a virtual environment instead.
 
-*   **Use a Virtual Environment:** It is highly recommended to install FlowerPower in a virtual environment to avoid conflicts with other packages. You can create one with `uv`:
-
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    ```
-
-*   **Check Your PATH:** Ensure that your Python and script installation directories are in your system's `PATH`. If you can't run `flowerpower` from your terminal, this might be the issue.
-
-*   **Permissions:** If you get a permission error, you might be trying to install the package globally without the necessary privileges. Using a virtual environment is the best way to avoid this.
-
-If you continue to have problems, please [open an issue](https://github.com/your-repo/flowerpower/issues) on our GitHub repository.
+If you still have problems, please [open an issue](https://github.com/legout/flowerpower/issues).

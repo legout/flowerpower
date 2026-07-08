@@ -36,27 +36,32 @@ theme:
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Quickstart: quickstart.md
-  - Architecture: architecture.md
-  - Examples: examples.md
-  - Guides:
-      - Compose Pipelines With Additional Modules: guide/additional-modules.md
-      - Asynchronous Execution: guide/async-execution.md
-  - Advanced Usage: advanced.md
-  - CLI Reference: cli.md
-  - API Reference:
-      - Overview: api/index.md
-      - FlowerPower: api/flowerpower.md
-      - PipelineManager: api/pipelinemanager.md
-      - Configuration: api/configuration.md
-      - FlowerPowerProject: api/flowerpowerproject.md
-      - initialize_project: api/initialize_project.md
-      - create_project: api/create_project.md
-      - PipelineRegistry: api/registry.md
-      - PipelineExecutor: api/executor.md
-      - CLI:
-          - CLI: api/cli.md
-          - Pipeline CLI: api/cli_pipeline.md
+  - Tutorial:
+      - Your First Pipeline: quickstart.md
+  - How-to Guides:
+      - Run Pipelines (RunConfig & kwargs): advanced.md
+      - Compose Multiple Modules: guide/additional-modules.md
+      - Run Pipelines Asynchronously: guide/async-execution.md
+      - Use Adapters (Tracker, MLflow, Ray): guide/adapters.md
+  - Concepts:
+      - Architecture: architecture.md
+  - Reference:
+      - CLI: cli.md
+      - Examples: examples.md
+      - API:
+          - Overview: api/index.md
+          - FlowerPowerProject: api/flowerpowerproject.md
+          - PipelineManager: api/pipelinemanager.md
+          - RunConfig: api/runconfig.md
+          - Configuration: api/configuration.md
+          - initialize_project: api/initialize_project.md
+          - create_project: api/create_project.md
+          - PipelineRegistry: api/registry.md
+          - PipelineExecutor: api/executor.md
+          - FlowerPower (alias): api/flowerpower.md
+          - CLI:
+              - CLI: api/cli.md
+              - Pipeline CLI: api/cli_pipeline.md
   - Contributing: contributing.md
 
 markdown_extensions:

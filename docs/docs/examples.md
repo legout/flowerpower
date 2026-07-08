@@ -1,23 +1,23 @@
 # Examples
 
-This section provides an overview of various example projects built with FlowerPower. These examples demonstrate different use cases and functionalities of the framework, from simple "Hello World" setups to complex machine learning pipelines and data processing workflows. You can find the source code for these examples in the [FlowerPower GitHub repository](https://github.com/legout/flowerpower/examples).
+The FlowerPower repository includes ready-to-run example projects that demonstrate common pipeline patterns. You can find them in the [`examples/`](https://github.com/legout/flowerpower/tree/main/examples) directory on GitHub.
 
-## Available Examples
+## `hello-world/`
 
-### `data-etl-pipeline/`
-This example demonstrates a typical Extract, Transform, Load (ETL) pipeline, showcasing how FlowerPower can be used to process and move data between different systems.
+The canonical starter project. It defines a minimal `hello_world` pipeline in `pipelines/hello_world.py` and pairs it with a `setup.py` companion module. The companion module is loaded as an `additional_module`, so it shows how to split a pipeline into a main DAG and shared helper code.
 
-### `hello-world/`
-A basic "Hello World" example illustrating the fundamental structure of a FlowerPower project and how to define and run a simple pipeline.
+## `data-etl-pipeline/`
 
-### `ml-training-pipeline/`
-Showcases how to build a machine learning training pipeline with FlowerPower, including data preparation, model training, and evaluation steps.
+Demonstrates a configuration-driven ETL workflow: loading a raw CSV, validating the data, cleaning it, and producing a summary report. Use it to see how `params` and `run.config` can change pipeline behavior without editing code.
 
-### `pipeline-only-example/`
-This example highlights the core pipeline functionality of FlowerPower, demonstrating how to define and execute a sequence of interconnected tasks.
+## `ml-training-pipeline/`
 
-### `scheduled-reports/`
-Demonstrates how to use FlowerPower to automate the generation and distribution of scheduled reports, leveraging its scheduling and task management features.
+Shows an end-to-end machine-learning workflow covering data preprocessing, feature engineering, model training, and evaluation. It illustrates how a Hamilton DAG maps cleanly onto ML stages and how model artifacts can be saved from a pipeline run.
 
-### `web-scraping-pipeline/`
-An example illustrating a web scraping workflow implemented as a FlowerPower pipeline, showing how to extract data from websites and process it.
+## `pipeline-only-example/`
+
+A lightweight project that uses FlowerPower's core pipeline features with no optional extras. It is useful when you want a small, self-contained DAG that runs synchronously without additional infrastructure.
+
+## `web-scraping-pipeline/`
+
+Demonstrates concurrent web scraping and content processing as a FlowerPower pipeline. It covers parallel HTTP requests, rate-limiting configuration, and structured content extraction.

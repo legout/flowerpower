@@ -34,7 +34,7 @@ def raw_data(input_file: str) -> pd.DataFrame:
 
 
 # === DATA VALIDATION ===
-# @parameterize(**PARAMS.validation_report)
+# @parameterize(**PARAMS['validation_report'])
 def validation_report(
     raw_data: pd.DataFrame,
     min_price: int | float,
@@ -142,7 +142,7 @@ def clean_data__false(raw_data: pd.DataFrame) -> pd.DataFrame:
 
 
 # === DATA TRANSFORMATION & AGGREGATION ===
-# @parameterize(**PARAMS.sales_summary)
+# @parameterize(**PARAMS['sales_summary'])
 def sales_summary(
     clean_data: pd.DataFrame, group_by: List[str], metrics: List[str]
 ) -> pd.DataFrame:

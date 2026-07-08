@@ -41,6 +41,5 @@ run:
     future: false
     hamilton_tracker: false
     mlflow: false
-    opentelemetry: false
     progressbar: false
     ray: false
