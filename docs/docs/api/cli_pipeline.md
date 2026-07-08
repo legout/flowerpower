@@ -43,7 +43,7 @@ flowerpower pipeline run [OPTIONS] NAME
 | `--jitter-factor` | `float` | Deprecated retry setting. | `0.1` |
 
 !!! warning "Deprecated retry flags"
-    `--max-retries`, `--retry-delay`, and `--jitter-factor` are deprecated. Use `retry` configuration in the YAML config or `RunConfigBuilder` in Python instead.
+    `--max-retries`, `--retry-delay`, and `--jitter-factor` are deprecated. The CLI converts them into nested `retry` settings on a partial `RunConfig` before execution. Use `retry` configuration in the YAML config or `RunConfigBuilder` in Python instead.
 
 ```bash
 flowerpower pipeline run my_pipeline

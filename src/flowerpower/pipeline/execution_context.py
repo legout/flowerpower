@@ -9,7 +9,7 @@ from hamilton.execution import executors as h_executors
 from loguru import logger
 
 from ..cfg.pipeline.run import ExecutorConfig, RunConfig
-from ..utils.config import resolve_executor_config
+from ..utils.adapter import AdapterManager
 
 
 class ExecutionContextBuilder:
@@ -32,10 +32,7 @@ class ExecutionContextBuilder:
         self, run_config: RunConfig
     ) -> tuple[h_executors.BaseExecutor, Callable | None, list]:
         """Create executor, shutdown function, and adapters for a pipeline run."""
-        executor_cfg = resolve_executor_config(
-            base=self._pipeline_config.run.executor,
-            override=run_config.executor_override_raw or run_config.executor,
-        )
+        executor_cfg = run_config.executor or ExecutorConfig()
         executor, cleanup_fn = self._create_executor(executor_cfg)
         adapters = self._create_adapters(run_config)
         logger.debug(
@@ -71,17 +68,17 @@ class ExecutionContextBuilder:
         return executor, cleanup_fn
 
     def _create_adapters(self, run_config: RunConfig) -> list:
-        with_adapter_cfg = self._adapter_manager.resolve_with_adapter_config(
-            run_config.with_adapter, self._pipeline_config.run.with_adapter
-        )
+        with_adapter_cfg = run_config.with_adapter
 
-        pipeline_adapter_cfg = self._adapter_manager.resolve_pipeline_adapter_config(
-            run_config.pipeline_adapter_cfg, self._pipeline_config.adapter
-        )
+        pipeline_adapter_cfg = run_config.pipeline_adapter_cfg
+        if pipeline_adapter_cfg is None:
+            from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+            pipeline_adapter_cfg = PipelineAdapterConfig()
 
-        project_adapter_cfg = self._adapter_manager.resolve_project_adapter_config(
-            run_config.project_adapter_cfg, self._project_context
-        )
+        project_adapter_cfg = run_config.project_adapter_cfg
+        if project_adapter_cfg is None:
+            from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+            project_adapter_cfg = ProjectAdapterConfig()
 
         adapters = self._adapter_manager.create_adapters(
             with_adapter_cfg, pipeline_adapter_cfg, project_adapter_cfg
@@ -104,3 +101,36 @@ class ExecutionContextBuilder:
         except Exception:  # pragma: no cover - defensive import shield
             return None
         return None
+
+
+def resolve_run_config_adapter_configs(
+    run_config: RunConfig,
+    pipeline_config: Any,
+    project_context: Any,
+) -> RunConfig:
+    """Merge pipeline and project adapter defaults into a resolved RunConfig.
+
+    This resolution must happen before runtime object construction so that the
+    execution-context builder can consume the resolved RunConfig values without
+    re-deciding precedence against pipeline defaults.
+    """
+    explicit_overrides = set(run_config.explicit_overrides or [])
+    manager = AdapterManager()
+    if pipeline_config is not None:
+        pipeline_adapter = getattr(pipeline_config, "adapter", None)
+        if pipeline_adapter is not None and not (
+            "pipeline_adapter_cfg" in explicit_overrides
+            and run_config.pipeline_adapter_cfg is None
+        ):
+            run_config.pipeline_adapter_cfg = manager.resolve_pipeline_adapter_config(
+                run_config.pipeline_adapter_cfg, pipeline_adapter
+            )
+
+    if not (
+        "project_adapter_cfg" in explicit_overrides
+        and run_config.project_adapter_cfg is None
+    ):
+        run_config.project_adapter_cfg = manager.resolve_project_adapter_config(
+            run_config.project_adapter_cfg, project_context
+        )
+    return run_config

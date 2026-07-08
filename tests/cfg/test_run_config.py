@@ -11,6 +11,7 @@ from fsspeckit import filesystem
 from flowerpower.cfg.pipeline import PipelineConfig
 from flowerpower.cfg.pipeline.run import (
     DEPRECATED_RETRY_FIELDS,
+    CallbackSpec,
     ExecutorConfig,
     RetryConfig,
     RunConfig,
@@ -22,6 +23,7 @@ from flowerpower.utils.config import (
     RunConfigBuilder,
     merge_run_config_with_kwargs,
     merge_run_configs,
+    validate_resolved_run_config,
 )
 from flowerpower.utils.security import SecurityError
 
@@ -201,13 +203,35 @@ class TestRunConfig:
         assert run_config.max_retries == 3  # Has default
         assert run_config.async_driver is None
 
-    def test_run_config_warns_on_legacy_retry_fields(self):
-        """Using deprecated top-level retry fields should emit a warning."""
-        with pytest.warns(DeprecationWarning):
-            RunConfig(max_retries=5)
+    def test_nested_retry_wins_over_flat_fields_in_constructor(self):
+        """Nested retry config takes precedence over deprecated flat fields."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            run_config = RunConfig(
+                retry=RetryConfig(max_retries=5, retry_delay=2.0, jitter_factor=0.3),
+                max_retries=3,
+                retry_delay=1.0,
+                jitter_factor=0.1,
+            )
+        assert run_config.retry.max_retries == 5
+        assert run_config.retry.retry_delay == 2.0
+        assert run_config.retry.jitter_factor == 0.3
 
+    def test_nested_retry_wins_over_flat_fields_in_from_dict(self):
+        """A nested retry block wins over deprecated top-level fields from a dict."""
+        data = {
+            "retry": {"max_retries": 5, "retry_delay": 2.0, "jitter_factor": 0.3},
+            "max_retries": 3,
+            "retry_delay": 1.0,
+            "jitter_factor": 0.1,
+        }
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            run_config = RunConfig.from_dict(data)
+        assert run_config.retry.max_retries == 5
+        assert run_config.retry.retry_delay == 2.0
+        assert run_config.retry.jitter_factor == 0.3
 
-class TestRunConfigBuilder:
     """Test cases for RunConfigBuilder class."""
 
     def test_builder_default_values(self):
@@ -630,6 +654,12 @@ class TestMergeRunConfig:
         merge_run_config_with_kwargs(run_config, {"async_driver": True})
         assert run_config.async_driver is True
 
+    def test_merge_async_driver_none_preserved(self):
+        """Regression: async_driver=None must clear the toggle instead of being ignored."""
+        run_config = RunConfig(async_driver=True)
+        merge_run_config_with_kwargs(run_config, {"async_driver": None})
+        assert run_config.async_driver is None
+
     def test_merge_executor_cfg_preserves_existing_fields(self):
         run_config = RunConfig(executor=ExecutorConfig(type="local", max_workers=None, num_cpus=None))
 
@@ -639,6 +669,80 @@ class TestMergeRunConfig:
         assert run_config.executor.max_workers == 2
         assert run_config.executor.num_cpus is None
         assert run_config.executor_override_raw == {"max_workers": 2}
+
+    def test_merge_flat_retry_override_normalizes_to_nested(self):
+        """Deprecated flat retry fields from a later layer normalize into nested retry."""
+        base = RunConfig(
+            retry=RetryConfig(max_retries=3, retry_delay=1.0, jitter_factor=0.1)
+        )
+        override = RunConfig(
+            max_retries=5,
+            retry_delay=2.0,
+            jitter_factor=0.3,
+            retry_exceptions=["ValueError"],
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            merged = merge_run_configs(base, override)
+        assert merged.retry.max_retries == 5
+        assert merged.retry.retry_delay == 2.0
+        assert merged.retry.jitter_factor == 0.3
+        assert merged.retry.retry_exceptions == [ValueError]
+    def test_merge_nested_retry_override_wins(self):
+        """A nested retry config from a later layer overrides the base nested retry."""
+        base = RunConfig(
+            retry=RetryConfig(max_retries=3, retry_delay=1.0, jitter_factor=0.1)
+        )
+        override = RunConfig(
+            retry=RetryConfig(max_retries=5, retry_delay=2.0, jitter_factor=0.3)
+        )
+        merged = merge_run_configs(base, override)
+        assert merged.retry.max_retries == 5
+        assert merged.retry.retry_delay == 2.0
+        assert merged.retry.jitter_factor == 0.3
+
+    def test_merge_flat_retry_kwargs_normalize_to_nested(self):
+        """Deprecated flat retry kwargs normalize into nested retry config."""
+        run_config = RunConfig(
+            retry=RetryConfig(max_retries=3, retry_delay=1.0, jitter_factor=0.1)
+        )
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {
+                "max_retries": 5,
+                "retry_delay": 2.0,
+                "jitter_factor": 0.3,
+                "retry_exceptions": ["ValueError"],
+            },
+        )
+
+        assert run_config.retry.max_retries == 5
+        assert run_config.retry.retry_delay == 2.0
+        assert run_config.retry.jitter_factor == 0.3
+        assert run_config.retry.retry_exceptions == [ValueError]
+
+    def test_merge_nested_retry_wins_over_flat_kwargs_in_same_layer(self):
+        """Nested retry in kwargs wins over flat retry fields in the same kwargs layer."""
+        run_config = RunConfig()
+
+        merge_run_config_with_kwargs(
+            run_config,
+            {
+                "retry": {
+                    "max_retries": 5,
+                    "retry_delay": 2.0,
+                    "retry_exceptions": ["TimeoutError"],
+                },
+                "max_retries": 3,
+                "retry_delay": 1.0,
+                "retry_exceptions": ["ValueError"],
+            },
+        )
+
+        assert run_config.retry.max_retries == 5
+        assert run_config.retry.retry_delay == 2.0
+        assert run_config.retry.retry_exceptions == [TimeoutError]
 
     def test_merge_retry_patch_preserves_existing_fields(self):
         run_config = RunConfig(retry=RetryConfig(max_retries=5, retry_delay=9.0, jitter_factor=0.3))
@@ -737,6 +841,39 @@ class TestRunConfigPersistence:
         assert run_section["retry"]["jitter_factor"] == 0.3
         assert run_section["retry"]["retry_exceptions"] == ["ValueError"]
 
+    def test_load_mixed_flat_and_nested_retry_uses_nested(self):
+        """When a YAML file contains both nested and flat retry fields, nested wins."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = filesystem(tmpdir, cached=False, dirfs=True)
+            pipeline_dir = Path(tmpdir) / "conf" / "pipelines"
+            pipeline_dir.mkdir(parents=True)
+
+            mixed_path = pipeline_dir / "mixed.yml"
+            with mixed_path.open("w") as fh:
+                yaml.safe_dump(
+                    {
+                        "run": {
+                            "retry": {
+                                "max_retries": 5,
+                                "retry_delay": 2.0,
+                                "jitter_factor": 0.3,
+                            },
+                            "max_retries": 3,
+                            "retry_delay": 1.0,
+                            "jitter_factor": 0.1,
+                        }
+                    },
+                    fh,
+                )
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                pipeline_cfg = PipelineConfig.load(base_dir=tmpdir, name="mixed", fs=fs)
+
+        assert pipeline_cfg.run.retry.max_retries == 5
+        assert pytest.approx(pipeline_cfg.run.retry.retry_delay) == 2.0
+        assert pytest.approx(pipeline_cfg.run.retry.jitter_factor) == 0.3
+
     def test_pipeline_load_migrates_deprecated_retry_fields(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = filesystem(tmpdir, cached=False, dirfs=True)
@@ -805,6 +942,120 @@ class TestRetryConfig:
         
         # Ensure no class representation artifacts
         assert not any("<class '" in exc for exc in result["retry_exceptions"])
+
+
+class TestExplicitNonePolicy:
+    """Test cases for issue #39: explicit None semantics through sync/async paths."""
+
+    def test_run_config_from_dict_tracks_explicit_none(self):
+        """Source-edge normalization should record explicit None values."""
+        run_config = RunConfig.from_dict({"async_driver": None})
+        assert "async_driver" in run_config.explicit_overrides
+
+    def test_pipeline_config_from_dict_preserves_explicit_run_none(self):
+        """Pipeline config loading should preserve explicit None in run section."""
+        pipeline_cfg = PipelineConfig.from_dict(
+            name="test", data={"run": {"async_driver": None}}
+        )
+        assert "async_driver" in pipeline_cfg.run.explicit_overrides
+
+    def test_merge_preserves_explicit_async_driver_none(self):
+        """Explicit async_driver=None should clear a previous True value."""
+        base = RunConfig(async_driver=True)
+        override = RunConfig.from_dict({"async_driver": None})
+        merged = merge_run_configs(base, override)
+        assert merged.async_driver is None
+
+    def test_merge_explicit_none_clears_structured_fields(self):
+        """Explicit None for structured clearable fields should clear base values."""
+        base = RunConfig(
+            adapter={"key": "value"},
+            pipeline_adapter_cfg={"enabled": True},
+            project_adapter_cfg={"enabled": True},
+            on_success=CallbackSpec(func=lambda: None),
+            on_failure=CallbackSpec(func=lambda: None),
+        )
+        override = RunConfig.from_dict(
+            {
+                "adapter": None,
+                "pipeline_adapter_cfg": None,
+                "project_adapter_cfg": None,
+                "on_success": None,
+                "on_failure": None,
+            }
+        )
+        merged = merge_run_configs(base, override)
+        assert merged.adapter is None
+        assert merged.pipeline_adapter_cfg is None
+        assert merged.project_adapter_cfg is None
+        assert merged.on_success is None
+        assert merged.on_failure is None
+
+    def test_merge_run_config_with_kwargs_clearable_none_clears(self):
+        """Clearable fields should reset to None when explicitly passed."""
+        run_config = RunConfig(
+            inputs={"x": 1},
+            config={"a": 1},
+            cache=True,
+            log_level="DEBUG",
+            reload=True,
+            additional_modules=["mod"],
+            adapter={"k": "v"},
+            async_driver=True,
+            final_vars=["out"],
+        )
+        merge_run_config_with_kwargs(
+            run_config,
+            {
+                "inputs": None,
+                "config": None,
+                "cache": None,
+                "log_level": None,
+                "reload": None,
+                "additional_modules": None,
+                "adapter": None,
+                "async_driver": None,
+                "final_vars": None,
+            },
+        )
+        assert run_config.inputs is None
+        assert run_config.config is None
+        assert run_config.cache is None
+        assert run_config.log_level is None
+        assert run_config.reload is None
+        assert run_config.additional_modules is None
+        assert run_config.adapter is None
+        assert run_config.async_driver is None
+        assert run_config.final_vars is None
+
+    def test_merge_run_config_with_kwargs_non_clearable_none_raises(self):
+        """Non-clearable fields should reject explicit None with field-specific errors."""
+        with pytest.raises(ValueError, match="executor_cfg cannot be set to None"):
+            merge_run_config_with_kwargs(RunConfig(), {"executor_cfg": None})
+        with pytest.raises(ValueError, match="with_adapter_cfg cannot be set to None"):
+            merge_run_config_with_kwargs(RunConfig(), {"with_adapter_cfg": None})
+        with pytest.raises(ValueError, match="retry cannot be set to None"):
+            merge_run_config_with_kwargs(RunConfig(), {"retry": None})
+
+    def test_validate_resolved_run_config_rejects_none_executor(self):
+        """Resolved config validation should reject a None executor."""
+        run_config = RunConfig(executor=None)
+        with pytest.raises(ValueError, match="RunConfig.executor cannot be None"):
+            validate_resolved_run_config(run_config)
+
+    def test_run_config_from_dict_rejects_retry_none(self):
+        """Non-clearable retry field should reject explicit None at source edge."""
+        with pytest.raises(ValueError, match="RunConfig.retry cannot be set to None"):
+            RunConfig.from_dict({"retry": None})
+
+    def test_builder_rejects_non_clearable_none(self):
+        """Builder methods for non-clearable fields should reject explicit None."""
+        with pytest.raises(ValueError, match="with_executor cannot be set to None"):
+            RunConfigBuilder().with_executor(None)
+        with pytest.raises(ValueError, match="with_with_adapter_cfg cannot be set to None"):
+            RunConfigBuilder().with_with_adapter_cfg(None)
+        with pytest.raises(ValueError, match="with_executor cannot be set to None"):
+            RunConfigBuilder().with_executor_cfg(None)
 
     def test_retry_config_to_dict_handles_string_exceptions(self):
         """Test that RetryConfig.to_dict() preserves known string exceptions as-is."""

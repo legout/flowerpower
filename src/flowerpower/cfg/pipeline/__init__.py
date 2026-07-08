@@ -122,6 +122,11 @@ class PipelineConfig(BaseConfig):
         if payload.get("params") is None:
             payload["params"] = {}
 
+        # Convert the nested run config explicitly so explicit None values are
+        # recorded in RunConfig.explicit_overrides and survive later merging.
+        if "run" in payload and isinstance(payload["run"], dict):
+            payload["run"] = RunConfig.from_dict(payload["run"])
+
         return msgspec.convert(payload, cls)
 
     @classmethod

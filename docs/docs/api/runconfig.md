@@ -56,6 +56,39 @@ RunConfig(
 
 !!! warning "Deprecated top-level retry fields"
     The top-level `max_retries`, `retry_delay`, `jitter_factor`, and `retry_exceptions` fields are deprecated and emit a `DeprecationWarning`. Use the nested `retry` block (`RetryConfig`) or the builder helpers instead.
+## Runtime precedence
+
+At execution time, precedence is:
+
+1. runtime kwargs and `RunConfig` fields,
+2. environment overlays,
+3. YAML configuration,
+4. global environment shims,
+5. struct defaults.
+
+Clearable fields honor explicit `None` from `RunConfig.from_dict(...)` and the
+fluent builder helpers; non-clearable fields reject `None`.
+
+### Canonical retry configuration
+
+Prefer the nested `retry` block for new code:
+
+```python
+from flowerpower.cfg.pipeline.run import RunConfig, RetryConfig
+
+cfg = RunConfig(
+    retry=RetryConfig(
+        max_retries=3,
+        retry_delay=1.0,
+        jitter_factor=0.1,
+    )
+)
+```
+
+The top-level `max_retries`, `retry_delay`, `jitter_factor`, and
+`retry_exceptions` fields remain for compatibility and emit a
+`DeprecationWarning`.
+
 
 ## Attributes
 

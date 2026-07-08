@@ -18,6 +18,38 @@ from ..cfg.pipeline.run import (
 from .security import validate_config_dict, validate_callback_function
 
 
+# Fields that accept ``None`` as an explicit reset to the unset state.
+_CLEARABLE_FIELDS = frozenset({
+    "inputs",
+    "config",
+    "final_vars",
+    "cache",
+    "log_level",
+    "reload",
+    "additional_modules",
+    "on_success",
+    "on_failure",
+    "adapter",
+    "async_driver",
+    "pipeline_adapter_cfg",
+    "project_adapter_cfg",
+})
+
+# Fields that must always be supplied with a non-None value when explicitly set.
+_NON_CLEARABLE_FIELDS = frozenset({
+    "executor",
+    "with_adapter",
+    "retry",
+})
+
+
+def _handler_attr_to_field(attr: str) -> str:
+    """Map merge-run-config kwarg names to the underlying RunConfig field name."""
+    return {"executor_cfg": "executor", "with_adapter_cfg": "with_adapter"}.get(
+        attr, attr
+    )
+
+
 def prefer_executor_override(
     base: ExecutorConfig, override: str | dict | ExecutorConfig | None
 ) -> ExecutorConfig:
@@ -132,7 +164,7 @@ def clone_run_config(run_config: RunConfig) -> RunConfig:
     )
     cloned.executor = _safe_copy(run_config.executor)
     cloned.executor_override_raw = _safe_copy(run_config.executor_override_raw)
-    cloned.retry = _safe_copy(run_config.retry)
+    cloned.retry = _normalize_retry_config(_safe_copy(run_config.retry))
     cloned.retry_override_raw = _safe_copy(run_config.retry_override_raw)
     cloned.pipeline_adapter_cfg = _safe_copy(run_config.pipeline_adapter_cfg)
     cloned.pipeline_adapter_cfg_override_raw = _safe_copy(
@@ -222,6 +254,19 @@ def _sync_retry_legacy_fields(run_config: RunConfig) -> None:
     run_config.retry_exceptions = list(run_config.retry.retry_exceptions)
 
 
+def _normalize_retry_config(retry_config: RetryConfig | None) -> RetryConfig | None:
+    """Return a normalized retry config with exception names converted."""
+    if retry_config is None:
+        return None
+
+    return RetryConfig(
+        max_retries=retry_config.max_retries,
+        retry_delay=retry_config.retry_delay,
+        jitter_factor=retry_config.jitter_factor,
+        retry_exceptions=list(retry_config.retry_exceptions),
+    )
+
+
 def _merge_struct_or_mapping(existing: Any, value: Any) -> Any:
     """Merge mapping/struct overrides onto an existing config value."""
     if isinstance(value, dict):
@@ -247,6 +292,10 @@ def _merge_struct_or_mapping(existing: Any, value: Any) -> Any:
 
 def _merge_inputs(run_config: RunConfig, value):
     """Merge inputs into run config."""
+    if value is None:
+        run_config.inputs = None
+        _mark_explicit_override(run_config, "inputs")
+        return
     validate_config_dict(value)
     if run_config.inputs is None:
         run_config.inputs = value
@@ -256,6 +305,10 @@ def _merge_inputs(run_config: RunConfig, value):
 
 def _merge_config(run_config: RunConfig, value):
     """Merge config into run config."""
+    if value is None:
+        run_config.config = None
+        _mark_explicit_override(run_config, "config")
+        return
     validate_config_dict(value)
     if run_config.config is None:
         run_config.config = value
@@ -266,10 +319,15 @@ def _merge_config(run_config: RunConfig, value):
 def _set_cache(run_config: RunConfig, value):
     """Set cache in run config."""
     run_config.cache = value
+    _mark_explicit_override(run_config, "cache")
 
 
 def _merge_adapter(run_config: RunConfig, value):
     """Merge adapter into run config."""
+    if value is None:
+        run_config.adapter = None
+        _mark_explicit_override(run_config, "adapter")
+        return
     if run_config.adapter is None:
         run_config.adapter = value
     else:
@@ -278,6 +336,10 @@ def _merge_adapter(run_config: RunConfig, value):
 
 def _set_executor_cfg(run_config: RunConfig, value):
     """Set executor config."""
+    if value is None:
+        raise ValueError(
+            "executor_cfg cannot be set to None; a valid executor configuration is required."
+        )
     if run_config.executor is None:
         run_config.executor = ExecutorConfig()
 
@@ -298,6 +360,10 @@ def _set_executor_cfg(run_config: RunConfig, value):
 
 def _set_with_adapter_cfg(run_config: RunConfig, value):
     """Set with adapter config."""
+    if value is None:
+        raise ValueError(
+            "with_adapter_cfg cannot be set to None; a valid with_adapter configuration is required."
+        )
     current = run_config.with_adapter or WithAdapterConfig()
     run_config.with_adapter = _merge_struct_or_mapping(current, value)
     _mark_explicit_override(run_config, "with_adapter")
@@ -305,6 +371,10 @@ def _set_with_adapter_cfg(run_config: RunConfig, value):
 
 def _set_pipeline_adapter_cfg(run_config: RunConfig, value):
     """Set pipeline adapter config."""
+    if value is None:
+        run_config.pipeline_adapter_cfg = None
+        _mark_explicit_override(run_config, "pipeline_adapter_cfg")
+        return
     run_config.pipeline_adapter_cfg = _merge_struct_or_mapping(
         run_config.pipeline_adapter_cfg, value
     )
@@ -313,6 +383,10 @@ def _set_pipeline_adapter_cfg(run_config: RunConfig, value):
 
 def _set_project_adapter_cfg(run_config: RunConfig, value):
     """Set project adapter config."""
+    if value is None:
+        run_config.project_adapter_cfg = None
+        _mark_explicit_override(run_config, "project_adapter_cfg")
+        return
     run_config.project_adapter_cfg = _merge_struct_or_mapping(
         run_config.project_adapter_cfg, value
     )
@@ -321,6 +395,10 @@ def _set_project_adapter_cfg(run_config: RunConfig, value):
 
 def _set_retry_cfg(run_config: RunConfig, value):
     """Set retry config (nested)."""
+    if value is None:
+        raise ValueError(
+            "retry cannot be set to None; a valid retry configuration is required."
+        )
     if run_config.retry is None:
         run_config.retry = RetryConfig()
 
@@ -346,6 +424,10 @@ def _set_async_driver(run_config: RunConfig, value):
 
 def _merge_additional_modules(run_config: RunConfig, value):
     """Merge additional modules while preserving order and removing duplicates."""
+    if value is None:
+        run_config.additional_modules = None
+        _mark_explicit_override(run_config, "additional_modules")
+        return
 
     def _normalise_modules(mods: Any) -> list:
         if mods is None:
@@ -409,12 +491,11 @@ def merge_run_config_with_kwargs(
     Returns:
         RunConfig: Updated RunConfig object
     """
-    # Handle complex attributes with specific logic
-    for attr, handler in _attr_handlers.items():
-        if attr in kwargs and (kwargs[attr] is not None or attr == "async_driver"):
-            handler(run_config, kwargs[attr])
-
-    # Handle simple attributes
+    # Handle simple attributes first, including deprecated flat retry fields.
+    # Normalizing flat retry fields into nested ``retry`` before the nested
+    # retry handler runs means that a nested ``retry`` value in the same kwargs
+    # layer wins over flat retry fields, while flat fields still fill any keys
+    # the nested block does not specify.
     simple_attrs = [
         "final_vars",
         "reload",
@@ -428,38 +509,86 @@ def merge_run_config_with_kwargs(
     ]
 
     for attr in simple_attrs:
-        if attr in kwargs and kwargs[attr] is not None:
-            value = kwargs[attr]
-            # Validate callbacks for security
-            if attr in ["on_success", "on_failure"]:
-                setattr(run_config, attr, _normalize_callback_spec(value))
+        if attr not in kwargs:
+            continue
+        value = kwargs[attr]
+        if value is None:
+            if attr in _CLEARABLE_FIELDS:
+                setattr(run_config, attr, None)
                 _mark_explicit_override(run_config, attr)
-            elif attr in [
-                "max_retries",
-                "retry_delay",
-                "jitter_factor",
-                "retry_exceptions",
-            ]:
-                # Map deprecated flat fields into nested retry configuration
-                if run_config.retry is None:
-                    run_config.retry = RetryConfig()
-                if attr == "max_retries" and value is not None:
-                    run_config.retry.max_retries = int(value)
-                elif attr == "retry_delay" and value is not None:
-                    run_config.retry.retry_delay = float(value)
-                elif attr == "jitter_factor":
-                    run_config.retry.jitter_factor = value
-                elif attr == "retry_exceptions" and value is not None:
-                    run_config.retry.retry_exceptions = (
-                        list(value) if isinstance(value, (list, tuple)) else [value]
-                    )
-                _sync_retry_legacy_fields(run_config)
-                _mark_explicit_override(run_config, "retry")
-            else:
-                setattr(run_config, attr, value)
-                _mark_explicit_override(run_config, attr)
+            continue
+        # Validate callbacks for security
+        if attr in ["on_success", "on_failure"]:
+            setattr(run_config, attr, _normalize_callback_spec(value))
+            _mark_explicit_override(run_config, attr)
+        elif attr in [
+            "max_retries",
+            "retry_delay",
+            "jitter_factor",
+            "retry_exceptions",
+        ]:
+            # Map deprecated flat fields into nested retry configuration
+            if run_config.retry is None:
+                run_config.retry = RetryConfig()
+            if attr == "max_retries":
+                run_config.retry.max_retries = int(value)
+            elif attr == "retry_delay":
+                run_config.retry.retry_delay = float(value)
+            elif attr == "jitter_factor":
+                run_config.retry.jitter_factor = value
+            elif attr == "retry_exceptions":
+                run_config.retry.retry_exceptions = (
+                    list(value) if isinstance(value, (list, tuple)) else [value]
+                )
+            _sync_retry_legacy_fields(run_config)
+            _mark_explicit_override(run_config, "retry")
+        else:
+            setattr(run_config, attr, value)
+            _mark_explicit_override(run_config, attr)
+
+    for attr in (
+        "inputs",
+        "config",
+        "cache",
+        "adapter",
+        "executor_cfg",
+        "with_adapter_cfg",
+        "pipeline_adapter_cfg",
+        "project_adapter_cfg",
+        "retry",
+        "additional_modules",
+        "async_driver",
+    ):
+        if attr in kwargs:
+            _attr_handlers[attr](run_config, kwargs[attr])
+
+    if run_config.retry is not None:
+        run_config.retry = _normalize_retry_config(run_config.retry)
+        _sync_retry_legacy_fields(run_config)
 
     return run_config
+
+
+def validate_resolved_run_config(run_config: RunConfig) -> None:
+    """Validate that non-clearable fields of a resolved RunConfig are not None.
+
+    This is a last-line guard before execution. Non-clearable fields must always
+    carry a valid configuration; explicit ``None`` values should have been caught
+    earlier during merge, but direct construction or mutation can leave them
+    unset. This function raises a field-specific error for each missing value.
+    """
+    if run_config.executor is None:
+        raise ValueError(
+            "RunConfig.executor cannot be None; a valid executor configuration is required."
+        )
+    if run_config.with_adapter is None:
+        raise ValueError(
+            "RunConfig.with_adapter cannot be None; a valid with_adapter configuration is required."
+        )
+    if run_config.retry is None:
+        raise ValueError(
+            "RunConfig.retry cannot be None; a valid retry configuration is required."
+        )
 
 
 def merge_run_configs(base: RunConfig, override: RunConfig | None) -> RunConfig:
@@ -509,6 +638,11 @@ def merge_run_configs(base: RunConfig, override: RunConfig | None) -> RunConfig:
         "reload",
         "async_driver",
         "additional_modules",
+        "adapter",
+        "pipeline_adapter_cfg",
+        "project_adapter_cfg",
+        "on_success",
+        "on_failure",
     ):
         if field in explicit_fields:
             setattr(merged, field, _safe_copy(getattr(override, field)))
@@ -521,6 +655,8 @@ def merge_run_configs(base: RunConfig, override: RunConfig | None) -> RunConfig:
 
     return merged
 
+
+_UNSET = object()
 
 class RunConfigBuilder:
     """Builder pattern for constructing RunConfig objects with fluent interface."""
@@ -566,12 +702,15 @@ class RunConfigBuilder:
 
     def with_adapter(self, adapter: dict[str, Any] | None) -> "RunConfigBuilder":
         """Set adapter configuration."""
-        if adapter is not None:
-            if self.config.adapter is None:
-                self.config.adapter = dict(adapter)
-            else:
-                self.config.adapter.update(adapter)
+        if adapter is None:
+            self.config.adapter = None
             _mark_explicit_override(self.config, "adapter")
+            return self
+        if self.config.adapter is None:
+            self.config.adapter = dict(adapter)
+        else:
+            self.config.adapter.update(adapter)
+        _mark_explicit_override(self.config, "adapter")
         return self
 
     def with_async_driver(self, enabled: bool | None) -> "RunConfigBuilder":
@@ -618,16 +757,19 @@ class RunConfigBuilder:
         self, executor_cfg: str | dict[str, Any] | ExecutorConfig | None
     ) -> "RunConfigBuilder":
         """Set executor configuration."""
-        if executor_cfg is not None:
-            if isinstance(executor_cfg, ExecutorConfig):
-                self.config.executor = _safe_copy(executor_cfg)
-                self.config.executor_override_raw = executor_cfg.to_dict()
-                _mark_explicit_override(self.config, "executor")
-            else:
-                merge_run_config_with_kwargs(
-                    self.config,
-                    {"executor_cfg": executor_cfg},
-                )
+        if executor_cfg is None:
+            raise ValueError(
+                "with_executor cannot be set to None; a valid executor configuration is required."
+            )
+        if isinstance(executor_cfg, ExecutorConfig):
+            self.config.executor = _safe_copy(executor_cfg)
+            self.config.executor_override_raw = executor_cfg.to_dict()
+            _mark_explicit_override(self.config, "executor")
+        else:
+            merge_run_config_with_kwargs(
+                self.config,
+                {"executor_cfg": executor_cfg},
+            )
         return self
 
     def with_retry_config(
@@ -685,14 +827,22 @@ class RunConfigBuilder:
         return self
 
     def with_callbacks(
-        self, on_success: Any | None = None, on_failure: Any | None = None
+        self, on_success: Any | object = _UNSET, on_failure: Any | object = _UNSET
     ) -> "RunConfigBuilder":
         """Set callback configurations."""
-        if on_success is not None:
-            self.config.on_success = _normalize_callback_spec(on_success)
+        if on_success is not _UNSET:
+            self.config.on_success = (
+                None
+                if on_success is None
+                else _normalize_callback_spec(on_success)
+            )
             _mark_explicit_override(self.config, "on_success")
-        if on_failure is not None:
-            self.config.on_failure = _normalize_callback_spec(on_failure)
+        if on_failure is not _UNSET:
+            self.config.on_failure = (
+                None
+                if on_failure is None
+                else _normalize_callback_spec(on_failure)
+            )
             _mark_explicit_override(self.config, "on_failure")
         return self
 
@@ -714,56 +864,65 @@ class RunConfigBuilder:
         self, with_adapter_cfg: dict[str, Any] | WithAdapterConfig | None
     ) -> "RunConfigBuilder":
         """Set with_adapter configuration."""
-        if with_adapter_cfg is not None:
-            if isinstance(with_adapter_cfg, WithAdapterConfig):
-                self.config.with_adapter = _safe_copy(with_adapter_cfg)
-                self.config.with_adapter_override_raw = with_adapter_cfg.to_dict()
-            else:
-                merge_run_config_with_kwargs(
-                    self.config,
-                    {"with_adapter_cfg": with_adapter_cfg},
-                )
-                self.config.with_adapter_override_raw = dict(with_adapter_cfg)
+        if with_adapter_cfg is None:
+            raise ValueError(
+                "with_with_adapter_cfg cannot be set to None; a valid with_adapter configuration is required."
+            )
+        if isinstance(with_adapter_cfg, WithAdapterConfig):
+            self.config.with_adapter = _safe_copy(with_adapter_cfg)
+            self.config.with_adapter_override_raw = with_adapter_cfg.to_dict()
+        else:
+            merge_run_config_with_kwargs(
+                self.config,
+                {"with_adapter_cfg": with_adapter_cfg},
+            )
+            self.config.with_adapter_override_raw = dict(with_adapter_cfg)
         return self
 
     def with_pipeline_adapter_cfg(
         self, pipeline_adapter_cfg: Any | None
     ) -> "RunConfigBuilder":
         """Set pipeline adapter configuration."""
-        if pipeline_adapter_cfg is not None:
-            if hasattr(pipeline_adapter_cfg, "to_dict"):
-                self.config.pipeline_adapter_cfg = _safe_copy(pipeline_adapter_cfg)
-                self.config.pipeline_adapter_cfg_override_raw = (
-                    pipeline_adapter_cfg.to_dict()
-                )
-            else:
-                merge_run_config_with_kwargs(
-                    self.config,
-                    {"pipeline_adapter_cfg": pipeline_adapter_cfg},
-                )
-                self.config.pipeline_adapter_cfg_override_raw = dict(
-                    pipeline_adapter_cfg
-                )
+        if pipeline_adapter_cfg is None:
+            self.config.pipeline_adapter_cfg = None
+            self.config.pipeline_adapter_cfg_override_raw = None
+            _mark_explicit_override(self.config, "pipeline_adapter_cfg")
+            return self
+        if hasattr(pipeline_adapter_cfg, "to_dict"):
+            self.config.pipeline_adapter_cfg = _safe_copy(pipeline_adapter_cfg)
+            self.config.pipeline_adapter_cfg_override_raw = (
+                pipeline_adapter_cfg.to_dict()
+            )
+        else:
+            merge_run_config_with_kwargs(
+                self.config,
+                {"pipeline_adapter_cfg": pipeline_adapter_cfg},
+            )
+            self.config.pipeline_adapter_cfg_override_raw = dict(pipeline_adapter_cfg)
+        _mark_explicit_override(self.config, "pipeline_adapter_cfg")
         return self
 
     def with_project_adapter_cfg(
         self, project_adapter_cfg: Any | None
     ) -> "RunConfigBuilder":
         """Set project adapter configuration."""
-        if project_adapter_cfg is not None:
-            if hasattr(project_adapter_cfg, "to_dict"):
-                self.config.project_adapter_cfg = _safe_copy(project_adapter_cfg)
-                self.config.project_adapter_cfg_override_raw = (
-                    project_adapter_cfg.to_dict()
-                )
-            else:
-                merge_run_config_with_kwargs(
-                    self.config,
-                    {"project_adapter_cfg": project_adapter_cfg},
-                )
-                self.config.project_adapter_cfg_override_raw = dict(
-                    project_adapter_cfg
-                )
+        if project_adapter_cfg is None:
+            self.config.project_adapter_cfg = None
+            self.config.project_adapter_cfg_override_raw = None
+            _mark_explicit_override(self.config, "project_adapter_cfg")
+            return self
+        if hasattr(project_adapter_cfg, "to_dict"):
+            self.config.project_adapter_cfg = _safe_copy(project_adapter_cfg)
+            self.config.project_adapter_cfg_override_raw = (
+                project_adapter_cfg.to_dict()
+            )
+        else:
+            merge_run_config_with_kwargs(
+                self.config,
+                {"project_adapter_cfg": project_adapter_cfg},
+            )
+            self.config.project_adapter_cfg_override_raw = dict(project_adapter_cfg)
+        _mark_explicit_override(self.config, "project_adapter_cfg")
         return self
 
     def with_reload(self, reload: bool | None) -> "RunConfigBuilder":
@@ -797,16 +956,18 @@ class RunConfigBuilder:
 
     def with_on_success(self, on_success: Any | None) -> "RunConfigBuilder":
         """Set on_success callback."""
-        if on_success is not None:
-            self.config.on_success = _normalize_callback_spec(on_success)
-            _mark_explicit_override(self.config, "on_success")
+        self.config.on_success = (
+            None if on_success is None else _normalize_callback_spec(on_success)
+        )
+        _mark_explicit_override(self.config, "on_success")
         return self
 
     def with_on_failure(self, on_failure: Any | None) -> "RunConfigBuilder":
         """Set on_failure callback."""
-        if on_failure is not None:
-            self.config.on_failure = _normalize_callback_spec(on_failure)
-            _mark_explicit_override(self.config, "on_failure")
+        self.config.on_failure = (
+            None if on_failure is None else _normalize_callback_spec(on_failure)
+        )
+        _mark_explicit_override(self.config, "on_failure")
         return self
 
     def reset(self) -> "RunConfigBuilder":

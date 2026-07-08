@@ -1,3 +1,4 @@
+import types
 from unittest.mock import MagicMock, Mock, patch
 
 from flowerpower.cfg.pipeline import PipelineConfig
@@ -7,9 +8,14 @@ from flowerpower.cfg.pipeline.run import (
     ExecutorConfig,
     RetryConfig,
     RunConfig,
+    WithAdapterConfig,
 )
-from flowerpower.pipeline.execution_context import ExecutionContextBuilder
+from flowerpower.pipeline.execution_context import (
+    ExecutionContextBuilder,
+    resolve_run_config_adapter_configs,
+)
 from flowerpower.pipeline.executor import PipelineExecutor
+from flowerpower.pipeline.pipeline import Pipeline
 from flowerpower.utils.adapter import AdapterManager
 from flowerpower.utils.config import RunConfigBuilder
 
@@ -91,7 +97,7 @@ def test_executor_run_does_not_mutate_pipeline_defaults():
     config_manager.load_pipeline_config.return_value = pipeline_cfg
 
     pipeline = MagicMock()
-    pipeline.run.return_value = {"ok": True}
+    pipeline._run_resolved.return_value = {"ok": True}
     registry = MagicMock()
     registry.get_pipeline.return_value = pipeline
 
@@ -101,7 +107,7 @@ def test_executor_run_does_not_mutate_pipeline_defaults():
 
     assert result == {"ok": True}
     assert pipeline_cfg.run.inputs == {}
-    passed_run_config = pipeline.run.call_args.kwargs["run_config"]
+    passed_run_config = pipeline._run_resolved.call_args.kwargs["run_config"]
     assert passed_run_config.inputs == {"x": 1}
 
 
@@ -111,7 +117,7 @@ def test_executor_forwards_reload_flag_to_registry():
     config_manager.load_pipeline_config.return_value = pipeline_cfg
 
     pipeline = MagicMock()
-    pipeline.run.return_value = {"ok": True}
+    pipeline._run_resolved.return_value = {"ok": True}
     registry = MagicMock()
     registry.get_pipeline.return_value = pipeline
 
@@ -121,6 +127,158 @@ def test_executor_forwards_reload_flag_to_registry():
 
     registry.get_pipeline.assert_called_once()
     assert registry.get_pipeline.call_args.kwargs["reload"] is True
+
+
+def test_executor_run_uses_resolved_seam_and_preserves_settings():
+    """PipelineExecutor.run resolves once and uses the resolved-only seam.
+
+    After merging pipeline defaults, runtime RunConfig, and legacy kwargs, the
+    executor must hand the runner a single resolved RunConfig and must not
+    re-enter the public Pipeline.run path.
+    """
+    pipeline_config = PipelineConfig(
+        name="pipe",
+        run=RunConfig(
+            inputs={"x": 1, "y": 2},
+            final_vars=["base"],
+            config={"base": "value"},
+            executor=ExecutorConfig(type="synchronous"),
+            retry=RetryConfig(max_retries=5, retry_delay=0.1),
+        ),
+    )
+    config_manager = MagicMock()
+    config_manager.load_pipeline_config.return_value = pipeline_config
+
+    module = types.ModuleType("pipe_module")
+
+    def node() -> int:
+        return 42
+
+    module.node = node
+
+    pipeline = Pipeline(
+        name="pipe",
+        config=pipeline_config,
+        module=module,
+        project_context=MagicMock(),
+    )
+    registry = MagicMock()
+    registry.get_pipeline.return_value = pipeline
+
+    executor = PipelineExecutor(config_manager=config_manager, registry=registry)
+
+    caller_config = RunConfig(inputs={"x": 10}, final_vars=["override"])
+    original_inputs = dict(caller_config.inputs)
+
+    with patch("flowerpower.pipeline.pipeline.PipelineRunner") as runner_cls, patch(
+        "flowerpower.pipeline.pipeline.Pipeline.run"
+    ) as mock_public_run:
+        runner_instance = runner_cls.return_value
+        runner_instance.run.return_value = {"resolved": "ok"}
+
+        result = executor.run(
+            name="pipe",
+            run_config=caller_config,
+            config={"extra": "value"},
+            log_level="DEBUG",
+        )
+
+        mock_public_run.assert_not_called()
+        runner_instance.run.assert_called_once()
+        args, kwargs = runner_instance.run.call_args
+        assert set(kwargs.keys()) == {"run_config"}
+        passed = kwargs["run_config"]
+        assert isinstance(passed, RunConfig)
+        assert passed.inputs == {"x": 10, "y": 2}
+        assert passed.final_vars == ["override"]
+        assert passed.config == {"base": "value", "extra": "value"}
+        assert passed.executor.type == "synchronous"
+        assert passed.retry.max_retries == 5
+        assert passed.retry.retry_delay == 0.1
+        assert passed.log_level == "DEBUG"
+        assert caller_config.inputs == original_inputs
+        assert result == {"resolved": "ok"}
+
+
+def test_execution_context_builder_uses_resolved_run_config_for_executor_and_adapters():
+    """Runtime construction consumes the resolved RunConfig values.
+
+    The builder must not fall back to pipeline_config.run defaults to decide
+    executor or adapter precedence.
+    """
+    executor_factory = MagicMock()
+    executor_factory.create_executor.return_value = MagicMock(name="executor")
+    adapter_manager = MagicMock()
+    adapter_manager.create_adapters.return_value = []
+
+    # Pipeline run defaults that the builder must ignore
+    pipeline_run = RunConfig(
+        executor=ExecutorConfig(type="local", max_workers=1, num_cpus=1),
+        with_adapter=WithAdapterConfig(hamilton_tracker=True, mlflow=True),
+    )
+    pipeline_config = MagicMock(run=pipeline_run)
+    pipeline_config.adapter = AdapterConfig(
+        hamilton_tracker={"project_id": 999, "tags": {"env": "prod"}}
+    )
+
+    # Resolved RunConfig that the builder must consume
+    run_config = RunConfig(
+        executor=ExecutorConfig(type="threadpool", max_workers=4, num_cpus=2),
+        with_adapter=WithAdapterConfig(hamilton_tracker=False, mlflow=False),
+        pipeline_adapter_cfg=AdapterConfig(hamilton_tracker={"project_id": 123}),
+    )
+
+    builder = ExecutionContextBuilder(
+        executor_factory=executor_factory,
+        adapter_manager=adapter_manager,
+        pipeline_config=pipeline_config,
+        project_context=MagicMock(),
+    )
+    builder.build(run_config)
+
+    # Executor is built from the resolved RunConfig, not pipeline defaults
+    executor_factory.create_executor.assert_called_once()
+    passed_executor_cfg = executor_factory.create_executor.call_args[0][0]
+    assert passed_executor_cfg.type == "threadpool"
+    assert passed_executor_cfg.max_workers == 4
+    assert passed_executor_cfg.num_cpus == 2
+
+    # Adapter settings are built from the resolved RunConfig, not pipeline defaults
+    adapter_manager.create_adapters.assert_called_once()
+    with_adapter_cfg, pipeline_adapter_cfg, _ = adapter_manager.create_adapters.call_args[0]
+    assert with_adapter_cfg.hamilton_tracker is False
+    assert with_adapter_cfg.mlflow is False
+    assert pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+
+
+def test_executor_run_resolves_pipeline_adapter_config_into_run_config():
+    """PipelineExecutor folds pipeline adapter defaults into the resolved RunConfig."""
+    pipeline_config = PipelineConfig(
+        name="pipe",
+        adapter=AdapterConfig(hamilton_tracker={"project_id": 999}),
+        run=RunConfig(),
+    )
+    config_manager = MagicMock()
+    config_manager.load_pipeline_config.return_value = pipeline_config
+
+    pipeline = MagicMock()
+    pipeline._run_resolved.return_value = {"ok": True}
+    registry = MagicMock()
+    registry.get_pipeline.return_value = pipeline
+
+    executor = PipelineExecutor(config_manager=config_manager, registry=registry)
+
+    result = executor.run(
+        name="pipe",
+        run_config=RunConfig(
+            pipeline_adapter_cfg=AdapterConfig(hamilton_tracker={"tags": {"env": "prod"}})
+        ),
+    )
+
+    passed_run_config = pipeline._run_resolved.call_args.kwargs["run_config"]
+    assert passed_run_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 999
+    assert passed_run_config.pipeline_adapter_cfg.hamilton_tracker.tags == {"env": "prod"}
+    assert result == {"ok": True}
 
 
 def test_execution_context_builder_finds_project_config_via_pipeline_manager():

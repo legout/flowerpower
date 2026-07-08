@@ -109,8 +109,7 @@ flowerpower pipeline run hello --with-adapter '{"hamilton_tracker": true}'
 ```
 
 !!! warning
-    `--max-retries`, `--retry-delay`, and `--jitter-factor` are deprecated and emit a `DeprecationWarning`. For production retry logic, build a `RunConfig` in Python and use the nested `retry` block (see the API reference).
-
+    `--max-retries`, `--retry-delay`, and `--jitter-factor` are deprecated and emit a `DeprecationWarning`. The CLI parses them into a partial `RunConfig` at the edge, and the values normalize into nested `retry` settings before resolution. For production retry logic, build a `RunConfig` in Python and use the nested `retry` block (see the API reference).
 !!! tip
     The adapter key is `hamilton_tracker`, not `tracker`. The `opentelemetry` adapter has been removed.
 

@@ -303,6 +303,24 @@ class RunConfig(BaseConfig):
             data.pop("async_driver", None)
         return data
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "RunConfig":
+        """Convert a dictionary to a ``RunConfig`` while preserving explicit ``None``.
+
+        Source-edge normalization records which keys were explicitly provided so
+        that ``None`` values survive later merging instead of being treated as
+        missing fields.
+        """
+        if "retry" in data and data["retry"] is None:
+            raise ValueError(
+                "RunConfig.retry cannot be set to None; a valid retry configuration is required."
+            )
+        explicit = list(data.keys())
+        instance = super().from_dict(data)
+        existing = list(instance.explicit_overrides or [])
+        instance.explicit_overrides = list(dict.fromkeys(existing + explicit))
+        return instance
+
     def __post_init__(self):
         legacy_overrides: dict[str, Any] = {}
         for field, default_value in _LEGACY_RETRY_DEFAULTS.items():

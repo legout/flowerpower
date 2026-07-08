@@ -3,8 +3,13 @@
 from typing import TYPE_CHECKING, Any
 
 from ..cfg.pipeline.run import RunConfig
-from ..utils.config import merge_run_config_with_kwargs, merge_run_configs
+from ..utils.config import (
+    merge_run_config_with_kwargs,
+    merge_run_configs,
+    validate_resolved_run_config,
+)
 from ..utils.logging import setup_logging
+from .execution_context import resolve_run_config_adapter_configs
 
 if TYPE_CHECKING:
     from .config_manager import PipelineConfigManager
@@ -72,6 +77,15 @@ class PipelineExecutor:
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
+        # Fold pipeline and project adapter defaults into the resolved RunConfig
+        # so runtime object construction consumes the resolved values only.
+        run_config = resolve_run_config_adapter_configs(
+            run_config, pipeline_config, self._project_context
+        )
+
+        # Guard against non-clearable fields that were left unset.
+        validate_resolved_run_config(run_config)
+
         # Set up logging for this specific run if log_level is provided
         if run_config.log_level is not None:
             setup_logging(level=run_config.log_level)
@@ -83,8 +97,9 @@ class PipelineExecutor:
             reload=run_config.reload,
         )
 
-        # Execute the pipeline
-        return pipeline.run(run_config=run_config)
+        # Execute the pipeline through the resolved-only seam so the public
+        # Pipeline.run path is not re-entered after the config is resolved here.
+        return pipeline._run_resolved(run_config=run_config)
 
     async def run_async(
         self, name: str, run_config: RunConfig | None = None, **kwargs
@@ -115,6 +130,15 @@ class PipelineExecutor:
         # Merge kwargs into run_config
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
+
+        # Fold pipeline and project adapter defaults into the resolved RunConfig
+        # so runtime object construction consumes the resolved values only.
+        run_config = resolve_run_config_adapter_configs(
+            run_config, pipeline_config, self._project_context
+        )
+
+        # Guard against non-clearable fields that were left unset.
+        validate_resolved_run_config(run_config)
 
         # Set up logging for this specific run if log_level is provided
         if run_config.log_level is not None:

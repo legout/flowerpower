@@ -66,7 +66,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "success"}
+        mock_pipeline._run_resolved.return_value = {"result": "success"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -93,8 +93,8 @@ class TestPipelineManager(unittest.TestCase):
                 reload=run_config.reload
             )
             
-            # Verify pipeline.run was called with RunConfig
-            mock_pipeline.run.assert_called_once_with(run_config=run_config)
+            # Verify pipeline._run_resolved was called with RunConfig
+            mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
             
             # Verify result
             self.assertEqual(result, {"result": "success"})
@@ -124,7 +124,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "builder_success"}
+        mock_pipeline._run_resolved.return_value = {"result": "builder_success"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -153,8 +153,8 @@ class TestPipelineManager(unittest.TestCase):
                 reload=run_config.reload
             )
             
-            # Verify pipeline.run was called with RunConfig
-            mock_pipeline.run.assert_called_once_with(run_config=run_config)
+            # Verify pipeline._run_resolved was called with RunConfig
+            mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
             
             # Verify result
             self.assertEqual(result, {"result": "builder_success"})
@@ -183,7 +183,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "backward_compat"}
+        mock_pipeline._run_resolved.return_value = {"result": "backward_compat"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -202,7 +202,7 @@ class TestPipelineManager(unittest.TestCase):
                 )
             
             # Reset mock to track next call
-            mock_pipeline.run.reset_mock()
+            mock_pipeline._run_resolved.reset_mock()
             
             # Test with RunConfig (new way)
             run_config = RunConfig(
@@ -213,8 +213,8 @@ class TestPipelineManager(unittest.TestCase):
             )
             result2 = manager.run("test_pipeline", run_config=run_config)
             
-            # Both should have called pipeline.run
-            self.assertEqual(mock_pipeline.run.call_count, 2)
+            # Both should have called pipeline._run_resolved
+            self.assertEqual(mock_pipeline._run_resolved.call_count, 2)
             
             # Both should return dict results
             self.assertIsInstance(result1, dict)
@@ -244,7 +244,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "mixed_params"}
+        mock_pipeline._run_resolved.return_value = {"result": "mixed_params"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -269,8 +269,8 @@ class TestPipelineManager(unittest.TestCase):
                     run_config=run_config
                 )
             
-            # Verify pipeline.run was called with RunConfig values
-            mock_pipeline.run.assert_called_once_with(run_config=run_config)
+            # Verify pipeline._run_resolved was called with RunConfig values
+            mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
             
             # Verify RunConfig was not modified
             self.assertEqual(run_config.inputs, {"x": 5, "y": 5})
@@ -309,7 +309,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "logging_test"}
+        mock_pipeline._run_resolved.return_value = {"result": "logging_test"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -352,7 +352,7 @@ class TestPipelineManager(unittest.TestCase):
         
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
-        mock_pipeline.run.return_value = {"result": "reload_test"}
+        mock_pipeline._run_resolved.return_value = {"result": "reload_test"}
         mock_registry.get_pipeline.return_value = mock_pipeline
         
         # Create manager
@@ -376,6 +376,101 @@ class TestPipelineManager(unittest.TestCase):
             
         except Exception as e:
             print(f"PipelineManager reload parameter test failed (expected in test environment): {e}")
+
+    @patch('flowerpower.pipeline.manager.filesystem')
+    @patch('flowerpower.pipeline.manager.PipelineConfigManager')
+    @patch('flowerpower.pipeline.manager.PipelineRegistry')
+    def test_manager_run_uses_resolved_seam_and_preserves_settings(
+        self, mock_registry_class, mock_config_manager_class, mock_filesystem
+    ):
+        """Name-based sync execution resolves once and uses the resolved-only seam.
+
+        The public Pipeline.run path should not be re-entered after the config is
+        resolved in PipelineExecutor.run; the runner should receive a RunConfig
+        that is equivalent to resolving pipeline defaults, runtime overrides, and
+        legacy kwargs once.
+        """
+        # Setup mock filesystem
+        mock_fs = MagicMock()
+        mock_filesystem.return_value = mock_fs
+        mock_fs.makedirs.return_value = None
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
+        mock_fs.open.return_value.__enter__.return_value = mock_file
+        mock_fs.exists.return_value = True
+
+        # Setup mock config manager to return a pipeline config with defaults
+        mock_config_manager = MagicMock()
+        mock_config_manager_class.return_value = mock_config_manager
+
+        # Setup mock registry
+        mock_registry = MagicMock()
+        mock_registry_class.return_value = mock_registry
+
+        # Build a pipeline with non-trivial defaults
+        pipeline_config = PipelineConfig(
+            name="test_pipeline",
+            run=RunConfig(
+                inputs={"x": 1, "y": 2},
+                final_vars=["base"],
+                config={"base": "value"},
+                executor=ExecutorConfig(type="synchronous"),
+                retry=RetryConfig(max_retries=5, retry_delay=0.1),
+            ),
+        )
+        mock_config_manager.load_pipeline_config.return_value = pipeline_config
+        pipeline = Pipeline(
+            name="test_pipeline",
+            config=pipeline_config,
+            module=self.mock_module,
+            project_context=MagicMock(),
+        )
+        mock_registry.get_pipeline.return_value = pipeline
+
+        manager = PipelineManager(base_dir="/test/base")
+
+        caller_config = RunConfig(
+            inputs={"x": 10},
+            final_vars=["override"],
+        )
+        original_inputs = dict(caller_config.inputs)
+
+        with patch("flowerpower.pipeline.pipeline.PipelineRunner") as runner_cls, patch(
+            "flowerpower.pipeline.pipeline.Pipeline.run"
+        ) as mock_public_run:
+            runner_instance = runner_cls.return_value
+            runner_instance.run.return_value = {"resolved": "ok"}
+
+            result = manager.run(
+                "test_pipeline",
+                run_config=caller_config,
+                config={"extra": "value"},
+                log_level="DEBUG",
+            )
+
+            # Guardrail: public Pipeline.run must not be re-entered after resolution
+            mock_public_run.assert_not_called()
+
+            # The resolved-only seam must hand the runner a single resolved config
+            runner_instance.run.assert_called_once()
+            args, kwargs = runner_instance.run.call_args
+            self.assertEqual(set(kwargs.keys()), {"run_config"})
+            passed = kwargs["run_config"]
+            self.assertIsInstance(passed, RunConfig)
+
+            # Defaults, runtime overrides, and kwargs merged once
+            self.assertEqual(passed.inputs, {"x": 10, "y": 2})
+            self.assertEqual(passed.final_vars, ["override"])
+            self.assertEqual(passed.config, {"base": "value", "extra": "value"})
+            self.assertEqual(passed.executor.type, "synchronous")
+            self.assertEqual(passed.retry.max_retries, 5)
+            self.assertEqual(passed.retry.retry_delay, 0.1)
+            self.assertEqual(passed.log_level, "DEBUG")
+
+            # Caller RunConfig must not be mutated (clone-on-write)
+            self.assertEqual(caller_config.inputs, original_inputs)
+
+            self.assertEqual(result, {"resolved": "ok"})
 
 def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
     fs = MagicMock()
