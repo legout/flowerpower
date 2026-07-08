@@ -474,8 +474,9 @@ class PipelineRegistry:
         to: str | None = None,
         function_name: str | None = None,
     ):
-        """
-        Add a hook to the pipeline module.
+        """Add a hook to the pipeline module.
+
+        Hook management remains on the facade for source compatibility.
 
         Args:
             name (str): The name of the pipeline

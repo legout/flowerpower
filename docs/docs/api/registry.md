@@ -2,7 +2,16 @@
 
 **Module:** `flowerpower.pipeline.registry.PipelineRegistry`
 
-The registry manages pipeline discovery, creation, deletion, summaries, and hooks.
+The registry is a **compatibility facade** that delegates to three internal modules while preserving the historical public surface:
+
+- [`PipelineCatalog`](#internal-ownership) — pipeline discovery, name derivation, listing, metadata, and presentation-free summary payloads.
+- [`PipelineLoader`](#internal-ownership) — config/module loading, `Pipeline` construction, and cache/reload invalidation.
+- `PipelineModuleResolver` — shared import-name normalization (package-root fallback, hyphens, reload policy).
+
+Callers continue to use `PipelineRegistry` methods unchanged. The split only clarifies internal ownership for maintainers.
+
+!!! note "Maintainer surface"
+    The catalog, loader, and resolver are internal modules. They are not part of the public API and may change between minor versions. Use `PipelineRegistry` for all external access.
 
 ## Initialization
 
@@ -191,3 +200,23 @@ manager.registry.clear_cache()  # clear all
 | `pipelines` | `list[str]` | Names of all discovered pipelines. |
 | `summary` | `dict` | Full summary of all pipelines. |
 | `project_cfg` | `ProjectConfig` | Current project configuration. |
+
+## Internal ownership
+
+The registry does not implement discovery, loading, or caching itself. It composes three narrower modules and delegates every public method to them. This table maps each responsibility to its owner so maintainers know where to make changes.
+
+| Responsibility | Owner | Registry facade method |
+|:---------------|:------|:----------------------|
+| Pipeline file discovery, name derivation | `PipelineCatalog` | `list_pipelines`, `pipelines` |
+| Listing & metadata payloads | `PipelineCatalog` | `list_pipeline_info`, `show_pipelines` |
+| Presentation-free summary assembly | `PipelineCatalog` | `get_summary`, `summary` |
+| Config & module loading, cache invalidation | `PipelineLoader` | `load_config`, `load_module`, `clear_cache` |
+| `Pipeline` instance construction | `PipelineLoader` | `get_pipeline` |
+| Project config sync | `PipelineLoader` | `project_cfg` (delegated) |
+| Import-name normalization | `PipelineModuleResolver` | (used by loader) |
+| Rich rendering | `PipelinePresenter` | `show_summary`, `show_pipelines` |
+| Lifecycle (create/delete) & hooks | `PipelineRegistry` (kept on facade) | `new`, `delete`, `add_hook` |
+
+### Compatibility lifecycle shims
+
+`new`, `delete`, `create_pipeline`, and `delete_pipeline` are backward-compatible shims preserved on the facade. They delegate to `PipelineCreator`. `create_pipeline` aliases `new`, and `delete_pipeline` aliases `delete`. Prefer `manager.creator.create_pipeline(...)` in new code.

@@ -19,7 +19,11 @@ You still write Hamilton functions. FlowerPower discovers them, wires them into 
 graph TD
     A[FlowerPowerProject] -->|owns| B(PipelineManager)
     B -->|manages| C[PipelineConfigManager]
-    B -->|discovers/creates| D[PipelineRegistry / PipelineCreator]
+    B -->|discovers/creates| D[PipelineRegistry]
+    D -->|facade| D1[PipelineCatalog]
+    D -->|facade| D2[PipelineLoader]
+    D -->|facade| D3[PipelineModuleResolver]
+    B -->|creates| D4[PipelineCreator]
     B -->|executes| E[PipelineExecutor]
     B -->|visualizes| F[PipelineVisualizer]
     B -->|imports/exports| G[PipelineIOManager]
@@ -31,12 +35,14 @@ graph TD
     J -->|uses| M[Telemetry / Logging helpers]
     K -->|creates| N[Hamilton Executor]
     K -->|resolves| O[Adapters]
-
-    subgraph FlowerPower
         A
         B
         C
         D
+        D1
+        D2
+        D3
+        D4
         E
         F
         G
@@ -79,6 +85,16 @@ The operational hub. It is initialized with a base directory and an optional fss
 | `summary` | Dictionary summarizing the project pipelines. |
 
 The manager does not run the DAG directly; it delegates to a `Pipeline` instance, which owns a `PipelineRunner`.
+
+### `PipelineRegistry` — facade over catalog, loader, and resolver
+
+`PipelineRegistry` is a compatibility facade. It composes three internal modules so that discovery, loading, and caching concerns each have a single owner:
+
+- **`PipelineCatalog`** — pipeline file discovery, canonical name derivation (including nested modules and stored YAML names), listing, metadata payloads, and presentation-free summary assembly.
+- **`PipelineLoader`** — config and module loading via `PipelineConfigManager` + `PipelineModuleResolver`, `Pipeline` instance construction, and cache/reload invalidation.
+- **`PipelineModuleResolver`** — the single shared import policy: package-root fallback, hyphen-to-underscore handling, candidate generation, de-duplication, and reload. The runner and visualizer use the same resolver so import behavior is decided once.
+
+The public methods (`list_pipelines`, `get_summary`, `load_config`, `load_module`, `get_pipeline`, `clear_cache`, `new`/`delete` aliases, `add_hook`) remain source-compatible and delegate to these modules. See [ADR 0002](adr/0002-split-pipeline-registry-into-catalog-loader-and-module-resolver.md) for the decision record.
 
 ## Execution runtime stack
 

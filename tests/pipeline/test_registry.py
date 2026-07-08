@@ -659,3 +659,115 @@ class TestPipelineRegistry:
                 type=HookType.MQTT_BUILD_CONFIG,
                 to="../escape.py",
             )
+
+
+class TestRegistryFacadeComposition:
+    """Regression tests: PipelineRegistry composes catalog + loader + resolver
+    and delegates every public method to the right owner (#48)."""
+
+    def test_facade_instantiates_catalog_loader_resolver(self, registry):
+        from flowerpower.pipeline.catalog import PipelineCatalog
+        from flowerpower.pipeline.loader import PipelineLoader
+        from flowerpower.pipeline.module_resolver import PipelineModuleResolver
+
+        assert isinstance(registry._catalog, PipelineCatalog)
+        assert isinstance(registry._loader, PipelineLoader)
+        assert isinstance(
+            registry._loader._module_resolver, PipelineModuleResolver
+        )
+
+    def test_catalog_config_provider_wired_to_loader(self, registry):
+        provider = registry._catalog._config_provider
+        # The provider is a bound method of the loader
+        assert provider.__self__ is registry._loader
+        assert provider.__name__ == "load_config"
+        # project_cfg_provider resolves through the loader
+        assert callable(registry._catalog._project_cfg_provider)
+
+    def test_registry_shares_single_filesystem(self, registry, mock_fs):
+        assert registry._fs is mock_fs
+        assert registry._catalog._fs is mock_fs
+        assert registry._loader._fs is mock_fs
+
+    def test_get_files_delegates_to_catalog(self, registry, mocker):
+        spy = mocker.patch.object(registry._catalog, "get_files", return_value=[])
+        registry._get_files()
+        spy.assert_called_once()
+
+    def test_get_names_delegates_to_catalog(self, registry, mocker):
+        spy = mocker.patch.object(registry._catalog, "get_names", return_value=[])
+        registry._get_names()
+        spy.assert_called_once()
+
+    def test_load_config_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry._loader, "load_config", return_value=MagicMock()
+        )
+        registry.load_config("demo")
+        spy.assert_called_once_with("demo", reload=False)
+
+    def test_load_module_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry._loader, "load_module", return_value=MagicMock()
+        )
+        registry.load_module("demo")
+        spy.assert_called_once_with("demo", reload=False)
+
+    def test_get_pipeline_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry._loader, "get_pipeline", return_value=MagicMock()
+        )
+        ctx = MagicMock()
+        registry.get_pipeline("demo", project_context=ctx, reload=True)
+        spy.assert_called_once_with("demo", ctx, reload=True)
+
+    def test_clear_cache_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(registry._loader, "clear_cache")
+        registry.clear_cache("demo")
+        spy.assert_called_once_with("demo")
+
+    def test_clear_cache_all_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(registry._loader, "clear_cache")
+        registry.clear_cache()
+        spy.assert_called_once_with(None)
+
+    def test_get_summary_delegates_to_catalog(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry._catalog, "get_summary", return_value={}
+        )
+        registry.get_summary(name="demo", cfg=False, code=False, project=False)
+        spy.assert_called_once_with(
+            name="demo", cfg=False, code=False, project=False
+        )
+
+    def test_list_pipelines_delegates_to_catalog(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry._catalog, "list_pipelines", return_value=[]
+        )
+        registry.list_pipelines()
+        spy.assert_called_once()
+    def test_pipelines_property_delegates_to_catalog(self, registry, mocker):
+        from flowerpower.pipeline.catalog import PipelineCatalog
+
+        spy = mocker.patch.object(
+            PipelineCatalog, "pipelines",
+            new_callable=mocker.PropertyMock, return_value=["x"],
+        )
+        assert registry.pipelines == ["x"]
+        spy.assert_called_once()
+
+    def test_summary_property_delegates_to_get_summary(self, registry, mocker):
+        spy = mocker.patch.object(
+            registry, "get_summary", return_value={"ok": True}
+        )
+        assert registry.summary == {"ok": True}
+
+    def test_project_cfg_property_delegates_to_loader(self, registry):
+        sentinel = MagicMock(name="loader_project_cfg")
+        registry._loader.project_cfg = sentinel
+        assert registry.project_cfg is sentinel
+
+    def test_sync_project_state_delegates_to_loader(self, registry, mocker):
+        spy = mocker.patch.object(registry._loader, "sync_project_state")
+        registry._sync_project_state()
+        spy.assert_called_once()
