@@ -1,25 +1,26 @@
-"""Pipeline Registry for discovery, listing, caching, and module loading."""
+"""Pipeline Registry — compatibility facade over catalog, loader, and resolver.
+
+This module preserves the historical :class:`PipelineRegistry` public surface
+while delegating discovery, listing, and presentation-free summary assembly to
+:class:`PipelineCatalog`, and config/module loading, ``Pipeline`` construction,
+and cache/reload invalidation to :class:`PipelineLoader`.  Import-name
+normalization is handled by the shared :class:`PipelineModuleResolver`.
+"""
 
 import posixpath
+from enum import Enum
 from typing import TYPE_CHECKING, Any
-
-import msgspec
 import rich
-import yaml
-from fsspeckit import AbstractFileSystem, filesystem
-from loguru import logger
 
-# Import necessary config types and utility functions
-from ..cfg import PipelineConfig, ProjectConfig
-from ..settings import CONFIG_DIR, HOOKS_DIR, LOG_LEVEL, PIPELINES_DIR
+from fsspeckit import AbstractFileSystem, filesystem
+
+from ..cfg import ProjectConfig
+from ..settings import CONFIG_DIR, LOG_LEVEL, PIPELINES_DIR
 from ..utils.filesystem import (
     add_modules_path,
-    format_pipeline_file_path,
-    get_pipeline_config_paths,
 )
 from ..utils.logging import setup_logging
 from ..utils.security import (
-    SecurityError,
     validate_directory_fragment,
     validate_file_path,
     validate_pipeline_name,
@@ -27,7 +28,9 @@ from ..utils.security import (
 from ..utils.templates import HOOK_TEMPLATE__MQTT_BUILD_CONFIG
 
 # Import base utilities
+from .catalog import PipelineCatalog
 from .config_manager import PipelineConfigManager
+from .loader import CachedPipelineData, PipelineLoader
 from .module_resolver import PipelineModuleResolver
 from .presenter import PipelinePresenter
 
@@ -35,7 +38,10 @@ if TYPE_CHECKING:
     from ..flowerpower import FlowerPowerProject
     from .pipeline import Pipeline
 
-from enum import Enum
+__all__ = ["CachedPipelineData", "HookType", "PipelineRegistry"]
+
+
+setup_logging(level=LOG_LEVEL)
 
 
 class HookType(str, Enum):
@@ -48,21 +54,18 @@ class HookType(str, Enum):
         return self.value
 
 
-class CachedPipelineData(msgspec.Struct):
-    """Container for cached pipeline data."""
-
-    pipeline: "Pipeline | None" = None
-    config: PipelineConfig | None = None
-    module: Any = None
-
-
-setup_logging(level=LOG_LEVEL)
-
-
 class PipelineRegistry:
-    """Manages discovery, listing, caching, and module loading of pipelines.
+    """Compatibility facade over catalog, loader, and resolver responsibilities.
 
-    Rendering / presentation is delegated to :class:`PipelinePresenter`.
+    Discovery, listing, and presentation-free summary payloads are owned by the
+    :class:`PipelineCatalog`.  Config/module loading, ``Pipeline`` construction,
+    and cache/reload invalidation are owned by the :class:`PipelineLoader`.
+    Import-name normalization is owned by :class:`PipelineModuleResolver`.
+
+    Historical public methods (``list_pipelines``, ``get_summary``,
+    ``load_config``, ``load_module``, ``get_pipeline``, ``clear_cache``,
+    ``new``, ``delete``, ``create_pipeline``, ``delete_pipeline``) remain
+    source-compatible and delegate to the appropriate module.
     """
 
     def __init__(
@@ -88,7 +91,6 @@ class PipelineRegistry:
             cfg_dir: Configuration directory name.
             pipelines_dir: Pipelines directory name.
         """
-        self.project_cfg = project_cfg
         self._fs = fs
         if config_manager is not None:
             self._base_dir = getattr(config_manager, "_base_dir", base_dir)
@@ -104,7 +106,7 @@ class PipelineRegistry:
             self._pipelines_dir = validate_directory_fragment(
                 pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
             )
-        self._hooks_dir = getattr(project_cfg, "hooks_dir", HOOKS_DIR) or HOOKS_DIR
+
         if config_manager is None:
             config_manager = PipelineConfigManager(
                 base_dir=base_dir or ".",
@@ -113,28 +115,55 @@ class PipelineRegistry:
                 cfg_dir=cfg_dir,
                 pipelines_dir=pipelines_dir,
             )
-        self._config_manager = config_manager
 
-        # Consolidated cache for pipeline data
-        self._pipeline_data_cache: dict[str, CachedPipelineData] = {}
+        # Shared resolver for pipeline module imports
+        module_resolver = PipelineModuleResolver(self._pipelines_dir)
+
+        # Loader owns config/module/pipeline cache and invalidation
+        self._loader = PipelineLoader(
+            config_manager=config_manager,
+            module_resolver=module_resolver,
+            fs=fs,
+            project_cfg=project_cfg,
+        )
+
+        # Catalog owns discovery, listing, and presentation-free summaries
+        self._catalog = PipelineCatalog(
+            fs=fs,
+            cfg_dir=self._cfg_dir,
+            pipelines_dir=self._pipelines_dir,
+            project_cfg=project_cfg,
+            config_provider=self._loader.load_config,
+            project_cfg_provider=lambda: self._loader.project_cfg,
+        )
 
         # Presenter for all Rich rendering
         self._presenter = PipelinePresenter()
 
+        # Sync project state through the loader
         self._sync_project_state()
-
-        # Shared resolver for pipeline module imports
-        self._module_resolver = PipelineModuleResolver(self._pipelines_dir)
 
         # Ensure module paths are added (delegated to shared utility)
         add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
-    def _sync_project_state(self) -> None:
-        try:
-            self.project_cfg = self._config_manager.project_config
-        except ValueError:
-            return
-        self._hooks_dir = getattr(self.project_cfg, "hooks_dir", HOOKS_DIR) or HOOKS_DIR
+    # --- Delegating properties (compatibility with historical internals) ---
+
+    @property
+    def project_cfg(self) -> ProjectConfig:
+        """Current project configuration (synced by the loader)."""
+        return self._loader.project_cfg
+
+    @property
+    def _hooks_dir(self) -> str:
+        return self._loader._hooks_dir
+
+    @property
+    def _pipeline_data_cache(self) -> dict[str, CachedPipelineData]:
+        return self._loader._pipeline_data_cache
+
+    @property
+    def _config_manager(self) -> PipelineConfigManager:
+        return self._loader._config_manager
 
     @classmethod
     def from_filesystem(
@@ -214,15 +243,18 @@ class PipelineRegistry:
             pipelines_dir=pipelines_dir,
         )
 
-    # --- Pipeline Factory Methods ---
+    # --- Loader delegation (config/module/pipeline cache) ---
+
+    def _sync_project_state(self) -> None:
+        """Sync project configuration and hooks dir through the loader."""
+        self._loader.sync_project_state()
 
     def get_pipeline(
         self, name: str, project_context: "FlowerPowerProject", reload: bool = False
     ) -> "Pipeline":
         """Get a Pipeline instance for the given name.
 
-        This method creates a fully-formed Pipeline object by loading its configuration
-        and Python module, then injecting the project context.
+        Delegates to :class:`PipelineLoader`.
 
         Args:
             name: Name of the pipeline to get
@@ -237,46 +269,12 @@ class PipelineRegistry:
             ImportError: If pipeline module cannot be imported
             ValueError: If pipeline configuration is invalid
         """
-        name = validate_pipeline_name(name)
+        return self._loader.get_pipeline(name, project_context, reload=reload)
 
-        # Use cache if available and not reloading
-        cached_data = self._pipeline_data_cache.get(name)
-        if not reload and cached_data is not None and cached_data.pipeline is not None:
-            self._sync_project_state()
-            logger.debug(f"Returning cached pipeline '{name}'")
-            return cached_data.pipeline
-
-        logger.debug(f"Creating pipeline instance for '{name}'")
-
-        # Load pipeline configuration
-        config = self.load_config(name, reload=reload)
-
-        # Load pipeline module
-        module = self.load_module(name, reload=reload)
-
-        # Import Pipeline class here to avoid circular import
-        from .pipeline import Pipeline
-
-        # Create Pipeline instance
-        pipeline = Pipeline(
-            name=name,
-            config=config,
-            module=module,
-            project_context=project_context,
-        )
-
-        # Cache the pipeline data
-        self._pipeline_data_cache[name] = CachedPipelineData(
-            pipeline=pipeline,
-            config=config,
-            module=module,
-        )
-
-        logger.debug(f"Successfully created pipeline instance for '{name}'")
-        return pipeline
-
-    def load_config(self, name: str, reload: bool = False) -> PipelineConfig:
+    def load_config(self, name: str, reload: bool = False) -> Any:
         """Load pipeline configuration from disk.
+
+        Delegates to :class:`PipelineLoader`.
 
         Args:
             name: Name of the pipeline
@@ -285,32 +283,12 @@ class PipelineRegistry:
         Returns:
             PipelineConfig instance
         """
-        name = validate_pipeline_name(name)
-
-        # Use cache if available and not reloading
-        cached_data = self._pipeline_data_cache.get(name)
-        if not reload and cached_data is not None and cached_data.config is not None:
-            self._sync_project_state()
-            logger.debug(f"Returning cached config for pipeline '{name}'")
-            return cached_data.config
-
-        logger.debug(f"Loading configuration for pipeline '{name}'")
-
-        config = self._config_manager.load_pipeline_config(name, reload=reload)
-        self._sync_project_state()
-
-        if cached_data is None:
-            self._pipeline_data_cache[name] = CachedPipelineData(config=config)
-        else:
-            cached_data.config = config
-            if reload:
-                cached_data.pipeline = None
-                cached_data.module = None
-
-        return config
+        return self._loader.load_config(name, reload=reload)
 
     def load_module(self, name: str, reload: bool = False) -> Any:
         """Load pipeline module from disk.
+
+        Delegates to :class:`PipelineLoader`.
 
         Args:
             name: Name of the pipeline
@@ -319,148 +297,40 @@ class PipelineRegistry:
         Returns:
             Loaded Python module
         """
-        name = validate_pipeline_name(name)
-
-        # Use cache if available and not reloading
-        cached_data = self._pipeline_data_cache.get(name)
-        if not reload and cached_data is not None and cached_data.module is not None:
-            logger.debug(f"Returning cached module for pipeline '{name}'")
-            return cached_data.module
-
-        logger.debug(f"Loading module for pipeline '{name}'")
-
-        # Load the module through the shared resolver (handles package-root
-        # normalization, hyphens, and fallback candidates)
-        module = self._module_resolver.load(name, reload=reload)
-
-        if cached_data is None:
-            self._pipeline_data_cache[name] = CachedPipelineData(module=module)
-        else:
-            cached_data.module = module
-            if reload:
-                cached_data.pipeline = None
-
-        return module
+        return self._loader.load_module(name, reload=reload)
 
     def clear_cache(self, name: str | None = None):
         """Clear cached pipelines, configurations, and modules.
+
+        Delegates to :class:`PipelineLoader`.
 
         Args:
             name: If provided, clear cache only for this pipeline.
                  If None, clear entire cache.
         """
-        if name:
-            logger.debug(f"Clearing cache for pipeline '{name}'")
-            self._pipeline_data_cache.pop(name, None)
-        else:
-            logger.debug("Clearing entire pipeline cache")
-            self._pipeline_data_cache.clear()
+        self._loader.clear_cache(name)
 
-    # --- Pipeline Discovery & Listing ---
+    # --- Catalog delegation (discovery, listing, summaries) ---
 
     def _get_files(self) -> list[str]:
-        """
-        Get the list of pipeline files.
-
-        Returns:
-            list[str]: The list of pipeline files.
-        """
-        try:
-            files: list[str] = []
-            seen: set[str] = set()
-            discovery_error_logged = False
-            patterns = (
-                posixpath.join(self._pipelines_dir, "*.py"),
-                posixpath.join(self._pipelines_dir, "**", "*.py"),
-            )
-            for pattern in patterns:
-                try:
-                    paths = self._fs.glob(pattern)
-                except NotImplementedError as e:
-                    logger.debug(
-                        f"Skipping unsupported pipeline glob pattern {pattern}: {e}"
-                    )
-                    continue
-                except Exception as e:
-                    if not discovery_error_logged:
-                        logger.error(
-                            f"Error accessing pipeline glob pattern {pattern}: {e}"
-                        )
-                        discovery_error_logged = True
-                    continue
-
-                for path in paths:
-                    if posixpath.basename(path) == "__init__.py" or path in seen:
-                        continue
-                    seen.add(path)
-                    files.append(path)
-            return sorted(files)
-        except (OSError, PermissionError) as e:
-            logger.error(
-                f"Error accessing pipeline directory {self._pipelines_dir}: {e}"
-            )
-            return []
-        except Exception as e:
-            logger.error(
-                f"Unexpected error accessing pipeline directory {self._pipelines_dir}: {e}"
-            )
-            return []
+        """Get the list of pipeline files. Delegates to :class:`PipelineCatalog`."""
+        return self._catalog.get_files()
 
     def _get_names(self) -> list[str]:
-        """
-        Get the list of pipeline names.
-
-        Returns:
-            list[str]: The list of pipeline names.
-        """
-        return [self._path_to_pipeline_name(path) for path in self._get_files()]
+        """Get the list of pipeline names. Delegates to :class:`PipelineCatalog`."""
+        return self._catalog.get_names()
 
     def _path_to_pipeline_name(self, path: str) -> str:
         """Convert a pipeline file path into a discovered pipeline name."""
-        relative_path = posixpath.relpath(path, self._pipelines_dir)
-        module_path = posixpath.splitext(relative_path)[0]
-        derived_name = module_path.replace("/", ".")
-        stored_name = self._read_stored_pipeline_name(module_path)
-        return stored_name or derived_name
+        return self._catalog.path_to_pipeline_name(path)
 
     def _read_stored_pipeline_name(self, module_path: str) -> str | None:
         """Return the canonical pipeline name from YAML when available."""
-        candidate_paths = get_pipeline_config_paths(
-            module_path,
-            self._cfg_dir,
-            self._pipelines_dir,
-        )
+        return self._catalog.read_stored_pipeline_name(module_path)
 
-        for cfg_path in candidate_paths:
-            try:
-                exists = self._fs.exists(cfg_path)
-            except Exception as error:
-                logger.debug(
-                    f"Skipping unreadable pipeline config candidate {cfg_path}: {error}"
-                )
-                continue
-
-            if not exists:
-                continue
-            try:
-                with self._fs.open(cfg_path) as f:
-                    data = yaml.safe_load(f) or {}
-            except Exception as e:
-                logger.debug(
-                    f"Skipping unreadable pipeline config candidate {cfg_path}: {e}"
-                )
-                continue
-
-            stored_name = data.get("name") if isinstance(data, dict) else None
-            if isinstance(stored_name, str) and stored_name:
-                try:
-                    return validate_pipeline_name(stored_name)
-                except (SecurityError, ValueError):
-                    continue
-
-        return None
-
-    # --- Data Gathering (presentation-free) ---
+    def _collect_pipeline_info(self) -> list[dict[str, Any]]:
+        """Collect metadata for all pipelines. Delegates to :class:`PipelineCatalog`."""
+        return self._catalog.collect_pipeline_info()
 
     def get_summary(
         self,
@@ -471,6 +341,9 @@ class PipelineRegistry:
     ) -> dict[str, Any]:
         """
         Get a summary of the pipelines.
+
+        Delegates to :class:`PipelineCatalog` for presentation-free payload
+        assembly.
 
         Args:
             name (str | None, optional): The name of the pipeline. Defaults to None.
@@ -486,96 +359,35 @@ class PipelineRegistry:
             summary=pm.get_summary()
             ```
         """
-        if name is not None:
-            name = validate_pipeline_name(name)
-            pipeline_names = [name]
-        else:
-            pipeline_names = self._get_names()
+        return self._catalog.get_summary(
+            name=name, cfg=cfg, code=code, project=project
+        )
 
-        summary: dict[str, Any] = {}
-        summary["pipelines"] = {}
-
-        if project:
-            self._sync_project_state()
-            summary["project"] = self.project_cfg.to_dict()
-
-        for name in pipeline_names:
-            # Load pipeline config directly
-
-            pipeline_summary = {}
-            if cfg:
-                pipeline_cfg = self.load_config(name=name, reload=False)
-                pipeline_summary["cfg"] = pipeline_cfg.to_dict()
-            if code:
-                try:
-                    module_path = posixpath.join(
-                        self._pipelines_dir,
-                        f"{format_pipeline_file_path(name)}.py",
-                    )
-                    module_content = self._fs.cat(module_path).decode()
-                    pipeline_summary["module"] = module_content
-                except FileNotFoundError:
-                    logger.warning(f"Module file not found for pipeline '{name}'")
-                    pipeline_summary["module"] = "# Module file not found"
-                except (OSError, PermissionError, UnicodeDecodeError) as e:
-                    logger.error(
-                        f"Error reading module file for pipeline '{name}': {e}"
-                    )
-                    pipeline_summary["module"] = f"# Error reading module file: {e}"
-                except Exception as e:
-                    logger.error(
-                        f"Unexpected error reading module file for pipeline '{name}': {e}"
-                    )
-                    pipeline_summary["module"] = (
-                        f"# Unexpected error reading module file: {e}"
-                    )
-
-            if pipeline_summary:  # Only add if cfg or code was requested and found
-                summary["pipelines"][name] = pipeline_summary
-        return summary
-
-    def _collect_pipeline_info(self) -> list[dict[str, Any]]:
-        """Collect metadata (name, path, mod_time, size) for all pipelines.
+    def list_pipeline_info(self) -> list[dict[str, Any]]:
+        """Get metadata for all available pipelines.
 
         Returns:
-            A list of dicts, each with keys ``name``, ``path``, ``mod_time``,
-            and ``size``.  Returns an empty list when no pipelines exist.
+            list[dict[str, Any]]: Pipeline metadata dictionaries.
         """
-        pipeline_files = self._get_files()
-        pipeline_names = [self._path_to_pipeline_name(path) for path in pipeline_files]
+        return self._catalog.list_pipeline_info()
 
-        if not pipeline_files:
-            return []
+    def list_pipelines(self) -> list[str]:
+        """Get the discovered pipeline names.
 
-        pipeline_info: list[dict[str, Any]] = []
+        Returns:
+            list[str]: Canonical pipeline names.
+        """
+        return self._catalog.list_pipelines()
 
-        for path, name in zip(pipeline_files, pipeline_names, strict=True):
-            try:
-                mod_time = self._fs.modified(path).strftime("%Y-%m-%d %H:%M:%S")
-            except NotImplementedError:
-                mod_time = "N/A"
-            try:
-                size_bytes = self._fs.size(path)
-                size = f"{size_bytes / 1024:.1f} KB" if size_bytes else "0.0 KB"
-            except NotImplementedError:
-                size = "N/A"
-            except (OSError, PermissionError) as e:
-                logger.warning(f"Could not get size for {path}: {e}")
-                size = "Error"
-            except Exception as e:
-                logger.warning(f"Unexpected error getting size for {path}: {e}")
-                size = "Error"
+    @property
+    def summary(self) -> dict[str, dict | str]:
+        """Get a summary of the pipelines."""
+        return self.get_summary()
 
-            pipeline_info.append(
-                {
-                    "name": name,
-                    "path": path,
-                    "mod_time": mod_time,
-                    "size": size,
-                }
-            )
-
-        return pipeline_info
+    @property
+    def pipelines(self) -> list[str]:
+        """Get a list of discovered pipeline names."""
+        return self._catalog.pipelines
 
     # --- Presentation (delegated to PipelinePresenter) ---
 
@@ -611,32 +423,6 @@ class PipelineRegistry:
             self._presenter.print_no_pipelines_found()
             return
         self._presenter.show_pipelines_table(info)
-
-    def list_pipeline_info(self) -> list[dict[str, Any]]:
-        """Get metadata for all available pipelines.
-
-        Returns:
-            list[dict[str, Any]]: Pipeline metadata dictionaries.
-        """
-        return self._collect_pipeline_info()
-
-    def list_pipelines(self) -> list[str]:
-        """Get the discovered pipeline names.
-
-        Returns:
-            list[str]: Canonical pipeline names.
-        """
-        return self._get_names()
-
-    @property
-    def summary(self) -> dict[str, dict | str]:
-        """Get a summary of the pipelines."""
-        return self.get_summary()
-
-    @property
-    def pipelines(self) -> list[str]:
-        """Get a list of discovered pipeline names."""
-        return self._get_names()
 
     # --- Backward-compatible lifecycle delegation ---
 

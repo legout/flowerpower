@@ -173,7 +173,7 @@ class TestPipelineRegistry:
 
     def test_get_files_fs_error(self, registry, mock_fs, mocker):
         mock_fs.glob.side_effect = Exception("FS error")
-        mock_logger_error = mocker.patch("flowerpower.pipeline.registry.logger.error")
+        mock_logger_error = mocker.patch("flowerpower.pipeline.catalog.logger.error")
 
         assert registry._get_files() == []
         mock_logger_error.assert_called_once()
@@ -567,7 +567,7 @@ class TestPipelineRegistry:
 
     def test_list_pipelines_empty_dir(self, registry, mock_fs, mocker):
         mock_fs.ls.return_value = []
-        mock_rich_print = mocker.patch("flowerpower.pipeline.registry.rich.print")
+        mock_rich_print = mocker.patch("flowerpower.pipeline.presenter.rich.print")
 
         assert registry.list_pipelines() == []
 
