@@ -1,11 +1,13 @@
-<!-- ticket-flow -->
+## Agent skills
 
-Planning and ticket-execution instructions live in `.ticket-flow/AGENTS.md`.
-Read that file before using `pi-ticket-flow`, `tk`, or ExecPlans in this repository.
+### Issue tracker
 
-<!-- /ticket-flow -->
+GitHub issues (via the `gh` CLI); external PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
 
-<!-- execflow -->
-Planning and execution instructions live in `.execflow/AGENTS.md`.
-Read that file before using `pi-execflow`, `tk`, `br`, or ExecPlans in this repository.
-<!-- /execflow -->
+### Triage labels
+
+Five canonical roles using default label names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -88,3 +88,7 @@ docs/cleanup-refactor-plan.md
 docs/site/*
 .pi/prompts/
 .memory/branches/main/log.md
+
+# Local agent artifacts
+/.pi/
+/.pi-subagents/
