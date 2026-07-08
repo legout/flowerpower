@@ -66,11 +66,20 @@ def mock_pipeline_cfg_instance(mocker):
 
 
 @pytest.fixture
-def registry(mock_project_cfg, mock_fs):
+def registry(mock_project_cfg, mock_fs, mocker):
     """Fixture for PipelineRegistry instance."""
+    config_manager = PipelineConfigManager(
+        base_dir=".",
+        fs=mock_fs,
+        storage_options={},
+        cfg_dir="conf",
+        pipelines_dir="pipelines",
+    )
+    config_manager.load_project_config = mocker.MagicMock(return_value=mock_project_cfg)
     return PipelineRegistry(
         project_cfg=mock_project_cfg,
         fs=mock_fs,
+        config_manager=config_manager,
     )
 
 
@@ -487,7 +496,7 @@ class TestPipelineRegistry:
             manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
             manager.load_project_config()
             registry = PipelineRegistry(
-                project_cfg=manager.project_config,
+                project_cfg=manager.load_project_config(),
                 fs=fs,
                 base_dir=tmpdir,
                 config_manager=manager,
@@ -517,7 +526,7 @@ class TestPipelineRegistry:
             manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
             manager.load_project_config()
             registry = PipelineRegistry(
-                project_cfg=manager.project_config,
+                project_cfg=manager.load_project_config(),
                 fs=fs,
                 base_dir=tmpdir,
                 config_manager=manager,
@@ -527,7 +536,7 @@ class TestPipelineRegistry:
 
             with (conf / "project.yml").open("w") as fh:
                 yaml.safe_dump({"name": "updated-demo", "hooks_dir": "custom_hooks"}, fh)
-            manager.load_project_config(reload=True)
+            manager.load_project_config()
 
             registry.load_config("my-pipeline", reload=False)
 
@@ -545,7 +554,7 @@ class TestPipelineRegistry:
             manager = PipelineConfigManager(base_dir=tmpdir, fs=fs, storage_options={})
             manager.load_project_config()
             registry = PipelineRegistry(
-                project_cfg=manager.project_config,
+                project_cfg=manager.load_project_config(),
                 fs=fs,
                 base_dir=tmpdir,
                 config_manager=manager,
@@ -558,7 +567,7 @@ class TestPipelineRegistry:
 
             with (conf / "project.yml").open("w") as fh:
                 yaml.safe_dump({"name": "updated-demo", "hooks_dir": "custom_hooks"}, fh)
-            manager.load_project_config(reload=True)
+            manager.load_project_config()
 
             registry.get_pipeline("demo", project_context=MagicMock(), reload=False)
 
@@ -637,10 +646,17 @@ class TestPipelineRegistry:
         handle = mock_fs.open()
         handle.write.assert_called_once_with(expected_content)
 
-    def test_add_hook_uses_project_configured_hooks_dir(self, mock_fs):
+    def test_add_hook_uses_project_configured_hooks_dir(self, mock_fs, mocker):
+        project_cfg = ProjectConfig(name="demo", hooks_dir="custom_hooks")
+        config_manager = mocker.MagicMock(spec=PipelineConfigManager)
+        config_manager._base_dir = "."
+        config_manager._cfg_dir = "conf"
+        config_manager._pipelines_dir = "pipelines"
+        config_manager.load_project_config.return_value = project_cfg
         registry = PipelineRegistry(
-            project_cfg=ProjectConfig(name="demo", hooks_dir="custom_hooks"),
+            project_cfg=project_cfg,
             fs=mock_fs,
+            config_manager=config_manager,
         )
 
         mock_fs.exists.return_value = False

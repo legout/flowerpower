@@ -28,11 +28,11 @@ def loader(mocker):
 
 
 def _set_project_config(loader, mocker, cfg):
-    type(loader._config_manager).project_config = mocker.PropertyMock(return_value=cfg)
+    loader._config_manager.load_project_config = mocker.MagicMock(return_value=cfg)
 
 
 def _set_project_config_error(loader, mocker, exc):
-    type(loader._config_manager).project_config = mocker.PropertyMock(side_effect=exc)
+    loader._config_manager.load_project_config = mocker.MagicMock(side_effect=exc)
 
 
 def test_load_config_cache_hit_returns_cached_config(loader):
@@ -63,7 +63,7 @@ def test_load_config_reload_invalidates_cached_pipeline_and_module(loader, mocke
 
     assert result is new_config
     loader._config_manager.load_pipeline_config.assert_called_once_with(
-        "my_pipeline", reload=True
+        "my_pipeline"
     )
     cached = loader._pipeline_data_cache["my_pipeline"]
     assert cached.config is new_config

@@ -63,13 +63,9 @@ class PipelineExecutor:
             ValueError: If pipeline configuration cannot be loaded
             Exception: If pipeline execution fails
         """
-        requested_reload = bool(getattr(run_config, "reload", False) or kwargs.get("reload"))
 
-        # Load pipeline configuration
-        pipeline_config = self._config_manager.load_pipeline_config(
-            name=name,
-            reload=requested_reload,
-        )
+        # Load pipeline configuration (ConfigManager is stateless — always fresh)
+        pipeline_config = self._config_manager.load_pipeline_config(name)
 
         # Merge runtime overrides onto a copy of pipeline defaults.
         run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)
@@ -117,13 +113,9 @@ class PipelineExecutor:
         Returns:
             dict[str, Any]: Results of pipeline execution.
         """
-        requested_reload = bool(getattr(run_config, "reload", False) or kwargs.get("reload"))
 
-        # Load pipeline configuration
-        pipeline_config = self._config_manager.load_pipeline_config(
-            name=name,
-            reload=requested_reload,
-        )
+        # Load pipeline configuration (ConfigManager is stateless — always fresh)
+        pipeline_config = self._config_manager.load_pipeline_config(name)
 
         # Merge runtime overrides onto a copy of pipeline defaults.
         run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)

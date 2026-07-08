@@ -476,7 +476,7 @@ def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
     fs = MagicMock()
     project_cfg = MagicMock(name="project_cfg")
     config_manager = MagicMock()
-    config_manager.project_config = project_cfg
+    config_manager.load_project_config = MagicMock(return_value=project_cfg)
 
     with patch("flowerpower.pipeline.manager.PipelineConfigManager") as mock_config_manager_class:
         with patch("flowerpower.pipeline.manager.PipelineRegistry"):
@@ -512,7 +512,7 @@ def test_manager_exit_clears_filesystem_instance_cache():
     """Context exit should clear the filesystem instance cache."""
     fs = MagicMock()
     config_manager = MagicMock()
-    config_manager.project_config = MagicMock(name="project_cfg")
+    config_manager.load_project_config = MagicMock(return_value=MagicMock(name="project_cfg"))
 
     with patch("flowerpower.pipeline.manager.PipelineConfigManager") as mock_config_manager_class:
         with patch("flowerpower.pipeline.manager.PipelineRegistry"):

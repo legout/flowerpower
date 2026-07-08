@@ -87,7 +87,7 @@ class PipelineVisualizer:
 
         """
         name = validate_pipeline_name(name)
-        pipeline_cfg = self._config_manager.load_pipeline_config(name, reload=reload)
+        pipeline_cfg = self._config_manager.load_pipeline_config(name)
 
         # Load modules (primary + optional additional)
         modules = self._resolve_modules(name, additional_modules, reload)

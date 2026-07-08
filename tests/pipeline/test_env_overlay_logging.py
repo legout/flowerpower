@@ -38,7 +38,7 @@ def test_env_overlay_error_is_logged_at_debug():
                 )
 
                 # This should NOT raise, but should log the error
-                manager.load_project_config(reload=True)
+                manager.load_project_config()
 
                 # Verify parse_env_overrides was called
                 assert call_count[0] == 1
@@ -93,7 +93,7 @@ def test_pipeline_config_env_overlay_error_is_logged_at_debug():
                     )
 
                     # This should NOT raise, but should log the error
-                    manager.load_pipeline_config("test_pipeline", reload=True)
+                    manager.load_pipeline_config("test_pipeline")
 
                     # Verify parse_env_overrides was called
                     assert call_count[0] > 0

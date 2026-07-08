@@ -24,7 +24,7 @@ def test_load_project_config_uses_configured_dirs(
         pipelines_dir="flows",
     )
 
-    manager.load_project_config(reload=True)
+    manager.load_project_config()
 
     mock_project_load.assert_called_once_with(
         base_dir="/project",
@@ -53,7 +53,7 @@ def test_load_pipeline_config_uses_configured_dirs(
         pipelines_dir="flows",
     )
 
-    manager.load_pipeline_config("demo", reload=True)
+    manager.load_pipeline_config("demo")
 
     mock_pipeline_load.assert_called_once_with(
         base_dir="/project",
@@ -83,7 +83,7 @@ def test_load_pipeline_config_strips_surrounding_whitespace(
         pipelines_dir="flows",
     )
 
-    manager.load_pipeline_config("  demo  ", reload=True)
+    manager.load_pipeline_config("  demo  ")
 
     mock_pipeline_load.assert_called_once_with(
         base_dir="/project",
@@ -96,9 +96,11 @@ def test_load_pipeline_config_strips_surrounding_whitespace(
 
 
 @patch("flowerpower.pipeline.config_manager.ProjectConfig.load")
-def test_load_project_config_reloads_when_requested_name_changes(
+def test_load_project_config_is_stateless_and_passes_name_through(
     mock_project_load: MagicMock,
 ) -> None:
+    """Stateless loader reads from disk on every call, passing the fallback
+    name through when no project config file exists."""
     fs = MagicMock()
     fs.exists.return_value = False
     mock_project_load.side_effect = [MagicMock(name="first"), MagicMock(name="second")]
@@ -138,7 +140,8 @@ def test_load_project_config_ignores_fallback_name_when_project_file_exists(
     manager.load_project_config(name="first")
     manager.load_project_config(name="second")
 
-    mock_project_load.assert_called_once_with(
+    assert mock_project_load.call_count == 2
+    mock_project_load.assert_called_with(
         base_dir="/project",
         fs=fs,
         storage_options={},
@@ -165,7 +168,8 @@ def test_load_project_config_treats_project_yaml_as_existing_config(
     manager.load_project_config(name="first")
     manager.load_project_config(name="second")
 
-    mock_project_load.assert_called_once_with(
+    assert mock_project_load.call_count == 2
+    mock_project_load.assert_called_with(
         base_dir="/project",
         fs=fs,
         storage_options={},

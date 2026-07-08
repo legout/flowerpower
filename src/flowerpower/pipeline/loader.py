@@ -48,7 +48,7 @@ class PipelineLoader:
 
     def sync_project_state(self) -> None:
         try:
-            self.project_cfg = self._config_manager.project_config
+            self.project_cfg = self._config_manager.load_project_config()
         except ValueError:
             return
         self._hooks_dir = getattr(self.project_cfg, "hooks_dir", HOOKS_DIR) or HOOKS_DIR
@@ -128,7 +128,7 @@ class PipelineLoader:
 
         logger.debug(f"Loading configuration for pipeline '{name}'")
 
-        config = self._config_manager.load_pipeline_config(name, reload=reload)
+        config = self._config_manager.load_pipeline_config(name)
         self.sync_project_state()
 
         if cached_data is None:

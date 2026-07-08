@@ -119,7 +119,6 @@ def test_get_dag_object_uses_configured_dirs() -> None:
 
     visualizer._config_manager.load_pipeline_config.assert_called_once_with(
         "group.example",
-        reload=False,
     )
     assert result is dag
 
@@ -236,7 +235,6 @@ def test_get_dag_object_trims_whitespace_before_module_resolution() -> None:
 
     visualizer._config_manager.load_pipeline_config.assert_called_once_with(
         "example",
-        reload=False,
     )
     visualizer._resolve_modules.assert_called_once_with("example", None, False)
     assert result is dag

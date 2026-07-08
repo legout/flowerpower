@@ -629,33 +629,43 @@ def test_pipeline_support_classes_resolve_config_dirs_at_runtime() -> None:
     assert manager._cfg_dir == "settings"
     assert manager._pipelines_dir == "flows"
 
-    registry = PipelineRegistry(project_cfg=project_cfg, fs=fs, cfg_dir="settings", pipelines_dir="flows")
-    assert registry._cfg_dir == "settings"
-    assert registry._pipelines_dir == "flows"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fs = filesystem(tmpdir, cached=False, dirfs=True)
+        conf = Path(tmpdir) / "settings"
+        conf.mkdir()
+        (conf / "project.yml").write_text("name: demo\n")
+
+        registry = PipelineRegistry(project_cfg=project_cfg, fs=fs, cfg_dir="settings", pipelines_dir="flows")
+        assert registry._cfg_dir == "settings"
+        assert registry._pipelines_dir == "flows"
 
 
 def test_pipeline_registry_prefers_config_manager_dirs_when_provided() -> None:
-    fs = MagicMock()
-    project_cfg = ProjectConfig(name="demo")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fs = filesystem(tmpdir, cached=False, dirfs=True)
+        conf = Path(tmpdir) / "settings"
+        conf.mkdir()
+        (conf / "project.yml").write_text("name: demo\n")
+        project_cfg = ProjectConfig(name="demo")
 
-    manager = PipelineConfigManager(
-        base_dir="/project",
-        fs=fs,
-        storage_options={},
-        cfg_dir="settings",
-        pipelines_dir="flows",
-    )
+        manager = PipelineConfigManager(
+            base_dir=tmpdir,
+            fs=fs,
+            storage_options={},
+            cfg_dir="settings",
+            pipelines_dir="flows",
+        )
 
-    registry = PipelineRegistry(
-        project_cfg=project_cfg,
-        fs=fs,
-        base_dir=".",
-        config_manager=manager,
-    )
+        registry = PipelineRegistry(
+            project_cfg=project_cfg,
+            fs=fs,
+            base_dir=".",
+            config_manager=manager,
+        )
 
-    assert registry._base_dir == "/project"
-    assert registry._cfg_dir == "settings"
-    assert registry._pipelines_dir == "flows"
+        assert registry._base_dir == tmpdir
+        assert registry._cfg_dir == "settings"
+        assert registry._pipelines_dir == "flows"
 
 
 def test_pipeline_support_classes_default_none_config_dirs_to_constants() -> None:
@@ -680,9 +690,15 @@ def test_pipeline_support_classes_default_none_config_dirs_to_constants() -> Non
     assert manager._cfg_dir == "conf"
     assert manager._pipelines_dir == "pipelines"
 
-    registry = PipelineRegistry(project_cfg=project_cfg, fs=fs, cfg_dir=None, pipelines_dir=None)
-    assert registry._cfg_dir == "conf"
-    assert registry._pipelines_dir == "pipelines"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fs = filesystem(tmpdir, cached=False, dirfs=True)
+        conf = Path(tmpdir) / "conf"
+        conf.mkdir()
+        (conf / "project.yml").write_text("name: demo\n")
+
+        registry = PipelineRegistry(project_cfg=project_cfg, fs=fs, cfg_dir=None, pipelines_dir=None)
+        assert registry._cfg_dir == "conf"
+        assert registry._pipelines_dir == "pipelines"
 
 
 def test_config_loading_produces_identical_results_across_entry_points() -> None:
@@ -712,7 +728,7 @@ def test_config_loading_produces_identical_results_across_entry_points() -> None
 
             # Entry point 3: PipelineRegistry with manager
             registry = PipelineRegistry(
-                project_cfg=manager.project_config,
+                project_cfg=manager.load_project_config(),
                 fs=fs,
                 base_dir=tmpdir,
                 config_manager=manager,
@@ -725,7 +741,9 @@ def test_config_loading_produces_identical_results_across_entry_points() -> None
         assert cfg_combined.to_dict() == cfg_manager.to_dict() == cfg_registry.to_dict()
 
 
-def test_config_load_parses_env_overlays_once_via_config_manager() -> None:
+def test_config_load_applies_env_overlays_via_config_manager() -> None:
+    """Stateless ConfigManager parses env overrides per config load (project +
+    pipeline), so parse_env_overrides is called once per config object."""
     with tempfile.TemporaryDirectory() as tmpdir:
         fs = filesystem(tmpdir, cached=False, dirfs=True)
         conf = Path(tmpdir) / "conf"
@@ -750,7 +768,8 @@ def test_config_load_parses_env_overlays_once_via_config_manager() -> None:
         ):
             combined = Config.load(base_dir=tmpdir, pipeline_name="my-pipeline", fs=fs)
 
-        assert call_count == 1
+        # Stateless loader: project + pipeline each parse once = 2 calls.
+        assert call_count == 2
         assert combined.pipeline.run.log_level == "WARNING"
 
 

@@ -41,9 +41,7 @@ class PipelineManager:
         io (PipelineIOManager): Manages pipeline import/export operations
         executor (PipelineExecutor): Handles pipeline execution
         project_cfg (ProjectConfig): Current project configuration
-        pipeline_cfg (PipelineConfig): Current pipeline configuration
         pipelines (list[str]): List of available pipeline names
-        current_pipeline_name (str): Name of the currently loaded pipeline
         summary (dict[str, dict | str]): Summary of all pipelines
 
     Example:
@@ -193,11 +191,11 @@ class PipelineManager:
         )
 
         # Load project configuration
-        self._config_manager.load_project_config(reload=True)
+        project_cfg = self._config_manager.load_project_config()
 
         # Initialize registry
         self.registry = PipelineRegistry(
-            project_cfg=self._config_manager.project_config,
+            project_cfg=project_cfg,
             fs=self._fs,
             base_dir=self._base_dir,
             storage_options=self._storage_options,
@@ -208,7 +206,7 @@ class PipelineManager:
 
         # Initialize creator
         self._creator = PipelineCreator(
-            project_cfg=self._config_manager.project_config,
+            project_cfg=project_cfg,
             fs=self._fs,
             cfg_dir=self._cfg_dir,
             pipelines_dir=self._pipelines_dir,
@@ -222,7 +220,7 @@ class PipelineManager:
         # Initialize other components
         self._project_context = None
         self.visualizer = PipelineVisualizer(
-            project_cfg=self._config_manager.project_config,
+            project_cfg=project_cfg,
             fs=self._fs,
             base_dir=self._base_dir,
             cfg_dir=self._cfg_dir,
@@ -287,24 +285,13 @@ class PipelineManager:
         Returns:
             PipelineConfig: The loaded pipeline configuration object
         """
-        return self._config_manager.load_pipeline_config(name, reload)
+        return self.registry.load_config(name, reload=reload)
 
     # --- Properties ---
 
     @property
-    def current_pipeline_name(self) -> str:
-        """Get the name of the currently loaded pipeline.
-
-        Returns:
-            str: Name of the currently loaded pipeline, or None if none loaded.
-        """
-        return self._config_manager.current_pipeline_name
-
-    @property
     def project_cfg(self) -> ProjectConfig:
         """Get the project configuration.
-
-        Loads configuration if not already loaded.
 
         Returns:
             ProjectConfig: Project-wide configuration object.
@@ -315,26 +302,7 @@ class PipelineManager:
             >>> print(cfg.name)
             'my_project'
         """
-        return self._config_manager.project_config
-
-    @property
-    def pipeline_cfg(self) -> PipelineConfig:
-        """Get the configuration for the currently loaded pipeline.
-
-        Returns:
-            PipelineConfig: Pipeline-specific configuration object.
-
-        Warns:
-            UserWarning: If no pipeline is currently loaded.
-
-        Example:
-            >>> manager = PipelineManager()
-            >>> manager.load_pipeline("example_pipeline")
-            >>> cfg = manager.pipeline_cfg
-            >>> print(cfg.run.executor)
-            'local'
-        """
-        return self._config_manager.pipeline_config
+        return self.registry.project_cfg
 
     @property
     def creator(self) -> PipelineCreator:
