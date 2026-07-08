@@ -23,10 +23,10 @@ services:
     image: python-dev-worker
     container_name: python-dev-worker
     build:
-      context: python-worker
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: docker/python-worker/Dockerfile.dev
     volumes:
-      - python-worker:/app # Mount your code directory
+      - python-worker-app:/app
     networks:
       - flowerpower-net
     restart: unless-stopped
@@ -263,7 +263,7 @@ volumes:
   codeserver_config:
   caddy_data:
   caddy_config:
-  python-worker:
+  python-worker-app:
   minio_data:
   nodered_data:
   postgres_data:
