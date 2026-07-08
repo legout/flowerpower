@@ -106,7 +106,7 @@ class ExecutionContextBuilder:
 def resolve_run_config_adapter_configs(
     run_config: RunConfig,
     pipeline_config: Any,
-    project_context: Any,
+    project_adapter_base: Any = None,
 ) -> RunConfig:
     """Merge pipeline and project adapter defaults into a resolved RunConfig.
 
@@ -131,6 +131,6 @@ def resolve_run_config_adapter_configs(
         and run_config.project_adapter_cfg is None
     ):
         run_config.project_adapter_cfg = manager.resolve_project_adapter_config(
-            run_config.project_adapter_cfg, project_context
+            run_config.project_adapter_cfg, project_adapter_base
         )
     return run_config

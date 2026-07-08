@@ -9,6 +9,7 @@ from ..utils.config import (
     validate_resolved_run_config,
 )
 from ..utils.logging import setup_logging
+from ..utils.adapter import extract_project_adapter_base
 from .execution_context import resolve_run_config_adapter_configs
 
 if TYPE_CHECKING:
@@ -80,7 +81,7 @@ class PipelineExecutor:
         # Fold pipeline and project adapter defaults into the resolved RunConfig
         # so runtime object construction consumes the resolved values only.
         run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, self._project_context
+            run_config, pipeline_config, extract_project_adapter_base(self._project_context)
         )
 
         # Guard against non-clearable fields that were left unset.
@@ -134,7 +135,7 @@ class PipelineExecutor:
         # Fold pipeline and project adapter defaults into the resolved RunConfig
         # so runtime object construction consumes the resolved values only.
         run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, self._project_context
+            run_config, pipeline_config, extract_project_adapter_base(self._project_context)
         )
 
         # Guard against non-clearable fields that were left unset.

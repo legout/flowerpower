@@ -261,16 +261,20 @@ class PipelineManager:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Exit the context manager.
+        """Release cached filesystem resources on context exit.
 
-        Handles cleanup of resources when exiting a with statement.
+        Clears the fsspec filesystem instance cache so that remote
+        backends (S3, GCS) release cached connections.
 
         Args:
             exc_type: Type of exception that occurred, if any
             exc_val: Exception instance that occurred, if any
             exc_tb: Traceback of exception that occurred, if any
         """
-        pass
+        try:
+            self._fs.clear_instance_cache()
+        except Exception:
+            pass
 
     def load_pipeline(self, name: str, reload: bool = False) -> PipelineConfig:
         """Load or reload configuration for a specific pipeline.

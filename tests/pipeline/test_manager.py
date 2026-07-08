@@ -508,5 +508,30 @@ def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
     assert manager._config_manager is config_manager
 
 
+def test_manager_exit_clears_filesystem_instance_cache():
+    """Context exit should clear the filesystem instance cache."""
+    fs = MagicMock()
+    config_manager = MagicMock()
+    config_manager.project_config = MagicMock(name="project_cfg")
+
+    with patch("flowerpower.pipeline.manager.PipelineConfigManager") as mock_config_manager_class:
+        with patch("flowerpower.pipeline.manager.PipelineRegistry"):
+            with patch("flowerpower.pipeline.manager.PipelineCreator"):
+                with patch("flowerpower.pipeline.manager.PipelineExecutor"):
+                    with patch("flowerpower.pipeline.manager.PipelineVisualizer"):
+                        with patch("flowerpower.pipeline.manager.PipelineIOManager"):
+                            mock_config_manager_class.return_value = config_manager
+
+                            manager = PipelineManager(
+                                base_dir="/test/base",
+                                fs=fs,
+                            )
+
+    with manager as ctx:
+        assert ctx is manager
+
+    fs.clear_instance_cache.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
