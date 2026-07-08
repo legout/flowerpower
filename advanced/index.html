@@ -8,10 +8,10 @@
         <link rel="canonical" href="https://legout.github.io/flowerpower/advanced/">
       
       
-        <link rel="prev" href="../guide/async-execution/">
+        <link rel="prev" href="../quickstart/">
       
       
-        <link rel="next" href="../cli/">
+        <link rel="next" href="../guide/additional-modules/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -19,7 +19,7 @@
     
     
       
-        <title>Advanced Usage - FlowerPower Documentation</title>
+        <title>Run Pipelines (RunConfig &amp; kwargs) - FlowerPower Documentation</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#advanced-usage" class="md-skip">
+        <a href="#configuration-concepts" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Advanced Usage
+              Run Pipelines (RunConfig &amp; kwargs)
             
           </span>
         </div>
@@ -267,71 +267,14 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../quickstart/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Quickstart
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../architecture/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Architecture
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../examples/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Examples
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
     
     
       <li class="md-tabs__item">
-        <a href="../guide/additional-modules/" class="md-tabs__link">
+        <a href="../quickstart/" class="md-tabs__link">
           
   
   
-  Guides
+  Tutorial
 
         </a>
       </li>
@@ -346,36 +289,18 @@
     
   
   
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
-        
-  
-  
     
-  
-  Advanced Usage
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../cli/" class="md-tabs__link">
-        
-  
-  
     
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
   
-  CLI Reference
+  
+  How-to Guides
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -387,11 +312,31 @@
     
     
       <li class="md-tabs__item">
-        <a href="../api/" class="md-tabs__link">
+        <a href="../architecture/" class="md-tabs__link">
           
   
   
-  API Reference
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  Reference
 
         </a>
       </li>
@@ -513,13 +458,54 @@
   
   
   
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorial
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../quickstart/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Quickstart
+    Your First Pipeline
     
   </span>
   
@@ -528,9 +514,389 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    How-to Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Run Pipelines (RunConfig &amp; kwargs)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run Pipelines (RunConfig &amp; kwargs)
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-layered-configuration-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      The layered configuration model
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The layered configuration model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#project-vs-pipeline-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project vs. pipeline config
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-parameters-reach-your-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      How parameters reach your functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-overlays" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment overlays
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment overlays">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#yaml-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      YAML interpolation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-with-runconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running with RunConfig
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running with RunConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runconfigbuilder" class="md-nav__link">
+    <span class="md-ellipsis">
+      RunConfigBuilder
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#executors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Executors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retries-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retries &amp; callbacks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Caching
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Composing modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filesystem-abstraction-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      Filesystem abstraction &amp; security
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#io-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      I/O plugins
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/additional-modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compose Multiple Modules
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/async-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run Pipelines Asynchronously
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Use Adapters (Tracker, MLflow, Ray)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
   
   
   
@@ -550,25 +916,11 @@
     </li>
   
 
-    
+              
+            
+          </ul>
+        </nav>
       
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../examples/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Examples
-    
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -599,7 +951,7 @@
   
   
   <span class="md-ellipsis">
-    Guides
+    Reference
     
   </span>
   
@@ -610,7 +962,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
-            Guides
+            Reference
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -621,12 +973,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/additional-modules/" class="md-nav__link">
+      <a href="../cli/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Compose Pipelines With Additional Modules
+    CLI
     
   </span>
   
@@ -644,12 +996,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/async-execution/" class="md-nav__link">
+      <a href="../examples/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Asynchronous Execution
+    Examples
     
   </span>
   
@@ -660,242 +1012,8 @@
 
               
             
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Advanced Usage
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    Advanced Usage
-    
-  </span>
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-flexibility" class="md-nav__link">
-    <span class="md-ellipsis">
-      Configuration Flexibility
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration Flexibility">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#programmatic-configuration-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      Programmatic Configuration (recommended)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#environment-variable-overlays" class="md-nav__link">
-    <span class="md-ellipsis">
-      Environment Variable Overlays
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#yaml-environment-interpolation" class="md-nav__link">
-    <span class="md-ellipsis">
-      YAML Environment Interpolation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#direct-module-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      Direct Module Usage
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Direct Module Usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pipelinemanager" class="md-nav__link">
-    <span class="md-ellipsis">
-      PipelineManager
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#hooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      Hooks
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Hooks">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#adding-hooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      Adding Hooks
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adapters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Adapters
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#filesystem-abstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      Filesystem Abstraction
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Filesystem Abstraction">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
-    <span class="md-ellipsis">
-      Security
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensible-io-plugins" class="md-nav__link">
-    <span class="md-ellipsis">
-      Extensible I/O Plugins
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      Troubleshooting
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    CLI Reference
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
+              
+                
   
   
   
@@ -912,15 +1030,15 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3">
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
-    API Reference
+    API
     
   </span>
   
@@ -928,10 +1046,10 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
             <span class="md-nav__icon md-icon"></span>
-            API Reference
+            API
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -965,12 +1083,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/flowerpower/" class="md-nav__link">
+      <a href="../api/flowerpowerproject/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    FlowerPower
+    FlowerPowerProject
     
   </span>
   
@@ -1011,12 +1129,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/configuration/" class="md-nav__link">
+      <a href="../api/runconfig/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Configuration
+    RunConfig
     
   </span>
   
@@ -1034,12 +1152,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/flowerpowerproject/" class="md-nav__link">
+      <a href="../api/configuration/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    FlowerPowerProject
+    Configuration
     
   </span>
   
@@ -1148,6 +1266,29 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../api/flowerpower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FlowerPower (alias)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -1160,10 +1301,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_10">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_11">
         
           
-          <label class="md-nav__link" for="__nav_9_10" id="__nav_9_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6_3_11" id="__nav_6_3_11_label" tabindex="0">
             
   
   
@@ -1176,8 +1317,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_10">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_11">
             <span class="md-nav__icon md-icon"></span>
             CLI
           </label>
@@ -1224,6 +1365,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1293,37 +1442,19 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuration-flexibility" class="md-nav__link">
+  <a href="#the-layered-configuration-model" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuration Flexibility
+      The layered configuration model
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Configuration Flexibility">
+    <nav class="md-nav" aria-label="The layered configuration model">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#programmatic-configuration-recommended" class="md-nav__link">
+  <a href="#project-vs-pipeline-config" class="md-nav__link">
     <span class="md-ellipsis">
-      Programmatic Configuration (recommended)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#environment-variable-overlays" class="md-nav__link">
-    <span class="md-ellipsis">
-      Environment Variable Overlays
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#yaml-environment-interpolation" class="md-nav__link">
-    <span class="md-ellipsis">
-      YAML Environment Interpolation
+      Project vs. pipeline config
     </span>
   </a>
   
@@ -1335,19 +1466,28 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#direct-module-usage" class="md-nav__link">
+  <a href="#how-parameters-reach-your-functions" class="md-nav__link">
     <span class="md-ellipsis">
-      Direct Module Usage
+      How parameters reach your functions
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Direct Module Usage">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-overlays" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment overlays
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment overlays">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#pipelinemanager" class="md-nav__link">
+  <a href="#yaml-interpolation" class="md-nav__link">
     <span class="md-ellipsis">
-      PipelineManager
+      YAML interpolation
     </span>
   </a>
   
@@ -1359,19 +1499,19 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#hooks" class="md-nav__link">
+  <a href="#running-with-runconfig" class="md-nav__link">
     <span class="md-ellipsis">
-      Hooks
+      Running with RunConfig
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Hooks">
+    <nav class="md-nav" aria-label="Running with RunConfig">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#adding-hooks" class="md-nav__link">
+  <a href="#runconfigbuilder" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding Hooks
+      RunConfigBuilder
     </span>
   </a>
   
@@ -1379,6 +1519,42 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#executors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Executors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retries-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retries &amp; callbacks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Caching
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Composing modules
+    </span>
+  </a>
   
 </li>
       
@@ -1392,42 +1568,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#filesystem-abstraction" class="md-nav__link">
+  <a href="#filesystem-abstraction-security" class="md-nav__link">
     <span class="md-ellipsis">
-      Filesystem Abstraction
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Filesystem Abstraction">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
-    <span class="md-ellipsis">
-      Security
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensible-io-plugins" class="md-nav__link">
-    <span class="md-ellipsis">
-      Extensible I/O Plugins
+      Filesystem abstraction &amp; security
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
+  <a href="#io-plugins" class="md-nav__link">
     <span class="md-ellipsis">
-      Troubleshooting
+      I/O plugins
     </span>
   </a>
   
@@ -1452,24 +1604,63 @@
   
 
 
-<h1 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">¶</a></h1>
-<p>Welcome to the advanced usage guide for FlowerPower. This document covers more complex configurations and use cases to help you get the most out of the library.</p>
-<p>See also:</p>
+<h1 id="configuration-concepts">Configuration &amp; Concepts<a class="headerlink" href="#configuration-concepts" title="Permanent link">¶</a></h1>
+<p>This page explains <em>how</em> FlowerPower's configuration works and the concepts
+behind it. For a step-by-step build, see the <a href="../quickstart/">Tutorial</a>; for
+specific tasks, see the <a href="../guide/additional-modules/">How-to guides</a>.</p>
+<h2 id="the-layered-configuration-model">The layered configuration model<a class="headerlink" href="#the-layered-configuration-model" title="Permanent link">¶</a></h2>
+<p>FlowerPower resolves every setting through a <strong>precedence ladder</strong>. The first
+level that provides a value wins:</p>
+<pre class="mermaid"><code>graph BT
+    A["Code defaults&lt;br/&gt;(struct defaults)"] --&gt; B["Global FP_* shims&lt;br/&gt;FP_LOG_LEVEL, FP_EXECUTOR, …"]
+    B --&gt; C["YAML after interpolation&lt;br/&gt;conf/project.yml · conf/pipelines/*.yml"]
+    C --&gt; D["Environment overlays&lt;br/&gt;FP_PIPELINE__* · FP_PROJECT__*"]
+    D --&gt; E["Runtime kwargs / RunConfig"]
+    style E fill:#2e7d32,color:#fff
+    style A fill:#777,color:#fff</code></pre>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Layer</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Runtime kwargs / <code>RunConfig</code></strong></td>
+<td>Passed to <code>project.run(...)</code> / <code>pm.run(...)</code>. Always wins.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Environment overlays</strong></td>
+<td><code>FP_PIPELINE__*</code> / <code>FP_PROJECT__*</code> (nested via <code>__</code>).</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>YAML (after interpolation)</strong></td>
+<td><code>conf/project.yml</code> and <code>conf/pipelines/&lt;name&gt;.yml</code>, with <code>${VAR}</code> expanded.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Global env shims</strong></td>
+<td><code>FP_LOG_LEVEL</code>, <code>FP_EXECUTOR</code>, … applied only when no more-specific key is set.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Code defaults</strong></td>
+<td>Struct field defaults.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="project-vs-pipeline-config">Project vs. pipeline config<a class="headerlink" href="#project-vs-pipeline-config" title="Permanent link">¶</a></h3>
 <ul>
-<li>Guides → <a href="../guide/additional-modules/">Compose Pipelines With Additional Modules</a></li>
-<li>Guides → <a href="../guide/async-execution/">Asynchronous Execution</a></li>
+<li><strong><code>conf/project.yml</code></strong> — project-wide settings: name and the <code>adapter</code> block
+  (Hamilton Tracker, MLflow, Ray connection details).</li>
+<li><strong><code>conf/pipelines/&lt;name&gt;.yml</code></strong> — per-pipeline settings: <code>params</code>, <code>run</code>
+  (execution), and pipeline-level <code>adapter</code> overrides.</li>
 </ul>
-<h2 id="configuration-flexibility">Configuration Flexibility<a class="headerlink" href="#configuration-flexibility" title="Permanent link">¶</a></h2>
-<p>FlowerPower offers multiple ways to configure your project, ensuring flexibility for different environments and workflows. Configuration is applied in this order (highest wins):</p>
-<ol>
-<li><strong>Runtime kwargs / RunConfig</strong> (programmatic overrides at execution time)</li>
-<li><strong>Environment overlays</strong> via <code>FP_PIPELINE__*</code> / <code>FP_PROJECT__*</code> variables</li>
-<li><strong>YAML files after env interpolation</strong> (<code>${VAR}</code>, <code>${VAR:-default}</code>, etc.)</li>
-<li><strong>Global env shims</strong> like <code>FP_LOG_LEVEL</code>, <code>FP_EXECUTOR</code>, etc. (applied only if more specific keys not set)</li>
-<li><strong>Code defaults</strong> (struct defaults)</li>
-</ol>
-<h3 id="programmatic-configuration-recommended">Programmatic Configuration (recommended)<a class="headerlink" href="#programmatic-configuration-recommended" title="Permanent link">¶</a></h3>
-<p>Use <code>RunConfig</code> or kwargs when executing to override YAML/env at runtime.</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
 <span class="normal"><a href="#__codelineno-0-2"> 2</a></span>
 <span class="normal"><a href="#__codelineno-0-3"> 3</a></span>
@@ -1481,127 +1672,100 @@
 <span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
 <span class="normal"><a href="#__codelineno-0-10">10</a></span>
 <span class="normal"><a href="#__codelineno-0-11">11</a></span>
-<span class="normal"><a href="#__codelineno-0-12">12</a></span>
-<span class="normal"><a href="#__codelineno-0-13">13</a></span>
-<span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">PipelineManager</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.cfg.pipeline.run</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfig</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="n">pm</span> <span class="o">=</span> <span class="n">PipelineManager</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6"></a>    <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">"input_data"</span><span class="p">:</span> <span class="s2">"path/to/data.csv"</span><span class="p">},</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7"></a>    <span class="n">log_level</span><span class="o">=</span><span class="s2">"DEBUG"</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="p">)</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="n">result</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"sales_etl"</span><span class="p">,</span> <span class="n">run_config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10"></a>
-<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="c1"># or with kwargs (overrides RunConfig fields)</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="n">result</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13"></a>    <span class="s2">"sales_etl"</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14"></a>    <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">"input_data"</span><span class="p">:</span> <span class="s2">"path/to/other.csv"</span><span class="p">},</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="n">log_level</span><span class="o">=</span><span class="s2">"INFO"</span><span class="p">,</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-12">12</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1"># conf/pipelines/hello.yml</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="nt">params</span><span class="p">:</span><span class="w">                 </span><span class="c1"># values injected into your functions</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">  </span><span class="nt">greeting_message</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s">"Hello"</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="nt">run</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">  </span><span class="nt">final_vars</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">full_greeting</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># which nodes to return</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">threadpool</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">    </span><span class="nt">max_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">  </span><span class="nt">retry</span><span class="p">:</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="nt">max_retries</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="w">    </span><span class="nt">retry_delay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
 </code></pre></div></td></tr></tbody></table></div>
-<h3 id="environment-variable-overlays">Environment Variable Overlays<a class="headerlink" href="#environment-variable-overlays" title="Permanent link">¶</a></h3>
-<p>You can set typed, nested overrides using double-underscore paths:</p>
-<ul>
-<li><code>FP_PIPELINE__RUN__LOG_LEVEL=DEBUG</code></li>
-<li><code>FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool</code></li>
-<li><code>FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_KEY=...</code></li>
-</ul>
-<p>Global shims still work and are applied only if pipeline/project-specific keys are not set:</p>
-<ul>
-<li><code>FP_LOG_LEVEL=INFO</code></li>
-<li><code>FP_EXECUTOR=threadpool</code>, <code>FP_EXECUTOR_MAX_WORKERS=8</code>, <code>FP_EXECUTOR_NUM_CPUS=4</code></li>
-<li><code>FP_MAX_RETRIES=3</code>, <code>FP_RETRY_DELAY=2.0</code>, <code>FP_JITTER_FACTOR=0.2</code></li>
-</ul>
-<p>Values are strictly coerced (bool/int/float) and JSON is supported for objects/lists.</p>
-<h3 id="yaml-environment-interpolation">YAML Environment Interpolation<a class="headerlink" href="#yaml-environment-interpolation" title="Permanent link">¶</a></h3>
-<p>YAML supports Docker Compose–style expansion inside values. Examples:</p>
+<h2 id="how-parameters-reach-your-functions">How parameters reach your functions<a class="headerlink" href="#how-parameters-reach-your-functions" title="Permanent link">¶</a></h2>
+<p>In a pipeline module, this line loads the YAML <code>params:</code> block into Hamilton's
+parameter format:</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1">1</a></span>
 <span class="normal"><a href="#__codelineno-1-2">2</a></span>
 <span class="normal"><a href="#__codelineno-1-3">3</a></span>
 <span class="normal"><a href="#__codelineno-1-4">4</a></span>
-<span class="normal"><a href="#__codelineno-1-5">5</a></span>
-<span class="normal"><a href="#__codelineno-1-6">6</a></span>
-<span class="normal"><a href="#__codelineno-1-7">7</a></span>
-<span class="normal"><a href="#__codelineno-1-8">8</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="nt">run</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="w">  </span><span class="nt">log_level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${FP_LOG_LEVEL:-INFO}</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${FP_PIPELINE__RUN__EXECUTOR:-{"type":"synchronous"}}</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="nt">adapter</span><span class="p">:</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">  </span><span class="nt">hamilton_tracker</span><span class="p">:</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${HAMILTON_API_KEY:?Missing tracker key}</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="nt">params</span><span class="p">:</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">  </span><span class="nt">data_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DATA_PATH:-data/input.csv}</span>
+<span class="normal"><a href="#__codelineno-1-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.cfg</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="n">PARAMS</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4"></a>    <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pipeline_name</span><span class="o">=</span><span class="s2">"hello"</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="p">)</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">h_params</span>
 </code></pre></div></td></tr></tbody></table></div>
-<p>Supported forms: <code>${VAR}</code>, <code>${VAR:-default}</code> (unset or empty), <code>${VAR-default}</code> (unset), <code>${VAR:?err}</code> / <code>${VAR?err}</code> (require), <code>$${...}</code> escapes <code>$</code>. If the expanded value is valid JSON, it becomes a typed object/list/number/bool/null.</p>
-<h2 id="direct-module-usage">Direct Module Usage<a class="headerlink" href="#direct-module-usage" title="Permanent link">¶</a></h2>
-<p>For fine-grained control, you can work directly with <code>PipelineManager</code>.</p>
-<h3 id="pipelinemanager"><code>PipelineManager</code><a class="headerlink" href="#pipelinemanager" title="Permanent link">¶</a></h3>
-<p>The <code>PipelineManager</code> is responsible for loading, validating, and executing data pipelines.</p>
-<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1"> 1</a></span>
-<span class="normal"><a href="#__codelineno-2-2"> 2</a></span>
-<span class="normal"><a href="#__codelineno-2-3"> 3</a></span>
-<span class="normal"><a href="#__codelineno-2-4"> 4</a></span>
-<span class="normal"><a href="#__codelineno-2-5"> 5</a></span>
-<span class="normal"><a href="#__codelineno-2-6"> 6</a></span>
-<span class="normal"><a href="#__codelineno-2-7"> 7</a></span>
-<span class="normal"><a href="#__codelineno-2-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-2-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-2-10">10</a></span>
-<span class="normal"><a href="#__codelineno-2-11">11</a></span>
-<span class="normal"><a href="#__codelineno-2-12">12</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">PipelineManager</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.cfg.pipeline.run</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfig</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="c1"># Initialize the manager</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="n">pipeline_manager</span> <span class="o">=</span> <span class="n">PipelineManager</span><span class="p">()</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="c1"># Access the registry to load a specific pipeline</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">pipeline_manager</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">(</span><span class="s2">"sales_etl"</span><span class="p">)</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9"></a>
-<a id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="c1"># Execute the pipeline with RunConfig</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="n">result</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">run_config</span><span class="o">=</span><span class="n">RunConfig</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">"input_data"</span><span class="p">:</span> <span class="s2">"path/to/data.csv"</span><span class="p">}))</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<p><code>PARAMS</code> is a <strong>dictionary</strong>. Each top-level key maps a function name to that
+function's keyword arguments. Connect them with Hamilton's <code>@parameterize</code>:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1">1</a></span>
+<span class="normal"><a href="#__codelineno-2-2">2</a></span>
+<span class="normal"><a href="#__codelineno-2-3">3</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="nd">@parameterize</span><span class="p">(</span><span class="o">**</span><span class="n">PARAMS</span><span class="p">[</span><span class="s2">"greeting_message"</span><span class="p">])</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">greeting_message</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">,"</span>
 </code></pre></div></td></tr></tbody></table></div>
-<h2 id="hooks">Hooks<a class="headerlink" href="#hooks" title="Permanent link">¶</a></h2>
-<p>Hooks allow you to inject custom logic at specific points in the pipeline lifecycle, such as pre-execution validation or post-execution logging.</p>
-<h3 id="adding-hooks">Adding Hooks<a class="headerlink" href="#adding-hooks" title="Permanent link">¶</a></h3>
-<p>Use the <code>add_hook</code> method in the PipelineRegistry to add hooks to your pipeline.</p>
-<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1"> 1</a></span>
-<span class="normal"><a href="#__codelineno-3-2"> 2</a></span>
-<span class="normal"><a href="#__codelineno-3-3"> 3</a></span>
-<span class="normal"><a href="#__codelineno-3-4"> 4</a></span>
-<span class="normal"><a href="#__codelineno-3-5"> 5</a></span>
-<span class="normal"><a href="#__codelineno-3-6"> 6</a></span>
-<span class="normal"><a href="#__codelineno-3-7"> 7</a></span>
-<span class="normal"><a href="#__codelineno-3-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-3-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-3-10">10</a></span>
-<span class="normal"><a href="#__codelineno-3-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">PipelineManager</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.pipeline.hooks</span><span class="w"> </span><span class="kn">import</span> <span class="n">HookType</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="n">manager</span> <span class="o">=</span> <span class="n">PipelineManager</span><span class="p">()</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6"></a><span class="n">manager</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">add_hook</span><span class="p">(</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">"my_pipeline"</span><span class="p">,</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8"></a>    <span class="nb">type</span><span class="o">=</span><span class="n">HookType</span><span class="o">.</span><span class="n">MQTT_BUILD_CONFIG</span><span class="p">,</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9"></a>    <span class="n">to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># Defaults to hooks/my_pipeline/hook.py</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10"></a>    <span class="n">function_name</span><span class="o">=</span><span class="s2">"build_mqtt_config"</span>  <span class="c1"># Optional; defaults to type value</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="p">)</span>
+<div class="admonition warning">
+<p class="admonition-title">Use dictionary access</p>
+<p>Write <code>PARAMS["greeting_message"]</code>, <strong>not</strong> <code>PARAMS.greeting_message</code>.
+<code>h_params</code> is a plain dict; attribute access raises <code>AttributeError</code>.</p>
+</div>
+<p>Hamilton reads function signatures to build the DAG — it never runs a node
+until something depends on it. You select the nodes to actually compute via
+<code>run.final_vars</code>.</p>
+<h2 id="environment-overlays">Environment overlays<a class="headerlink" href="#environment-overlays" title="Permanent link">¶</a></h2>
+<p>You can override any nested config value with environment variables, using
+double-underscore as the path separator:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Sets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FP_PIPELINE__RUN__LOG_LEVEL=DEBUG</code></td>
+<td><code>run.log_level</code></td>
+</tr>
+<tr>
+<td><code>FP_PIPELINE__RUN__EXECUTOR__TYPE=threadpool</code></td>
+<td><code>run.executor.type</code></td>
+</tr>
+<tr>
+<td><code>FP_PROJECT__ADAPTER__HAMILTON_TRACKER__API_URL=…</code></td>
+<td>project adapter URL</td>
+</tr>
+</tbody>
+</table>
+<p>Values are type-coerced (bool / int / float) and JSON is accepted for
+objects/lists. Global shims like <code>FP_LOG_LEVEL</code> and <code>FP_EXECUTOR</code> still work,
+but only when no more-specific overlay key is present.</p>
+<h3 id="yaml-interpolation">YAML interpolation<a class="headerlink" href="#yaml-interpolation" title="Permanent link">¶</a></h3>
+<p>YAML values support Docker Compose–style expansion:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1">1</a></span>
+<span class="normal"><a href="#__codelineno-3-2">2</a></span>
+<span class="normal"><a href="#__codelineno-3-3">3</a></span>
+<span class="normal"><a href="#__codelineno-3-4">4</a></span>
+<span class="normal"><a href="#__codelineno-3-5">5</a></span>
+<span class="normal"><a href="#__codelineno-3-6">6</a></span>
+<span class="normal"><a href="#__codelineno-3-7">7</a></span>
+<span class="normal"><a href="#__codelineno-3-8">8</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="nt">run</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">  </span><span class="nt">log_level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${FP_LOG_LEVEL:-INFO}</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">  </span><span class="nt">executor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${FP_PIPELINE__RUN__EXECUTOR:-{"type":"threadpool"}}</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="nt">params</span><span class="p">:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="w">  </span><span class="nt">data_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DATA_PATH:-data/input.csv}</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6"></a><span class="nt">adapter</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="w">  </span><span class="nt">hamilton_tracker</span><span class="p">:</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="w">    </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${HAMILTON_API_KEY:?Missing tracker key}</span>
 </code></pre></div></td></tr></tbody></table></div>
-<p>This appends a template function to the hook file. Customize the function in <code>hooks/my_pipeline/hook.py</code> to implement your logic, e.g., for MQTT config building.</p>
-<p>Hooks are executed automatically during pipeline runs based on their type.</p>
-<h2 id="adapters">Adapters<a class="headerlink" href="#adapters" title="Permanent link">¶</a></h2>
-<p>Integrate with popular MLOps and observability tools using adapters.</p>
-<ul>
-<li><strong>Hamilton Tracker</strong>: For dataflow and lineage tracking.</li>
-<li><strong>MLflow</strong>: For experiment tracking.</li>
-<li><strong>OpenTelemetry</strong>: For distributed tracing and metrics.</li>
-</ul>
-<h2 id="filesystem-abstraction">Filesystem Abstraction<a class="headerlink" href="#filesystem-abstraction" title="Permanent link">¶</a></h2>
-<p>FlowerPower uses the library <a href="https://legout.github.io/fsspeckit"><code>fsspeckit</code></a> to provide a unified interface for interacting with different filesystems, including local storage, S3, and GCS. This allows you to switch between storage backends without changing your code.</p>
-<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">¶</a></h3>
-<p>FlowerPower includes built-in security features to prevent common vulnerabilities, such as directory traversal attacks. All file paths provided to configuration loaders and filesystem utilities are validated to ensure they are within the project's base directory.</p>
+<p>Supported forms: <code>${VAR}</code>, <code>${VAR:-default}</code> (unset or empty), <code>${VAR-default}</code>
+(unset), <code>${VAR:?err}</code> / <code>${VAR!err}</code> (require). <code>$${...}</code> escapes the <code>$</code>.
+Expanded JSON becomes a typed value.</p>
+<h2 id="running-with-runconfig">Running with <code>RunConfig</code><a class="headerlink" href="#running-with-runconfig" title="Permanent link">¶</a></h2>
+<p><code>RunConfig</code> bundles execution settings. Pass it to <code>run()</code>, or override
+individual fields as kwargs (kwargs win):</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-4-1"> 1</a></span>
 <span class="normal"><a href="#__codelineno-4-2"> 2</a></span>
 <span class="normal"><a href="#__codelineno-4-3"> 3</a></span>
@@ -1611,38 +1775,120 @@
 <span class="normal"><a href="#__codelineno-4-7"> 7</a></span>
 <span class="normal"><a href="#__codelineno-4-8"> 8</a></span>
 <span class="normal"><a href="#__codelineno-4-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-4-10">10</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.utils.security</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="c1"># This will pass</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4"></a><span class="n">validate_file_path</span><span class="p">(</span><span class="s2">"my/safe/path.yml"</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-4-10">10</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlowerPowerProject</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.cfg.pipeline.run</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfig</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4"></a><span class="n">project</span> <span class="o">=</span> <span class="n">FlowerPowerProject</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5"></a>
-<a id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="c1"># This will raise a ConfigPathError</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7"></a><span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8"></a>    <span class="n">validate_file_path</span><span class="p">(</span><span class="s2">"../../../etc/passwd"</span><span class="p">)</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9"></a><span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7"></a>    <span class="s2">"hello"</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8"></a>    <span class="n">run_config</span><span class="o">=</span><span class="n">RunConfig</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">"greeting_message"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Hi"</span><span class="p">}},</span> <span class="n">log_level</span><span class="o">=</span><span class="s2">"DEBUG"</span><span class="p">),</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9"></a>    <span class="n">final_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"full_greeting"</span><span class="p">],</span>   <span class="c1"># overrides the RunConfig field</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10"></a><span class="p">)</span>
 </code></pre></div></td></tr></tbody></table></div>
-<h2 id="extensible-io-plugins">Extensible I/O Plugins<a class="headerlink" href="#extensible-io-plugins" title="Permanent link">¶</a></h2>
-<p>The FlowerPower plugin <a href="https://legout.github.io/flowerpower-io"><code>flowerpower-io</code></a> enhances FlowerPower's I/O capabilities, allowing you to connect to various data sources and sinks using a simple plugin architecture.</p>
-<p><strong>Supported Types Include:</strong></p>
+<h3 id="runconfigbuilder"><code>RunConfigBuilder</code><a class="headerlink" href="#runconfigbuilder" title="Permanent link">¶</a></h3>
+<p>For complex runs, the fluent builder is clearer:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-5-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-5-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-5-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-5-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-5-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-5-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-5-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-5-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-5-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-5-10">10</a></span>
+<span class="normal"><a href="#__codelineno-5-11">11</a></span>
+<span class="normal"><a href="#__codelineno-5-12">12</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.utils.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfigBuilder</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3"></a><span class="n">cfg</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4"></a>    <span class="n">RunConfigBuilder</span><span class="p">()</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5"></a>    <span class="o">.</span><span class="n">with_inputs</span><span class="p">({</span><span class="s2">"greeting_message"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Hi"</span><span class="p">}})</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6"></a>    <span class="o">.</span><span class="n">with_final_vars</span><span class="p">([</span><span class="s2">"full_greeting"</span><span class="p">])</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7"></a>    <span class="o">.</span><span class="n">with_log_level</span><span class="p">(</span><span class="s2">"DEBUG"</span><span class="p">)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8"></a>    <span class="o">.</span><span class="n">with_retries</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9"></a>    <span class="o">.</span><span class="n">with_executor</span><span class="p">({</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"threadpool"</span><span class="p">,</span> <span class="s2">"max_workers"</span><span class="p">:</span> <span class="mi">4</span><span class="p">})</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10"></a>    <span class="o">.</span><span class="n">build</span><span class="p">()</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11"></a><span class="p">)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">,</span> <span class="n">run_config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</code></pre></div></td></tr></tbody></table></div>
+<p>Key <code>RunConfig</code> fields: <code>inputs</code>, <code>final_vars</code>, <code>config</code>, <code>cache</code>, <code>executor</code>,
+<code>with_adapter</code>, <code>retry</code>, <code>log_level</code>, <code>reload</code>, <code>additional_modules</code>,
+<code>on_success</code>, <code>on_failure</code>, <code>async_driver</code>. See the
+<a href="../api/runconfig/">RunConfig reference</a> for the complete list.</p>
+<h2 id="executors">Executors<a class="headerlink" href="#executors" title="Permanent link">¶</a></h2>
+<p>The <code>run.executor</code> block (or <code>executor_cfg=</code> kwarg) chooses how Hamilton runs
+the DAG:</p>
 <ul>
-<li>CSV, JSON, Parquet</li>
-<li>DeltaTable</li>
-<li>DuckDB, PostgreSQL, MySQL, MSSQL, Oracle, SQLite</li>
-<li>MQTT</li>
+<li><strong><code>threadpool</code></strong> (default) — multi-threaded, good for I/O-bound nodes.</li>
+<li><strong><code>local</code></strong> — single-process, useful for CPU-bound / simple pipelines.</li>
+<li><strong>Ray</strong> — distributed; needs the <code>[ray]</code> extra and the Ray adapter enabled.</li>
 </ul>
-<p>To use a plugin, simply specify its type in your pipeline configuration.</p>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">¶</a></h2>
-<p>Here are some common issues and how to resolve them:</p>
-<ul>
-<li><strong>Redis Connection Error</strong>: Ensure your Redis server is running and accessible. Check the <code>redis.host</code> and <code>redis.port</code> settings in your configuration.</li>
-<li><strong>Configuration Errors</strong>: Use the <code>flowerpower pipeline show-summary</code> command to inspect the loaded configuration and identify any misconfigurations.</li>
-<li><strong>Module Not Found</strong>: Make sure your pipeline and task modules are in Python's path. You can add directories to the path using the <code>PYTHONPATH</code> environment variable.</li>
-</ul>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-6-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">,</span> <span class="n">executor_cfg</span><span class="o">=</span><span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"threadpool"</span><span class="p">,</span> <span class="s2">"max_workers"</span><span class="p">:</span> <span class="mi">8</span><span class="p">})</span>
+</code></pre></div></td></tr></tbody></table></div>
+<h2 id="retries-callbacks">Retries &amp; callbacks<a class="headerlink" href="#retries-callbacks" title="Permanent link">¶</a></h2>
+<p>Retry behavior lives in the nested <code>retry</code> block
+(<code>max_retries</code>, <code>retry_delay</code>, <code>jitter_factor</code>, <code>retry_exceptions</code>):</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-7-1">1</a></span>
+<span class="normal"><a href="#__codelineno-7-2">2</a></span>
+<span class="normal"><a href="#__codelineno-7-3">3</a></span>
+<span class="normal"><a href="#__codelineno-7-4">4</a></span>
+<span class="normal"><a href="#__codelineno-7-5">5</a></span>
+<span class="normal"><a href="#__codelineno-7-6">6</a></span>
+<span class="normal"><a href="#__codelineno-7-7">7</a></span>
+<span class="normal"><a href="#__codelineno-7-8">8</a></span>
+<span class="normal"><a href="#__codelineno-7-9">9</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.cfg.pipeline.run</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfig</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3"></a><span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4"></a>    <span class="s2">"flaky_pipeline"</span><span class="p">,</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5"></a>    <span class="n">run_config</span><span class="o">=</span><span class="n">RunConfig</span><span class="p">(</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6"></a>        <span class="n">retry</span><span class="o">=</span><span class="p">{</span><span class="s2">"max_retries"</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">"retry_delay"</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s2">"jitter_factor"</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">},</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7"></a>        <span class="n">on_success</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">"done"</span><span class="p">),</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8"></a>    <span class="p">),</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9"></a><span class="p">)</span>
+</code></pre></div></td></tr></tbody></table></div>
 <div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>For more detailed information, refer to the API documentation.</p>
+<p class="admonition-title">Deprecated retry fields</p>
+<p>The top-level <code>max_retries</code> / <code>retry_delay</code> / <code>jitter_factor</code> /
+<code>retry_exceptions</code> fields still work but emit a <code>DeprecationWarning</code>. Use the
+nested <code>retry</code> block instead.</p>
 </div>
+<p><code>on_success</code> / <code>on_failure</code> accept a callable, or a
+<code>(callable, args_tuple, kwargs_dict)</code> tuple.</p>
+<h2 id="caching">Caching<a class="headerlink" href="#caching" title="Permanent link">¶</a></h2>
+<p>Set <code>cache: true</code> (or a dict like <code>{"recompute": ["node1", "final_node"]}</code>) to
+reuse results of previously computed nodes across runs.</p>
+<h2 id="composing-modules">Composing modules<a class="headerlink" href="#composing-modules" title="Permanent link">¶</a></h2>
+<p>A pipeline can pull nodes from additional Python modules via
+<code>additional_modules</code> — handy for shared setup/teardown or team ownership:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-8-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1"></a><span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">,</span> <span class="n">additional_modules</span><span class="o">=</span><span class="p">[</span><span class="s2">"setup"</span><span class="p">],</span> <span class="n">final_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"full_greeting"</span><span class="p">])</span>
+</code></pre></div></td></tr></tbody></table></div>
+<p>See <a href="../guide/additional-modules/">Compose Multiple Modules</a> for resolution rules
+and reload behaviour.</p>
+<h2 id="adapters">Adapters<a class="headerlink" href="#adapters" title="Permanent link">¶</a></h2>
+<p>Track runs or distribute work by enabling adapters at run time. The toggle field
+is <strong><code>hamilton_tracker</code></strong> (not <code>tracker</code>):</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-9-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1"></a><span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">,</span> <span class="n">with_adapter_cfg</span><span class="o">=</span><span class="p">{</span><span class="s2">"hamilton_tracker"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"mlflow"</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+</code></pre></div></td></tr></tbody></table></div>
+<p>See <a href="../guide/adapters/">Use Adapters</a> for full configuration.</p>
+<h2 id="filesystem-abstraction-security">Filesystem abstraction &amp; security<a class="headerlink" href="#filesystem-abstraction-security" title="Permanent link">¶</a></h2>
+<p>FlowerPower reads and writes through <a href="https://legout.github.io/fsspeckit">fsspeckit</a>,
+so the same project can live on local disk, S3, GCS, and more. Pass
+<code>storage_options</code> and a <code>base_dir</code> with a protocol (e.g. <code>s3://bucket/proj</code>).</p>
+<p>All file paths are validated to prevent directory traversal:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-10-1">1</a></span>
+<span class="normal"><a href="#__codelineno-10-2">2</a></span>
+<span class="normal"><a href="#__codelineno-10-3">3</a></span>
+<span class="normal"><a href="#__codelineno-10-4">4</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.utils.security</span><span class="w"> </span><span class="kn">import</span> <span class="n">SecurityError</span><span class="p">,</span> <span class="n">validate_file_path</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3"></a><span class="n">validate_file_path</span><span class="p">(</span><span class="s2">"data/input.csv"</span><span class="p">)</span>          <span class="c1"># OK</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4"></a><span class="n">validate_file_path</span><span class="p">(</span><span class="s2">"../../../etc/passwd"</span><span class="p">)</span>      <span class="c1"># raises SecurityError</span>
+</code></pre></div></td></tr></tbody></table></div>
+<h2 id="io-plugins">I/O plugins<a class="headerlink" href="#io-plugins" title="Permanent link">¶</a></h2>
+<p>Install the <code>flowerpower-io</code> plugin (<code>uv pip install 'flowerpower[io]'</code>) to read
+and write CSV, JSON, Parquet, DeltaTable, DuckDB, PostgreSQL, MySQL, MSSQL,
+Oracle, SQLite, and MQTT. See the
+<a href="https://legout.github.io/flowerpower-io">flowerpower-io docs</a>.</p>
 
 
 

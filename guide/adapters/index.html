@@ -5,13 +5,13 @@
       
       
       
-        <link rel="canonical" href="https://legout.github.io/flowerpower/api/flowerpowerproject/">
+        <link rel="canonical" href="https://legout.github.io/flowerpower/guide/adapters/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../async-execution/">
       
       
-        <link rel="next" href="../pipelinemanager/">
+        <link rel="next" href="../../architecture/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -19,7 +19,7 @@
     
     
       
-        <title>FlowerPowerProject - FlowerPower Documentation</title>
+        <title>Use Adapters (Tracker, MLflow, Ray) - FlowerPower Documentation</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#flowerpowerproject" class="md-skip">
+        <a href="#use-adapters" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              FlowerPowerProject
+              Use Adapters (Tracker, MLflow, Ray)
             
           </span>
         </div>
@@ -286,10 +286,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../../advanced/" class="md-tabs__link">
           
   
@@ -326,12 +328,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../../cli/" class="md-tabs__link">
           
   
@@ -527,24 +527,29 @@
       
   
   
+    
   
   
+  
     
     
     
     
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -557,7 +562,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             How-to Guides
@@ -594,7 +599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/additional-modules/" class="md-nav__link">
+      <a href="../additional-modules/" class="md-nav__link">
         
   
   
@@ -617,7 +622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/async-execution/" class="md-nav__link">
+      <a href="../async-execution/" class="md-nav__link">
         
   
   
@@ -637,10 +642,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../guide/adapters/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Use Adapters (Tracker, MLflow, Ray)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -651,6 +678,89 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#available-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available adapters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapter-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adapter configuration
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-with-the-hamilton-tracker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run with the Hamilton Tracker
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-with-mlflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run with MLflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-with-ray" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run with Ray
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layering-and-precedence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layering and precedence
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -738,29 +848,24 @@
       
   
   
-    
   
   
-  
     
     
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -773,7 +878,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -830,8 +935,6 @@
                 
   
   
-    
-  
   
   
     
@@ -842,11 +945,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3">
         
           
           <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
@@ -862,7 +965,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6_3">
             <span class="md-nav__icon md-icon"></span>
             API
@@ -876,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../api/" class="md-nav__link">
         
   
   
@@ -896,32 +999,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    FlowerPowerProject
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../api/flowerpowerproject/" class="md-nav__link">
         
   
   
@@ -932,101 +1013,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#lifecycle-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lifecycle methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Lifecycle methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#new" class="md-nav__link">
-    <span class="md-ellipsis">
-      new
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#load" class="md-nav__link">
-    <span class="md-ellipsis">
-      load
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Attributes
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#run" class="md-nav__link">
-    <span class="md-ellipsis">
-      run
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1039,7 +1025,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pipelinemanager/" class="md-nav__link">
+      <a href="../../api/pipelinemanager/" class="md-nav__link">
         
   
   
@@ -1062,7 +1048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runconfig/" class="md-nav__link">
+      <a href="../../api/runconfig/" class="md-nav__link">
         
   
   
@@ -1085,7 +1071,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
+      <a href="../../api/configuration/" class="md-nav__link">
         
   
   
@@ -1108,7 +1094,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../initialize_project/" class="md-nav__link">
+      <a href="../../api/initialize_project/" class="md-nav__link">
         
   
   
@@ -1131,7 +1117,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../create_project/" class="md-nav__link">
+      <a href="../../api/create_project/" class="md-nav__link">
         
   
   
@@ -1154,7 +1140,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../registry/" class="md-nav__link">
+      <a href="../../api/registry/" class="md-nav__link">
         
   
   
@@ -1177,7 +1163,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../executor/" class="md-nav__link">
+      <a href="../../api/executor/" class="md-nav__link">
         
   
   
@@ -1200,7 +1186,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../flowerpower/" class="md-nav__link">
+      <a href="../../api/flowerpower/" class="md-nav__link">
         
   
   
@@ -1264,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
+      <a href="../../api/cli/" class="md-nav__link">
         
   
   
@@ -1287,7 +1273,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli_pipeline/" class="md-nav__link">
+      <a href="../../api/cli_pipeline/" class="md-nav__link">
         
   
   
@@ -1375,77 +1361,65 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#lifecycle-methods" class="md-nav__link">
+  <a href="#available-adapters" class="md-nav__link">
     <span class="md-ellipsis">
-      Lifecycle methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Lifecycle methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#new" class="md-nav__link">
-    <span class="md-ellipsis">
-      new
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#load" class="md-nav__link">
-    <span class="md-ellipsis">
-      load
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Attributes
+      Available adapters
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
+  <a href="#adapter-configuration" class="md-nav__link">
     <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#run" class="md-nav__link">
-    <span class="md-ellipsis">
-      run
+      Adapter configuration
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#run-with-the-hamilton-tracker" class="md-nav__link">
     <span class="md-ellipsis">
-      Example
+      Run with the Hamilton Tracker
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#run-with-mlflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run with MLflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-with-ray" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run with Ray
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layering-and-precedence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layering and precedence
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related
+    </span>
+  </a>
   
 </li>
       
@@ -1468,15 +1442,49 @@
   
 
 
-<h1 id="flowerpowerproject">FlowerPowerProject<a class="headerlink" href="#flowerpowerproject" title="Permanent link">¶</a></h1>
-<p><strong>Module:</strong> <a href="https://github.com/legout/flowerpower/blob/main/src/flowerpower/flowerpower.py"><code>flowerpower.flowerpower.FlowerPowerProject</code></a></p>
-<p><code>FlowerPowerProject</code> represents a FlowerPower project. It provides methods to create a new project, load an existing one, and run pipelines.</p>
-<h2 id="lifecycle-methods">Lifecycle methods<a class="headerlink" href="#lifecycle-methods" title="Permanent link">¶</a></h2>
-<div class="admonition tip">
-<p class="admonition-title">Creating projects</p>
-<p>To create a project, always use <code>FlowerPowerProject.new(...)</code>.</p>
-</div>
-<h3 id="new">new<a class="headerlink" href="#new" title="Permanent link">¶</a></h3>
+<h1 id="use-adapters">Use Adapters<a class="headerlink" href="#use-adapters" title="Permanent link">¶</a></h1>
+<p>FlowerPower supports optional adapters for observability, experiment tracking, and distributed execution. Adapters are configured in <code>conf/project.yml</code> (and optionally per-pipeline in <code>conf/pipelines/&lt;name&gt;.yml</code>) and are toggled per run via <code>with_adapter_cfg</code>.</p>
+<h2 id="available-adapters">Available adapters<a class="headerlink" href="#available-adapters" title="Permanent link">¶</a></h2>
+<p>The <code>with_adapter_cfg</code> toggle accepts the following fields from <code>WithAdapterConfig</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Adapter</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hamilton_tracker</code></td>
+<td>Hamilton Tracker</td>
+<td>Capture dataflow lineage and execution metadata.</td>
+</tr>
+<tr>
+<td><code>mlflow</code></td>
+<td>MLflow</td>
+<td>Log runs, parameters, and artifacts to MLflow.</td>
+</tr>
+<tr>
+<td><code>ray</code></td>
+<td>Ray</td>
+<td>Execute nodes across a Ray cluster.</td>
+</tr>
+<tr>
+<td><code>progressbar</code></td>
+<td>Progress bar</td>
+<td>Show a terminal progress bar during the run.</td>
+</tr>
+<tr>
+<td><code>future</code></td>
+<td>Future</td>
+<td>Reserved for upcoming adapters.</td>
+</tr>
+</tbody>
+</table>
+<p>All fields default to <code>false</code>. Enable only the ones you need.</p>
+<h2 id="adapter-configuration">Adapter configuration<a class="headerlink" href="#adapter-configuration" title="Permanent link">¶</a></h2>
+<p>A generated <code>conf/project.yml</code> contains an <code>adapter</code> block like this:</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
 <span class="normal"><a href="#__codelineno-0-2"> 2</a></span>
 <span class="normal"><a href="#__codelineno-0-3"> 3</a></span>
@@ -1486,318 +1494,107 @@
 <span class="normal"><a href="#__codelineno-0-7"> 7</a></span>
 <span class="normal"><a href="#__codelineno-0-8"> 8</a></span>
 <span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-0-10">10</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="n">new</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2"></a>    <span class="bp">cls</span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4"></a>    <span class="n">base_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5"></a>    <span class="n">storage_options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">BaseStorageOptions</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6"></a>    <span class="n">fs</span><span class="p">:</span> <span class="n">AbstractFileSystem</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7"></a>    <span class="n">hooks_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">HOOKS_DIR</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8"></a>    <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9"></a>    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FlowerPowerProject</span>
+<span class="normal"><a href="#__codelineno-0-10">10</a></span>
+<span class="normal"><a href="#__codelineno-0-11">11</a></span>
+<span class="normal"><a href="#__codelineno-0-12">12</a></span>
+<span class="normal"><a href="#__codelineno-0-13">13</a></span>
+<span class="normal"><a href="#__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#__codelineno-0-15">15</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hello-world</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="nt">adapter</span><span class="p">:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">  </span><span class="nt">hamilton_tracker</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nt">api_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8241</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8242</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">    </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">    </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="nt">verify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">  </span><span class="nt">mlflow</span><span class="p">:</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="nt">tracking_uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="nt">registry_uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="w">    </span><span class="nt">artifact_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="w">  </span><span class="nt">ray</span><span class="p">:</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="w">    </span><span class="nt">ray_init_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="nt">shutdown_ray_on_completion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </code></pre></div></td></tr></tbody></table></div>
-<p>Create a new FlowerPower project.</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Project name.</td>
-<td style="text-align: left;">Current directory name</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>base_dir</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Directory to create the project in.</td>
-<td style="text-align: left;">Current working directory</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>storage_options</code></td>
-<td style="text-align: left;"><code>dict \| BaseStorageOptions \| None</code></td>
-<td style="text-align: left;">Filesystem storage options.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>fs</code></td>
-<td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">fsspec-compatible filesystem instance.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>hooks_dir</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">Directory for hooks.</td>
-<td style="text-align: left;"><code>settings.HOOKS_DIR</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Logging level.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>overwrite</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">Overwrite an existing project.</td>
-<td style="text-align: left;"><code>False</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>FlowerPowerProject</code></p>
-<p><strong>Raises:</strong> <code>FileExistsError</code> if the project already exists and <code>overwrite</code> is <code>False</code>.</p>
-<h3 id="load">load<a class="headerlink" href="#load" title="Permanent link">¶</a></h3>
+<p>Set the URLs and credentials before enabling an adapter. For per-pipeline overrides, add an <code>adapter</code> block under <code>conf/pipelines/&lt;name&gt;.yml</code>.</p>
+<h2 id="run-with-the-hamilton-tracker">Run with the Hamilton Tracker<a class="headerlink" href="#run-with-the-hamilton-tracker" title="Permanent link">¶</a></h2>
+<p>Enable the tracker at run time:</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1">1</a></span>
 <span class="normal"><a href="#__codelineno-1-2">2</a></span>
 <span class="normal"><a href="#__codelineno-1-3">3</a></span>
 <span class="normal"><a href="#__codelineno-1-4">4</a></span>
 <span class="normal"><a href="#__codelineno-1-5">5</a></span>
 <span class="normal"><a href="#__codelineno-1-6">6</a></span>
-<span class="normal"><a href="#__codelineno-1-7">7</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="n">load</span><span class="p">(</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2"></a>    <span class="bp">cls</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3"></a>    <span class="n">base_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4"></a>    <span class="n">storage_options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">BaseStorageOptions</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5"></a>    <span class="n">fs</span><span class="p">:</span> <span class="n">AbstractFileSystem</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6"></a>    <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FlowerPowerProject</span> <span class="o">|</span> <span class="kc">None</span>
+<span class="normal"><a href="#__codelineno-1-7">7</a></span>
+<span class="normal"><a href="#__codelineno-1-8">8</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlowerPowerProject</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="n">project</span> <span class="o">=</span> <span class="n">FlowerPowerProject</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'.'</span><span class="p">)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5"></a>    <span class="s1">'hello_world'</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6"></a>    <span class="n">with_adapter_cfg</span><span class="o">=</span><span class="p">{</span><span class="s1">'hamilton_tracker'</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7"></a>    <span class="n">final_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">'full_greeting'</span><span class="p">],</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="p">)</span>
 </code></pre></div></td></tr></tbody></table></div>
-<p>Load an existing project. Returns <code>None</code> if the project does not exist.</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><code>base_dir</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Directory to load from.</td>
-<td style="text-align: left;">Current working directory</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>storage_options</code></td>
-<td style="text-align: left;"><code>dict \| BaseStorageOptions \| None</code></td>
-<td style="text-align: left;">Filesystem storage options.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>fs</code></td>
-<td style="text-align: left;"><code>AbstractFileSystem \| None</code></td>
-<td style="text-align: left;">fsspec-compatible filesystem instance.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Logging level.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Returns:</strong> <code>FlowerPowerProject</code> if the project exists, otherwise <code>None</code>.</p>
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permanent link">¶</a></h2>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Attribute</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><code>pipeline_manager</code></td>
-<td style="text-align: left;"><code>PipelineManager</code></td>
-<td style="text-align: left;">Manages pipelines within the project.</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">The project name.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">¶</a></h2>
-<h3 id="run">run<a class="headerlink" href="#run" title="Permanent link">¶</a></h3>
+<p>Visualize tracked runs with the Hamilton UI:</p>
 <div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1">1</a></span>
-<span class="normal"><a href="#__codelineno-2-2">2</a></span>
-<span class="normal"><a href="#__codelineno-2-3">3</a></span>
-<span class="normal"><a href="#__codelineno-2-4">4</a></span>
-<span class="normal"><a href="#__codelineno-2-5">5</a></span>
-<span class="normal"><a href="#__codelineno-2-6">6</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4"></a>    <span class="n">run_config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="normal"><a href="#__codelineno-2-2">2</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'flowerpower[ui]'</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2"></a>flowerpower<span class="w"> </span>ui
 </code></pre></div></td></tr></tbody></table></div>
-<p>Execute a pipeline synchronously. This delegates to <code>self.pipeline_manager.run()</code> and accepts the same parameters.</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Parameter</th>
-<th style="text-align: left;">Type</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: left;">Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;"><code>str</code></td>
-<td style="text-align: left;">Name of the pipeline to run.</td>
-<td style="text-align: left;">—</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>run_config</code></td>
-<td style="text-align: left;"><code>RunConfig \| None</code></td>
-<td style="text-align: left;">Structured execution configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>inputs</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Override pipeline inputs.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>final_vars</code></td>
-<td style="text-align: left;"><code>list[str] \| None</code></td>
-<td style="text-align: left;">Output variables to return.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>config</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Hamilton executor configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>cache</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Cache configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>executor_cfg</code></td>
-<td style="text-align: left;"><code>str \| dict \| ExecutorConfig \| None</code></td>
-<td style="text-align: left;">Executor configuration.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>with_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| WithAdapterConfig \| None</code></td>
-<td style="text-align: left;">Adapter toggles.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>pipeline_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Pipeline-specific adapter settings.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>project_adapter_cfg</code></td>
-<td style="text-align: left;"><code>dict \| None</code></td>
-<td style="text-align: left;">Project-level adapter settings.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>adapter</code></td>
-<td style="text-align: left;"><code>dict[str, Any] \| None</code></td>
-<td style="text-align: left;">Custom adapter instances.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>reload</code></td>
-<td style="text-align: left;"><code>bool</code></td>
-<td style="text-align: left;">Force reload of pipeline configuration.</td>
-<td style="text-align: left;"><code>False</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>log_level</code></td>
-<td style="text-align: left;"><code>str \| None</code></td>
-<td style="text-align: left;">Logging level.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>on_success</code></td>
-<td style="text-align: left;"><code>Callable \| tuple \| None</code></td>
-<td style="text-align: left;">Callback on success.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>on_failure</code></td>
-<td style="text-align: left;"><code>Callable \| tuple \| None</code></td>
-<td style="text-align: left;">Callback on failure.</td>
-<td style="text-align: left;"><code>None</code></td>
-</tr>
-</tbody>
-</table>
-<div class="admonition warning">
-<p class="admonition-title">Deprecated retry kwargs</p>
-<p>The standalone <code>max_retries</code>, <code>retry_delay</code>, <code>jitter_factor</code>, and <code>retry_exceptions</code> kwargs are deprecated. Prefer <code>run_config.retry</code> or <code>RunConfigBuilder.with_retries()</code>.</p>
-</div>
-<p><strong>Returns:</strong> <code>dict[str, Any]</code> — mapping output variable names to computed values.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><code>FlowerPowerProject</code> does not have <code>run_async</code>. Use the manager directly: <code>project.pipeline_manager.run_async(...)</code>.</p>
-</div>
-<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">¶</a></h3>
-<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1"> 1</a></span>
-<span class="normal"><a href="#__codelineno-3-2"> 2</a></span>
-<span class="normal"><a href="#__codelineno-3-3"> 3</a></span>
-<span class="normal"><a href="#__codelineno-3-4"> 4</a></span>
-<span class="normal"><a href="#__codelineno-3-5"> 5</a></span>
-<span class="normal"><a href="#__codelineno-3-6"> 6</a></span>
-<span class="normal"><a href="#__codelineno-3-7"> 7</a></span>
-<span class="normal"><a href="#__codelineno-3-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-3-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-3-10">10</a></span>
-<span class="normal"><a href="#__codelineno-3-11">11</a></span>
-<span class="normal"><a href="#__codelineno-3-12">12</a></span>
-<span class="normal"><a href="#__codelineno-3-13">13</a></span>
-<span class="normal"><a href="#__codelineno-3-14">14</a></span>
-<span class="normal"><a href="#__codelineno-3-15">15</a></span>
-<span class="normal"><a href="#__codelineno-3-16">16</a></span>
-<span class="normal"><a href="#__codelineno-3-17">17</a></span>
-<span class="normal"><a href="#__codelineno-3-18">18</a></span>
-<span class="normal"><a href="#__codelineno-3-19">19</a></span>
-<span class="normal"><a href="#__codelineno-3-20">20</a></span>
-<span class="normal"><a href="#__codelineno-3-21">21</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlowerPowerProject</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flowerpower.utils.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunConfigBuilder</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="n">project</span> <span class="o">=</span> <span class="n">FlowerPowerProject</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"my_project"</span><span class="p">)</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="n">project</span> <span class="o">=</span> <span class="n">FlowerPowerProject</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="c1"># Run a pipeline</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">)</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9"></a>
-<a id="__codelineno-3-10" name="__codelineno-3-10"></a><span class="c1"># With a RunConfig</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="n">config</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12"></a>    <span class="n">RunConfigBuilder</span><span class="p">()</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13"></a>    <span class="o">.</span><span class="n">with_inputs</span><span class="p">({</span><span class="s2">"data_date"</span><span class="p">:</span> <span class="s2">"2025-01-01"</span><span class="p">})</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14"></a>    <span class="o">.</span><span class="n">with_final_vars</span><span class="p">([</span><span class="s2">"model"</span><span class="p">,</span> <span class="s2">"metrics"</span><span class="p">])</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15"></a>    <span class="o">.</span><span class="n">with_log_level</span><span class="p">(</span><span class="s2">"DEBUG"</span><span class="p">)</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16"></a>    <span class="o">.</span><span class="n">build</span><span class="p">()</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17"></a><span class="p">)</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"ml_pipeline"</span><span class="p">,</span> <span class="n">run_config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19"></a>
-<a id="__codelineno-3-20" name="__codelineno-3-20"></a><span class="c1"># Async execution via the manager</span>
-<a id="__codelineno-3-21" name="__codelineno-3-21"></a><span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">pipeline_manager</span><span class="o">.</span><span class="n">run_async</span><span class="p">(</span><span class="s2">"ml_pipeline"</span><span class="p">,</span> <span class="n">run_config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+<p>The UI opens on <code>http://localhost:8242</code> by default. Tracker data is sent to the <code>api_url</code> configured in <code>conf/project.yml</code>.</p>
+<h2 id="run-with-mlflow">Run with MLflow<a class="headerlink" href="#run-with-mlflow" title="Permanent link">¶</a></h2>
+<p>Enable MLflow and point it at a tracking server in <code>conf/project.yml</code>:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1">1</a></span>
+<span class="normal"><a href="#__codelineno-3-2">2</a></span>
+<span class="normal"><a href="#__codelineno-3-3">3</a></span>
+<span class="normal"><a href="#__codelineno-3-4">4</a></span>
+<span class="normal"><a href="#__codelineno-3-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="nt">adapter</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">  </span><span class="nt">mlflow</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">    </span><span class="nt">tracking_uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:5000</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="w">    </span><span class="nt">registry_uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="w">    </span><span class="nt">artifact_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
 </code></pre></div></td></tr></tbody></table></div>
+<p>Then enable it on the run:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-4-1">1</a></span>
+<span class="normal"><a href="#__codelineno-4-2">2</a></span>
+<span class="normal"><a href="#__codelineno-4-3">3</a></span>
+<span class="normal"><a href="#__codelineno-4-4">4</a></span>
+<span class="normal"><a href="#__codelineno-4-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2"></a>    <span class="s1">'hello_world'</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3"></a>    <span class="n">with_adapter_cfg</span><span class="o">=</span><span class="p">{</span><span class="s1">'mlflow'</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4"></a>    <span class="n">final_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">'full_greeting'</span><span class="p">],</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5"></a><span class="p">)</span>
+</code></pre></div></td></tr></tbody></table></div>
+<h2 id="run-with-ray">Run with Ray<a class="headerlink" href="#run-with-ray" title="Permanent link">¶</a></h2>
+<p>Use Ray for distributed execution by installing the extra and enabling the Ray adapter:</p>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-5-1">1</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'flowerpower[ray]'</span>
+</code></pre></div></td></tr></tbody></table></div>
+<div class="highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-6-1">1</a></span>
+<span class="normal"><a href="#__codelineno-6-2">2</a></span>
+<span class="normal"><a href="#__codelineno-6-3">3</a></span>
+<span class="normal"><a href="#__codelineno-6-4">4</a></span>
+<span class="normal"><a href="#__codelineno-6-5">5</a></span>
+<span class="normal"><a href="#__codelineno-6-6">6</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2"></a>    <span class="s1">'hello_world'</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3"></a>    <span class="n">with_adapter_cfg</span><span class="o">=</span><span class="p">{</span><span class="s1">'ray'</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4"></a>    <span class="n">executor_cfg</span><span class="o">=</span><span class="p">{</span><span class="s1">'num_cpus'</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5"></a>    <span class="n">final_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">'full_greeting'</span><span class="p">],</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6"></a><span class="p">)</span>
+</code></pre></div></td></tr></tbody></table></div>
+<p>Ray settings such as <code>ray_init_config</code> and <code>shutdown_ray_on_completion</code> are read from <code>conf/project.yml</code>.</p>
+<h2 id="layering-and-precedence">Layering and precedence<a class="headerlink" href="#layering-and-precedence" title="Permanent link">¶</a></h2>
+<ul>
+<li>Project-level adapter settings live in <code>conf/project.yml</code>.</li>
+<li>Per-pipeline settings in <code>conf/pipelines/&lt;name&gt;.yml</code> override the project defaults.</li>
+<li>Runtime <code>with_adapter_cfg</code> toggles which adapters are actually instantiated for that run.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Keep sensitive credentials in environment variables and reference them in YAML with <code>${API_KEY}</code> or <code>${API_KEY:-default}</code>.</p>
+</div>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../async-execution/">Asynchronous Execution</a></li>
+<li><a href="../../cli/">CLI Reference</a></li>
+</ul>
 
 
 
