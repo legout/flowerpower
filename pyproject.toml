@@ -30,8 +30,8 @@ dependencies = [
 flowerpower = "flowerpower.cli:app"
 
 [project.optional-dependencies]
-io = ["flowerpower-io>=0.1.1"]
-io-legacy = ["flowerpower-io[legacy]>=0.1.1"]
+io = ["flowerpower-io>=0.1.8"]
+io-legacy = ["flowerpower-io[legacy]>=0.1.8"]
 ray = ["ray>=2.34.0"]
 ui = ["sf-hamilton-ui>=0.0.11"]
 
@@ -39,7 +39,10 @@ openlineage = ["openlineage-python>=1.32.0"]
 
 
 [tool.uv]
-dev-dependencies = [
+package = true
+
+[dependency-groups]
+dev = [
   "ipython>=8.24.0",
   "isort>=5.13.2",
   "ruff>=0.7.1",
@@ -67,7 +70,6 @@ dev-dependencies = [
   "seaborn>=0.13.2",
   "pyyaml>=6.0.3",
 ]
-package = true
 
 # Security configuration
 [tool.bandit]
