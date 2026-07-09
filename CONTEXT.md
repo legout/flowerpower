@@ -7,3 +7,8 @@ FlowerPower is a configuration-driven framework for building and executing Hamil
 **RunConfig**:
 The complete set of execution settings for one pipeline run.
 _Avoid_: resolved run context, config state, runtime config soup
+
+
+**Project Facade**:
+The stable entry point for coordinating a FlowerPower project's pipeline catalog, configuration, execution, visualization, creation, and transfer workflows.
+_Avoid_: god manager, orchestration grab-bag, project context soup
