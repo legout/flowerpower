@@ -1,5 +1,6 @@
 """Pipeline execution handling."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..cfg.pipeline.run import RunConfig
@@ -9,11 +10,22 @@ from ..utils.config import (
     validate_resolved_run_config,
 )
 from ..utils.logging import setup_logging
+from ..utils.security import validate_pipeline_name
 from .execution_context import resolve_run_config_adapter_configs
 
 if TYPE_CHECKING:
     from .config_manager import PipelineConfigManager
     from .registry import PipelineRegistry
+
+
+@dataclass(frozen=True)
+class PipelineRunPlan:
+    """Execution-ready plan produced before running a pipeline."""
+
+    name: str
+    pipeline_config: Any
+    run_config: RunConfig
+    pipeline: Any
 
 
 class PipelineExecutor:
@@ -77,40 +89,9 @@ class PipelineExecutor:
             ValueError: If pipeline configuration cannot be loaded
             Exception: If pipeline execution fails
         """
-
-        # Load pipeline configuration (ConfigManager is stateless — always fresh)
-        pipeline_config = self._config_manager.load_pipeline_config(name)
-
-        # Merge runtime overrides onto a copy of pipeline defaults.
-        run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)
-
-        # Merge kwargs into run_config
-        if kwargs:
-            run_config = merge_run_config_with_kwargs(run_config, kwargs)
-
-        # Fold pipeline and project adapter defaults into the resolved RunConfig
-        # so runtime object construction consumes the resolved values only.
-        run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, self._project_adapter_base()
-        )
-
-        # Guard against non-clearable fields that were left unset.
-        validate_resolved_run_config(run_config)
-
-        # Set up logging for this specific run if log_level is provided
-        if run_config.log_level is not None:
-            setup_logging(level=run_config.log_level)
-
-        # Get the pipeline object from registry
-        pipeline = self._registry.get_pipeline(
-            name=name,
-            project_context=self._project_context,
-            reload=run_config.reload,
-        )
-
-        # Execute the pipeline through the resolved-only seam so the public
-        # Pipeline.run path is not re-entered after the config is resolved here.
-        return pipeline._run_resolved(run_config=run_config)
+        plan = self._build_run_plan(name, run_config, **kwargs)
+        self._apply_run_logging(plan)
+        return plan.pipeline._run_resolved(run_config=plan.run_config)
 
     async def run_async(
         self, name: str, run_config: RunConfig | None = None, **kwargs
@@ -127,39 +108,57 @@ class PipelineExecutor:
         Returns:
             dict[str, Any]: Results of pipeline execution.
         """
+        plan = self._build_run_plan(name, run_config, **kwargs)
+        self._apply_run_logging(plan)
+        return await plan.pipeline._run_resolved_async(run_config=plan.run_config)
 
-        # Load pipeline configuration (ConfigManager is stateless — always fresh)
+    def _build_run_plan(
+        self,
+        name: str,
+        run_config: RunConfig | None = None,
+        **kwargs: Any,
+    ) -> PipelineRunPlan:
+        """Build an execution-ready plan for a pipeline run."""
+        name = validate_pipeline_name(name)
+
+        # Load pipeline configuration (ConfigManager is stateless - always fresh)
         pipeline_config = self._config_manager.load_pipeline_config(name)
 
-        # Merge runtime overrides onto a copy of pipeline defaults.
+        # Merge runtime overrides onto a defensive copy of pipeline defaults.
         run_config = self._merge_pipeline_run_config(pipeline_config.run, run_config)
-
-        # Merge kwargs into run_config
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
-        # Fold pipeline and project adapter defaults into the resolved RunConfig
+        # Fold pipeline and project adapter defaults into the resolved RunConfig,
         # so runtime object construction consumes the resolved values only.
         run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, self._project_adapter_base()
+            run_config,
+            pipeline_config,
+            self._project_adapter_base(),
         )
 
         # Guard against non-clearable fields that were left unset.
         validate_resolved_run_config(run_config)
 
-        # Set up logging for this specific run if log_level is provided
-        if run_config.log_level is not None:
-            setup_logging(level=run_config.log_level)
-
-        # Get the pipeline object from registry
+        # Get the pipeline object from registry.
         pipeline = self._registry.get_pipeline(
             name=name,
             project_context=self._project_context,
             reload=run_config.reload,
         )
 
-        # Execute the pipeline asynchronously
-        return await pipeline.run_async(run_config=run_config)
+        return PipelineRunPlan(
+            name=name,
+            pipeline_config=pipeline_config,
+            run_config=run_config,
+            pipeline=pipeline,
+        )
+
+    @staticmethod
+    def _apply_run_logging(plan: PipelineRunPlan) -> None:
+        """Apply run-specific logging configuration after planning."""
+        if plan.run_config.log_level is not None:
+            setup_logging(level=plan.run_config.log_level)
 
     def _project_adapter_base(self) -> Any:
         """Return project adapter defaults from the registry-owned project config."""

@@ -1,5 +1,6 @@
+import asyncio
 import types
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from flowerpower.cfg.pipeline import PipelineConfig
 from flowerpower.cfg.pipeline.adapter import AdapterConfig
@@ -14,7 +15,7 @@ from flowerpower.pipeline.execution_context import (
     ExecutionContextBuilder,
     resolve_run_config_adapter_configs,
 )
-from flowerpower.pipeline.executor import PipelineExecutor
+from flowerpower.pipeline.executor import PipelineExecutor, PipelineRunPlan
 from flowerpower.pipeline.pipeline import Pipeline
 from flowerpower.utils.adapter import AdapterManager
 from flowerpower.utils.config import RunConfigBuilder
@@ -198,6 +199,82 @@ def test_executor_run_uses_resolved_seam_and_preserves_settings():
         assert passed.log_level == "DEBUG"
         assert caller_config.inputs == original_inputs
         assert result == {"resolved": "ok"}
+
+def test_executor_build_run_plan_centralizes_execution_resolution():
+    """_build_run_plan returns the complete resolved execution artifact."""
+    pipeline_config = PipelineConfig(
+        name="pipe",
+        adapter=AdapterConfig(hamilton_tracker={"project_id": 999}),
+        run=RunConfig(
+            inputs={"x": 1, "y": 2},
+            config={"base": "value"},
+            executor=ExecutorConfig(type="synchronous"),
+        ),
+    )
+    config_manager = MagicMock()
+    config_manager.load_pipeline_config.return_value = pipeline_config
+
+    pipeline = MagicMock()
+    registry = MagicMock()
+    registry.get_pipeline.return_value = pipeline
+    project_context = MagicMock()
+
+    executor = PipelineExecutor(
+        config_manager=config_manager,
+        registry=registry,
+        project_context=project_context,
+    )
+
+    plan = executor._build_run_plan(
+        "pipe",
+        RunConfig(
+            inputs={"x": 10},
+            pipeline_adapter_cfg=AdapterConfig(
+                hamilton_tracker={"tags": {"env": "prod"}}
+            ),
+        ),
+        config={"extra": "value"},
+        reload=True,
+    )
+
+    assert isinstance(plan, PipelineRunPlan)
+    assert plan.name == "pipe"
+    assert plan.pipeline_config is pipeline_config
+    assert plan.pipeline is pipeline
+    assert plan.run_config.inputs == {"x": 10, "y": 2}
+    assert plan.run_config.config == {"base": "value", "extra": "value"}
+    assert plan.run_config.reload is True
+    assert plan.run_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 999
+    assert plan.run_config.pipeline_adapter_cfg.hamilton_tracker.tags == {"env": "prod"}
+    config_manager.load_pipeline_config.assert_called_once_with("pipe")
+    registry.get_pipeline.assert_called_once_with(
+        name="pipe",
+        project_context=project_context,
+        reload=True,
+    )
+
+
+def test_executor_run_async_uses_resolved_async_seam():
+    """PipelineExecutor.run_async must not re-enter public Pipeline.run_async."""
+    pipeline_config = PipelineConfig(name="pipe", run=RunConfig())
+    config_manager = MagicMock()
+    config_manager.load_pipeline_config.return_value = pipeline_config
+
+    pipeline = MagicMock()
+    pipeline._run_resolved_async = AsyncMock(return_value={"async": "ok"})
+    pipeline.run_async = AsyncMock()
+    registry = MagicMock()
+    registry.get_pipeline.return_value = pipeline
+
+    executor = PipelineExecutor(config_manager=config_manager, registry=registry)
+
+    result = asyncio.run(executor.run_async(name="pipe", inputs={"x": 1}))
+
+    assert result == {"async": "ok"}
+    pipeline._run_resolved_async.assert_awaited_once()
+    passed_run_config = pipeline._run_resolved_async.call_args.kwargs["run_config"]
+    assert passed_run_config.inputs == {"x": 1}
+    pipeline.run_async.assert_not_called()
 
 
 def test_execution_context_builder_uses_resolved_run_config_for_executor_and_adapters():

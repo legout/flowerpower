@@ -59,9 +59,11 @@ class Pipeline(msgspec.Struct):
         effective_run_config = resolve_run_config_adapter_configs(
             effective_run_config, self.config, extract_project_adapter_base(self.project_context)
         )
-        return await self._get_runner().run_async(
-            run_config=effective_run_config,
-        )
+        return await self._run_resolved_async(effective_run_config)
+
+    async def _run_resolved_async(self, run_config: RunConfig) -> Any:
+        """Execute an already-resolved run configuration asynchronously."""
+        return await self._get_runner().run_async(run_config=run_config)
 
     @property
     def adapter_manager(self):
