@@ -67,91 +67,38 @@ class TestFlowerPowerProject(unittest.TestCase):
             project.run("")
 
 
-    def test_dependency_injection(self):
-        """Test that dependency injection works correctly."""
+    def test_dependency_injection_is_compatibility_noop(self):
+        """Dependency injection is no-op because PipelineManager wires context."""
         project = FlowerPowerProject(
             pipeline_manager=self.mock_pipeline_manager,
         )
 
-        # Call dependency injection
-        project._inject_dependencies()
-
-        # Verify project context was set
-        self.assertEqual(self.mock_pipeline_manager._project_context, project)
+        self.assertIsNone(project._inject_dependencies())
+        self.assertFalse(hasattr(self.mock_pipeline_manager, "_project_context"))
 
     # --- Tests for FlowerPowerProject.new method (renamed from init) ---
 
-    @patch('flowerpower.flowerpower.filesystem')
-    @patch('flowerpower.flowerpower.Path')
-    @patch('flowerpower.flowerpower.ProjectConfig')
-    @patch('flowerpower.flowerpower.PipelineManager')
-    @patch('flowerpower.flowerpower.rich.print')
-    @patch('flowerpower.flowerpower.os.makedirs')
-    def test_new_method_creates_project(
-        self,
-        mock_os_makedirs,
-        mock_print,
-        mock_pipeline_manager,
-        mock_project_config,
-        mock_path,
-        mock_filesystem
-    ):
-        """Test FlowerPowerProject.new creates a new project successfully."""
-        # Setup mocks
-        mock_fs = Mock()
-        mock_filesystem.return_value = mock_fs
-        mock_fs.exists.return_value = False  # Project doesn't exist
-        
-        # Mock file open with context manager support
-        mock_fs.open = mock_open()
-        
-        mock_cfg = Mock()
-        mock_project_config.load.return_value = mock_cfg
-        
-        mock_pm = Mock()
-        mock_pipeline_manager.return_value = mock_pm
-        
-        
-        mock_path_instance = Mock()
-        mock_path_instance.name = "test_project"
-        mock_path_instance.cwd.return_value = mock_path_instance
-        mock_path_instance.parent = Mock()
-        mock_path_instance.parent.__str__ = Mock(return_value="/parent")
-        mock_path.return_value = mock_path_instance
-        
-        # Mock the load method to return a project instance
-        with patch.object(FlowerPowerProject, 'load') as mock_load:
-            mock_project = Mock(spec=FlowerPowerProject)
-            mock_load.return_value = mock_project
-            
-            # Call the new method
-            result = FlowerPowerProject.new(name="test_project", base_dir="/tmp/test_path")
-            
-            # Verify result
-            self.assertEqual(result, mock_project)
-            
-            # Verify filesystem operations
-            mock_fs.makedirs.assert_any_call("conf/pipelines", exist_ok=True)
-            mock_fs.makedirs.assert_any_call("pipelines", exist_ok=True)
-            mock_fs.makedirs.assert_any_call("hooks", exist_ok=True)
-            
-            # Verify config operations
-            mock_project_config.load.assert_called_once_with(
-                name="test_project",
-                fs=mock_fs
-            )
-            mock_cfg.save.assert_called_once_with(fs=mock_fs)
-            
-            # Verify file creation
-            mock_fs.open.assert_called_once_with("README.md", "w")
-            
-            # Verify load was called
-            mock_load.assert_called_once_with(
-                base_dir="/tmp/test_path",
-                storage_options=None,
-                fs=mock_fs,
-                log_level=None
-            )
+    @patch('flowerpower.flowerpower.PipelineManager.new_project')
+    def test_new_method_creates_project(self, mock_new_project):
+        """FlowerPowerProject.new delegates to PipelineManager.new_project."""
+        mock_pm = Mock(spec=PipelineManager)
+        mock_pm.project_cfg = ProjectConfig(name="test_project", adapter=AdapterConfig())
+        mock_new_project.return_value = mock_pm
+
+        result = FlowerPowerProject.new(name="test_project", base_dir="/tmp/test_path")
+
+        self.assertIsInstance(result, FlowerPowerProject)
+        self.assertEqual(result.pipeline_manager, mock_pm)
+        self.assertEqual(result.name, "test_project")
+        mock_new_project.assert_called_once_with(
+            name="test_project",
+            base_dir="/tmp/test_path",
+            storage_options=None,
+            fs=None,
+            hooks_dir="hooks",
+            log_level=None,
+            overwrite=False,
+        )
 
     def test_new_method_rejects_invalid_hooks_dir(self):
         with pytest.raises(SecurityError, match="Directory traversal"):
@@ -161,94 +108,43 @@ class TestFlowerPowerProject(unittest.TestCase):
                 hooks_dir="../escape",
             )
 
-    @patch('flowerpower.flowerpower.filesystem')
-    @patch('flowerpower.flowerpower.Path')
-    @patch('flowerpower.flowerpower.rich.print')
-    @patch('flowerpower.flowerpower.os.makedirs')
-    def test_new_method_with_overwrite_true(
-        self,
-        mock_os_makedirs,
-        mock_print,
-        mock_path,
-        mock_filesystem
-    ):
-        """Test FlowerPowerProject.new with overwrite=True removes existing project."""
-        # Setup mocks
-        mock_fs = Mock()
-        mock_filesystem.return_value = mock_fs
-        mock_fs.exists.return_value = True  # Project exists
-        
-        # Mock file open with context manager support
-        mock_fs.open = mock_open()
-        
-        mock_path_instance = Mock()
-        mock_path_instance.name = "test_project"
-        mock_path_instance.cwd.return_value = mock_path_instance
-        mock_path_instance.parent = Mock()
-        mock_path_instance.parent.__str__ = Mock(return_value="/parent")
-        mock_path.return_value = mock_path_instance
-        
-        # Mock the load method to return a project instance
-        with patch.object(FlowerPowerProject, 'load') as mock_load:
-            with patch('flowerpower.flowerpower.ProjectConfig') as mock_project_config:
-                with patch('flowerpower.flowerpower.PipelineManager') as mock_pipeline_manager:
-                    mock_cfg = Mock()
-                    mock_project_config.load.return_value = mock_cfg
-                    
-                    mock_pm = Mock()
-                    mock_pipeline_manager.return_value = mock_pm
-                    
-                    mock_project = Mock(spec=FlowerPowerProject)
-                    mock_load.return_value = mock_project
-                    
-                    # Call the new method with overwrite=True
-                    result = FlowerPowerProject.new(
-                        name="test_project",
-                        base_dir="/tmp/test_path",
-                        overwrite=True
-                    )
-                    
-                    # Verify result
-                    self.assertEqual(result, mock_project)
-                    
-                    # Verify existing project was removed
-                    mock_fs.rm.assert_any_call("conf", recursive=True)
-                    mock_fs.rm.assert_any_call("pipelines", recursive=True)
-                    mock_fs.rm.assert_any_call("hooks", recursive=True)
-                    mock_fs.rm.assert_any_call("README.md")
+    @patch('flowerpower.flowerpower.PipelineManager.new_project')
+    def test_new_method_with_overwrite_true(self, mock_new_project):
+        """FlowerPowerProject.new passes overwrite=True to PipelineManager."""
+        mock_pm = Mock(spec=PipelineManager)
+        mock_pm.project_cfg = ProjectConfig(name="test_project", adapter=AdapterConfig())
+        mock_new_project.return_value = mock_pm
 
-    @patch('flowerpower.flowerpower.filesystem')
-    @patch('flowerpower.flowerpower.Path')
-    @patch('flowerpower.flowerpower.rich.print')
-    def test_new_method_with_overwrite_false_raises_error(
-        self,
-        mock_print,
-        mock_path,
-        mock_filesystem
-    ):
-        """Test FlowerPowerProject.new with overwrite=False raises FileExistsError."""
-        # Setup mocks
-        mock_fs = Mock()
-        mock_filesystem.return_value = mock_fs
-        mock_fs.exists.return_value = True  # Project exists
-        
-        mock_path_instance = Mock()
-        mock_path_instance.name = "test_project"
-        mock_path_instance.cwd.return_value = mock_path_instance
-        mock_path_instance.parent = Mock()
-        mock_path_instance.parent.__str__ = Mock(return_value="/parent")
-        mock_path.return_value = mock_path_instance
-        
-        # Call the new method with overwrite=False (default)
+        result = FlowerPowerProject.new(
+            name="test_project",
+            base_dir="/tmp/test_path",
+            overwrite=True,
+        )
+
+        self.assertIsInstance(result, FlowerPowerProject)
+        mock_new_project.assert_called_once_with(
+            name="test_project",
+            base_dir="/tmp/test_path",
+            storage_options=None,
+            fs=None,
+            hooks_dir="hooks",
+            log_level=None,
+            overwrite=True,
+        )
+
+    @patch('flowerpower.flowerpower.PipelineManager.new_project')
+    def test_new_method_with_overwrite_false_raises_error(self, mock_new_project):
+        """FlowerPowerProject.new propagates manager factory FileExistsError."""
+        error = FileExistsError(
+            "Project already exists at /test/path. "
+            "Use overwrite=True to overwrite the existing project."
+        )
+        mock_new_project.side_effect = error
+
         with self.assertRaises(FileExistsError) as context:
             FlowerPowerProject.new(name="test_project", base_dir="/test/path")
-        
-        # Verify error message
-        expected_msg = "Project already exists at /test/path. Use overwrite=True to overwrite the existing project."
-        self.assertIn(expected_msg, str(context.exception))
-        
-        # Verify print was called with error message
-        mock_print.assert_called_once()
+
+        self.assertIn("Project already exists at /test/path", str(context.exception))
 
     # --- Tests for create_project function ---
 
@@ -344,91 +240,40 @@ class TestFlowerPowerProject(unittest.TestCase):
         )
     # --- Tests for FlowerPowerProject.load method ---
 
-    @patch('flowerpower.flowerpower.filesystem')
-    @patch('flowerpower.flowerpower.Path')
-    @patch('flowerpower.flowerpower.PipelineManager')
-    @patch('flowerpower.flowerpower.rich.print')
-    @patch('flowerpower.flowerpower.os.makedirs')
-    def test_load_method_existing_project(
-        self,
-        mock_os_makedirs,
-        mock_print,
-        mock_pipeline_manager,
-        mock_path,
-        mock_filesystem
-    ):
-        """Test FlowerPowerProject.load loads existing project successfully."""
-        # Setup mocks
-        mock_fs = Mock()
-        mock_filesystem.return_value = mock_fs
-        
-        mock_pm = Mock()
+    @patch('flowerpower.flowerpower.PipelineManager.load_existing')
+    def test_load_method_existing_project(self, mock_load_existing):
+        """FlowerPowerProject.load wraps PipelineManager.load_existing."""
+        mock_pm = Mock(spec=PipelineManager)
         mock_pm.project_cfg = Mock()
         mock_pm.project_cfg.name = "test_project"
-        mock_pipeline_manager.return_value = mock_pm
-        
-        mock_path_instance = Mock()
-        mock_path_instance.cwd.return_value = "/current/dir"
-        mock_path.return_value = mock_path_instance
-        
-        # Mock _check_project_exists to return True
-        with patch.object(FlowerPowerProject, '_check_project_exists') as mock_check:
-            mock_check.return_value = (True, "")
-            
-            # Call the load method
-            result = FlowerPowerProject.load(base_dir="/tmp/test/path")
-            
-            # Verify result is a FlowerPowerProject instance
-            self.assertIsInstance(result, FlowerPowerProject)
-            self.assertEqual(result.pipeline_manager, mock_pm)
-            self.assertEqual(result.name, "test_project")
-            
-            # Verify project existence check
-            mock_check.assert_called_once_with("/tmp/test/path", mock_fs)
-            
-            # Verify manager creation
-            mock_pipeline_manager.assert_called_once_with(
-                base_dir="/tmp/test/path",
-                storage_options=None,
-                fs=mock_fs,
-                log_level=None
-            )
+        mock_load_existing.return_value = mock_pm
 
-    @patch('flowerpower.flowerpower.filesystem')
-    @patch('flowerpower.flowerpower.Path')
-    @patch('flowerpower.flowerpower.rich.print')
-    @patch('flowerpower.flowerpower.os.makedirs')
-    def test_load_method_nonexistent_project_returns_none(
-        self,
-        mock_os_makedirs,
-        mock_print,
-        mock_path,
-        mock_filesystem
-    ):
-        """Test FlowerPowerProject.load returns None for non-existent project."""
-        # Setup mocks
-        mock_fs = Mock()
-        mock_filesystem.return_value = mock_fs
-        
-        mock_path_instance = Mock()
-        mock_path_instance.cwd.return_value = "/current/dir"
-        mock_path.return_value = mock_path_instance
-        
-        # Mock _check_project_exists to return False
-        with patch.object(FlowerPowerProject, '_check_project_exists') as mock_check:
-            mock_check.return_value = (False, "Project does not exist")
-            
-            # Call the load method
-            result = FlowerPowerProject.load(base_dir="/tmp/test/path")
-            
-            # Verify result is None
-            self.assertIsNone(result)
-            
-            # Verify project existence check
-            mock_check.assert_called_once_with("/tmp/test/path", mock_fs)
-            
-            # Verify print was called with error message
-            mock_print.assert_called_once()
+        result = FlowerPowerProject.load(base_dir="/tmp/test/path")
+
+        self.assertIsInstance(result, FlowerPowerProject)
+        self.assertEqual(result.pipeline_manager, mock_pm)
+        self.assertEqual(result.name, "test_project")
+        mock_load_existing.assert_called_once_with(
+            base_dir="/tmp/test/path",
+            storage_options=None,
+            fs=None,
+            log_level=None,
+        )
+
+    @patch('flowerpower.flowerpower.PipelineManager.load_existing')
+    def test_load_method_nonexistent_project_returns_none(self, mock_load_existing):
+        """FlowerPowerProject.load returns None when manager factory returns None."""
+        mock_load_existing.return_value = None
+
+        result = FlowerPowerProject.load(base_dir="/tmp/test/path")
+
+        self.assertIsNone(result)
+        mock_load_existing.assert_called_once_with(
+            base_dir="/tmp/test/path",
+            storage_options=None,
+            fs=None,
+            log_level=None,
+        )
 
 
     def test_check_project_exists_with_plain_dir_filesystem(self):

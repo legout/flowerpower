@@ -406,6 +406,7 @@ class TestPipelineManager(unittest.TestCase):
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
+        mock_registry_class.from_context.return_value = mock_registry
 
         # Build a pipeline with non-trivial defaults
         pipeline_config = PipelineConfig(
@@ -498,18 +499,18 @@ def test_manager_propagates_custom_pipeline_dirs_to_submanagers():
     assert config_manager_kwargs["fs"] is fs
     assert config_manager_kwargs["cfg_dir"] == "settings"
     assert config_manager_kwargs["pipelines_dir"] == "flows"
-    mock_visualizer_class.assert_called_once_with(
-        project_cfg=project_cfg,
-        fs=fs,
-        base_dir="/test/base",
-        cfg_dir="settings",
-        pipelines_dir="flows",
-    )
+    mock_visualizer_class.from_context.assert_called_once()
+    context_arg = mock_visualizer_class.from_context.call_args.args[0]
+    assert context_arg.fs is fs
+    assert context_arg.base_dir == "/test/base"
+    assert context_arg.cfg_dir == "settings"
+    assert context_arg.pipelines_dir == "flows"
+    assert mock_visualizer_class.from_context.call_args.kwargs["project_cfg"] is project_cfg
     assert manager._config_manager is config_manager
 
 
-def test_manager_exit_clears_filesystem_instance_cache():
-    """Context exit should clear the filesystem instance cache."""
+def test_manager_exit_does_not_clear_caller_supplied_filesystem():
+    """Context exit leaves caller-supplied filesystem ownership alone."""
     fs = MagicMock()
     config_manager = MagicMock()
     config_manager.load_project_config = MagicMock(return_value=MagicMock(name="project_cfg"))
@@ -530,7 +531,7 @@ def test_manager_exit_clears_filesystem_instance_cache():
     with manager as ctx:
         assert ctx is manager
 
-    fs.clear_instance_cache.assert_called_once()
+    fs.clear_instance_cache.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -281,35 +281,31 @@ def test_executor_run_resolves_pipeline_adapter_config_into_run_config():
     assert result == {"ok": True}
 
 
-def test_execution_context_builder_finds_project_config_via_pipeline_manager():
+def test_execution_context_builder_uses_resolved_project_adapter_for_ray_cleanup():
     executor_factory = MagicMock()
     executor_factory.create_executor.return_value = MagicMock(name="executor")
 
     ray_module = MagicMock()
     ray_module.shutdown = MagicMock(name="shutdown")
 
-    pipeline_manager = MagicMock()
-    pipeline_manager._project_cfg = MagicMock()
-    pipeline_manager._project_cfg.adapter = MagicMock()
-    pipeline_manager._project_cfg.adapter.ray = MagicMock(
-        shutdown_ray_on_completion=True
-    )
-
-    project_context = MagicMock()
-    project_context.pipeline_manager = pipeline_manager
+    project_adapter_cfg = MagicMock()
+    project_adapter_cfg.ray = MagicMock(shutdown_ray_on_completion=True)
 
     builder = ExecutionContextBuilder(
         executor_factory=executor_factory,
         adapter_manager=MagicMock(),
         pipeline_config=MagicMock(run=MagicMock(executor=MagicMock())),
-        project_context=project_context,
+        project_context=MagicMock(),
     )
 
     with patch(
         "flowerpower.pipeline.execution_context.ExecutionContextBuilder._get_optional_ray",
         return_value=ray_module,
     ):
-        executor, cleanup_fn = builder._create_executor(ExecutorConfig(type="ray"))
+        executor, cleanup_fn = builder._create_executor(
+            ExecutorConfig(type="ray"),
+            project_adapter_cfg,
+        )
 
     assert executor is executor_factory.create_executor.return_value
     assert cleanup_fn is ray_module.shutdown

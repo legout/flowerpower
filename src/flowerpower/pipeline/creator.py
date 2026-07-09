@@ -47,6 +47,21 @@ class PipelineCreator:
             pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
         )
 
+    @classmethod
+    def from_context(
+        cls,
+        context,
+        *,
+        project_cfg: ProjectConfig,
+    ) -> "PipelineCreator":
+        """Create a pipeline creator from project runtime context facts."""
+        return cls(
+            project_cfg=project_cfg,
+            fs=context.fs,
+            cfg_dir=context.cfg_dir,
+            pipelines_dir=context.pipelines_dir,
+        )
+
     def _path_exists(self, path: str, *, purpose: str) -> bool:
         try:
             return self._fs.exists(path)

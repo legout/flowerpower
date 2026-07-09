@@ -60,14 +60,8 @@ class FlowerPowerProject:
         self.name = self.pipeline_manager.project_cfg.name
 
     def _inject_dependencies(self):
-        """Inject dependencies between managers for proper architecture.
-
-        This method establishes the correct dependency flow:
-        - Project context is properly established for pipeline execution
-        """
-        # Store project reference for pipeline context
-        # This will be used when creating Pipeline instances
-        self.pipeline_manager._project_context = self
+        """Compatibility no-op; PipelineManager now wires execution context."""
+        return None
 
     # --- Convenience Methods for Pipeline Operations ---
 
@@ -224,51 +218,15 @@ class FlowerPowerProject:
             FlowerPowerProject | None: The loaded project instance, or None if the
                 project directory does not exist.
         """
-        if log_level is not None:
-            setup_logging(level=log_level)
-
-        base_dir = base_dir or str(Path.cwd())
-
-        if storage_options:
-            cached = True
-            cache_storage = posixpath.join(
-                posixpath.expanduser(settings.CACHE_DIR), base_dir.split("://")[-1]
-            )
-            os.makedirs(cache_storage, exist_ok=True)
-        else:
-            cached = False
-            cache_storage = None
-        if not fs:
-            fs = filesystem(
-                base_dir,
-                storage_options=storage_options,
-                cached=cached,
-                cache_storage=cache_storage,
-            )
-
-        project_exists, message = cls._check_project_exists(base_dir, fs)
-        if project_exists:
-            logger.info(f"Loading FlowerPower project from {base_dir}")
-            pipeline_manager = PipelineManager(
-                base_dir=base_dir,
-                storage_options=storage_options,
-                fs=fs,
-                log_level=log_level,
-            )
-
-            # Create the project instance
-            project = cls(
-                pipeline_manager=pipeline_manager,
-            )
-
-            # Inject dependencies after creation to avoid circular imports
-            project._inject_dependencies()
-
-            return project
-        else:
-            rich.print(f"[red]{message}[/red]")
-            logger.error(message)
+        manager = PipelineManager.load_existing(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            log_level=log_level,
+        )
+        if manager is None:
             return None
+        return cls(pipeline_manager=manager)
 
     @classmethod
     def new(
@@ -296,34 +254,16 @@ class FlowerPowerProject:
         Raises:
             FileExistsError: If the project already exists at the specified base directory and overwrite is False.
         """
-        if log_level:
-            setup_logging(level=log_level)
-
-        # Initialize project parameters
-        name, base_dir = cls._resolve_project_params(name, base_dir)
-        validate_file_path(hooks_dir, allow_absolute=False, allow_relative=True)
-
-        # Setup filesystem
-        fs = cls._setup_filesystem(base_dir, storage_options, fs)
-
-        # Handle existing project
-        cls._handle_existing_project(base_dir, fs, hooks_dir, overwrite)
-
-        # Create project structure
-        cls._create_project_structure(fs, hooks_dir)
-
-        # Initialize project configuration
-        cls._initialize_project_config(name, fs, hooks_dir)
-
-        # Print success message and getting started guide
-        cls._print_success_message(name, base_dir)
-
-        return cls.load(
+        manager = PipelineManager.new_project(
+            name=name,
             base_dir=base_dir,
             storage_options=storage_options,
             fs=fs,
+            hooks_dir=hooks_dir,
             log_level=log_level,
+            overwrite=overwrite,
         )
+        return cls(pipeline_manager=manager)
 
     @classmethod
     def _resolve_project_params(

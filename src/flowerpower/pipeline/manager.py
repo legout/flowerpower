@@ -1,21 +1,26 @@
+import datetime as dt
 import os
 import posixpath
 from pathlib import Path
 from types import TracebackType
 from typing import Any
 
+import rich
+from fsspec.implementations.dirfs import DirFileSystem
 from fsspeckit import AbstractFileSystem, BaseStorageOptions, filesystem
+from .. import settings
 from ..cfg import PipelineConfig, ProjectConfig
 from ..cfg.pipeline.run import RunConfig
 from ..settings import CACHE_DIR, CONFIG_DIR, PIPELINES_DIR
 from ..utils.filesystem import FilesystemHelper
 from ..utils.logging import setup_logging
-from ..utils.security import validate_directory_fragment
+from ..utils.security import validate_directory_fragment, validate_file_path
 from .config_manager import PipelineConfigManager
 from .creator import PipelineCreator
 from .executor import PipelineExecutor
 from .io import PipelineIOManager
 from .registry import PipelineRegistry
+from .project_context import ProjectRuntimeContext
 from .visualizer import PipelineVisualizer
 
 setup_logging()
@@ -74,6 +79,7 @@ class PipelineManager:
         cfg_dir: str | None = CONFIG_DIR,
         pipelines_dir: str | None = PIPELINES_DIR,
         log_level: str | None = None,
+        _context: ProjectRuntimeContext | None = None,
     ) -> None:
         """Initialize the PipelineManager.
 
@@ -115,127 +121,335 @@ class PipelineManager:
         """
         if log_level:
             setup_logging(level=log_level)
-
-        self._setup_filesystem(base_dir, storage_options, fs, cfg_dir, pipelines_dir)
+        self._context = _context or self._build_runtime_context(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            cfg_dir=cfg_dir,
+            pipelines_dir=pipelines_dir,
+        )
+        self._base_dir = self._context.base_dir
+        self._fs = self._context.fs
+        self._storage_options = self._context.storage_options
+        self._cfg_dir = self._context.cfg_dir
+        self._pipelines_dir = self._context.pipelines_dir
+        self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
         self._initialize_managers()
-        self._ensure_directories_exist()
+        self._bootstrap_project_directories()
 
-    def _setup_filesystem(
-        self,
+    @classmethod
+    def _build_runtime_context(
+        cls,
+        *,
         base_dir: str | None,
         storage_options: dict | BaseStorageOptions | None,
         fs: AbstractFileSystem | None,
         cfg_dir: str | None,
         pipelines_dir: str | None,
-    ) -> None:
-        """Setup filesystem and configuration directories.
-
-        Args:
-            base_dir: Root directory for the project
-            storage_options: Storage options for filesystem
-            fs: Pre-configured filesystem instance
-            cfg_dir: Configuration directory name
-            pipelines_dir: Pipelines directory name
-        """
-        self._base_dir = base_dir or str(Path.cwd())
-        self._cfg_dir = validate_directory_fragment(
+    ) -> ProjectRuntimeContext:
+        """Build runtime context facts for project facade components."""
+        resolved_base_dir = base_dir or str(Path.cwd())
+        resolved_cfg_dir = validate_directory_fragment(
             cfg_dir if cfg_dir is not None else CONFIG_DIR
         )
-        self._pipelines_dir = validate_directory_fragment(
+        resolved_pipelines_dir = validate_directory_fragment(
             pipelines_dir if pipelines_dir is not None else PIPELINES_DIR
         )
 
-        # Setup filesystem helper
-        self._fs_helper = FilesystemHelper(self._base_dir, storage_options)
-
-        # Get filesystem instance
-        if fs is not None:
-            self._fs = fs
-        else:
-            # Configure caching only when creating our own filesystem
+        owns_filesystem = fs is None
+        if fs is None:
             if storage_options is not None:
                 cached = True
                 cache_storage = posixpath.join(
                     posixpath.expanduser(CACHE_DIR),
-                    self._base_dir.split("://")[-1],
+                    resolved_base_dir.split("://")[-1],
                 )
                 os.makedirs(cache_storage, exist_ok=True)
             else:
                 cached = False
                 cache_storage = None
 
-            self._fs = filesystem(
-                self._base_dir,
+            fs = filesystem(
+                resolved_base_dir,
                 storage_options=(storage_options or {}),
                 cached=cached,
                 cache_storage=cache_storage,
             )
+
         try:
-            self._storage_options = (
-                storage_options or self._fs.storage_options
-                if getattr(self._fs, "protocol", None) != "dir"
-                else self._fs.fs.storage_options
+            resolved_storage_options = (
+                storage_options or fs.storage_options
+                if getattr(fs, "protocol", None) != "dir"
+                else fs.fs.storage_options
             )
         except Exception:
-            self._storage_options = storage_options or {}
+            resolved_storage_options = storage_options or {}
+
+        return ProjectRuntimeContext(
+            fs=fs,
+            base_dir=resolved_base_dir,
+            storage_options=resolved_storage_options,
+            cfg_dir=resolved_cfg_dir,
+            pipelines_dir=resolved_pipelines_dir,
+            owns_filesystem=owns_filesystem,
+        )
+
+    @staticmethod
+    def _is_dir_fs(fs: AbstractFileSystem) -> bool:
+        if isinstance(fs, DirFileSystem):
+            return True
+        inner = getattr(fs, "fs", None)
+        if inner is not None and inner is not fs and isinstance(inner, AbstractFileSystem):
+            return PipelineManager._is_dir_fs(inner)
+        return False
+
+    @classmethod
+    def _check_project_exists(
+        cls,
+        base_dir: str,
+        fs: AbstractFileSystem,
+    ) -> tuple[bool, str]:
+        """Return whether an existing FlowerPower project structure is present."""
+        root_path = "." if cls._is_dir_fs(fs) else base_dir
+        if not fs.exists(root_path):
+            return (
+                False,
+                "Project directory does not exist. Please initialize it first.",
+            )
+
+        config_path = posixpath.join(root_path, settings.CONFIG_DIR)
+        pipelines_path = posixpath.join(root_path, settings.PIPELINES_DIR)
+        if not fs.exists(config_path) or not fs.exists(pipelines_path):
+            return False, "Project configuration or pipelines directory is missing"
+
+        return True, ""
+
+    @classmethod
+    def load_existing(
+        cls,
+        base_dir: str | None = None,
+        storage_options: dict | BaseStorageOptions | None = None,
+        fs: AbstractFileSystem | None = None,
+        log_level: str | None = None,
+    ) -> "PipelineManager | None":
+        """Load an existing FlowerPower project as a PipelineManager facade."""
+        if log_level is not None:
+            setup_logging(level=log_level)
+
+        context = cls._build_runtime_context(
+            base_dir=base_dir,
+            storage_options=storage_options,
+            fs=fs,
+            cfg_dir=CONFIG_DIR,
+            pipelines_dir=PIPELINES_DIR,
+        )
+        project_exists, message = cls._check_project_exists(
+            context.base_dir,
+            context.fs,
+        )
+        if not project_exists:
+            rich.print(f"[red]{message}[/red]")
+            return None
+
+        return cls(
+            base_dir=context.base_dir,
+            storage_options=storage_options,
+            fs=context.fs,
+            log_level=log_level,
+            _context=context,
+        )
+
+    @classmethod
+    def _resolve_project_params(
+        cls,
+        name: str | None,
+        base_dir: str | None,
+    ) -> tuple[str, str]:
+        """Resolve project name and base directory."""
+        if name is None and base_dir is None:
+            name = str(Path.cwd().name)
+            base_dir = posixpath.join(str(Path.cwd().parent), name)
+        elif name is None:
+            name = Path(base_dir).name
+        elif base_dir is None:
+            base_dir = posixpath.join(str(Path.cwd()), name)
+
+        return name, base_dir
+
+    @classmethod
+    def _build_project_creation_context(
+        cls,
+        base_dir: str,
+        storage_options: dict | BaseStorageOptions | None,
+        fs: AbstractFileSystem | None,
+    ) -> ProjectRuntimeContext:
+        """Build runtime context for project creation operations."""
+        owns_filesystem = fs is None
+        if fs is None:
+            fs = filesystem(
+                protocol_or_path=base_dir,
+                dirfs=True,
+                storage_options=storage_options,
+            )
+        return ProjectRuntimeContext(
+            fs=fs,
+            base_dir=base_dir,
+            storage_options=storage_options or {},
+            cfg_dir=CONFIG_DIR,
+            pipelines_dir=PIPELINES_DIR,
+            owns_filesystem=owns_filesystem,
+        )
+
+    @classmethod
+    def _handle_existing_project(
+        cls,
+        base_dir: str,
+        fs: AbstractFileSystem,
+        hooks_dir: str,
+        overwrite: bool,
+    ) -> None:
+        """Handle an existing project before creating a new one."""
+        project_exists, _ = cls._check_project_exists(base_dir, fs)
+        if not project_exists:
+            return
+
+        if overwrite:
+            helper = FilesystemHelper(base_dir)
+            helper.clean_directory(
+                fs,
+                f"{settings.CONFIG_DIR}",
+                settings.PIPELINES_DIR,
+                hooks_dir,
+                recursive=True,
+            )
+            if fs.exists("README.md"):
+                fs.rm("README.md")
+            return
+
+        error_msg = (
+            f"Project already exists at {base_dir}. "
+            "Use overwrite=True to overwrite the existing project."
+        )
+        rich.print(f"[red]{error_msg}[/red]")
+        raise FileExistsError(error_msg)
+
+    @staticmethod
+    def _create_project_structure(fs: AbstractFileSystem, hooks_dir: str) -> None:
+        """Create project directory structure."""
+        fs.makedirs(f"{settings.CONFIG_DIR}/{settings.PIPELINES_DIR}", exist_ok=True)
+        fs.makedirs(settings.PIPELINES_DIR, exist_ok=True)
+        fs.makedirs(hooks_dir, exist_ok=True)
+
+    @staticmethod
+    def _initialize_project_config(
+        name: str,
+        fs: AbstractFileSystem,
+        hooks_dir: str,
+    ) -> ProjectConfig:
+        """Initialize project configuration and README."""
+        cfg = ProjectConfig.load(name=name, fs=fs)
+        validate_file_path(hooks_dir, allow_absolute=False, allow_relative=True)
+        cfg.hooks_dir = hooks_dir
+
+        with fs.open("README.md", "w") as f:
+            f.write(
+                f"# FlowerPower project {name.replace('_', ' ').upper()}\n\n"
+                "**created on**\n\n"
+                f"*{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
+            )
+
+        cfg.save(fs=fs)
+        return cfg
+
+    @staticmethod
+    def _print_success_message(name: str, base_dir: str) -> None:
+        """Print a short success message for new projects."""
+        rich.print(
+            f"\n✨ Initialized FlowerPower project [bold blue]{name}[/bold blue] "
+            f"at [italic green]{base_dir}[/italic green]\n"
+        )
+
+    @classmethod
+    def new_project(
+        cls,
+        name: str | None = None,
+        base_dir: str | None = None,
+        storage_options: dict | BaseStorageOptions | None = None,
+        fs: AbstractFileSystem | None = None,
+        hooks_dir: str = settings.HOOKS_DIR,
+        log_level: str | None = None,
+        overwrite: bool = False,
+    ) -> "PipelineManager":
+        """Create a FlowerPower project and return its PipelineManager facade."""
+        if log_level:
+            setup_logging(level=log_level)
+
+        name, base_dir = cls._resolve_project_params(name, base_dir)
+        validate_file_path(hooks_dir, allow_absolute=False, allow_relative=True)
+        context = cls._build_project_creation_context(base_dir, storage_options, fs)
+
+        cls._handle_existing_project(
+            context.base_dir,
+            context.fs,
+            hooks_dir,
+            overwrite,
+        )
+        cls._create_project_structure(context.fs, hooks_dir)
+        cls._initialize_project_config(name, context.fs, hooks_dir)
+        cls._print_success_message(name, context.base_dir)
+
+        return cls(
+            base_dir=context.base_dir,
+            storage_options=storage_options,
+            fs=context.fs,
+            log_level=log_level,
+            _context=context,
+        )
 
     def _initialize_managers(self) -> None:
-        """Initialize all manager components."""
-        # Initialize config manager
+        """Initialize all facade components from runtime context."""
         self._config_manager = PipelineConfigManager(
-            base_dir=self._base_dir,
-            fs=self._fs,
-            storage_options=self._storage_options,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
+            base_dir=self._context.base_dir,
+            fs=self._context.fs,
+            storage_options=self._context.storage_options,
+            cfg_dir=self._context.cfg_dir,
+            pipelines_dir=self._context.pipelines_dir,
         )
 
-        # Load project configuration
         project_cfg = self._config_manager.load_project_config()
 
-        # Initialize registry
-        self.registry = PipelineRegistry(
+        self.registry = PipelineRegistry.from_context(
+            self._context,
             project_cfg=project_cfg,
-            fs=self._fs,
-            base_dir=self._base_dir,
-            storage_options=self._storage_options,
             config_manager=self._config_manager,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
         )
-
-        # Initialize creator
-        self._creator = PipelineCreator(
+        self._creator = PipelineCreator.from_context(
+            self._context,
             project_cfg=project_cfg,
-            fs=self._fs,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
         )
-
-        # Initialize executor
-        self._executor = PipelineExecutor(
-            config_manager=self._config_manager, registry=self.registry
+        self._executor = PipelineExecutor.from_context(
+            self._context,
+            config_manager=self._config_manager,
+            registry=self.registry,
         )
-
-        # Initialize other components
-        self._project_context = None
-        self.visualizer = PipelineVisualizer(
+        self.visualizer = PipelineVisualizer.from_context(
+            self._context,
             project_cfg=project_cfg,
-            fs=self._fs,
-            base_dir=self._base_dir,
-            cfg_dir=self._cfg_dir,
-            pipelines_dir=self._pipelines_dir,
         )
         self.io = PipelineIOManager(registry=self.registry)
 
-    def _ensure_directories_exist(self) -> None:
-        """Ensure essential directories exist."""
+    def _bootstrap_project_directories(self) -> None:
+        """Ensure essential project directories exist."""
         self._fs_helper.ensure_directories_exist(
-            self._fs,
-            self._cfg_dir or ".",
-            self._pipelines_dir or ".",
-            posixpath.join(self._cfg_dir or ".", self._pipelines_dir or "."),
+            self._context.fs,
+            self._context.cfg_dir or ".",
+            self._context.pipelines_dir or ".",
+            posixpath.join(self._context.cfg_dir or ".", self._context.pipelines_dir or "."),
         )
+
+    def _ensure_directories_exist(self) -> None:
+        """Compatibility alias for older tests/extensions."""
+        self._bootstrap_project_directories()
 
     def __enter__(self) -> "PipelineManager":
         """Enter the context manager.
@@ -259,18 +473,20 @@ class PipelineManager:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Release cached filesystem resources on context exit.
+        """Release manager-owned cached filesystem resources on context exit.
 
-        Clears the fsspec filesystem instance cache so that remote
-        backends (S3, GCS) release cached connections.
+        Caller-supplied filesystems are left alone; only filesystems created by
+        the facade are eligible for cache cleanup.
 
         Args:
             exc_type: Type of exception that occurred, if any
             exc_val: Exception instance that occurred, if any
             exc_tb: Traceback of exception that occurred, if any
         """
+        if not self._context.owns_filesystem:
+            return
         try:
-            self._fs.clear_instance_cache()
+            self._context.fs.clear_instance_cache()
         except Exception:
             pass
 
@@ -448,11 +664,6 @@ class PipelineManager:
             ...     reload=True
             ... )
         """
-        # Set project context for executor
-        if hasattr(self, "_project_context") and self._project_context is not None:
-            self._executor._project_context = self._project_context
-
-        # Delegate to executor
         return self._executor.run(name=name, run_config=run_config, **kwargs)
 
     async def run_async(
@@ -478,9 +689,6 @@ class PipelineManager:
             >>> manager = PipelineManager()
             >>> result = await manager.run_async("my_pipeline")
         """
-        if hasattr(self, "_project_context") and self._project_context is not None:
-            self._executor._project_context = self._project_context
-
         return await self._executor.run_async(
             name=name, run_config=run_config, **kwargs
         )

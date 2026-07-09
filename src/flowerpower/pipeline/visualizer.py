@@ -58,6 +58,22 @@ class PipelineVisualizer:
         self._module_resolver = PipelineModuleResolver(self._pipelines_dir)
         add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
+    @classmethod
+    def from_context(
+        cls,
+        context,
+        *,
+        project_cfg: ProjectConfig,
+    ) -> "PipelineVisualizer":
+        """Create a visualizer from project runtime context facts."""
+        return cls(
+            project_cfg=project_cfg,
+            fs=context.fs,
+            base_dir=context.base_dir,
+            cfg_dir=context.cfg_dir,
+            pipelines_dir=context.pipelines_dir,
+        )
+
     def _get_dag_object(
         self,
         name: str,

@@ -33,7 +33,10 @@ class ExecutionContextBuilder:
     ) -> tuple[h_executors.BaseExecutor, Callable | None, list]:
         """Create executor, shutdown function, and adapters for a pipeline run."""
         executor_cfg = run_config.executor or ExecutorConfig()
-        executor, cleanup_fn = self._create_executor(executor_cfg)
+        executor, cleanup_fn = self._create_executor(
+            executor_cfg,
+            run_config.project_adapter_cfg,
+        )
         adapters = self._create_adapters(run_config)
         logger.debug(
             "Execution context created. executor={executor} adapters={adapters}",
@@ -43,28 +46,20 @@ class ExecutionContextBuilder:
         return executor, cleanup_fn, adapters
 
     def _create_executor(
-        self, executor_cfg: ExecutorConfig
+        self,
+        executor_cfg: ExecutorConfig,
+        project_adapter_cfg: Any = None,
     ) -> tuple[h_executors.BaseExecutor, Callable | None]:
         executor = self._executor_factory.create_executor(executor_cfg)
         cleanup_fn = None
 
-        # Only ray currently needs special shutdown handling
+        # Only ray currently needs special shutdown handling. Use the resolved
+        # project adapter config instead of peeking into project context shape.
         ray_module = self._get_optional_ray()
-        if executor_cfg.type == "ray" and ray_module is not None:
-            project_cfg = getattr(
-                self._project_context, "project_cfg", None
-            ) or getattr(self._project_context, "_project_cfg", None)
-            if project_cfg is None and hasattr(self._project_context, "pipeline_manager"):
-                project_manager = self._project_context.pipeline_manager
-                project_cfg = getattr(project_manager, "project_cfg", None) or getattr(
-                    project_manager, "_project_cfg", None
-                )
-            if project_cfg and getattr(project_cfg.adapter, "ray", None):
-                should_shutdown = getattr(
-                    project_cfg.adapter.ray, "shutdown_ray_on_completion", False
-                )
-                cleanup_fn = ray_module.shutdown if should_shutdown else None
-
+        ray_cfg = getattr(project_adapter_cfg, "ray", None)
+        if executor_cfg.type == "ray" and ray_module is not None and ray_cfg is not None:
+            should_shutdown = getattr(ray_cfg, "shutdown_ray_on_completion", False)
+            cleanup_fn = ray_module.shutdown if should_shutdown else None
         return executor, cleanup_fn
 
     def _create_adapters(self, run_config: RunConfig) -> list:

@@ -229,7 +229,11 @@ class PipelineRunner:
         Delegates package-root normalization to the resolver; this method only
         figures out *which* directory fragment to use.
         """
-        manager = getattr(self._pipeline.project_context, "pipeline_manager", None)
+        context = self._pipeline.project_context
+        pipelines_dir = getattr(context, "pipelines_dir", None)
+        if isinstance(pipelines_dir, str):
+            return pipelines_dir
+        manager = getattr(context, "pipeline_manager", None)
         pipelines_dir = getattr(manager, "_pipelines_dir", None)
         if isinstance(pipelines_dir, str):
             return pipelines_dir

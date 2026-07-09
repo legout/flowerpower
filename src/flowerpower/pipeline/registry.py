@@ -146,6 +146,25 @@ class PipelineRegistry:
         # Ensure module paths are added (delegated to shared utility)
         add_modules_path(self._fs, self._pipelines_dir, self._base_dir)
 
+    @classmethod
+    def from_context(
+        cls,
+        context,
+        *,
+        project_cfg: ProjectConfig,
+        config_manager: "PipelineConfigManager | None" = None,
+    ) -> "PipelineRegistry":
+        """Create a registry from project runtime context facts."""
+        return cls(
+            project_cfg=project_cfg,
+            fs=context.fs,
+            base_dir=context.base_dir,
+            storage_options=context.storage_options,
+            config_manager=config_manager,
+            cfg_dir=context.cfg_dir,
+            pipelines_dir=context.pipelines_dir,
+        )
+
     # --- Delegating properties (compatibility with historical internals) ---
 
     @property

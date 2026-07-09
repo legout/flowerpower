@@ -9,7 +9,6 @@ from ..utils.config import (
     validate_resolved_run_config,
 )
 from ..utils.logging import setup_logging
-from ..utils.adapter import extract_project_adapter_base
 from .execution_context import resolve_run_config_adapter_configs
 
 if TYPE_CHECKING:
@@ -44,6 +43,21 @@ class PipelineExecutor:
         self._registry = registry
         self._project_context = project_context
 
+    @classmethod
+    def from_context(
+        cls,
+        context,
+        *,
+        config_manager: "PipelineConfigManager",
+        registry: "PipelineRegistry",
+    ) -> "PipelineExecutor":
+        """Create an executor bound to project runtime context."""
+        return cls(
+            config_manager=config_manager,
+            registry=registry,
+            project_context=context,
+        )
+
     def run(self, name: str, run_config: RunConfig | None = None, **kwargs) -> dict[str, Any]:
         """Execute a pipeline synchronously and return its results.
 
@@ -77,7 +91,7 @@ class PipelineExecutor:
         # Fold pipeline and project adapter defaults into the resolved RunConfig
         # so runtime object construction consumes the resolved values only.
         run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, extract_project_adapter_base(self._project_context)
+            run_config, pipeline_config, self._project_adapter_base()
         )
 
         # Guard against non-clearable fields that were left unset.
@@ -127,7 +141,7 @@ class PipelineExecutor:
         # Fold pipeline and project adapter defaults into the resolved RunConfig
         # so runtime object construction consumes the resolved values only.
         run_config = resolve_run_config_adapter_configs(
-            run_config, pipeline_config, extract_project_adapter_base(self._project_context)
+            run_config, pipeline_config, self._project_adapter_base()
         )
 
         # Guard against non-clearable fields that were left unset.
@@ -146,6 +160,11 @@ class PipelineExecutor:
 
         # Execute the pipeline asynchronously
         return await pipeline.run_async(run_config=run_config)
+
+    def _project_adapter_base(self) -> Any:
+        """Return project adapter defaults from the registry-owned project config."""
+        project_cfg = getattr(self._registry, "project_cfg", None)
+        return getattr(project_cfg, "adapter", None) if project_cfg is not None else None
 
     @staticmethod
     def _merge_pipeline_run_config(
