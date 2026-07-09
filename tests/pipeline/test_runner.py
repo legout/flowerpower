@@ -10,7 +10,10 @@ import pytest
 from fsspeckit import filesystem
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
-from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig
+from flowerpower.cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
+from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
+from flowerpower.cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
+from flowerpower.pipeline.adapter_provider import ResolvedAdapterSet
 from flowerpower.pipeline.runner import PipelineRunner
 from flowerpower.utils.filesystem import add_modules_path
 
@@ -215,6 +218,43 @@ def test_runner_create_retry_manager_uses_nested_retry_config(pipeline_stub):
     assert manager._retry_delay == 2.0
     assert manager._jitter_factor == 0.3
 
+
+@patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
+@patch("flowerpower.pipeline.runner.driver.Builder", FakeBuilder)
+def test_runner_retries_runtime_adapter_construction(context_builder, pipeline_stub):
+    runner = PipelineRunner(pipeline_stub)
+    context_builder.return_value.build.return_value = (
+        SimpleNamespace(),
+        None,
+        [],
+    )
+    adapter_set = ResolvedAdapterSet(
+        with_adapter_cfg=WithAdapterConfig(),
+        pipeline_adapter_cfg=PipelineAdapterConfig(),
+        project_adapter_cfg=ProjectAdapterConfig(),
+        runtime_adapters=[],
+    )
+    run_config = RunConfig(
+        executor=ExecutorConfig(type="synchronous"),
+        retry=RetryConfig(
+            max_retries=1,
+            retry_delay=0,
+            jitter_factor=0,
+            retry_exceptions=(RuntimeError,),
+        ),
+    )
+
+    with patch("flowerpower.pipeline.runner.AdapterProvider") as provider_cls:
+        provider = provider_cls.return_value
+        provider.construct_runtime_adapters.side_effect = [
+            RuntimeError("adapter construction failed"),
+            adapter_set,
+        ]
+
+        result = runner.run(run_config=run_config, adapter_set=adapter_set)
+
+    assert result["remote"] is False
+    assert provider.construct_runtime_adapters.call_count == 2
 
 @patch("flowerpower.pipeline.runner.ExecutionContextBuilder")
 def test_runner_async_path_parity(context_builder, pipeline_stub):

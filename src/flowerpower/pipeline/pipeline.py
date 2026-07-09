@@ -11,7 +11,7 @@ from ..cfg.pipeline.run import RunConfig
 from ..utils.adapter import create_adapter_manager, extract_project_adapter_base
 from ..utils.config import merge_run_config_with_kwargs, merge_run_configs
 from ..utils.executor import create_executor_factory
-from .execution_context import resolve_run_config_adapter_configs
+from .adapter_provider import AdapterProvider, ResolvedAdapterSet
 from .runner import PipelineRunner
 from .telemetry import initialize_telemetry
 
@@ -41,14 +41,21 @@ class Pipeline(msgspec.Struct):
             effective_run_config = merge_run_config_with_kwargs(
                 effective_run_config, kwargs
             )
-        effective_run_config = resolve_run_config_adapter_configs(
-            effective_run_config, self.config, extract_project_adapter_base(self.project_context)
+        adapter_set = AdapterProvider(self._adapter_manager).resolve(
+            effective_run_config,
+            self.config,
+            extract_project_adapter_base(self.project_context),
+            construct_runtime=False,
         )
-        return self._run_resolved(effective_run_config)
+        return self._run_resolved(effective_run_config, adapter_set=adapter_set)
 
-    def _run_resolved(self, run_config: RunConfig) -> Any:
+    def _run_resolved(
+        self,
+        run_config: RunConfig,
+        adapter_set: ResolvedAdapterSet | None = None,
+    ) -> Any:
         """Execute an already-resolved run configuration synchronously."""
-        return self._get_runner().run(run_config=run_config)
+        return self._get_runner().run(run_config=run_config, adapter_set=adapter_set)
 
     async def run_async(self, run_config=None, **kwargs):
         effective_run_config = merge_run_configs(self.config.run, run_config)
@@ -56,14 +63,27 @@ class Pipeline(msgspec.Struct):
             effective_run_config = merge_run_config_with_kwargs(
                 effective_run_config, kwargs
             )
-        effective_run_config = resolve_run_config_adapter_configs(
-            effective_run_config, self.config, extract_project_adapter_base(self.project_context)
+        adapter_set = AdapterProvider(self._adapter_manager).resolve(
+            effective_run_config,
+            self.config,
+            extract_project_adapter_base(self.project_context),
+            construct_runtime=False,
         )
-        return await self._run_resolved_async(effective_run_config)
+        return await self._run_resolved_async(
+            effective_run_config,
+            adapter_set=adapter_set,
+        )
 
-    async def _run_resolved_async(self, run_config: RunConfig) -> Any:
+    async def _run_resolved_async(
+        self,
+        run_config: RunConfig,
+        adapter_set: ResolvedAdapterSet | None = None,
+    ) -> Any:
         """Execute an already-resolved run configuration asynchronously."""
-        return await self._get_runner().run_async(run_config=run_config)
+        return await self._get_runner().run_async(
+            run_config=run_config,
+            adapter_set=adapter_set,
+        )
 
     @property
     def adapter_manager(self):

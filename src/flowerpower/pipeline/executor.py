@@ -11,7 +11,7 @@ from ..utils.config import (
 )
 from ..utils.logging import setup_logging
 from ..utils.security import validate_pipeline_name
-from .execution_context import resolve_run_config_adapter_configs
+from .adapter_provider import AdapterProvider, ResolvedAdapterSet
 
 if TYPE_CHECKING:
     from .config_manager import PipelineConfigManager
@@ -26,6 +26,7 @@ class PipelineRunPlan:
     pipeline_config: Any
     run_config: RunConfig
     pipeline: Any
+    adapter_set: ResolvedAdapterSet
 
 
 class PipelineExecutor:
@@ -91,7 +92,10 @@ class PipelineExecutor:
         """
         plan = self._build_run_plan(name, run_config, **kwargs)
         self._apply_run_logging(plan)
-        return plan.pipeline._run_resolved(run_config=plan.run_config)
+        return plan.pipeline._run_resolved(
+            run_config=plan.run_config,
+            adapter_set=plan.adapter_set,
+        )
 
     async def run_async(
         self, name: str, run_config: RunConfig | None = None, **kwargs
@@ -110,7 +114,10 @@ class PipelineExecutor:
         """
         plan = self._build_run_plan(name, run_config, **kwargs)
         self._apply_run_logging(plan)
-        return await plan.pipeline._run_resolved_async(run_config=plan.run_config)
+        return await plan.pipeline._run_resolved_async(
+            run_config=plan.run_config,
+            adapter_set=plan.adapter_set,
+        )
 
     def _build_run_plan(
         self,
@@ -129,12 +136,11 @@ class PipelineExecutor:
         if kwargs:
             run_config = merge_run_config_with_kwargs(run_config, kwargs)
 
-        # Fold pipeline and project adapter defaults into the resolved RunConfig,
-        # so runtime object construction consumes the resolved values only.
-        run_config = resolve_run_config_adapter_configs(
+        adapter_set = AdapterProvider().resolve(
             run_config,
             pipeline_config,
             self._project_adapter_base(),
+            construct_runtime=False,
         )
 
         # Guard against non-clearable fields that were left unset.
@@ -152,6 +158,7 @@ class PipelineExecutor:
             pipeline_config=pipeline_config,
             run_config=run_config,
             pipeline=pipeline,
+            adapter_set=adapter_set,
         )
 
     @staticmethod

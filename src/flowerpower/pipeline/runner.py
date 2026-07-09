@@ -11,12 +11,14 @@ from loguru import logger
 
 from ..cfg.pipeline.run import RunConfig
 from ..settings import PIPELINES_DIR
+from ..utils.adapter import extract_project_adapter_base
 from ..utils.config import (
     clone_run_config,
     merge_run_config_with_kwargs,
     validate_resolved_run_config,
 )
 from ..utils.logging import ensure_logging_initialized, setup_logging
+from .adapter_provider import AdapterProvider, ResolvedAdapterSet
 from .execution_context import ExecutionContextBuilder
 from .module_resolver import PipelineModuleResolver
 from .retry import RetryManager
@@ -37,8 +39,15 @@ class PipelineRunner:
         self._pipeline = pipeline
         ensure_logging_initialized()
 
-    def run(self, run_config: RunConfig | None = None, **kwargs) -> dict[str, Any]:
+    def run(
+        self,
+        run_config: RunConfig | None = None,
+        *,
+        adapter_set: ResolvedAdapterSet | None = None,
+        **kwargs,
+    ) -> dict[str, Any]:
         configured_run = self._prepare_run_config(run_config, kwargs)
+        adapter_set = adapter_set or self._resolve_adapter_set(configured_run)
         context_builder = self._build_context_builder()
 
         modules = self._resolve_modules(configured_run)
@@ -49,7 +58,7 @@ class PipelineRunner:
         retry_manager = self._create_retry_manager(configured_run)
 
         def operation() -> dict[str, Any]:
-            return self._execute_sync(context_builder, configured_run, modules)
+            return self._execute_sync(context_builder, configured_run, adapter_set, modules)
 
         return retry_manager.execute(
             operation=operation,
@@ -59,9 +68,14 @@ class PipelineRunner:
         )
 
     async def run_async(
-        self, run_config: RunConfig | None = None, **kwargs
+        self,
+        run_config: RunConfig | None = None,
+        *,
+        adapter_set: ResolvedAdapterSet | None = None,
+        **kwargs,
     ) -> dict[str, Any]:
         configured_run = self._prepare_run_config(run_config, kwargs)
+        adapter_set = adapter_set or self._resolve_adapter_set(configured_run)
         context_builder = self._build_context_builder()
 
         modules = self._resolve_modules(configured_run)
@@ -85,6 +99,7 @@ class PipelineRunner:
             return await self._execute_async(
                 context_builder,
                 configured_run,
+                adapter_set,
                 modules,
                 async_driver_module,
             )
@@ -108,9 +123,17 @@ class PipelineRunner:
     def _build_context_builder(self) -> ExecutionContextBuilder:
         return ExecutionContextBuilder(
             executor_factory=self._pipeline.executor_factory,
-            adapter_manager=self._pipeline.adapter_manager,
             pipeline_config=self._pipeline.config,
             project_context=self._pipeline.project_context,
+        )
+
+    def _resolve_adapter_set(self, run_config: RunConfig) -> ResolvedAdapterSet:
+        """Resolve adapters for direct PipelineRunner compatibility paths."""
+        return AdapterProvider(self._pipeline.adapter_manager).resolve(
+            run_config,
+            self._pipeline.config,
+            extract_project_adapter_base(self._pipeline.project_context),
+            construct_runtime=False,
         )
 
     def _create_retry_manager(self, run_config: RunConfig) -> RetryManager:
@@ -127,9 +150,13 @@ class PipelineRunner:
         self,
         context_builder: ExecutionContextBuilder,
         run_config: RunConfig,
+        adapter_set: ResolvedAdapterSet,
         modules: list[ModuleType],
     ) -> dict[str, Any]:
-        executor, shutdown, adapters = context_builder.build(run_config)
+        adapter_set = AdapterProvider(
+            self._pipeline.adapter_manager
+        ).construct_runtime_adapters(run_config, adapter_set)
+        executor, shutdown, adapters = context_builder.build(run_config, adapter_set)
         synchronous_executor = run_config.executor.type in (
             "synchronous",
             "local",
@@ -171,10 +198,14 @@ class PipelineRunner:
         self,
         context_builder: ExecutionContextBuilder,
         run_config: RunConfig,
+        adapter_set: ResolvedAdapterSet,
         modules: list[ModuleType],
         async_driver_module,
     ) -> dict[str, Any]:
-        executor, shutdown, adapters = context_builder.build(run_config)
+        adapter_set = AdapterProvider(
+            self._pipeline.adapter_manager
+        ).construct_runtime_adapters(run_config, adapter_set)
+        executor, shutdown, adapters = context_builder.build(run_config, adapter_set)
         synchronous_executor = run_config.executor.type in (
             "synchronous",
             "local",

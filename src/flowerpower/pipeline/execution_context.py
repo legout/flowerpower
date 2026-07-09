@@ -9,7 +9,9 @@ from hamilton.execution import executors as h_executors
 from loguru import logger
 
 from ..cfg.pipeline.run import ExecutorConfig, RunConfig
-from ..utils.adapter import AdapterManager
+from .adapter_provider import ResolvedAdapterSet, resolve_run_config_adapter_configs
+
+__all__ = ["ExecutionContextBuilder", "resolve_run_config_adapter_configs"]
 
 
 class ExecutionContextBuilder:
@@ -19,9 +21,9 @@ class ExecutionContextBuilder:
         self,
         *,
         executor_factory: Any,
-        adapter_manager: Any,
-        pipeline_config: Any,
-        project_context: Any,
+        adapter_manager: Any = None,
+        pipeline_config: Any = None,
+        project_context: Any = None,
     ) -> None:
         self._executor_factory = executor_factory
         self._adapter_manager = adapter_manager
@@ -29,15 +31,17 @@ class ExecutionContextBuilder:
         self._project_context = project_context
 
     def build(
-        self, run_config: RunConfig
+        self,
+        run_config: RunConfig,
+        adapter_set: ResolvedAdapterSet,
     ) -> tuple[h_executors.BaseExecutor, Callable | None, list]:
         """Create executor, shutdown function, and adapters for a pipeline run."""
         executor_cfg = run_config.executor or ExecutorConfig()
         executor, cleanup_fn = self._create_executor(
             executor_cfg,
-            run_config.project_adapter_cfg,
+            adapter_set.project_adapter_cfg,
         )
-        adapters = self._create_adapters(run_config)
+        adapters = list(adapter_set.runtime_adapters)
         logger.debug(
             "Execution context created. executor={executor} adapters={adapters}",
             executor=executor_cfg.type,
@@ -62,27 +66,6 @@ class ExecutionContextBuilder:
             cleanup_fn = ray_module.shutdown if should_shutdown else None
         return executor, cleanup_fn
 
-    def _create_adapters(self, run_config: RunConfig) -> list:
-        with_adapter_cfg = run_config.with_adapter
-
-        pipeline_adapter_cfg = run_config.pipeline_adapter_cfg
-        if pipeline_adapter_cfg is None:
-            from ..cfg.pipeline.adapter import AdapterConfig as PipelineAdapterConfig
-            pipeline_adapter_cfg = PipelineAdapterConfig()
-
-        project_adapter_cfg = run_config.project_adapter_cfg
-        if project_adapter_cfg is None:
-            from ..cfg.project.adapter import AdapterConfig as ProjectAdapterConfig
-            project_adapter_cfg = ProjectAdapterConfig()
-
-        adapters = self._adapter_manager.create_adapters(
-            with_adapter_cfg, pipeline_adapter_cfg, project_adapter_cfg
-        )
-
-        if run_config.adapter:
-            adapters.extend(run_config.adapter.values())
-
-        return adapters
 
     @staticmethod
     def _get_optional_ray():
@@ -98,34 +81,3 @@ class ExecutionContextBuilder:
         return None
 
 
-def resolve_run_config_adapter_configs(
-    run_config: RunConfig,
-    pipeline_config: Any,
-    project_adapter_base: Any = None,
-) -> RunConfig:
-    """Merge pipeline and project adapter defaults into a resolved RunConfig.
-
-    This resolution must happen before runtime object construction so that the
-    execution-context builder can consume the resolved RunConfig values without
-    re-deciding precedence against pipeline defaults.
-    """
-    explicit_overrides = set(run_config.explicit_overrides or [])
-    manager = AdapterManager()
-    if pipeline_config is not None:
-        pipeline_adapter = getattr(pipeline_config, "adapter", None)
-        if pipeline_adapter is not None and not (
-            "pipeline_adapter_cfg" in explicit_overrides
-            and run_config.pipeline_adapter_cfg is None
-        ):
-            run_config.pipeline_adapter_cfg = manager.resolve_pipeline_adapter_config(
-                run_config.pipeline_adapter_cfg, pipeline_adapter
-            )
-
-    if not (
-        "project_adapter_cfg" in explicit_overrides
-        and run_config.project_adapter_cfg is None
-    ):
-        run_config.project_adapter_cfg = manager.resolve_project_adapter_config(
-            run_config.project_adapter_cfg, project_adapter_base
-        )
-    return run_config

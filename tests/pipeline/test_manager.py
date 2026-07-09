@@ -1,15 +1,15 @@
 import types
 import unittest
 import warnings
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from flowerpower.cfg.pipeline import PipelineConfig, RunConfig
-from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig, WithAdapterConfig
-from flowerpower.utils.config import RunConfigBuilder
+from flowerpower.cfg.pipeline.run import ExecutorConfig, RetryConfig
 from flowerpower.cfg.project import ProjectConfig
 from flowerpower.cfg.project.adapter import AdapterConfig
 from flowerpower.pipeline.manager import PipelineManager
 from flowerpower.pipeline.pipeline import Pipeline
+from flowerpower.utils.config import RunConfigBuilder
 
 
 class TestPipelineManager(unittest.TestCase):
@@ -53,25 +53,25 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "success"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         # Create RunConfig
         run_config = RunConfig(
             inputs={"x": 10, "y": 20},
@@ -81,24 +81,24 @@ class TestPipelineManager(unittest.TestCase):
             retry=RetryConfig(max_retries=2, retry_delay=1.0),
             log_level="DEBUG"
         )
-        
+
         # Test run with RunConfig
         try:
             result = manager.run("test_pipeline", run_config=run_config)
-            
+
             # Verify registry.get_pipeline was called with correct parameters
             mock_registry.get_pipeline.assert_called_once_with(
                 name="test_pipeline",
                 project_context=manager,
                 reload=run_config.reload
             )
-            
+
             # Verify pipeline._run_resolved was called with RunConfig
             mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
-            
+
             # Verify result
             self.assertEqual(result, {"result": "success"})
-            
+
         except Exception as e:
             # If execution fails due to missing dependencies, that's okay in test environment
             print(f"PipelineManager run with RunConfig failed (expected in test environment): {e}")
@@ -111,25 +111,25 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "builder_success"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         # Create RunConfig using builder
         run_config = (
             RunConfigBuilder(pipeline_name="test_pipeline")
@@ -141,24 +141,24 @@ class TestPipelineManager(unittest.TestCase):
             .with_log_level("INFO")
             .build()
         )
-        
+
         # Test run with RunConfig from builder
         try:
             result = manager.run("test_pipeline", run_config=run_config)
-            
+
             # Verify registry.get_pipeline was called with correct parameters
             mock_registry.get_pipeline.assert_called_once_with(
                 name="test_pipeline",
                 project_context=manager,
                 reload=run_config.reload
             )
-            
+
             # Verify pipeline._run_resolved was called with RunConfig
             mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
-            
+
             # Verify result
             self.assertEqual(result, {"result": "builder_success"})
-            
+
         except Exception as e:
             print(f"PipelineManager run with RunConfigBuilder failed (expected in test environment): {e}")
 
@@ -170,25 +170,25 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "backward_compat"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         try:
             # Test with individual parameters (old way)
             with warnings.catch_warnings():
@@ -200,10 +200,10 @@ class TestPipelineManager(unittest.TestCase):
                     max_retries=1,
                     log_level="DEBUG"
                 )
-            
+
             # Reset mock to track next call
             mock_pipeline._run_resolved.reset_mock()
-            
+
             # Test with RunConfig (new way)
             run_config = RunConfig(
                 inputs={"x": 10, "y": 5},
@@ -212,14 +212,14 @@ class TestPipelineManager(unittest.TestCase):
                 log_level="DEBUG"
             )
             result2 = manager.run("test_pipeline", run_config=run_config)
-            
+
             # Both should have called pipeline._run_resolved
             self.assertEqual(mock_pipeline._run_resolved.call_count, 2)
-            
+
             # Both should return dict results
             self.assertIsInstance(result1, dict)
             self.assertIsInstance(result2, dict)
-            
+
         except Exception as e:
             print(f"PipelineManager backward compatibility test failed (expected in test environment): {e}")
 
@@ -231,32 +231,32 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "mixed_params"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         try:
             # Create RunConfig with some parameters
             run_config = RunConfig(
                 inputs={"x": 5, "y": 5},
                 retry=RetryConfig(max_retries=2)
             )
-            
+
             # Call run with both individual parameters and RunConfig
             # RunConfig should take precedence
             with warnings.catch_warnings():
@@ -268,17 +268,17 @@ class TestPipelineManager(unittest.TestCase):
                     max_retries=5,  # This should be ignored
                     run_config=run_config
                 )
-            
+
             # Verify pipeline._run_resolved was called with RunConfig values
             mock_pipeline._run_resolved.assert_called_once_with(run_config=run_config)
-            
+
             # Verify RunConfig was not modified
             self.assertEqual(run_config.inputs, {"x": 5, "y": 5})
             self.assertEqual(run_config.max_retries, 2)
-            
+
             # Verify result
             self.assertEqual(result, {"result": "mixed_params"})
-            
+
         except Exception as e:
             print(f"PipelineManager mixed parameters test failed (expected in test environment): {e}")
 
@@ -290,44 +290,44 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "logging_test"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         try:
             # Test with log_level in RunConfig
             run_config = RunConfig(
                 inputs={"x": 1, "y": 1},
                 log_level="DEBUG"
             )
-            
-            with patch('flowerpower.pipeline.manager.setup_logging') as mock_setup_logging:
-                result = manager.run("test_pipeline", run_config=run_config)
-                
+
+            with patch("flowerpower.pipeline.manager.setup_logging") as mock_setup_logging:
+                manager.run("test_pipeline", run_config=run_config)
+
                 # Verify setup_logging was called with DEBUG level
                 mock_setup_logging.assert_called_with(level="DEBUG")
-                
+
         except Exception as e:
             print(f"PipelineManager logging setup test failed (expected in test environment): {e}")
 
@@ -339,41 +339,41 @@ class TestPipelineManager(unittest.TestCase):
         mock_fs = MagicMock()
         mock_filesystem.return_value = mock_fs
         mock_fs.makedirs.return_value = None
-        
+
         # Mock the file operations for YAML loading
         mock_file = MagicMock()
         mock_file.read.return_value = b"name: test_project\nadapter:\n  type: local"
         mock_fs.open.return_value.__enter__.return_value = mock_file
         mock_fs.exists.return_value = True
-        
+
         # Setup mock registry
         mock_registry = MagicMock()
         mock_registry_class.return_value = mock_registry
-        
+
         # Setup mock pipeline
         mock_pipeline = MagicMock(spec=Pipeline)
         mock_pipeline._run_resolved.return_value = {"result": "reload_test"}
         mock_registry.get_pipeline.return_value = mock_pipeline
-        
+
         # Create manager
         manager = PipelineManager(base_dir="/test/base")
-        
+
         try:
             # Test with reload=True in RunConfig
             run_config = RunConfig(
                 inputs={"x": 1, "y": 1},
                 reload=True
             )
-            
-            result = manager.run("test_pipeline", run_config=run_config)
-            
+
+            manager.run("test_pipeline", run_config=run_config)
+
             # Verify registry.get_pipeline was called with reload=True
             mock_registry.get_pipeline.assert_called_once_with(
                 name="test_pipeline",
                 project_context=manager,
                 reload=True
             )
-            
+
         except Exception as e:
             print(f"PipelineManager reload parameter test failed (expected in test environment): {e}")
 
@@ -455,7 +455,8 @@ class TestPipelineManager(unittest.TestCase):
             # The resolved-only seam must hand the runner a single resolved config
             runner_instance.run.assert_called_once()
             args, kwargs = runner_instance.run.call_args
-            self.assertEqual(set(kwargs.keys()), {"run_config"})
+            self.assertEqual(set(kwargs.keys()), {"run_config", "adapter_set"})
+            self.assertEqual(kwargs["adapter_set"].runtime_adapters, [])
             passed = kwargs["run_config"]
             self.assertIsInstance(passed, RunConfig)
 

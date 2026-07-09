@@ -11,9 +11,9 @@ from flowerpower.cfg.pipeline.run import (
     RunConfig,
     WithAdapterConfig,
 )
+from flowerpower.pipeline.adapter_provider import ResolvedAdapterSet
 from flowerpower.pipeline.execution_context import (
     ExecutionContextBuilder,
-    resolve_run_config_adapter_configs,
 )
 from flowerpower.pipeline.executor import PipelineExecutor, PipelineRunPlan
 from flowerpower.pipeline.pipeline import Pipeline
@@ -187,7 +187,8 @@ def test_executor_run_uses_resolved_seam_and_preserves_settings():
         mock_public_run.assert_not_called()
         runner_instance.run.assert_called_once()
         args, kwargs = runner_instance.run.call_args
-        assert set(kwargs.keys()) == {"run_config"}
+        assert set(kwargs.keys()) == {"run_config", "adapter_set"}
+        assert kwargs["adapter_set"].runtime_adapters == []
         passed = kwargs["run_config"]
         assert isinstance(passed, RunConfig)
         assert passed.inputs == {"x": 10, "y": 2}
@@ -273,7 +274,9 @@ def test_executor_run_async_uses_resolved_async_seam():
     assert result == {"async": "ok"}
     pipeline._run_resolved_async.assert_awaited_once()
     passed_run_config = pipeline._run_resolved_async.call_args.kwargs["run_config"]
+    passed_adapter_set = pipeline._run_resolved_async.call_args.kwargs["adapter_set"]
     assert passed_run_config.inputs == {"x": 1}
+    assert passed_adapter_set.runtime_adapters == []
     pipeline.run_async.assert_not_called()
 
 
@@ -285,47 +288,34 @@ def test_execution_context_builder_uses_resolved_run_config_for_executor_and_ada
     """
     executor_factory = MagicMock()
     executor_factory.create_executor.return_value = MagicMock(name="executor")
-    adapter_manager = MagicMock()
-    adapter_manager.create_adapters.return_value = []
-
-    # Pipeline run defaults that the builder must ignore
-    pipeline_run = RunConfig(
-        executor=ExecutorConfig(type="local", max_workers=1, num_cpus=1),
-        with_adapter=WithAdapterConfig(hamilton_tracker=True, mlflow=True),
-    )
-    pipeline_config = MagicMock(run=pipeline_run)
-    pipeline_config.adapter = AdapterConfig(
-        hamilton_tracker={"project_id": 999, "tags": {"env": "prod"}}
-    )
-
-    # Resolved RunConfig that the builder must consume
+    resolved_adapters = [MagicMock(name="adapter")]
     run_config = RunConfig(
         executor=ExecutorConfig(type="threadpool", max_workers=4, num_cpus=2),
         with_adapter=WithAdapterConfig(hamilton_tracker=False, mlflow=False),
         pipeline_adapter_cfg=AdapterConfig(hamilton_tracker={"project_id": 123}),
     )
+    adapter_set = ResolvedAdapterSet(
+        with_adapter_cfg=run_config.with_adapter,
+        pipeline_adapter_cfg=run_config.pipeline_adapter_cfg,
+        project_adapter_cfg=MagicMock(ray=None),
+        runtime_adapters=resolved_adapters,
+    )
 
     builder = ExecutionContextBuilder(
         executor_factory=executor_factory,
-        adapter_manager=adapter_manager,
-        pipeline_config=pipeline_config,
+        pipeline_config=MagicMock(),
         project_context=MagicMock(),
     )
-    builder.build(run_config)
+    executor, cleanup, adapters = builder.build(run_config, adapter_set)
 
-    # Executor is built from the resolved RunConfig, not pipeline defaults
     executor_factory.create_executor.assert_called_once()
     passed_executor_cfg = executor_factory.create_executor.call_args[0][0]
     assert passed_executor_cfg.type == "threadpool"
     assert passed_executor_cfg.max_workers == 4
     assert passed_executor_cfg.num_cpus == 2
-
-    # Adapter settings are built from the resolved RunConfig, not pipeline defaults
-    adapter_manager.create_adapters.assert_called_once()
-    with_adapter_cfg, pipeline_adapter_cfg, _ = adapter_manager.create_adapters.call_args[0]
-    assert with_adapter_cfg.hamilton_tracker is False
-    assert with_adapter_cfg.mlflow is False
-    assert pipeline_adapter_cfg.hamilton_tracker.project_id == 123
+    assert executor is executor_factory.create_executor.return_value
+    assert cleanup is None
+    assert adapters == resolved_adapters
 
 
 def test_executor_run_resolves_pipeline_adapter_config_into_run_config():
@@ -355,6 +345,31 @@ def test_executor_run_resolves_pipeline_adapter_config_into_run_config():
     passed_run_config = pipeline._run_resolved.call_args.kwargs["run_config"]
     assert passed_run_config.pipeline_adapter_cfg.hamilton_tracker.project_id == 999
     assert passed_run_config.pipeline_adapter_cfg.hamilton_tracker.tags == {"env": "prod"}
+    assert result == {"ok": True}
+
+def test_executor_main_path_does_not_extract_adapter_config_from_project_context():
+    pipeline_config = PipelineConfig(name="pipe", run=RunConfig())
+    config_manager = MagicMock()
+    config_manager.load_pipeline_config.return_value = pipeline_config
+
+    pipeline = MagicMock()
+    pipeline._run_resolved.return_value = {"ok": True}
+    registry = MagicMock()
+    registry.get_pipeline.return_value = pipeline
+    registry.project_cfg = MagicMock(adapter=None)
+
+    executor = PipelineExecutor(
+        config_manager=config_manager,
+        registry=registry,
+        project_context=MagicMock(),
+    )
+
+    with patch(
+        "flowerpower.utils.adapter.extract_project_adapter_base",
+        side_effect=AssertionError("opaque project-context extraction used"),
+    ):
+        result = executor.run(name="pipe")
+
     assert result == {"ok": True}
 
 

@@ -62,7 +62,8 @@ class TestPipeline(unittest.TestCase):
 
         runner_instance.run.assert_called_once()
         args, kwargs = runner_instance.run.call_args
-        self.assertEqual(set(kwargs.keys()), {"run_config"})
+        self.assertEqual(set(kwargs.keys()), {"run_config", "adapter_set"})
+        self.assertEqual(kwargs["adapter_set"].runtime_adapters, [])
         passed = kwargs["run_config"]
         self.assertIsInstance(passed, RunConfig)
         self.assertEqual(passed.inputs, {"x": 2})
@@ -82,7 +83,8 @@ class TestPipeline(unittest.TestCase):
 
         runner_instance.run.assert_called_once()
         args, kwargs = runner_instance.run.call_args
-        self.assertEqual(set(kwargs.keys()), {"run_config"})
+        self.assertEqual(set(kwargs.keys()), {"run_config", "adapter_set"})
+        self.assertEqual(kwargs["adapter_set"].runtime_adapters, [])
         passed = kwargs["run_config"]
         self.assertIsInstance(passed, RunConfig)
         self.assertEqual(passed.inputs, {"x": 2})
@@ -148,7 +150,8 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(result, {"result": 1})
         runner_instance.run_async.assert_awaited_once()
         args, kwargs = runner_instance.run_async.call_args
-        self.assertEqual(set(kwargs.keys()), {"run_config"})
+        self.assertEqual(set(kwargs.keys()), {"run_config", "adapter_set"})
+        self.assertEqual(kwargs["adapter_set"].runtime_adapters, [])
         passed = kwargs["run_config"]
         self.assertIsInstance(passed, RunConfig)
         self.assertEqual(passed.inputs, {"x": 1})
@@ -179,7 +182,8 @@ class TestPipeline(unittest.TestCase):
         pipeline.run(run_config=partial)
 
         args, kwargs = runner_cls.return_value.run.call_args
-        self.assertEqual(set(kwargs.keys()), {"run_config"})
+        self.assertEqual(set(kwargs.keys()), {"run_config", "adapter_set"})
+        self.assertEqual(kwargs["adapter_set"].runtime_adapters, [])
         passed = kwargs["run_config"]
         self.assertIsInstance(passed, RunConfig)
         self.assertEqual(passed.executor.type, "local")
