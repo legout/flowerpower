@@ -87,18 +87,17 @@ def test_base_config_to_yaml(mocker):
 def test_base_config_to_yaml_no_fs_provided(mocker):
     mock_file_open = mock_open()
     mocker.patch("builtins.open", mock_file_open)
-    # Mock fsspec.filesystem to return a MagicMock that has an .open method
+    # Mock the utility boundary that supplies the default filesystem.
     mock_fs_instance = MagicMock()
     mock_fs_instance.open = mock_file_open
-    mocker.patch("fsspec.filesystem", return_value=mock_fs_instance)
+    mocker.patch("flowerpower.utils.misc.filesystem", return_value=mock_fs_instance)
 
     config = SimpleConfig(name="yaml_test_no_fs", value=35)
     path = "test_config_no_fs.yaml"
 
-    config.to_yaml(path)  # No fs provided, should use default from fsspec
+    config.to_yaml(path)  # No fs provided, should use the default filesystem.
 
-    # The get_filesystem function is now used, which calls fsspec.filesystem
-    # and then the filesystem's open method is called
+    # The utility factory supplies the filesystem whose open method is used.
     mock_fs_instance.open.assert_called_once()
     # Check what was written to the mock file
     # msgspec.yaml.encode returns bytes

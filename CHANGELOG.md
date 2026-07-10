@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0] - 2026-07-10
+
+### Changed
+- Centralize clone-on-write `RunConfig` resolution and execution planning while preserving existing public run entrypoints.
+- Deepen `PipelineManager` as the Project Facade, retaining `FlowerPowerProject` and `PipelineRegistry` compatibility APIs.
+- Separate pipeline catalog, loading, module resolution, and adapter provisioning into focused internal components.
+
 ## [0.34.0] - 2025-11-03
 
 ### Added
