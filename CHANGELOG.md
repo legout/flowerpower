@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.36.0] - 2026-07-14
+
+### Added
+- Added recursive attribute access for pipeline `PARAMS` while preserving dictionary-style access. (#56)
+
 ## [0.35.0] - 2026-07-10
 
 ### Changed
