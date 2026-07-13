@@ -11,7 +11,6 @@ from hamilton.htypes import Parallelizable, Collect
 from pathlib import Path
 
 from flowerpower.cfg import Config
-from flowerpower.utils.misc import dict_to_namespace
 
 def _resolve_base_dir() -> Path:
     cfg_root = Path("{cfg_dir}") if "{cfg_dir}" else Path(".")
@@ -30,14 +29,12 @@ def _resolve_base_dir() -> Path:
 ####################################################################################################
 # Load pipeline parameters. Do not modify this section.
 
-PARAMS = dict_to_namespace(
-    Config.load(
-        _resolve_base_dir(),
-        pipeline_name="{name}",
-        cfg_dir="{cfg_dir}",
-        pipelines_dir="{pipelines_dir}",
-    ).pipeline.h_params
-)
+PARAMS = Config.load(
+    _resolve_base_dir(),
+    pipeline_name="{name}",
+    cfg_dir="{cfg_dir}",
+    pipelines_dir="{pipelines_dir}",
+).pipeline.h_params
 
 
 ####################################################################################################

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.37.0] - 2026-07-14
+
+### Fixed
+- Fixed `Config.load(...).pipeline.h_params` returning a plain dictionary that prevented `PARAMS.fs` attribute access. (#56)
+
 ## [0.36.0] - 2026-07-14
 
 ### Added

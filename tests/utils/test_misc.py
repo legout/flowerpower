@@ -23,6 +23,7 @@ class TestExecutorFactoryCache:
         """Cache should evict oldest entries when maxsize exceeded."""
         factory = ExecutorFactory()
         maxsize = factory._create_cached_executor.cache_info().maxsize
+        assert maxsize is not None
 
         executors = []
         for i in range(maxsize + 1):
@@ -90,6 +91,9 @@ class TestDictToNamespace:
         assert ns.transforms[0].name == "resize"
         assert ns.transforms[1].name == "normalize"
         assert ns["transforms"][0]["name"] == "resize"
+        assert ns.to_dict() == {
+            "transforms": [{"name": "resize"}, {"name": "normalize"}]
+        }
 
     def test_non_dict_values_preserved(self) -> None:
         """Primitives, lists, and other values are passed through."""
@@ -97,7 +101,7 @@ class TestDictToNamespace:
 
         assert ns.count == 42
         assert ns.names == ["a", "b"]
-        assert ns.flag is True
+        assert ns.flag
 
     def test_invalid_identifier_keys(self) -> None:
         """Keys that are not valid identifiers work via bracket access."""

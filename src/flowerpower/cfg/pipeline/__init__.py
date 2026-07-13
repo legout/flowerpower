@@ -4,12 +4,14 @@ import msgspec
 import yaml
 from fsspeckit import AbstractFileSystem, BaseStorageOptions
 from hamilton.function_modifiers import source, value
+
 from ...settings import CONFIG_DIR, PIPELINES_DIR
 from ...utils.filesystem import (
     find_first_existing_path,
     format_pipeline_file_path,
     get_pipeline_config_paths,
 )
+from ...utils.misc import DictNamespace, dict_to_namespace
 from ...utils.security import (
     SecurityError,
     validate_directory_fragment,
@@ -37,7 +39,7 @@ class PipelineConfig(BaseConfig):
         run (RunConfig): Configuration for pipeline execution.
         params (dict): Pipeline parameters.
         adapter (AdapterConfig): Configuration for the pipeline adapter.
-        h_params (dict): Hamilton-formatted parameters.
+        h_params (DictNamespace): Hamilton-formatted parameters supporting attribute and mapping access.
 
     Example:
         ```python
@@ -59,7 +61,7 @@ class PipelineConfig(BaseConfig):
     run: RunConfig = msgspec.field(default_factory=RunConfig)
     params: dict = msgspec.field(default_factory=dict)
     adapter: AdapterConfig = msgspec.field(default_factory=AdapterConfig)
-    h_params: dict = msgspec.field(default_factory=dict)
+    h_params: DictNamespace = msgspec.field(default_factory=DictNamespace)
 
     def __post_init__(self):
         if isinstance(self.params, dict):
@@ -69,6 +71,12 @@ class PipelineConfig(BaseConfig):
         # Validate pipeline name if provided
         if self.name is not None:
             self.name = validate_pipeline_name(self.name)
+
+    def to_dict(self) -> dict[str, object]:
+        """Convert configuration fields, including derived parameters, to dictionaries."""
+        data = super().to_dict()
+        data["h_params"] = self.h_params.to_dict()
+        return data
 
     def to_yaml(self, path: str, fs: AbstractFileSystem):
         """Save pipeline configuration to YAML file.
@@ -115,6 +123,7 @@ class PipelineConfig(BaseConfig):
     @classmethod
     def from_dict(cls, name: str, data: dict):
         payload = dict(data)
+        payload.pop("h_params", None)
         payload["name"] = name
 
         # Handle null params field by converting to empty dict
@@ -195,7 +204,7 @@ class PipelineConfig(BaseConfig):
             self.h_params = self.to_h_params(self.params)
 
     @staticmethod
-    def to_h_params(d: dict) -> dict:
+    def to_h_params(d: dict) -> DictNamespace:
         """Convert a dictionary of parameters to Hamilton-compatible format.
 
         This method transforms regular parameter dictionaries into Hamilton's function parameter
@@ -205,7 +214,7 @@ class PipelineConfig(BaseConfig):
             d (dict): The input parameter dictionary.
 
         Returns:
-            dict: Hamilton-formatted parameter dictionary.
+            DictNamespace: Hamilton-formatted parameters with attribute and mapping access.
 
         Example:
             ```python
@@ -241,7 +250,9 @@ class PipelineConfig(BaseConfig):
         }  # Step 1: Wrap each parameter in its own dict
 
         # Step 2: Transform each parameter value recursively
-        return {k: transform_recursive(v, d) for k, v in result.items()}
+        return dict_to_namespace(
+            {k: transform_recursive(v, d) for k, v in result.items()}
+        )
 
     @classmethod
     def load(

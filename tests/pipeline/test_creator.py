@@ -100,8 +100,7 @@ class TestPipelineCreator:
         assert "_resolve_base_dir()" in written
         assert "project.yml" in written
         assert "project.yaml" in written
-        assert "from flowerpower.utils.misc import dict_to_namespace" in written
-        assert "PARAMS = dict_to_namespace(" in written
+        assert ").pipeline.h_params" in written
 
         from flowerpower.pipeline.creator import PipelineConfig as ActualPipelineConfig
 

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import importlib
 import sys
-from collections.abc import KeysView
+from collections.abc import Iterator, KeysView, Mapping
 from types import SimpleNamespace
 from typing import Any
 
 from fsspeckit import AbstractFileSystem, filesystem
 
 
-class DictNamespace(SimpleNamespace):
+class DictNamespace(SimpleNamespace, Mapping[str, Any]):
     """A SimpleNamespace subclass that preserves dict-style bracket access.
 
     This lets nested dictionaries be exposed as attribute-accessible
@@ -25,8 +25,33 @@ class DictNamespace(SimpleNamespace):
         except KeyError:
             raise KeyError(key) from None
 
+    def __iter__(self) -> Iterator[str]:
+        yield from self.__dict__
+
+    def __len__(self) -> int:
+        return len(self.__dict__)
+
     def keys(self) -> KeysView[str]:
         return self.__dict__.keys()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a recursively converted plain dictionary."""
+        return {
+            key: _namespace_to_dict(value) for key, value in self.__dict__.items()
+        }
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Mapping):
+            return self.to_dict() == dict(other)
+        return super().__eq__(other)
+
+
+def _namespace_to_dict(obj: Any) -> Any:
+    if isinstance(obj, DictNamespace):
+        return obj.to_dict()
+    if isinstance(obj, list):
+        return [_namespace_to_dict(item) for item in obj]
+    return obj
 
 
 def dict_to_namespace(obj: Any) -> Any:
