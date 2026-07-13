@@ -1,9 +1,57 @@
 """Miscellaneous utility helpers for shared runtime concerns."""
 
+from __future__ import annotations
+
 import importlib
 import sys
+from collections.abc import KeysView
+from types import SimpleNamespace
+from typing import Any
 
 from fsspeckit import AbstractFileSystem, filesystem
+
+
+class DictNamespace(SimpleNamespace):
+    """A SimpleNamespace subclass that preserves dict-style bracket access.
+
+    This lets nested dictionaries be exposed as attribute-accessible
+    namespaces while keeping ``PARAMS['key']`` working for backward
+    compatibility.
+    """
+
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return self.__dict__[key]
+        except KeyError:
+            raise KeyError(key) from None
+
+    def keys(self) -> KeysView[str]:
+        return self.__dict__.keys()
+
+
+def dict_to_namespace(obj: Any) -> Any:
+    """Recursively convert nested dicts into attribute-accessible namespaces.
+
+    Lists are processed recursively; all other values are returned unchanged.
+    The resulting namespace still supports dict-style bracket access so that
+    existing code using ``PARAMS['key']`` continues to work.
+
+    Args:
+        obj: A value to convert. Only dicts are wrapped; everything else is
+            returned as-is (lists are recursively converted).
+
+    Returns:
+        A DictNamespace for dicts, a list of converted values for lists, or
+        the original value for other types.
+    """
+    if isinstance(obj, dict):
+        ns = DictNamespace()
+        for key, value in obj.items():
+            ns.__dict__[key] = dict_to_namespace(value)
+        return ns
+    if isinstance(obj, list):
+        return [dict_to_namespace(item) for item in obj]
+    return obj
 
 
 def load_module(name: str, reload: bool = False):
@@ -33,6 +81,8 @@ def get_filesystem(
 
 
 __all__ = [
+    "DictNamespace",
+    "dict_to_namespace",
     "get_filesystem",
     "load_module",
 ]
